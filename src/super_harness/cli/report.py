@@ -30,8 +30,8 @@ from super_harness.engineering.value_report import (
 from super_harness.exit_codes import EXIT_NO_CONFIG, EXIT_OK
 
 
-def _fmt_tokens(n: int) -> str:
-    return f"~{n:,}" if n else "0"
+def _fmt_tokens(n: int | None) -> str:
+    return "unknown" if n is None else f"{n:,}"
 
 
 def _fmt_tokens_cell(n: int | None) -> str:
@@ -58,16 +58,27 @@ def _breakdown_lines(r: ValueReport) -> list[str]:
         known = [row.tokens for row in rows if row.tokens is not None]
         tokens_cell = _fmt_tokens_cell(sum(known) if known else None)
         findings = sum(row.findings_raised for row in rows)
-        rounds = len({row.round_id for row in rows if row.round_id})
+        rounds = len({(row.change_id, row.round_id) for row in rows if row.round_id})
         flags = []
-        if any(row.findings_raised == 0 for row in rows):
+        if any(row.record_type == "legacy_run" and row.imported and row.findings_raised == 0
+               for row in rows):
             flags.append("has 0-finding round")
         if any(row.outcome == "rejected" for row in rows):
             flags.append("has rejected round")
         flag = f"  ! {', '.join(flags)}" if flags else ""
-        label = f"{role}/{source}"
+        label = _one_line(f"{role}/{source}")
         lines.append(f"  {label:<22} {tokens_cell:>10}  {findings:>8}  {rounds:>6}{flag}")
-    lines.append("  per-round detail: super-harness --json report -> .cost_breakdown")
+    for row in r.cost_breakdown:
+        if row.record_type == "external_evidence":
+            lines.append("  external conclusion: " + _one_line(
+                f"{row.change_id} {row.record_id} {row.outcome}; "
+                f"process={row.source}/{row.process_version}; issuer={row.issuer}; "
+                f"subject={row.subject_id}; historical_only={row.historical_only}; "
+                f"supersedes={row.supersedes or '(none)'}"
+            ))
+    lines.append("  External records have no round or invocation count; "
+                 "findings exclude opaque prose.")
+    lines.append("  per-record detail: super-harness --json report -> .cost_breakdown")
     return lines
 
 
@@ -122,7 +133,7 @@ def _authorization_lines(r: ValueReport) -> list[str]:
     """
     lines = [
         "",
-        "Human authorizations",
+        "Historical human authorization events",
         # What was counted, not what it bought. `derive_authorizations` counts
         # `review_round_authorized` events, and an authorization can be recorded and
         # never consumed — the human authorizes, then the round is retired or never
@@ -130,12 +141,12 @@ def _authorization_lines(r: ValueReport) -> list[str]:
         # this module's design law forbids, and the falsify-from-memory check keys on
         # authorizing anyway (AUTH-006).
         f"  - {r.authorizations_total} human authorization(s) recorded, each one "
-        "permitting a single automated review round",
+        "recording historical round permission, not plan/code approval or verified human actions",
     ]
     if not r.authorizations:
         return lines
     lines.append(
-        "    If you remember authorizing fewer than this, the difference was not you."
+        "    Recorded actor and reason are provenance claims, not proof of who acted."
     )
     for a in r.authorizations:
         lines.append(_authorization_row(a))
@@ -221,23 +232,11 @@ def _reopen_lines(r: ValueReport) -> list[str]:
 
 
 def _bottom_line(r: ValueReport) -> str:
-    if (
-        r.findings_resolved == 0
-        and r.undisclosed_bypasses == 0
-        and r.edits_blocked == 0
-    ):
-        return (
-            "Bottom line: no measurable catches this window — nothing prevented "
-            "that we can prove. On this evidence alone it is not earning its keep here."
-        )
-    parts = []
-    if r.findings_resolved:
-        parts.append(f"review earned its keep: {r.findings_resolved} real fix(es)")
-    if r.edits_blocked:
-        parts.append(f"the gate held {r.edits_blocked} out-of-lifecycle edit target(s)")
-    if r.undisclosed_bypasses:
-        parts.append(f"{r.undisclosed_bypasses} undisclosed bypass(es) to investigate")
-    return "Bottom line: " + "; ".join(parts) + "."
+    return (
+        f"Observed: {r.findings_resolved} recorded resolved finding disposition(s), "
+        f"{r.edits_blocked} held edit target(s), {r.undisclosed_bypasses} undisclosed bypass(es). "
+        "These partial metrics do not measure total verification/CI value or independent defects."
+    )
 
 
 def _render_human(r: ValueReport) -> str:
@@ -246,8 +245,8 @@ def _render_human(r: ValueReport) -> str:
         "super-harness - what it did for you",
         f"  window: {window} - {r.changes_touched} change(s)",
         "",
-        "Caught for you",
-        f"  - {r.findings_resolved} problem(s) review found and you fixed",
+        "Recorded findings (historical structured code-review IDs only)",
+        f"  - {r.findings_resolved} finding ID(s) recorded resolved",
         f"  - {r.findings_open_undisposed} more review raised that are still open "
         "(no fix or waiver recorded)",
         f"  - {r.edits_blocked} distinct out-of-lifecycle edit target(s) the gate "
@@ -259,34 +258,46 @@ def _render_human(r: ValueReport) -> str:
             "(the gate was defeated - worth a look)"
         )
     lines += [
-        "",
-        "Cost",
-        f"  - review tokens: {_fmt_tokens(r.review_tokens)} "
-        f"(review side only, self-reported; data for {r.review_runs_with_usage}/"
-        f"{r.review_runs_total} runs; main coding-agent cost not captured)",
+        "", "Review observations",
+        f"  - historical rounds started: {r.review_rounds_started}; issued run records: "
+        f"{r.review_attempts_started}; recorded run failures: {r.review_execution_failures}; "
+        f"execution_failed closures: {r.review_rounds_execution_failed}",
+        f"  - legacy results imported: {r.review_results_imported}; external conclusions imported: "
+        f"{r.external_conclusions_imported} (approve {r.external_approvals}, "
+        f"reject {r.external_rejections})",
+        f"  - historical skips: {r.review_skips}; skips are not approval",
+        "  - actual reviewer invocations: unknown; issuance/failure can include nonexecution; "
+        "external imports do not imply calls or current applicable approval",
+        "", "Cost (recorded subtotals; review side only, self-reported, partial)",
+        f"  - review tokens: {_fmt_tokens(r.review_tokens)}; data for "
+        f"{r.review_records_with_usage}/{r.review_records_total} observable records; "
+        f"{r.review_component_subtotals} component-only subtotal(s)",
+        "  - main coding-agent cost and unrecorded external execution cost: unknown; "
+        "record coverage does not establish complete token-component or invocation coverage",
     ]
     if r.review_reported_cost_usd is not None:
-        # Only ever the producers' own figure. Omitted entirely when nobody reported
-        # one, because a `$0.00` line would read as "this was free".
         lines.append(
             f"  - producer-reported cost: ${r.review_reported_cost_usd:,.2f} "
-            f"(stated by the producer for {r.review_runs_with_reported_cost}/"
-            f"{r.review_runs_total} runs; not a harness estimate)"
+            f"(data for {r.review_records_with_reported_cost}/"
+            f"{r.review_records_total} observable records; not a harness estimate)"
+        )
+    else:
+        lines.append(
+            f"  - monetary cost: unknown (0/{r.review_records_total} observable records)"
         )
     if r.review_budget_hits:
         # Only when it fired. A "0 times" line would be noise on every other change.
         lines.append(
-            f"  - round budget: held {r.review_budget_hits} automatic round(s) for a "
+            f"  - historical round budget: held {r.review_budget_hits} automatic round(s) for a "
             "human funding decision (distinct rounds, not retries)"
         )
     lines += [
-        f"  - review rework: {r.findings_wontfix} false alarm(s) (wontfix), "
+        f"  - dispositions: {r.findings_wontfix} wontfix (not necessarily false alarms), "
         f"{r.rejected_rounds} rejected round(s)",
         "",
         f"  Note: {r.armed_decisions} locked rule(s), verification and doc-sync also "
         "stand guard in the",
-        "  prevention layer - their successful catches still leave no trace (a further "
-        "Stage 2 cut).",
+        "  prevention layer. Verify/CI failures are not counted as independent findings.",
     ]
     lines += _breakdown_lines(r)
     lines += _authorization_lines(r)
@@ -300,7 +311,13 @@ def _render_human(r: ValueReport) -> str:
 
 def _render_brief(r: ValueReport) -> str:
     window = f"{r.since or 'all'}-{r.until or 'now'}"
-    bits = [f"caught {r.findings_resolved}", f"{_fmt_tokens(r.review_tokens)} review tokens"]
+    bits = [f"{r.findings_resolved} historical finding IDs recorded resolved",
+            f"{_fmt_tokens(r.review_tokens)} recorded review tokens "
+            f"({r.review_records_with_usage}/{r.review_records_total} records; partial)",
+            f"{r.review_execution_failures} recorded run failures",
+            f"{r.external_conclusions_imported} external conclusions "
+            f"(approve {r.external_approvals}, reject {r.external_rejections})",
+            f"{r.review_skips} skips; invocations/unrecorded cost unknown"]
     if r.edits_blocked:
         bits.append(f"{r.edits_blocked} distinct target(s) held")
     if r.undisclosed_bypasses:

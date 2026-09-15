@@ -6,19 +6,14 @@ layout, no Spec Kit metadata, etc.), the dispatcher force-activates Plain so
 the lifecycle still works — you drive it by hand instead of having artifacts
 on disk do it for you.
 
-> **v0.1 note — Plain is hand-driven.** Without framework artifacts on disk to
-> drive it, you advance the lifecycle with explicit CLI verbs: `super-harness
-> plan ready <slug>` emits `plan_ready` (`INTENT_DECLARED → AWAITING_PLAN_REVIEW`)
-> and the receipt protocol advances `AWAITING_PLAN_REVIEW → PLAN_APPROVED` after
-> every participant in tracked `.harness/review-governance.yaml` completes.
-> `review prepare` compiles exact per-source ranges, files, options, and prompts;
-> `review begin` freezes caller-owned Codex/Claude invocations but does not execute
-> them. Import outputs with `review result import`, or use the nonce-bound
-> `review human` path. User-specific models/options live in gitignored
-> `.harness/review-profiles.local.yaml`. Batch code-review fixes and docs into one
-> prepare; repeat plan review only after an explicit plan, scope, or requirements
-> change. The `plan
-> ready` references below mirror what Plain's `agents_md_subsection()` returns.
+> **Plain is hand-driven.** Submit with `plan ready <slug> --plan <path>` and
+> explicit commitments. Obtain an external conclusion under the owner's
+> `.harness/review-recognition.yaml`, then `review import <slug> --evidence <path>`.
+> Applicable plan approval permits `implementation start`; record assessment and
+> coverage, run `done`, and import code evidence for its exact subject. Fixture or
+> file additions within approved commitments update coverage; only changed
+> commitments or relaxed restrictions require new plan approval. See the
+> [current walkthrough](../getting-started.md).
 
 Plain is a framework adapter (same ABC as OpenSpec), but it is deliberately
 inert: it emits no events, declares no verification checks, and watches no

@@ -66,90 +66,37 @@ changes.
 
 ## super-harness does not review your code for you
 
-The gate enforces that the configured independent review sources produce valid
-receipts before the lifecycle proceeds. It does **not** run, spawn, or supervise
-the reviewer. A caller invokes an external producer, or a human reviews the
-packet; the harness freezes the contract, imports results, and closes the round
-deterministically. This is deliberate: the harness is a governor and protocol
-compiler, not a reviewer executor.
+The core checks recognized external evidence before implementation and merge.
+The owner enables `.harness/review-recognition.yaml` for a process, issuer,
+version and evidence form. The external process supplies an explicit approve or
+reject conclusion, original evidence and provenance for the exact frozen subject;
+`review import` validates and records that conclusion. Execution, retry policy and
+substantive judgment belong to the external process. Failure, empty output and
+skip are not approval. The core does not mechanically prove reviewer quality or
+identity beyond the owner-controlled recognition/evidence contract.
 
-The configuration separates shared governance from user-local execution:
+Plan approval covers commitments and explicit restrictions. Within those bounds,
+new fixtures, file additions and implementation-method changes use
+`implementation record --assessment` to retain reasoning and actual coverage.
+Changing commitments or relaxing restrictions requires `plan redeclare --plan`
+and approval of the new candidate. A changed Git HEAD alone does not revoke plan
+approval; code review and verification still need an accurate current subject.
+Use `implementation reopen` for code fixes after freezing completion, then refresh
+verification and code evidence. Finish or explicitly withdraw a pending revision
+before delivery under the previously approved commitments.
 
-- **Reviewer roles** are lifecycle positions, for example `plan-reviewer` and
-  `code-reviewer`.
-- **Reviewer sources** are evidence-provenance labels, for example `codex`,
-  `claude`, or `human`; they are not commands or installed agents.
-- **Tracked governance** in `.harness/review-governance.yaml` fixes each role's
-  participant set, independence requirement, automatic-round ceiling, optional
-  distinct-model-family rule, and optional per-role `blocking_severity` (default
-  `major`) — the finding severity at or above which a **code-review** round
-  rejects; findings below it pass with the finding left open (still surfaced by
-  `super-harness report`). Plan review always rejects on any checklist fail.
-- **The checklist is what the reviewer is asked to judge**, and its items carry
-  definitions that are rendered into the frozen prompt. A plan is judged on four
-  questions — `architecture` (does the design hold up), `tech-choices` (can the
-  chosen mechanisms carry what is assigned to them), `conventions` (does it match
-  this repository's ratified decisions and practice), and `spec-coverage` (is
-  everything the spec asks for covered). Override the item list per project in
-  `.harness/review-checklists.yaml`; ids you invent render without a definition, and
-  must be non-blank, printable, single-line text — the same string is the prompt line,
-  the verdict schema's `enum` value and part of the digest, so a blank or non-printable
-  id is refused rather than carried into all three.
-- **Two prompt instructions, one of them role-scoped.** *Every* reviewer is asked
-  to be exhaustive rather than stop at the worst finding — that can only add
-  findings. Only **plan** review carries the consequence gate: following the
-  document literally, would the implementer build the wrong thing, get stuck, or
-  would two implementers build different things? If not, it is not a finding, and
-  wording, cross-reference numbering, arithmetic and prose consistency never are.
-  That gate suppresses findings and its wording was measured on plan review, so
-  code review gets none until one is measured for code. Both changes move
-  `prompt_digest` and `contract_digest` for **both** roles: a packet prepared
-  before an upgrade is stale and must be re-prepared, including an in-flight
-  code-review round.
-- **User-local profiles** in the gitignored
-  `.harness/review-profiles.local.yaml` select an explicit producer protocol,
-  model, cost class, and producer-specific `agent_options` for automated sources.
-  No global `effort` vocabulary or implicit model exists.
-
-`super-harness status` is the resume/recovery surface. `review prepare` compiles
-a replaceable draft packet with the exact target commit, Git range/files/argv,
-checklist, canonical prompt, and profile digests. `review begin` freezes one
-round and writes per-run invocation files; the caller runs those invocations
-outside super-harness, unchanged. Completed results enter through `review result
-import`; crashes enter through `review run fail`. Direct `review approve|reject`
-cannot create new evidence. A lifecycle milestone is emitted only after every
-required source in the round is terminal. Closure uses the governance frozen at
-`review begin`, never a subsequently edited policy. A valid rejecting result
-takes precedence over a peer producer failure so discovered findings enter the
-fix loop; `execution_failed` is reserved for rounds whose imported results pass
-but whose required source set is incomplete. Only those passing results may be
-retained for a failed-source retry of the identical frozen contract.
-
-A trustworthy result at an ancestor commit can become that source's incremental
-baseline; otherwise the source receives the full in-scope change. Findings are
-strictly limited to the frozen target, but a reviewer may read any unchanged
-repository material needed as supporting architectural context. If the target
-is insufficient, it returns `scope_sufficient: false` with a finding instead of
-widening itself to the whole PR.
-
-All committed code fixes, refactors, tests, and docs after a source baseline are
-batched into one follow-up assignment. A code-review finding does not cause plan
-review by itself. If the fix changes the approved plan, scope, or requirements,
-declare that semantic change explicitly with `plan redeclare`; undeclared
-plan/spec drift is rejected. All required sources finish before edits resume,
-so findings are collected and fixed as one batch. Automatic rounds are bounded;
-an exhausted or explicitly expensive round requires one-shot human authorization,
-but no token estimate is a hard gate that can make review unavailable.
+`status` shows authority and current evidence. Historical reviewer governance,
+profiles, rounds, failures, skips and authorizations remain readable as history.
+Removed execution commands are described as retired in the CLI reference and
+cannot advance a new Change. See [Getting started](getting-started.md) for the
+current workflow and [Report semantics](reporting.md) for observation boundaries.
 
 ## super-harness does not spawn your agent
 
-The harness never launches a coding agent or reviewer producer. The relationship
-is inverted: your agent or terminal calls the harness (via hooks and CLI), and
-the harness gates what the agent may do. For automated review it returns a frozen
-argv/stdin/output contract to its caller; for human review it provides compact
-inspection metadata plus a short-lived, TTY-confirmed nonce. The caller owns
-process execution, while occurrence, scope, receipts, independence, and round
-closure are enforced mechanically.
+Your agent or terminal calls the harness through hooks and CLI. The harness gates
+implementation and validates retained evidence. The external review workflow owns
+invocation, retries, source retention and reviewer instructions; the core has no
+model selection, automatic rounds, retry budget or human nonce executor.
 
 ## What the gate governs
 

@@ -242,3 +242,13 @@ def test_agents_md_states_the_route_back_and_both_skippable_roles(tmp_path) -> N
     assert text.count("implementation reopen") >= 2   # both adapters carry it
     assert text.count("A skipped review is disclosure") >= 2
     assert "review prepare" not in text
+
+
+def test_generated_scope_explains_approval_bound_fixture_additions(tmp_path):
+    agents = tmp_path / "AGENTS.md"
+    render_super_harness_section(tmp_path, agents, "0.1.0")
+    text = agents.read_text(encoding="utf-8")
+    assert "initial\n`scope.files` is an estimate" in text
+    assert "implementation record --assessment" in text
+    assert "Changed commitments or\nrelaxed restrictions require a new plan candidate" in text
+    assert "edit only files in the declared" not in text

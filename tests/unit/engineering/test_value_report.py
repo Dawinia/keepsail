@@ -101,7 +101,7 @@ def test_empty_stream_yields_zeroed_report(tmp_path):
     assert report.changes_touched == 0
     assert report.findings_resolved == 0
     assert report.undisclosed_bypasses == 0
-    assert report.review_tokens == 0
+    assert report.review_tokens is None
 
 
 def test_changes_touched_counts_distinct_change_ids_in_window(tmp_path):

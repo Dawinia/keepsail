@@ -22,14 +22,14 @@ deliberately deferred to a later version; one is blocked by an upstream bug
   non-builtin entry is rejected — it is not executed.
 
 **Process / orchestration:**
-- Reviewer execution and supervision. super-harness compiles frozen Codex CLI and
-  Claude CLI invocation contracts, parses completed outputs, and records receipts;
-  it never starts, monitors, retries, or kills those processes. The caller owns
-  execution. This boundary is intentional, not a pending headless-executor feature.
-- Host-native subagents are not a universal review primitive. The CLI does not
-  assume a Codex spawn-agent API, Claude Task, or another in-session subagent API
-  exists.
-  Evidence comes from configured external producer protocols or a human receipt.
+- Reviewer execution and supervision. The owner-recognized external process runs
+  reviews and retains original conclusions. super-harness validates subject,
+  explicit decision and recognition/provenance; it does not invoke reviewers,
+  select models, organize rounds or authorize retries. This boundary is intentional.
+- Host-native subagents are an external workflow choice, not a universal core
+  primitive. The CLI consumes recognized evidence regardless of how that process
+  is organized. It does not prove substantive review quality or cryptographic
+  identity in the owner-controlled local trust environment.
 - Daemon-autonomous event-driven dispatch — v0.1 uses CLI one-shot dispatchers
   (e.g., `super-harness on-merge` dispatches the merged-event sensors).
 
@@ -97,15 +97,16 @@ deliberately deferred to a later version; one is blocked by an upstream bug
 ## FAQ
 
 **Does super-harness run the review or write the verdict?**
-No. It freezes scope, prompt, requested profile, and output schema; the caller
-runs an external producer or a human reviews the packet. super-harness then
-validates and imports the result receipt before deterministic round closure. See
+No. The recognized external process writes the conclusion. The core checks and
+imports its retained evidence against the exact plan/code subject. See
 [Concepts](concepts.md).
 
-**Does cost control impose a token limit?**
-No. Review usefulness comes first. The protocol controls exact inspection scope,
-explicit models/options, silent retry, and automatic-round multiplication. Usage
-telemetry is optional and a missing estimate never makes review unavailable.
+**Does the report measure all review costs or verification value?**
+No. It distinguishes historical issued runs/failures from imported conclusions;
+external evidence alone does not establish invocation counts. Usage and money
+are recorded subtotals with coverage, and missing values remain unknown.
+Structured historical finding dispositions are a limited metric, not total
+verification/CI value. See [Report semantics](reporting.md).
 
 **Does it spawn or manage my coding agent?**
 No. Your agent calls the harness; the harness gates the agent. See

@@ -42,7 +42,8 @@ def test_report_human_shows_effect_and_bottom_line(tmp_path):
     result = CliRunner().invoke(main, ["--workspace", str(tmp_path), "report"])
     assert result.exit_code == 0
     assert "what it did for you" in result.output
-    assert "nothing" in result.output.lower() or "no measurable" in result.output.lower()
+    assert "partial metrics do not measure total verification/CI value" in result.output
+    assert "review tokens: unknown" in result.output
     # CODX-003: an open finding must never be rendered as a user action.
     assert "acknowledged" not in result.output.lower()
 
@@ -223,7 +224,7 @@ def test_report_human_shows_producer_reported_cost(tmp_path):
                              catch_exceptions=False)
     assert res.exit_code == 0
     assert "producer-reported cost: $2.00" in res.output
-    assert "2/2 runs" in res.output
+    assert "2/2 observable records" in res.output
 
 
 def test_report_human_omits_cost_line_when_nobody_reported_one(tmp_path):

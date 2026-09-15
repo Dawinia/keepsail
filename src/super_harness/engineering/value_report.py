@@ -6,17 +6,18 @@ reuses core primitives. Placed in ``engineering/`` (not ``core/``) because it
 composes review + decision loaders; ``engineering`` may import ``core``, preserving
 d-core-is-base.
 
-Metric taxonomy is the locked contract in
-docs/plans/2026-07-15-value-report-stage1.md. Only ``review`` and ``bypass audit``
-leave a realized-effect trace today; every other guardrail's success is invisible
-(that is Stage 2). Design law: every number can show a negative; never fabricate.
+Observation semantics are documented in docs/reporting.md. This is not a total
+value score: historical structured finding dispositions, gate telemetry and
+recorded review observations have different coverage and evidence limits.
 """
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from super_harness.core.events import Event, EventSchemaError, parse_event_line
 from super_harness.core.gate_blocks import GateBlockRecord, read_blocks
@@ -39,7 +40,7 @@ class ValueReport:
     undisclosed_bypasses: int
     edits_blocked: int
     # Band 2 - cost
-    review_tokens: int
+    review_tokens: int | None
     review_runs_total: int
     review_runs_with_usage: int
     findings_wontfix: int
@@ -60,11 +61,7 @@ class ValueReport:
     # concluded that specifications read into context and not followed is the actual
     # widespread failure, so the brake records itself.
     review_budget_hits: int = 0
-    # Human authorizations, one record each. Since the TTY gate came out of
-    # `review authorize` this count IS the mechanism: no individual event is
-    # checkable and no local file is tamper-proof, but a human who remembers
-    # authorizing twice can falsify a `5` from memory. Deliberately NOT deduped
-    # (unlike `review_budget_hits`) — see `derive_authorizations`.
+    # Distinct recorded authorization events are history, not verified human acts.
     authorizations: tuple[AuthorizationRecord, ...] = ()
     authorizations_total: int = 0
     # Reopens, one record each, for the same reason authorizations are counted:
@@ -73,12 +70,31 @@ class ValueReport:
     # check there is. Not deduped, for the reason `derive_authorizations` gives.
     reopens: tuple[ReopenRecord, ...] = ()
     reopens_total: int = 0
+    # Coverage counts observable legacy run / external evidence records, not calls.
+    review_records_total: int = 0
+    review_records_with_usage: int = 0
+    review_records_with_reported_cost: int = 0
+    review_component_subtotals: int = 0
+    review_attempts_started: int = 0
+    review_execution_failures: int = 0
+    review_results_imported: int = 0
+    review_rounds_started: int = 0
+    review_rounds_execution_failed: int = 0
+    external_conclusions_imported: int = 0
+    external_approvals: int = 0
+    external_rejections: int = 0
+    review_skips: int = 0
+    # Neither historical issuance nor external evidence proves invocation count.
+    review_invocations_total: int | None = None
+    findings_scope: str = "historical structured code-review IDs/dispositions only"
 
 
 @dataclass(frozen=True)
 class CostBreakdownRow:
-    """One imported review run: where its tokens went + how many findings it
-    RAISED. ``tokens=None`` means usage was not captured (distinct from 0)."""
+    """One observable legacy run or external evidence record in the window.
+
+    External prose has no structured findings metric. None means usage unknown.
+    """
 
     role: str
     source: str
@@ -88,6 +104,18 @@ class CostBreakdownRow:
     tokens: int | None
     findings_raised: int
     outcome: str
+    record_type: str = "legacy_run"
+    record_id: str = ""
+    started: bool = False
+    failed: bool = False
+    imported: bool = False
+    reported_cost_usd: float | None = None
+    component_subtotal: bool = False
+    subject_id: str = ""
+    issuer: str = ""
+    process_version: str = ""
+    historical_only: bool = False
+    supersedes: str = ""
 
 
 @dataclass(frozen=True)
@@ -129,13 +157,35 @@ def _read_all_events(events_file: Path) -> list[Event]:
     if not events_file.exists():
         return []
     out: list[Event] = []
+    seen: set[tuple[str, ...]] = set()
     for line in events_file.read_text(encoding="utf-8").splitlines():
         if not line.strip():
             continue
         try:
-            out.append(parse_event_line(line))
+            event = parse_event_line(line)
         except EventSchemaError:
             continue
+        keys = [(event.change_id, "event", event.event_id)]
+        payload = event.payload or {}
+        identity = None
+        if event.type in {"review_result_imported", "review_run_failed"}:
+            receipt = payload.get("receipt")
+            identity = payload.get("run_id") or (
+                receipt.get("run_id") if isinstance(receipt, dict) else None
+            )
+        elif event.type == "review_evidence_imported":
+            evidence = payload.get("evidence")
+            identity = evidence.get("evidence_id") if isinstance(evidence, dict) else None
+        elif event.type in {"review_round_started", "review_round_closed"}:
+            identity = payload.get("round_id")
+            if event.type == "review_round_closed" and isinstance(identity, str):
+                identity += ":" + str(payload.get("outcome"))
+        if isinstance(identity, str) and identity:
+            keys.append((event.change_id, event.type, identity))
+        if any(key in seen for key in keys):
+            continue
+        seen.update(keys)
+        out.append(event)
     return out
 
 
@@ -274,7 +324,7 @@ def _honest_int(value: object) -> int | None:
     JSON `true` landing in a numeric usage field would otherwise be counted as one
     token. A nonsense value must read as 'not captured', never as a small number.
     """
-    return value if isinstance(value, int) and not isinstance(value, bool) else None
+    return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else None
 
 
 # Cache keys that are ADDITIONAL to `input_tokens`. Summed by name, never by
@@ -317,88 +367,110 @@ def _reported_cost(receipt: object) -> float | None:
     value = receipt.get("reported_cost_usd")
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
-    return float(value)
+    try:
+        cost = float(value)
+    except OverflowError:
+        return None
+    return cost if math.isfinite(cost) and cost >= 0 else None
 
 
-def _review_cost(events: list[Event]) -> tuple[int, int, int, float | None, int]:
-    """(tokens, runs_total, runs_with_usage, reported_cost, runs_with_reported_cost).
-
-    `reported_cost` is None until some run states one, so a report can distinguish
-    "nobody told us" from "it was free".
-    """
-    tokens = runs_total = runs_with_usage = runs_with_cost = 0
-    cost: float | None = None
-    for ev in events:
-        if ev.type != "review_result_imported":
-            continue
-        runs_total += 1
-        payload = ev.payload if isinstance(ev.payload, dict) else {}
-        raw_receipt = payload.get("receipt")
-        receipt = raw_receipt if isinstance(raw_receipt, dict) else {}
-        t = usage_tokens(receipt.get("usage"))
-        if t is not None:
-            runs_with_usage += 1
-            tokens += t
-        c = _reported_cost(receipt)
-        if c is not None:
-            runs_with_cost += 1
-            cost = c if cost is None else cost + c
-    return tokens, runs_total, runs_with_usage, cost, runs_with_cost
-
-
-def _round_outcomes(events: list[Event]) -> dict[str, str]:
-    """round_id -> last-seen ``review_round_closed`` outcome (append order)."""
-    out: dict[str, str] = {}
-    for ev in events:
-        if ev.type != "review_round_closed":
-            continue
-        payload = ev.payload if isinstance(ev.payload, dict) else {}
-        rid, outcome = payload.get("round_id"), payload.get("outcome")
-        if isinstance(rid, str) and rid and isinstance(outcome, str):
-            out[rid] = outcome
-    return out
+def _review_cost(rows: tuple[CostBreakdownRow, ...]) -> tuple[int | None, float | None]:
+    """Recorded subtotals only; absent data stays unknown."""
+    tokens = [row.tokens for row in rows if row.tokens is not None]
+    costs = [row.reported_cost_usd for row in rows if row.reported_cost_usd is not None]
+    return sum(tokens) if tokens else None, sum(costs) if costs else None
 
 
 def _cost_breakdown(events: list[Event]) -> tuple[CostBreakdownRow, ...]:
-    """One row per imported review run: where review tokens went + how many
-    findings that run RAISED (density). Never raises; missing dims -> 'unknown'.
+    """Join observations in the window, without importing usage from outside it.
 
-    ``findings_raised`` counts findings the run raised (``verdict.findings``), a
-    different oracle from the headline ``findings_resolved`` (dispositions) — do
-    not cross-wire them. Round ordinals restart per ``(change_id, role)``.
+    A run issued before the window and failing inside it is a failure observation,
+    not a start in this window. External evidence is always its own record; opaque
+    original_evidence is never parsed for usage, findings or guessed invocations.
     """
-    outcomes = _round_outcomes(events)
-    ordinals: dict[tuple[str, str], dict[str, int]] = {}     # (change, role) -> {rid: n}
-    rows: list[CostBreakdownRow] = []
-    for ev in events:
-        if ev.type != "review_result_imported":
-            continue
-        payload = ev.payload if isinstance(ev.payload, dict) else {}
-        role_raw = payload.get("reviewer")
-        source_raw = payload.get("source")
-        round_raw = payload.get("round_id")
-        role = role_raw if isinstance(role_raw, str) and role_raw else "unknown"
-        source = source_raw if isinstance(source_raw, str) and source_raw else "unknown"
-        rid = round_raw if isinstance(round_raw, str) and round_raw else ""
+    from dataclasses import replace
+
+    rows: dict[tuple[str, str, str], CostBreakdownRow] = {}
+    ordinals: dict[tuple[str, str], dict[str, int]] = {}
+    outcomes = {
+        (ev.change_id, str(ev.payload.get("round_id"))): str(ev.payload.get("outcome"))
+        for ev in events if ev.type == "review_round_closed"
+    }
+
+    def legacy(ev: Event, data: dict[str, Any], *, started: bool = False) -> None:
+        payload = ev.payload
+        receipt = data.get("receipt")
+        receipt = receipt if isinstance(receipt, dict) else {}
+        rid = str(payload.get("round_id") or "")
+        role = str(payload.get("reviewer") or "unknown")
+        identity = str(data.get("run_id") or receipt.get("run_id") or ev.event_id)
+        key = (ev.change_id, "legacy_run", identity)
         ordinal = 0
         if rid:
             seen = ordinals.setdefault((ev.change_id, role), {})
             ordinal = seen.setdefault(rid, len(seen) + 1)
-        raw_receipt = payload.get("receipt")
-        receipt = raw_receipt if isinstance(raw_receipt, dict) else {}
-        verdict = payload.get("verdict")
-        findings = verdict.get("findings") if isinstance(verdict, dict) else None
-        rows.append(CostBreakdownRow(
-            role=role,
-            source=source,
-            change_id=ev.change_id,
-            round=ordinal,
-            round_id=rid,
-            tokens=usage_tokens(receipt.get("usage")),
-            findings_raised=len(findings) if isinstance(findings, list) else 0,
-            outcome=outcomes.get(rid, "open"),
+        row = rows.get(key, CostBreakdownRow(
+            role=role, source=str(data.get("source") or "unknown"),
+            change_id=ev.change_id, round=ordinal, round_id=rid,
+            tokens=None, findings_raised=0, outcome=outcomes.get((ev.change_id, rid), "open"),
+            record_id=identity,
         ))
-    return tuple(rows)
+        verdict = data.get("verdict")
+        findings = verdict.get("findings") if isinstance(verdict, dict) else None
+        usage = receipt.get("usage", data.get("usage"))
+        tokens = usage_tokens(usage)
+        cost = _reported_cost(receipt)
+        if cost is None:
+            cost = _reported_cost(data)
+        imported = ev.type == "review_result_imported"
+        rows[key] = replace(
+            row, started=row.started or started,
+            failed=row.failed or ev.type == "review_run_failed",
+            imported=row.imported or imported,
+            tokens=tokens if tokens is not None else row.tokens,
+            reported_cost_usd=cost if cost is not None else row.reported_cost_usd,
+            component_subtotal=(
+                _honest_int(usage.get("total_tokens")) is None
+                if tokens is not None and isinstance(usage, dict) else row.component_subtotal
+            ),
+            findings_raised=len(findings) if isinstance(findings, list) else row.findings_raised,
+        )
+
+    for ev in events:
+        payload = ev.payload
+        if ev.type == "review_round_started":
+            runs = payload.get("runs")
+            if isinstance(runs, list):
+                for run in runs:
+                    if isinstance(run, dict) and isinstance(run.get("run_id"), str):
+                        legacy(ev, run, started=True)
+        elif ev.type in {"review_run_failed", "review_result_imported"}:
+            legacy(ev, payload)
+        elif ev.type == "review_evidence_imported":
+            evidence = payload.get("evidence")
+            if not isinstance(evidence, dict):
+                evidence = {}
+            identity = str(evidence.get("evidence_id") or ev.event_id)
+            process = evidence.get("process")
+            process = process if isinstance(process, dict) else {}
+            usage = evidence.get("usage")
+            tokens = usage_tokens(usage)
+            rows[(ev.change_id, "external_evidence", identity)] = CostBreakdownRow(
+                role=str(evidence.get("kind") or "unknown"),
+                source=str(process.get("id") or "unknown"), change_id=ev.change_id,
+                round=0, round_id="", tokens=tokens, findings_raised=0,
+                outcome=str(evidence.get("decision") or "unknown"),
+                record_type="external_evidence", record_id=identity, imported=True,
+                reported_cost_usd=_reported_cost(evidence),
+                component_subtotal=(tokens is not None and isinstance(usage, dict)
+                                    and _honest_int(usage.get("total_tokens")) is None),
+                subject_id=str(evidence.get("subject_id") or ""),
+                issuer=str(evidence.get("issuer") or "unknown"),
+                process_version=str(process.get("version") or "unknown"),
+                historical_only=payload.get("historical_only") is True,
+                supersedes=str(evidence.get("supersedes") or ""),
+            )
+    return tuple(rows.values())
 
 
 def _rejected_rounds(events: list[Event]) -> int:
@@ -531,13 +603,10 @@ def build_value_report(
     findings_resolved, findings_wontfix, findings_open_undisposed = _finding_counts(
         windowed, all_events
     )
-    (
-        review_tokens,
-        review_runs_total,
-        review_runs_with_usage,
-        reported_cost,
-        runs_with_reported_cost,
-    ) = _review_cost(windowed)
+    rows = _cost_breakdown(windowed)
+    legacy = [row for row in rows if row.record_type == "legacy_run"]
+    external = [row for row in rows if row.record_type == "external_evidence"]
+    review_tokens, reported_cost = _review_cost(rows)
     authorizations = derive_authorizations(windowed)
     reopens = derive_reopens(windowed)
     return ValueReport(
@@ -549,17 +618,36 @@ def build_value_report(
         undisclosed_bypasses=_undisclosed_bypasses(windowed, all_events),
         edits_blocked=_edits_blocked(block_records, lo, hi),
         review_tokens=review_tokens,
-        review_runs_total=review_runs_total,
-        review_runs_with_usage=review_runs_with_usage,
+        review_runs_total=len(legacy),
+        review_runs_with_usage=sum(row.tokens is not None for row in legacy),
         findings_wontfix=findings_wontfix,
         rejected_rounds=_rejected_rounds(windowed),
         armed_decisions=_armed_decisions(workspace_root),
-        cost_breakdown=_cost_breakdown(windowed),
+        cost_breakdown=rows,
         review_reported_cost_usd=reported_cost,
-        review_runs_with_reported_cost=runs_with_reported_cost,
+        review_runs_with_reported_cost=sum(row.reported_cost_usd is not None for row in legacy),
         review_budget_hits=_budget_rounds_held(windowed),
         authorizations=authorizations,
         authorizations_total=len(authorizations),
         reopens=reopens,
         reopens_total=len(reopens),
+        review_records_total=len(rows),
+        review_records_with_usage=sum(row.tokens is not None for row in rows),
+        review_records_with_reported_cost=sum(row.reported_cost_usd is not None for row in rows),
+        review_component_subtotals=sum(row.component_subtotal for row in rows),
+        review_attempts_started=sum(row.started for row in legacy),
+        review_execution_failures=sum(row.failed for row in legacy),
+        review_results_imported=sum(row.imported for row in legacy),
+        review_rounds_started=sum(ev.type == "review_round_started" for ev in windowed),
+        review_rounds_execution_failed=sum(
+            ev.type == "review_round_closed" and ev.payload.get("outcome") == "execution_failed"
+            for ev in windowed
+        ),
+        external_conclusions_imported=len(external),
+        external_approvals=sum(row.outcome == "approve" for row in external),
+        external_rejections=sum(row.outcome == "reject" for row in external),
+        review_skips=sum(
+            ev.type in {"plan_approved", "code_review_passed"}
+            and ev.payload.get("skipped") is True for ev in windowed
+        ),
     )

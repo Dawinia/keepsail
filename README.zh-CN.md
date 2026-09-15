@@ -39,10 +39,11 @@ super-harness change start "my-change"        # → INTENT_DECLARED
 实现、验证、评审、合并 —— 是 10 分钟的 [Getting started](docs/getting-started.md) 走查。
 想不跑任何东西就看一个预置的非平凡 `.harness/` 状态,见仓内示例
 [`examples/demo-openspec-claude/`](examples/demo-openspec-claude/)。走查也展示了
-agent-neutral review 协议：tracked reviewer governance、gitignored 的用户自选
-Codex/Claude model 与 options、冻结的 scope/invocation contract、导入 receipt、
-有上限的自动 review 轮次，以及一等公民的 human review。super-harness 不会 spawn
-或执行 reviewer。
+当前 review 契约：用户在 `.harness/review-recognition.yaml` 认可外部审查流程，
+由该流程提供准确 subject、明确 plan/code 结论、原始证据和来源，再通过
+`super-harness review import` 导入。获批承诺内的实施调整以 assessment 和实际
+文件 coverage 留痕；执行和重试由外部流程负责。历史配置与事件保留可读，
+demo 是历史样例数据，不是当前 review 的执行指南。
 
 ## 链接
 

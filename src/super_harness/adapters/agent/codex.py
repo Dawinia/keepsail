@@ -101,8 +101,10 @@ For each review epoch:
    --evidence <path>`. Review execution, retries, and substantive judgment stay
    outside super-harness.
 4. Batch code-only fixes after `implementation reopen <change> --reason "<why>"`;
-   if the plan, scope, or requirements changed, require a new plan
-   candidate and review. A skipped review is disclosure, not approval.
+   if approved commitments change or explicit restrictions are relaxed, require a
+   new plan candidate and review. Within-approval file additions and implementation
+   adjustments update assessment/coverage with `implementation record` instead.
+   A skipped review is disclosure, not approval.
 
 The imported evidence must cover the exact frozen subject. A reviewer may read
 unchanged repository material as supporting context, but a finding never widens

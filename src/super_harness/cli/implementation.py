@@ -191,8 +191,8 @@ def reopen(ctx: click.Context, slug: str, reason: str) -> None:
     `AWAITING_CODE_REVIEW` / `READY_TO_MERGE` → `IMPLEMENTATION_IN_PROGRESS`, so a
     finding can be folded into the change that produced it without the `plan redeclare`
     round trip through plan review. `--reason` is required: this voids the code review
-    the change was under or had passed, which is the consequence class of
-    `review authorize`.
+    the change was under or had passed. Refresh verification and code evidence
+    before merge; the applicable plan approval remains the authority boundary.
     """
     try:
         root = find_harness_root(Path(ctx.obj.get("workspace") or "."))
