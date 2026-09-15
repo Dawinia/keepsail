@@ -495,13 +495,16 @@ def _baseline_scope_vs_plan(
     report = None
     if drifted:
         report = (
-            f"Out-of-scope files changed (not in declared scope.files; the merge gate "
-            f"matches by exact path, so a directory entry does not cover files under it) "
+            f"Files outside the initial scope.files estimate "
+            f"(advisory comparison only, not an approval or attestation verdict) "
             f"for change {change_id}:\n"
             + "\n".join(f"  - {f}" for f in drifted)
             + "\ndeclared scope.files:\n"
             + "\n".join(f"  - {d}" for d in declared_files)
-            + "\n"
+            + "\nWith the active external-evidence contract, within-approval additions "
+            "update implementation assessment/coverage; file additions alone do not "
+            "require new plan approval. Attestation checks actual coverage and current "
+            "evidence separately. Historical contracts retain their original rules.\n"
         )
     return _make_baseline_result(
         _BASELINE_SCOPE,

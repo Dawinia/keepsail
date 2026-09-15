@@ -139,6 +139,7 @@ def test_mixed_replay_imports_skips_and_usage_are_distinct(tmp_path):
         ],
     )
     assert r.review_records_total == 3
+    assert r.cost_breakdown[0].source == "claude"
     assert (r.review_tokens, r.review_records_with_usage, r.review_component_subtotals) == (
         30,
         2,

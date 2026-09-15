@@ -424,7 +424,9 @@ def _cost_breakdown(events: list[Event]) -> tuple[CostBreakdownRow, ...]:
             cost = _reported_cost(data)
         imported = ev.type == "review_result_imported"
         rows[key] = replace(
-            row, started=row.started or started,
+            row,
+            source=str(data.get("source") or receipt.get("source") or row.source),
+            started=row.started or started,
             failed=row.failed or ev.type == "review_run_failed",
             imported=row.imported or imported,
             tokens=tokens if tokens is not None else row.tokens,

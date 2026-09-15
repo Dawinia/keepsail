@@ -82,3 +82,8 @@ Gate-held targets are deduplicated by Change/file/state, a conservative floor.
 Verify and CI failures are not independent defect findings. These partial
 observations neither measure total validation value nor support a total-value
 score or a claim that the harness did nothing when recorded findings are zero.
+
+The optional `scope-vs-plan-final` verification sensor still compares changed
+paths with the initial `scope.files` estimate. Its advisory difference is not an
+approval or attestation verdict. Within-approval additions update assessment and
+actual coverage; the new-contract completion/attestation checks those separately.
