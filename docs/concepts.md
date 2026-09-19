@@ -85,6 +85,17 @@ Use `implementation reopen` for code fixes after freezing completion, then refre
 verification and code evidence. Finish or explicitly withdraw a pending revision
 before delivery under the previously approved commitments.
 
+After `CODE_REVIEW_REJECTED`, edits are allowed but the rejected code subject stays
+frozen. `verify` records a result for the current commit; it does not re-submit the
+implementation or replace that frozen subject. For corrected code, run
+`implementation reopen <change> --reason "<why>"`, update the implementation
+assessment/coverage, commit, and run `done <change>`. This preserves plan approval
+and rejection history, clears the previous code/verification projection, and then
+freezes the freshly verified subject in `AWAITING_CODE_REVIEW`. Import recognized
+external evidence for that exact subject to reach `READY_TO_MERGE`. An approval
+for an older subject cannot approve the new commit. A rejected plan still requires
+plan revision and recognized plan approval; code recovery cannot bypass it.
+
 `status` shows authority and current evidence. Historical reviewer governance,
 profiles, rounds, failures, skips and authorizations remain readable as history.
 Removed execution commands are described as retired in the CLI reference and

@@ -77,8 +77,8 @@ SCRATCH_ROOT: str = ".harness/scratch"
 
 # Imperative "what to do next" line for each BLOCKING state. The reason string
 # tells the agent WHY the edit was blocked; the suggestion tells it the next
-# concrete step. Only blocking states appear here — allowed states need no
-# remediation. PreToolUseGate surfaces these via GateResult.suggested_action.
+# concrete step. Rejected code also needs guidance to re-freeze its subject even
+# though edits are allowed. Status consumes these alongside the pre-tool-use gate.
 SUGGESTIONS: dict[str, str] = {
     "INTENT_DECLARED": (
         "Author the plan document at a path configured in .harness/plan-paths.yaml "
@@ -87,6 +87,11 @@ SUGGESTIONS: dict[str, str] = {
     ),
     "AWAITING_PLAN_REVIEW": "Wait for the plan reviewer; `super-harness status` shows progress.",
     "PLAN_REJECTED": "Revise the plan and re-submit, then retry.",
+    "CODE_REVIEW_REJECTED": (
+        'Fix feedback, then `implementation reopen <change> --reason "<why>"` and '
+        "`done <change>` to verify and freeze the corrected subject before importing "
+        "its exact external code review evidence."
+    ),
     # Both name `implementation reopen`, because both are states an agent reaches with
     # working code and a reason to touch it again — a finding to fold in, or something it
     # spotted while the reviewer was out. Before the verb existed the only route back was

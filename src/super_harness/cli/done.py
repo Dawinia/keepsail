@@ -235,6 +235,9 @@ def done_cmd(
                     "not IMPLEMENTATION_IN_PROGRESS"
                 ),
                 hint=(
+                    '`implementation reopen <change> --reason "<why>"`, then retry '
+                    "`done` to verify and freeze the corrected code subject."
+                    if current == "CODE_REVIEW_REJECTED" else
                     "`done` completes an in-progress change; start implementation "
                     "first, or check the slug with `super-harness status`."
                 ),

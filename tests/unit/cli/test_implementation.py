@@ -140,6 +140,16 @@ def test_reopen_returns_awaiting_code_review_to_editing(tmp_path: Path) -> None:
     assert _state(tmp_path, "c") == "IMPLEMENTATION_IN_PROGRESS"
 
 
+def test_reopen_returns_rejected_code_to_editing(tmp_path: Path) -> None:
+    _seed(tmp_path, "c", *_FROZEN, "code_review_failed")
+    before = events_path(tmp_path).read_bytes()
+    result = _reopen(tmp_path, "c", reason="freeze corrected code after rejection")
+    assert result.exit_code == EXIT_OK, result.output
+    assert _state(tmp_path, "c") == "IMPLEMENTATION_IN_PROGRESS"
+    assert events_path(tmp_path).read_bytes().startswith(before)
+    assert _events(tmp_path)[-1]["type"] == "implementation_invalidated"
+
+
 def test_reopen_states_the_cost_it_imposes(tmp_path: Path) -> None:
     """The verb reads cheap; the review it voids is the part that is not.
 
@@ -174,7 +184,8 @@ def test_reopen_refuses_plan_rejected(tmp_path: Path) -> None:
     assert r.exit_code == EXIT_VALIDATION, r.output
     assert len(_events(tmp_path)) == before          # nothing appended
     assert _state(tmp_path, "c") == "PLAN_REJECTED"
-    assert "review skip" in r.output                 # names the disclosed exit instead
+    assert "revise and re-submit the plan" in r.output
+    assert "review skip" not in r.output
 
 
 def test_reopen_refuses_before_anything_was_implemented(tmp_path: Path) -> None:

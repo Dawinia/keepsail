@@ -65,7 +65,9 @@ def _recognition(root: Path) -> None:
     )
 
 
-def _evidence(root: Path, *, kind: str, subject_id: str, evidence_id: str) -> Path:
+def _evidence(
+    root: Path, *, kind: str, subject_id: str, evidence_id: str, decision: str = "approve"
+) -> Path:
     path = root / f"{evidence_id}.json"
     recognition = yaml.safe_load(
         (root / ".harness" / "review-recognition.yaml").read_text(encoding="utf-8")
@@ -77,10 +79,10 @@ def _evidence(root: Path, *, kind: str, subject_id: str, evidence_id: str) -> Pa
                 "evidence_id": evidence_id,
                 "kind": kind,
                 "subject_id": subject_id,
-                "decision": "approve",
+                "decision": decision,
                 "process": {"id": "owner-review", "version": "1"},
                 "issuer": "owner",
-                "original_evidence": {"conclusion": "approve", "notes": "checked"},
+                "original_evidence": {"conclusion": decision, "notes": "checked"},
                 "provenance": {
                     "change_id": "c",
                     "source": "owner-review",
@@ -93,7 +95,10 @@ def _evidence(root: Path, *, kind: str, subject_id: str, evidence_id: str) -> Pa
     return path
 
 
-def test_added_fixture_completes_real_verification_under_same_approval(tmp_path: Path) -> None:
+@pytest.mark.parametrize("resubmit_rejected", [False, True])
+def test_added_fixture_completes_real_verification_under_same_approval(
+    tmp_path: Path, resubmit_rejected: bool
+) -> None:
     """A newly discovered fixture changes coverage, not approved commitments."""
     root = tmp_path / "repo"
     (root / ".harness").mkdir(parents=True)
@@ -104,6 +109,7 @@ def test_added_fixture_completes_real_verification_under_same_approval(tmp_path:
     (root / "check.py").write_text(
         "from pathlib import Path\nimport sys\n"
         "Path(sys.argv[1]).write_text('executed')\n"
+        "assert not Path(sys.argv[1]).with_suffix('.fail').exists()\n"
         "assert Path('answer.txt').read_text() == '42'\n",
         encoding="utf-8",
     )
@@ -167,6 +173,67 @@ def test_added_fixture_completes_real_verification_under_same_approval(tmp_path:
     assert state.effective_approval["approval_id"] == approval
     assert state.current_verification["subject_id"] == state.current_code_subject["subject_id"]
     assert state.current_state == "AWAITING_CODE_REVIEW"
+    if resubmit_rejected:
+        old_subject = state.current_code_subject
+        rejection = _evidence(root, kind="code", subject_id=old_subject["subject_id"],
+                              evidence_id="code-rejected", decision="reject")
+        result = cli("review", "import", "c", "--evidence", str(rejection))
+        assert result.exit_code == 0, result.output
+        prefix = events_path(root).read_bytes()
+        original_approval = state.effective_approval
+        # New committed implementation B passes verification; A stays frozen.
+        check = root / "check.py"
+        check.write_text(check.read_text() + "# corrected implementation B\n")
+        _git(root, "add", "check.py")
+        _git(root, "commit", "-qm", "fix rejected implementation")
+        record = json.loads(assessment.read_text())
+        record["coverage"].append({"path": "check.py"})
+        assessment.write_text(json.dumps(record))
+        assert cli("implementation", "record", "c", "--assessment", str(assessment)).exit_code == 0
+        verified = cli("verify", "c")
+        assert verified.exit_code == 0, verified.output
+        rejected = derive_state(events_path(root))["c"]
+        assert rejected.current_state == "CODE_REVIEW_REJECTED"
+        assert rejected.current_code_subject == old_subject
+        assert "implementation reopen" in cli("status", "c").output
+        new_id = rejected.current_verification["subject_id"]
+        assert new_id != old_subject["subject_id"]
+        new_review = _evidence(root, kind="code", subject_id=new_id, evidence_id="code-new")
+        before = events_path(root).read_bytes()
+        assert cli("review", "import", "c", "--evidence", str(new_review)).exit_code != 0
+        assert events_path(root).read_bytes() == before
+        premature = cli("done", "c")
+        assert premature.exit_code != 0
+        assert "implementation reopen" in premature.output
+        assert events_path(root).read_bytes() == before
+
+        reopened = cli("implementation", "reopen", "c", "--reason", "correct rejected code")
+        assert reopened.exit_code == 0, reopened.output
+        state = derive_state(events_path(root))["c"]
+        assert state.current_state == "IMPLEMENTATION_IN_PROGRESS"
+        assert state.effective_approval == original_approval
+        assert state.current_code_subject is None and state.current_verification is None
+        assert any(e["evidence_id"] == "code-rejected" for e in state.evidence_references)
+        # A prior pass cannot hide a new verification failure after reopening.
+        marker.with_suffix(".fail").touch()
+        assert cli("done", "c").exit_code != 0
+        state = derive_state(events_path(root))["c"]
+        assert state.current_state == "IMPLEMENTATION_IN_PROGRESS"
+        assert state.current_code_subject is None
+        assert state.current_verification["outcome"] == "failed"
+        marker.with_suffix(".fail").unlink()
+        completed = cli("done", "c")
+        assert completed.exit_code == 0, completed.output
+        state = derive_state(events_path(root))["c"]
+        assert state.current_state == "AWAITING_CODE_REVIEW"
+        assert state.current_code_subject["subject_id"] == new_id
+        assert state.current_verification["subject_id"] == new_id
+        stale = _evidence(root, kind="code", subject_id=old_subject["subject_id"],
+                          evidence_id="stale-approval")
+        before = events_path(root).read_bytes()
+        assert cli("review", "import", "c", "--evidence", str(stale)).exit_code != 0
+        assert events_path(root).read_bytes() == before
+        assert before.startswith(prefix)
     code = _evidence(root, kind="code", subject_id=state.current_code_subject["subject_id"],
                      evidence_id="code-1")
     assert cli("review", "import", "c", "--evidence", str(code)).exit_code == 0

@@ -9,7 +9,7 @@ scope-file edit (per lifecycle-event-model §3.3) is deferred (needs activity
 events / git-hook infra, tracked under HG-11). Emit is STRICT.
 
 `implementation reopen <slug> --reason <why>` emits `implementation_invalidated`,
-returning a frozen change (AWAITING_CODE_REVIEW / READY_TO_MERGE) to
+returning a frozen or rejected change to
 IMPLEMENTATION_IN_PROGRESS so a review finding can be folded into the change that
 raised it. Before it existed the only CLI route back was `plan redeclare` into a whole
 plan cycle. See docs/plans/2026-08-11-code-only-recovery.md.
@@ -152,28 +152,26 @@ def start(ctx: click.Context, slug: str, first_commit: str | None) -> None:
 # state (`core/transitions.py`), so this narrowing is the CLI's, and it is the whole
 # safety argument for the verb.
 #
-# These two mean "the code is written, and under or past code review" — the entire
-# population of the case the verb exists for. Every other state either already permits
-# edits (PLAN_APPROVED / IMPLEMENTATION_IN_PROGRESS / CODE_REVIEW_REJECTED), has nothing
-# to reopen (INTENT_DECLARED / AWAITING_PLAN_REVIEW), or is terminal.
+# Rejected code permits edits, but still retains its old frozen code subject.
+# Reopen it to start a new verification/completion epoch before reviewing new code.
+# Editing permission alone does not make `done` legal or refresh the review subject.
 #
 # PLAN_REJECTED is excluded ON PURPOSE. Reopening out of a rejection discards it: the
 # change returns to IMPLEMENTATION_IN_PROGRESS, `done` and code review carry it to
 # READY_TO_MERGE, and the merge gate is satisfied by the stale `plan_approved` from the
 # earlier epoch. Nothing here can tell "the reviewer's findings were code-level" — the
 # case that motivated this verb — from "the reviewer rejected the plan", so admitting the
-# state would make plan rejection advisory for any change that has implemented once. The
-# exit from a rejection is `review skip --override --reason`, which emits the same
-# `plan_approved` but stamps `skipped: True` and is refused at the merge gate unless the
-# override is deliberate. Escaping a rejection costs a disclosure; reopening a passed
-# review does not.
+# state would make plan rejection advisory for any change that has implemented once.
+# A rejected plan must be revised and receive recognized approval.
 #
-# No milestone precondition accompanies this: both states already imply `plan_approved`
+# No milestone precondition accompanies this: these states already imply `plan_approved`
 # and `implementation_complete` through the transition table (AWAITING_CODE_REVIEW is
 # reachable only by `implementation_complete` from IMPLEMENTATION_IN_PROGRESS, itself
 # reachable only from PLAN_APPROVED). A guard restating what the state already proves is
 # the added structure this repository keeps paying for.
-_REOPEN_STATES: tuple[str, ...] = ("AWAITING_CODE_REVIEW", "READY_TO_MERGE")
+_REOPEN_STATES: tuple[str, ...] = (
+    "AWAITING_CODE_REVIEW", "CODE_REVIEW_REJECTED", "READY_TO_MERGE"
+)
 
 
 @implementation_group.command("reopen")
@@ -181,14 +179,15 @@ _REOPEN_STATES: tuple[str, ...] = ("AWAITING_CODE_REVIEW", "READY_TO_MERGE")
 @click.option(
     "--reason",
     required=True,
-    help="Why the frozen implementation is being reopened (recorded on the event and "
+    help="Why the frozen or rejected implementation is being reopened (recorded on the event and "
     "counted by `super-harness report`).",
 )
 @click.pass_context
 def reopen(ctx: click.Context, slug: str, reason: str) -> None:
-    """Emit `implementation_invalidated` — reopen a frozen change for a code-only fix.
+    """Emit `implementation_invalidated` — reopen reviewed code for a code-only fix.
 
-    `AWAITING_CODE_REVIEW` / `READY_TO_MERGE` → `IMPLEMENTATION_IN_PROGRESS`, so a
+    `AWAITING_CODE_REVIEW` / `CODE_REVIEW_REJECTED` / `READY_TO_MERGE` →
+    `IMPLEMENTATION_IN_PROGRESS`, so a
     finding can be folded into the change that produced it without the `plan redeclare`
     round trip through plan review. `--reason` is required: this voids the code review
     the change was under or had passed. Refresh verification and code evidence
@@ -217,10 +216,8 @@ def reopen(ctx: click.Context, slug: str, reason: str) -> None:
                     f"not one of {', '.join(_REOPEN_STATES)}"
                 ),
                 hint=(
-                    "`reopen` returns a frozen implementation to editing. From "
-                    "PLAN_REJECTED, revise and re-submit the plan; if the reviewer is "
-                    'genuinely stuck, `review skip --override --reason "<why>"` is the '
-                    "disclosed escape hatch."
+                    "`reopen` returns frozen or rejected code to implementation. From "
+                    "PLAN_REJECTED, revise and re-submit the plan for recognized approval."
                 ),
             ),
             err=True,
