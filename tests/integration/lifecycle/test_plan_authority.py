@@ -243,6 +243,50 @@ def test_added_fixture_completes_real_verification_under_same_approval(
     assert "plan_revision_submitted" not in types
     assert "verification_failed" in types and "verification_passed" in types
 
+    # Final CI coverage must use the assessed fixture, not the initial plan path.
+    assert cli("attest", "write", "c").exit_code == 0
+    attestation = root / ".harness/attestations/c.jsonl"
+    original_attestation = attestation.read_text(encoding="utf-8")
+    _git(root, "add", ".harness/attestations/c.jsonl")
+    _git(root, "commit", "-qm", "retain complete lifecycle attestation")
+    verified = cli("attest", "verify", "--base", "main", "--head", "HEAD")
+    assert verified.exit_code == 0, verified.output
+    assert "external evidence" in verified.output
+    assert "self-signed" not in verified.output
+    assert derive_state(attestation)["c"].current_code_subject == state.current_code_subject
+
+    for defect, expected in (
+        ("omitted", "implementation coverage omits"),
+        ("unrelated", "implementation coverage omits"),
+        ("approval", "requires an effective plan approval"),
+        ("verification", "verification is for a different code subject"),
+        ("code", "code subject does not match"),
+    ):
+        # Corrupt only the isolated retained fixture; the real writer stays strict.
+        records = [json.loads(line) for line in original_attestation.splitlines()]
+        for record in records:
+            payload = record["payload"]
+            if defect in {"omitted", "unrelated"} and record["type"] == "implementation_recorded":
+                payload["coverage"] = [] if defect == "omitted" else [{"path": "unrelated.txt"}]
+            elif defect == "approval" and record["type"] == "plan_approved":
+                payload.pop("approval", None)
+            elif defect == "verification" and record["type"] == "verification_passed":
+                payload["verification"]["subject_id"] = "code:stale"
+            elif defect == "code" and record["type"] in {
+                "implementation_complete", "code_review_passed"
+            }:
+                subject = payload.get("code_subject")
+                if subject:
+                    subject["manifest"] = []
+                    subject["subject_id"] = "code:" + evidence_digest(
+                        {k: v for k, v in subject.items() if k not in {"head", "subject_id"}}
+                    )
+        attestation.write_text("\n".join(json.dumps(row) for row in records) + "\n",
+                               encoding="utf-8")
+        rejected = cli("attest", "verify", "--base", "main", "--head", "HEAD")
+        assert rejected.exit_code != 0 and expected in rejected.output, rejected.output
+    attestation.write_text(original_attestation, encoding="utf-8")
+
 
 def test_external_failure_and_empty_output_emit_no_core_review_events(tmp_path: Path) -> None:
     (tmp_path / ".harness").mkdir()

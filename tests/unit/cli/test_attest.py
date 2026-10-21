@@ -18,6 +18,18 @@ def _init(root: Path) -> None:
     )
 
 
+def test_external_disclosure_names_provenance_without_claiming_independence():
+    row = {"classification": "external-evidence", "process": {"id": "review", "version": "1"},
+           "issuer": "reviewer", "subject_id": "code:exact", "importer": "author",
+           "evidence_id": "conclusion-1"}
+    line = attest_mod._independence_line("code_review", row)
+    assert "external evidence" in line and "process=review/1" in line
+    assert "issuer=reviewer" in line and "subject=code:exact" in line
+    assert "importer=author" in line and "independence not verified" in line
+    assert "evidence=conclusion-1" in line
+    assert "self-signed" not in line
+
+
 # --------------------------------------------------------------------------- #
 # attest write (Task 6)
 # --------------------------------------------------------------------------- #

@@ -274,7 +274,8 @@ def verify_attestations(
     """Core merge-gate verdict (design §4.2). Fail-closed: any blocker → not ok.
 
     A subject file (every changed path that is NOT under the attestations dir)
-    passes only if it is in the ``scope.files`` of a complete, ordered,
+    passes only if it is in the validated actual coverage (legacy: ``scope.files``)
+    of a complete, ordered,
     READY_TO_MERGE attestation that is newly ADDED in this diff and covers at
     least one subject of this diff.
     """
@@ -324,19 +325,28 @@ def verify_attestations(
             blockers.append(
                 f"attestation {slug}: active review recognition requires an effective plan approval"
             )
+            continue
         elif recognition is not None:
-            blockers.extend(
-                _new_contract_blockers(
-                    root,
-                    cs,
-                    slug,
-                    diff_entries,
-                    recognition=recognition,
-                    base=base,
-                    head=head,
-                )
+            att_blockers = _new_contract_blockers(
+                root,
+                cs,
+                slug,
+                diff_entries,
+                recognition=recognition,
+                base=base,
+                head=head,
             )
-        this_covered = {canonical_path(f) for f in cs.scope.get("files", [])}
+            blockers.extend(att_blockers)
+            if att_blockers:
+                continue
+        # Recognized approvals validate actual coverage above. Initial scope is
+        # only an estimate in that contract; historical lifecycles retain it.
+        this_covered = (
+            {canonical_path(item["path"]) for item in cs.coverage_manifest
+             if isinstance(item, dict) and isinstance(item.get("path"), str)}
+            if recognition is not None
+            else {canonical_path(f) for f in cs.scope.get("files", [])}
+        )
         if not (this_covered & subjects):
             blockers.append(
                 f"attestation {slug}: its scope covers no file in this diff "
@@ -547,6 +557,8 @@ def _classify_review(events: list[Event], milestone: str, author: str | None) ->
 
     Truth table, first match wins:
       1. no milestone event                         → ``unattributed``
+         referenced retained external approval      → ``external-evidence``
+         (unless skipped; no identity claim is made)
       2. reviewer ``actor.type == "ci"``            → ``ci`` (forward-compat;
          not producible via the current CLI, see design §4.1 row 2)
       3. ``payload["skipped"] is True``             → ``skipped``
@@ -554,8 +566,9 @@ def _classify_review(events: list[Event], milestone: str, author: str | None) ->
       5. reviewer identifier == author identifier   → ``self-signed``
       6. otherwise                                  → ``independent``
     """
-    reviews = [e for e in events if e.type == milestone]
-    if not reviews:
+    position = next((i for i in range(len(events) - 1, -1, -1)
+                     if events[i].type == milestone), None)
+    if position is None:
         return {
             "classification": "unattributed",
             "reviewer": None,
@@ -563,10 +576,44 @@ def _classify_review(events: list[Event], milestone: str, author: str | None) ->
             "override": False,
             "reason": None,
         }
-    r = reviews[-1]  # last wins (reject → re-review cycles)
+    r = events[position]  # last wins (reject → re-review cycles)
     reviewer = r.actor.identifier
     skipped = r.payload.get("skipped") is True
     override = r.payload.get("override") is True
+    if not skipped and r.payload.get("evidence_id"):
+        # Attribute the referenced conclusion, not the actor who imported it.
+        # This is disclosure of a retained claim, never verified independence.
+        for imported in reversed(events[:position]):
+            evidence = imported.payload.get("evidence")
+            if (imported.type != "review_evidence_imported"
+                    or imported.change_id != r.change_id
+                    or not isinstance(evidence, dict)
+                    or evidence.get("evidence_id") != r.payload["evidence_id"]):
+                continue
+            try:
+                evidence = validate_evidence(evidence, change_id=r.change_id)
+            except ApprovalError:
+                break
+            kind = "plan" if milestone == "plan_approved" else "code"
+            subject = r.payload.get("approval" if kind == "plan" else "code_subject")
+            if (evidence["kind"] != kind or evidence["decision"] != "approve"
+                    or imported.payload.get("historical_only") is True
+                    or imported.payload.get("evidence_digest") != evidence_digest(evidence)
+                    or not isinstance(subject, dict)
+                    or subject.get("subject_id") != evidence["subject_id"]):
+                break
+            return {
+                "classification": "external-evidence",
+                "reviewer": None,
+                "importer": reviewer,
+                "evidence_id": evidence["evidence_id"],
+                "process": evidence["process"],
+                "issuer": evidence["issuer"],
+                "subject_id": evidence["subject_id"],
+                "skipped": False,
+                "override": False,
+                "reason": None,
+            }
     if r.actor.type == "ci":
         cls = "ci"
     elif skipped:

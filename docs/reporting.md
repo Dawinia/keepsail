@@ -87,3 +87,14 @@ The optional `scope-vs-plan-final` verification sensor still compares changed
 paths with the initial `scope.files` estimate. Its advisory difference is not an
 approval or attestation verdict. Within-approval additions update assessment and
 actual coverage; the new-contract completion/attestation checks those separately.
+
+For recognized external approvals, final attestation coverage uses the validated
+actual implementation manifest. Historical lifecycles retain their initial-scope
+rule. Exact code/verification subjects, retained recognized approvals and full
+changed-path coverage remain required.
+
+Attestation review disclosures classify referenced imported conclusions as
+`external-evidence`, reporting process id/version, issuer, subject, evidence id and
+importer separately. The importer actor is not the external reviewer. These are
+recorded provenance claims, not verified identity or proof of independence. Legacy
+identity-based classifications and skipped-review disclosures remain unchanged.
