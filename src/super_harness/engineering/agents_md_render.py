@@ -93,8 +93,13 @@ not approval.
 
 ### File scope
 
-When implementing a change, edit only files in the declared `scope.files`
-(see the plan artifact). Edits outside scope trigger drift warnings.
+Implement within the approved commitments and explicit restrictions. The initial
+`scope.files` is an estimate; record added fixtures/files and implementation
+adjustments with `implementation record --assessment <path>`, referencing the
+effective approval and updating actual coverage before completion. New files or
+HEAD changes alone do not require plan approval again. Changed commitments or
+relaxed restrictions require a new plan candidate and recognized review approval.
+Code review and verification must still cover the exact current implementation.
 
 ### Decision conformance
 

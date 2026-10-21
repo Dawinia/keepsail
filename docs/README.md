@@ -8,9 +8,10 @@ Start here.
   it relates to neighboring tools.
 - [Getting started](getting-started.md) — a 10-minute end-to-end walkthrough (the
   full version of the README Quickstart).
-- [Concepts](concepts.md) — the lifecycle state machine, reviewer strategy,
-  source policy, source profiles, and why the harness doesn't review your code
-  or spawn your agent.
+- [Concepts](concepts.md) — plan authority, recognized external review evidence,
+  and the boundary between the harness and external execution.
+- [Report semantics](reporting.md) — historical attempts, external conclusions,
+  usage coverage and the limits of finding metrics.
 - [Adopting](adopting.md) — apply it to your own project: discover which
   architecture rules to lock, then lock them.
 - [Limitations & FAQ](limitations.md) — v0.1 boundaries and recurring questions.

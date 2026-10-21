@@ -65,7 +65,9 @@ def _recognition(root: Path) -> None:
     )
 
 
-def _evidence(root: Path, *, kind: str, subject_id: str, evidence_id: str) -> Path:
+def _evidence(
+    root: Path, *, kind: str, subject_id: str, evidence_id: str, decision: str = "approve"
+) -> Path:
     path = root / f"{evidence_id}.json"
     recognition = yaml.safe_load(
         (root / ".harness" / "review-recognition.yaml").read_text(encoding="utf-8")
@@ -77,10 +79,10 @@ def _evidence(root: Path, *, kind: str, subject_id: str, evidence_id: str) -> Pa
                 "evidence_id": evidence_id,
                 "kind": kind,
                 "subject_id": subject_id,
-                "decision": "approve",
+                "decision": decision,
                 "process": {"id": "owner-review", "version": "1"},
                 "issuer": "owner",
-                "original_evidence": {"conclusion": "approve", "notes": "checked"},
+                "original_evidence": {"conclusion": decision, "notes": "checked"},
                 "provenance": {
                     "change_id": "c",
                     "source": "owner-review",
@@ -91,6 +93,229 @@ def _evidence(root: Path, *, kind: str, subject_id: str, evidence_id: str) -> Pa
         encoding="utf-8",
     )
     return path
+
+
+@pytest.mark.parametrize("resubmit_rejected", [False, True])
+def test_added_fixture_completes_real_verification_under_same_approval(
+    tmp_path: Path, resubmit_rejected: bool
+) -> None:
+    """A newly discovered fixture changes coverage, not approved commitments."""
+    root = tmp_path / "repo"
+    (root / ".harness").mkdir(parents=True)
+    _recognition(root)
+    marker = tmp_path / "executed.txt"
+    (root / ".gitignore").write_text("*.json\n.harness/events.jsonl\n.harness/state.yaml\n")
+    (root / "plan.md").write_text("# Goal\nRead and verify the answer fixture.\n")
+    (root / "check.py").write_text(
+        "from pathlib import Path\nimport sys\n"
+        "Path(sys.argv[1]).write_text('executed')\n"
+        "assert not Path(sys.argv[1]).with_suffix('.fail').exists()\n"
+        "assert Path('answer.txt').read_text() == '42'\n",
+        encoding="utf-8",
+    )
+    (root / ".harness" / "verification.yaml").write_text(yaml.safe_dump({
+        "layers": {"baseline": {"enabled": False}, "framework_adapter": {"enabled": False},
+                   "user_checks": {"enabled": True}},
+        "defaults": {"timeout_seconds": 30, "must_pass": True, "capture": "both",
+                     "workdir": ".", "env": {}},
+        "execution": {"mode": "sequential", "max_parallelism": 1, "fail_fast": False},
+        "checks": [{"id": "fixture", "command": [sys.executable, "check.py", str(marker)]}],
+        "adapter_provided": [],
+    }), encoding="utf-8")
+    _git(root, "init", "-q", "-b", "main")
+    _git(root, "config", "user.email", "test@example.com")
+    _git(root, "config", "user.name", "Test")
+    _git(root, "add", ".")
+    _git(root, "commit", "-qm", "base")
+    _git(root, "checkout", "-qb", "candidate")
+    runner = CliRunner()
+
+    def cli(*args: str):
+        return runner.invoke(main, ["--workspace", str(root), *args])
+
+    EventWriter(events_path(root)).emit(_event("c", "intent_declared"))
+    ready = cli("plan", "ready", "c", "--plan", "plan.md", "--scope", "[plan.md]",
+                "--commitment", "goal=Read and verify the answer fixture")
+    assert ready.exit_code == 0, ready.output
+    candidate = derive_state(events_path(root))["c"].pending_revision["subject"]
+    evidence = _evidence(
+        root, kind="plan", subject_id=candidate["subject_id"], evidence_id="plan-1"
+    )
+    assert cli("review", "import", "c", "--evidence", str(evidence)).exit_code == 0
+    approval = derive_state(events_path(root))["c"].effective_approval["approval_id"]
+    assert cli("implementation", "start", "c").exit_code == 0
+    (root / "answer.txt").write_text("wrong")
+    _git(root, "add", "answer.txt")
+    _git(root, "commit", "-qm", "add discovered fixture")
+    assessment = root / "assessment.json"
+    assessment.write_text(json.dumps({
+        "assessment": {"approval_id": approval, "affected_commitments": ["goal"],
+                       "conclusion": "within_approval",
+                       "reasons": ["The new fixture implements the approved answer scenario."],
+                       "references": ["answer.txt"]},
+        "coverage": [{"path": "answer.txt"}],
+    }))
+    recorded = cli("implementation", "record", "c", "--assessment", str(assessment))
+    assert recorded.exit_code == 0, recorded.output
+    failed = cli("done", "c")
+    assert failed.exit_code != 0, failed.output
+    assert marker.read_text() == "executed"
+    assert derive_state(events_path(root))["c"].current_state == "IMPLEMENTATION_IN_PROGRESS"
+    marker.unlink()
+    (root / "answer.txt").write_text("42")
+    _git(root, "add", "answer.txt")
+    _git(root, "commit", "-qm", "fix fixture")
+    assert cli("implementation", "record", "c", "--assessment", str(assessment)).exit_code == 0
+    completed = cli("done", "c")
+    assert completed.exit_code == 0, completed.output
+    assert marker.read_text() == "executed"
+    state = derive_state(events_path(root))["c"]
+    assert state.effective_approval["approval_id"] == approval
+    assert state.current_verification["subject_id"] == state.current_code_subject["subject_id"]
+    assert state.current_state == "AWAITING_CODE_REVIEW"
+    if resubmit_rejected:
+        old_subject = state.current_code_subject
+        rejection = _evidence(root, kind="code", subject_id=old_subject["subject_id"],
+                              evidence_id="code-rejected", decision="reject")
+        result = cli("review", "import", "c", "--evidence", str(rejection))
+        assert result.exit_code == 0, result.output
+        prefix = events_path(root).read_bytes()
+        original_approval = state.effective_approval
+        # New committed implementation B passes verification; A stays frozen.
+        check = root / "check.py"
+        check.write_text(check.read_text() + "# corrected implementation B\n")
+        _git(root, "add", "check.py")
+        _git(root, "commit", "-qm", "fix rejected implementation")
+        record = json.loads(assessment.read_text())
+        record["coverage"].append({"path": "check.py"})
+        assessment.write_text(json.dumps(record))
+        assert cli("implementation", "record", "c", "--assessment", str(assessment)).exit_code == 0
+        verified = cli("verify", "c")
+        assert verified.exit_code == 0, verified.output
+        rejected = derive_state(events_path(root))["c"]
+        assert rejected.current_state == "CODE_REVIEW_REJECTED"
+        assert rejected.current_code_subject == old_subject
+        assert "implementation reopen" in cli("status", "c").output
+        new_id = rejected.current_verification["subject_id"]
+        assert new_id != old_subject["subject_id"]
+        new_review = _evidence(root, kind="code", subject_id=new_id, evidence_id="code-new")
+        before = events_path(root).read_bytes()
+        assert cli("review", "import", "c", "--evidence", str(new_review)).exit_code != 0
+        assert events_path(root).read_bytes() == before
+        premature = cli("done", "c")
+        assert premature.exit_code != 0
+        assert "implementation reopen" in premature.output
+        assert events_path(root).read_bytes() == before
+
+        reopened = cli("implementation", "reopen", "c", "--reason", "correct rejected code")
+        assert reopened.exit_code == 0, reopened.output
+        state = derive_state(events_path(root))["c"]
+        assert state.current_state == "IMPLEMENTATION_IN_PROGRESS"
+        assert state.effective_approval == original_approval
+        assert state.current_code_subject is None and state.current_verification is None
+        assert any(e["evidence_id"] == "code-rejected" for e in state.evidence_references)
+        # A prior pass cannot hide a new verification failure after reopening.
+        marker.with_suffix(".fail").touch()
+        assert cli("done", "c").exit_code != 0
+        state = derive_state(events_path(root))["c"]
+        assert state.current_state == "IMPLEMENTATION_IN_PROGRESS"
+        assert state.current_code_subject is None
+        assert state.current_verification["outcome"] == "failed"
+        marker.with_suffix(".fail").unlink()
+        completed = cli("done", "c")
+        assert completed.exit_code == 0, completed.output
+        state = derive_state(events_path(root))["c"]
+        assert state.current_state == "AWAITING_CODE_REVIEW"
+        assert state.current_code_subject["subject_id"] == new_id
+        assert state.current_verification["subject_id"] == new_id
+        stale = _evidence(root, kind="code", subject_id=old_subject["subject_id"],
+                          evidence_id="stale-approval")
+        before = events_path(root).read_bytes()
+        assert cli("review", "import", "c", "--evidence", str(stale)).exit_code != 0
+        assert events_path(root).read_bytes() == before
+        assert before.startswith(prefix)
+    code = _evidence(root, kind="code", subject_id=state.current_code_subject["subject_id"],
+                     evidence_id="code-1")
+    assert cli("review", "import", "c", "--evidence", str(code)).exit_code == 0
+    assert derive_state(events_path(root))["c"].current_state == "READY_TO_MERGE"
+    types = [json.loads(line)["type"] for line in events_path(root).read_text().splitlines()]
+    assert types.count("plan_approved") == types.count("plan_ready") == 1
+    assert "plan_revision_submitted" not in types
+    assert "verification_failed" in types and "verification_passed" in types
+
+    # Final CI coverage must use the assessed fixture, not the initial plan path.
+    assert cli("attest", "write", "c").exit_code == 0
+    attestation = root / ".harness/attestations/c.jsonl"
+    original_attestation = attestation.read_text(encoding="utf-8")
+    _git(root, "add", ".harness/attestations/c.jsonl")
+    _git(root, "commit", "-qm", "retain complete lifecycle attestation")
+    verified = cli("attest", "verify", "--base", "main", "--head", "HEAD")
+    assert verified.exit_code == 0, verified.output
+    assert "external evidence" in verified.output
+    assert "self-signed" not in verified.output
+    assert derive_state(attestation)["c"].current_code_subject == state.current_code_subject
+
+    for defect, expected in (
+        ("omitted", "implementation coverage omits"),
+        ("unrelated", "implementation coverage omits"),
+        ("approval", "requires an effective plan approval"),
+        ("verification", "verification is for a different code subject"),
+        ("code", "code subject does not match"),
+    ):
+        # Corrupt only the isolated retained fixture; the real writer stays strict.
+        records = [json.loads(line) for line in original_attestation.splitlines()]
+        for record in records:
+            payload = record["payload"]
+            if defect in {"omitted", "unrelated"} and record["type"] == "implementation_recorded":
+                payload["coverage"] = [] if defect == "omitted" else [{"path": "unrelated.txt"}]
+            elif defect == "approval" and record["type"] == "plan_approved":
+                payload.pop("approval", None)
+            elif defect == "verification" and record["type"] == "verification_passed":
+                payload["verification"]["subject_id"] = "code:stale"
+            elif defect == "code" and record["type"] in {
+                "implementation_complete", "code_review_passed"
+            }:
+                subject = payload.get("code_subject")
+                if subject:
+                    subject["manifest"] = []
+                    subject["subject_id"] = "code:" + evidence_digest(
+                        {k: v for k, v in subject.items() if k not in {"head", "subject_id"}}
+                    )
+        attestation.write_text("\n".join(json.dumps(row) for row in records) + "\n",
+                               encoding="utf-8")
+        rejected = cli("attest", "verify", "--base", "main", "--head", "HEAD")
+        assert rejected.exit_code != 0 and expected in rejected.output, rejected.output
+    attestation.write_text(original_attestation, encoding="utf-8")
+
+
+def test_external_failure_and_empty_output_emit_no_core_review_events(tmp_path: Path) -> None:
+    (tmp_path / ".harness").mkdir()
+    _recognition(tmp_path)
+    (tmp_path / "plan.md").write_text("# plan\n")
+    runner = CliRunner()
+
+    def cli(*args: str):
+        return runner.invoke(main, ["--workspace", str(tmp_path), *args])
+
+    EventWriter(events_path(tmp_path)).emit(_event("c", "intent_declared"))
+    assert cli("plan", "ready", "c", "--plan", "plan.md",
+               "--commitment", "goal=ship").exit_code == 0
+    before = events_path(tmp_path).read_bytes()
+    # Real failing external process, not a core run or synthetic core failure event.
+    failure = subprocess.run([sys.executable, "-c", "raise SystemExit(23)"], check=False)
+    assert failure.returncode == 23
+    for contents in ("", "{}", '{"decision": "execution_failed"}'):
+        evidence = tmp_path / "failed.json"
+        evidence.write_text(contents)
+        assert cli("review", "import", "c", "--evidence", str(evidence)).exit_code != 0
+        assert events_path(tmp_path).read_bytes() == before
+    for command in ("prepare", "begin", "authorize", "skip", "approve"):
+        result = cli("review", command, "c")
+        assert result.exit_code != 0 and "removed" in result.output
+        assert events_path(tmp_path).read_bytes() == before
+    state = derive_state(events_path(tmp_path))["c"]
+    assert state.current_state == "AWAITING_PLAN_REVIEW"
+    assert state.effective_approval is None
 
 
 def test_external_plan_and_code_evidence_drive_only_matching_subjects(tmp_path: Path) -> None:

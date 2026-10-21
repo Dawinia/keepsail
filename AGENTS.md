@@ -86,8 +86,10 @@ For each review epoch:
    --evidence <path>`. Review execution, retries, and substantive judgment stay
    outside super-harness.
 4. Batch code-only fixes after `implementation reopen <change> --reason "<why>"`;
-   if the plan, scope, or requirements changed, require a new plan
-   candidate and review. A skipped review is disclosure, not approval.
+   if approved commitments change or explicit restrictions are relaxed, require a
+   new plan candidate and review. Within-approval file additions and implementation
+   adjustments update assessment/coverage with `implementation record` instead.
+   A skipped review is disclosure, not approval.
 
 The imported evidence must cover the exact frozen subject. A reviewer may read
 unchanged repository material as supporting context, but a finding never widens
@@ -109,8 +111,13 @@ not approval.
 
 ### File scope
 
-When implementing a change, edit only files in the declared `scope.files`
-(see the plan artifact). Edits outside scope trigger drift warnings.
+Implement within the approved commitments and explicit restrictions. The initial
+`scope.files` is an estimate; record added fixtures/files and implementation
+adjustments with `implementation record --assessment <path>`, referencing the
+effective approval and updating actual coverage before completion. New files or
+HEAD changes alone do not require plan approval again. Changed commitments or
+relaxed restrictions require a new plan candidate and recognized review approval.
+Code review and verification must still cover the exact current implementation.
 
 ### Decision conformance
 

@@ -343,24 +343,25 @@ starts editing. The hot-path gate enforces lifecycle rules:
   super-harness plan withdraw my-first-change \
     --candidate <subject-id> --reason "revision not adopted"
   ```
-- Now in `IMPLEMENTATION_IN_PROGRESS`, the agent can edit source code. If it
+- After plan approval, run `super-harness implementation start my-first-change`.
+  Now in `IMPLEMENTATION_IN_PROGRESS`, the agent can edit source code. If it
   tries to `Edit` before the lifecycle permits it, the `PreToolUseGate` blocks
   the tool call.
-- After `done` (→ `AWAITING_CODE_REVIEW`), code review uses the same external
-  evidence boundary. Record the implementation assessment and complete coverage
-  manifest, then import code evidence for the exact committed code subject:
+- Before `done`, record the implementation assessment and complete coverage
+  manifest. `done` executes verification and freezes the code subject
+  (→ `AWAITING_CODE_REVIEW`); then obtain and import code evidence:
 
   ```bash
   super-harness implementation record my-first-change --assessment implementation.json
+  super-harness done my-first-change
   super-harness review import my-first-change --evidence code-review.json
   ```
 
   Evidence is not a claim that a particular model or TTY was used; it is an
   owner-recognized external conclusion bound to the exact subject. Code-only
-  fixes can use `implementation reopen`; changes to the approved commitment,
-  scope, or explicit limit require `plan redeclare --plan ...`, a new plan
-  subject, and a new plan conclusion. Do not use this new design to bypass the
-  currently effective scope or delivery gate.
+  fixes can use `implementation reopen`; changes to approved commitments or relaxation of an explicit limit require `plan redeclare --plan ...`, a new plan
+  subject, and a new plan conclusion. File additions within approved commitments update assessment/coverage without
+  new plan approval; delivery still requires accurate code and verification evidence.
 
 > **Note**: `plan_approved` and `code_review_passed` are lifecycle milestones,
 > but the active core can emit them only from imported, recognized evidence. A

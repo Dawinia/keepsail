@@ -1,44 +1,14 @@
-"""`super-harness plan` — plain-mode plan-phase emitters (HG-13): `ready` + `redeclare`.
+"""Plan submission and commitment revisions.
 
-`plan ready <slug> [--scope <files-yaml>] [--tier-hint <t>]`
-(cli-command-surface §418) manually emits `plan_ready`, advancing
-INTENT_DECLARED / PLAN_REJECTED → AWAITING_PLAN_REVIEW. It is the plain-mode
-counterpart to the framework adapters' automatic plan-artifact observation:
-without it a `plain` change `change start`-ed into INTENT_DECLARED has no CLI
-verb to reach AWAITING_PLAN_REVIEW, so a cold-start change is stuck at the very
-first lifecycle stage (the HG-13 self-host blocker). Emit is STRICT — an illegal
-transition (e.g. from PLAN_APPROVED) is rejected and nothing is appended.
+`ready --plan` snapshots adopted plan/spec/foundation documents and commitments.
+Recognized external approval grants implementation authority within those bounds.
+`redeclare --plan` submits changed commitments; `withdraw` abandons a pending
+candidate without rewriting approval history. Within-approval file additions use
+implementation assessments and actual coverage, not plan redeclaration.
 
-`plan redeclare <slug> [--reason <text>]` emits `plan_redeclared`, rewinding a
-change from any active (non-terminal) state back to INTENT_DECLARED. It is the
-late-stage scope-expansion counterpart to `plan ready`: after `redeclare`, the
-scope is re-declared via `plan ready <slug> --scope @new`, which re-routes through
-AWAITING_PLAN_REVIEW and the plan scope-adherence review (plan + code review
-deliberately re-run — there is no silent scope-amend-without-review path). Without
-it, expanding scope late (e.g. from READY_TO_MERGE) forces a `change abandon` +
-new-slug workaround. Emit is STRICT — a terminal state (ARCHIVED/ABANDONED) or a
-not-yet-started slug is rejected with nothing appended. Exit codes: 0 / 2 / 3.
-`--reason` is optional (mirrors `change abandon --reason`); when supplied it is
-recorded on the event and the reducer appends it to `redeclaration_history`.
-Reconcile note: cli-command-surface §418 predates this verb; the spec's `plan`
-CLI signature should grow `redeclare` (same divergence-note convention as the
-`--tier-hint` flag below).
-
-The payload carries the lifecycle-event-model §3.2 fields the reducer already
-consumes (reducer.py): `scope` ({files: [...]}),
-`tier_hint` (Micro/Normal/Large → cs.tier). Both are optional and omitted
-from the payload when not supplied.
-
-Reconcile note: cli-command-surface §418 lists the signature as
-`plan ready <slug> [--scope <files-yaml>]` and the exit codes
-as 0/1/2/3/5. We additionally expose `--tier-hint` because the lifecycle §3.2
-payload schema includes `tier_hint` and the reducer already maps it onto
-`cs.tier` (consumed by the anchor / verification tier policy) — the spec's CLI
-signature should grow this flag. EXIT_VALIDATION=2 covers both an illegal
-lifecycle transition and a malformed `--scope` (bad yaml / unreadable `@file`),
-per the house convention used by the sibling emitters.
-
-Exit codes: 0 ok / 2 illegal transition or bad `--scope` / 3 no `.harness/`.
+The legacy emitter branches retain historical contract behavior for old data;
+new Changes require the active recognition contract. Scope is an initial estimate,
+not the new-contract authorization boundary.
 """
 
 from __future__ import annotations

@@ -43,10 +43,14 @@ a framework adapter, get the plan reviewed, implement, verify, review, merge —
 the 10-minute [Getting started](docs/getting-started.md) walkthrough. To inspect a
 pre-seeded non-trivial `.harness/` state without running anything, see the in-tree
 demo [`examples/demo-openspec-claude/`](examples/demo-openspec-claude/). The
-walkthrough also shows the agent-neutral review protocol: tracked reviewer
-governance, gitignored user-selected Codex/Claude models and options, frozen
-scope/invocation contracts, imported receipts, bounded automatic rounds, and a
-first-class human path. super-harness never spawns or executes the reviewer.
+walkthrough shows the active review contract: the owner recognizes an external
+process in `.harness/review-recognition.yaml`; the process supplies an explicit
+plan/code conclusion, original evidence and provenance for the exact subject.
+Import it with `super-harness review import`. Approved commitments authorize
+implementation adjustments, with assessments and actual file coverage recorded
+before completion. Review execution and retries belong to the external process.
+Historical configuration and event records remain readable; the demo is historical
+sample data, not an executable current-review recipe.
 
 ## Links
 

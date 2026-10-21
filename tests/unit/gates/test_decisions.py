@@ -26,11 +26,11 @@ def test_decisions_are_allow_or_block() -> None:
     assert all(d in {"allow", "block"} for d, _ in PRE_TOOL_USE_DECISIONS.values())
 
 
-def test_suggestions_cover_exactly_blocking_states() -> None:
+def test_suggestions_cover_blocking_states_and_rejected_code_recovery() -> None:
     blocking = {
         state for state, (d, _) in PRE_TOOL_USE_DECISIONS.items() if d == "block"
     }
-    assert set(SUGGESTIONS) == blocking
+    assert set(SUGGESTIONS) == blocking | {"CODE_REVIEW_REJECTED"}
 
 
 def test_plan_path_allow_states_is_intent_declared_only() -> None:

@@ -162,7 +162,7 @@ def test_codex_agents_md_teaches_compiled_review_contract():
     assert "outside super-harness" in sub
     assert "do not edit while an external review is pending" in sub
     assert "a skipped review is disclosure" in sub
-    assert "plan, scope, or requirements changed" in sub
+    assert "approved commitments change or explicit restrictions are relaxed" in sub
     assert "never widens the target" in sub
 
 

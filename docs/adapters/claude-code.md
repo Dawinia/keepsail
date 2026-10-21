@@ -142,19 +142,15 @@ by exact marker match. Re-run `adapter install claude-code` if it drifts.
   `AWAITING_PLAN_REVIEW` / etc.). The gate only allows mutations at
   `PLAN_APPROVED`, `IMPLEMENTATION_IN_PROGRESS`, or `CODE_REVIEW_REJECTED`
   (see `src/super_harness/gates/decisions.py`). `AWAITING_PLAN_REVIEW →
-  PLAN_APPROVED` advances through receipt-backed round closure. Tracked
-  `.harness/review-governance.yaml` fixes the participant set and round ceiling;
-  gitignored `.harness/review-profiles.local.yaml` holds each user's explicit
-  model and Claude/Codex-specific options. Run `review prepare`, then `review
-  begin`; execute every frozen invocation outside super-harness and import every
-  completed output with `review result import` (or record a crash with `review
-  run fail`). The adapter text forbids treating Claude `Task` as the universal
-  protocol and forbids editing until all issued runs finish. Follow-up fixes and
-  docs are batched into one prepare; code-only findings do not repeat plan review.
-  Findings stay on the exact frozen target, although reviewers may read unchanged
-  repository context for architecture. Human evidence uses `review human
-  draft` plus a human-owned TTY `review human confirm`; the agent must not confirm
-  that nonce.
+  PLAN_APPROVED` advances through imported recognized plan approval. Follow
+  `.harness/review-recognition.yaml` and obtain an explicit external conclusion
+  for the frozen subject, retaining original evidence and provenance. Import with
+  `review import <change> --evidence <path>`. Execution and retries belong to that
+  external process; failed/empty output and skips cannot approve implementation.
+  Wait for pending review before editing. Code fixes use `implementation reopen`
+  and fresh verification/code evidence; new files within approved commitments
+  update implementation assessment/coverage. Changed commitments or relaxed limits
+  need a new plan candidate and approval. See [Getting started](../getting-started.md).
   Framework adapters auto-emit `plan_ready` when
   their artifacts exist (OpenSpec watches `tasks.md`). If the gate is genuinely
   malfunctioning, a **human** (never an agent) can apply the emergency override

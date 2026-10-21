@@ -287,7 +287,7 @@ def test_agents_md_subsection_teaches_compiled_review_contract() -> None:
     assert "outside super-harness" in block
     assert "do not edit while an external review is pending" in block
     assert "a skipped review is disclosure" in block
-    assert "plan, scope, or requirements changed" in block
+    assert "approved commitments change or explicit restrictions are relaxed" in block
     assert "never widens the target" in block
 
 

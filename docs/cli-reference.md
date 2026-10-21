@@ -588,7 +588,7 @@ super-harness implementation record [OPTIONS] SLUG
 
 ## super-harness implementation reopen
 
-Emit `implementation_invalidated` — reopen a frozen change for a code-only fix.
+Emit `implementation_invalidated` — reopen reviewed code for a code-only fix.
 
 ```
 super-harness implementation reopen [OPTIONS] SLUG
@@ -597,7 +597,7 @@ super-harness implementation reopen [OPTIONS] SLUG
 | Param | Type | Default | Description |
 |-------|------|---------|-------------|
 | `SLUG` | text | *required* |  |
-| `--reason` | text | *required* | Why the frozen implementation is being reopened (recorded on the event and counted by `super-harness report`). |
+| `--reason` | text | *required* | Why the frozen or rejected implementation is being reopened (recorded on the event and counted by `super-harness report`). |
 
 **Exit codes:**
 

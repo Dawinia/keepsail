@@ -1103,6 +1103,10 @@ def test_baseline_scope_out_of_scope_fails(tmp_path: Path) -> None:
     assert res.must_pass is False  # advisory: never fails verdict
     assert res.output_path is not None
     assert "rogue.py" in Path(res.output_path).read_text()
+    explanation = Path(res.output_path).read_text()
+    assert "initial scope.files estimate" in explanation
+    assert "file additions alone do not require new plan approval" in explanation
+    assert "not an approval or attestation verdict" in explanation
 
 
 def test_baseline_scope_empty_declared_passes(tmp_path: Path) -> None:

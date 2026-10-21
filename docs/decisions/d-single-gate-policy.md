@@ -5,19 +5,13 @@ ratified_by: dawinialo@163.com
 ratified_at: '2026-07-29T13:19:06.561089Z'
 ratified_text_hash: sha256:c70ba32e4314d0da59b5a5bc844c5995d4b592b7240d81bf6afea764a5eec92b
 last_reconciled_by: dawinialo@163.com
-last_reconciled_at: '2026-08-10T19:21:47.009027Z'
+last_reconciled_at: '2026-09-19T18:15:07.221589Z'
 last_reconcile_kind: self
-last_reconcile_justification: "Only SUGGESTIONS changed \u2014 the remediation strings\
-  \ for READY_TO_MERGE and AWAITING_CODE_REVIEW now name `implementation reopen`.\
-  \ None of the four policy literals moved: PRE_TOOL_USE_DECISIONS, PLAN_ARTIFACT_ALLOW_STATES,\
-  \ PLAN_PATH_ALLOW_STATES and SCRATCH_ROOT are byte-identical, so the allow-state\
-  \ sets are unchanged and still disjoint, no allowance was widened toward source,\
-  \ and nothing was derived from gitignore status. SUGGESTIONS is remediation text\
-  \ the gate surfaces after a decision it did not influence; a blocked state that\
-  \ names no way back is what sent this repo's own changes through plan redeclare\
-  \ twice."
+last_reconcile_justification: 'Only recovery guidance changed: rejected code remains
+  editable; gate policy literals, disjoint allow-state sets, and path whitelists are
+  unchanged. The gate still reads the single policy module.'
 reconciled_anchors:
-  src/super_harness/gates/decisions.py: sha256:13abcecf68c950be86129ee267321e88fdd7c9386094f44df5892de52b514819
+  src/super_harness/gates/decisions.py: sha256:0097ea8b655d93c7291d3d3ae78089cd5dc0456034c28dd6983fdc5eabb870f0
 ---
 Gate policy lives in one module (gates.decisions); the in-process gate reads it, neither invents nor forks policy.
 

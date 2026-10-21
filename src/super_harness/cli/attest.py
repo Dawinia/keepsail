@@ -68,6 +68,14 @@ def _independence_line(role: str, item: dict[str, Any]) -> str:
     """
     label = _INDEPENDENCE_LABELS[role]
     cls, who = item["classification"], item.get("reviewer")
+    if cls == "external-evidence":
+        process = item["process"]
+        return (
+            f"{label}: external evidence — process={process['id']}/{process['version']}, "
+            f"issuer={item['issuer']}, evidence={item['evidence_id']}, "
+            f"subject={item['subject_id']}, "
+            f"importer={item['importer']} (independence not verified)"
+        )
     if cls == "self-signed":
         return f"{label}: self-signed (self-review) — {who}"
     if cls == "independent":

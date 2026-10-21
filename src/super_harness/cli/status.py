@@ -174,7 +174,6 @@ def status_cmd(ctx: click.Context, slug: str | None, all_changes: bool) -> None:
         from super_harness.core.paths import pending_reviews_dir
         from super_harness.core.review_verdict import read_change_events
         from super_harness.core.scope_match import resolve_commit
-        from super_harness.engineering.review_governance import automated_participants
         from super_harness.engineering.review_profiles import load_review_profiles
         from super_harness.engineering.review_runs import derive_review_execution
 
@@ -256,61 +255,16 @@ def status_cmd(ctx: click.Context, slug: str | None, all_changes: bool) -> None:
                     }
                 )
             source_profiles[source] = profile_payload
-        automated = list(automated_participants(governance, reviewer))
-        human_participants = [
-            source for source in role.participants if governance.sources[source].kind == "human"
-        ]
-        human_flags = f" --source {human_participants[0]}" if human_participants else ""
-        retry_sources = [source for source in automated if source not in imported]
-        retry_flags = "".join(f" --source {source}" for source in retry_sources)
         remaining_rounds = max(
             role.max_automatic_rounds - execution.automatic_rounds_this_change, 0
         )
-        if packet is None or packet_stale:
-            next_command = f"super-harness review prepare {change_id} --reviewer {reviewer}"
-        elif pending:
-            next_command = (
-                "super-harness review result import ... or review run fail ... "
-                f"for pending source(s): {', '.join(pending)}"
-            )
-        elif not automated:
-            next_command = (
-                f"super-harness review human inspect {change_id} --reviewer {reviewer}"
-                f"{human_flags} --pager"
-            )
-        elif remaining_rounds == 0 and not execution.available_authorization_ids:
-            if human_participants:
-                next_command = (
-                    f"super-harness review human inspect {change_id} "
-                    f"--reviewer {reviewer}{human_flags} --pager"
-                )
-            else:
-                failed_retry = ", ".join(retry_sources) or "(none)"
-                recovery_action = (
-                    f"restore failed source(s): {failed_retry}"
-                    if retry_sources and set(retry_sources).issubset(failed)
-                    else f"collect required source(s): {failed_retry}"
-                )
-                # `review authorize` carries no TTY check any more, so this route no
-                # longer names a terminal — the clause was false, and it was also
-                # what sent the human out of the session to a second one. It is the
-                # same instruction `review begin`'s round-budget hint gives, at the
-                # second decision point that reaches it (AUTH-001); `<why>` is quoted
-                # here for the same reason it is quoted there, because unquoted it is
-                # a shell redirection in a route meant to be typed.
-                next_command = (
-                    f"{recovery_action}; then ask the human to run "
-                    "super-harness review authorize "
-                    f'{change_id} --reviewer {reviewer}{retry_flags} --reason "<why>"; '
-                    f"then super-harness review begin {change_id} --reviewer {reviewer}"
-                    f"{retry_flags}; otherwise human-only decision: "
-                    f"super-harness review skip {change_id} --reviewer {reviewer} "
-                    '--override --reason "<why>"'
-                )
-        else:
-            next_command = (
-                f"super-harness review begin {change_id} --reviewer {reviewer}{retry_flags}"
-            )
+        next_command = (
+            "Historical review data only; retired execution commands cannot resume it. "
+            "Assess this Change under the active recognition contract, snapshot an applicable "
+            "plan/code subject and import recognized external evidence with "
+            f"super-harness review import {change_id} --evidence <path>. "
+            "Historical skip/failure is not approval."
+        )
         return {
             "reviewer": reviewer,
             "min_independent": role.min_independent,
@@ -397,11 +351,11 @@ def status_cmd(ctx: click.Context, slug: str | None, all_changes: bool) -> None:
                     required = progress["required_sources"]
                     click.echo(f"  reviewer: {reviewer} (execution protocol)")
                     click.echo(
-                        "  review progress: "
+                        "  historical review progress: "
                         f"{len(imported)}/{progress['min_independent']} imported source(s)"
                     )
                     click.echo(
-                        "    automatic rounds: "
+                        "    historical automatic rounds: "
                         f"{progress['automatic_rounds_used']} used, "
                         f"{progress['automatic_rounds_remaining']} remaining"
                     )

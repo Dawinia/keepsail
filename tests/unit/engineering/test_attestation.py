@@ -398,6 +398,47 @@ def test_independence_self_signed_when_same_identity() -> None:
     assert derive_independence(evs)["code_review"]["classification"] == "self-signed"
 
 
+@pytest.mark.parametrize("kind,milestone,role", [
+    ("plan", "plan_approved", "plan_review"),
+    ("code", "code_review_passed", "code_review"),
+])
+@pytest.mark.parametrize("defect", [
+    None, "missing", "wrong_subject", "wrong_digest", "rejected", "historical", "skipped",
+])
+def test_external_disclosure_uses_exact_referenced_evidence(kind, milestone, role, defect):
+    from super_harness.core.approval import evidence_digest
+
+    evidence = {
+        "version": "review-evidence/v1", "evidence_id": "external-1", "kind": kind,
+        "subject_id": f"{kind}:subject", "decision": "approve",
+        "process": {"id": "recognized-review", "version": "1"}, "issuer": "reviewer",
+        "original_evidence": {"report": "approve"}, "provenance": {"change_id": "c"},
+    }
+    if defect == "rejected":
+        evidence["decision"] = "reject"
+    payload = {"evidence": evidence, "evidence_digest": evidence_digest(evidence),
+               "historical_only": defect == "historical"}
+    if defect == "wrong_digest":
+        payload["evidence_digest"] = "mismatched"
+    subject = "different" if defect == "wrong_subject" else evidence["subject_id"]
+    conclusion = {"evidence_id": "external-1",
+                  "approval" if kind == "plan" else "code_subject": {"subject_id": subject}}
+    if defect == "skipped":
+        conclusion["skipped"] = True
+    events = [_ev("intent_declared", "importer")]
+    if defect != "missing":
+        events.append(_ev("review_evidence_imported", "importer", payload=payload))
+    events.append(_ev(milestone, "importer", payload=conclusion))
+    row = derive_independence(events)[role]
+    if defect is None:
+        assert row["classification"] == "external-evidence"
+        assert row["reviewer"] is None and row["importer"] == "importer"
+        assert row["process"] == evidence["process"]
+        assert row["issuer"] == "reviewer" and row["subject_id"] == evidence["subject_id"]
+    else:
+        assert row["classification"] == ("skipped" if defect == "skipped" else "self-signed")
+
+
 def test_independence_skipped_marker_overrides_identity_match() -> None:
     evs = [_ev("intent_declared", "alice@x"),
            _ev("code_review_passed", "alice@x", payload={"skipped": True})]

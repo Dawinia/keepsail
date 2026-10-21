@@ -452,7 +452,8 @@ def test_status_json_carries_human_review_protocol(tmp_path: Path) -> None:
     assert entry["reviewer"] == "plan-reviewer"
     progress = entry["review_progress"]
     assert progress["required_sources"] == ["human"]
-    assert "review prepare" in progress["next_command"]
+    assert "review import" in progress["next_command"]
+    assert "Historical review data only" in progress["next_command"]
 
 
 def test_status_shows_independent_review_progress(tmp_path: Path) -> None:
@@ -764,27 +765,11 @@ def test_status_current_imported_source_is_not_also_stale_and_exhaustion_is_acti
     assert progress["retained_sources"] == ["codex"]
     assert progress["stale_sources"] == []
     assert progress["automatic_rounds_remaining"] == 0
-    assert "restore failed source(s): claude" in progress["next_command"]
-    assert "review authorize demo --reviewer code-reviewer" in progress["next_command"]
-    assert "review begin demo --reviewer code-reviewer --source claude" in progress[
-        "next_command"
-    ]
-    assert "review skip demo --reviewer code-reviewer --override" in progress[
-        "next_command"
-    ]
-    assert "human-only" in progress["next_command"]
-    assert "review human inspect" not in progress["next_command"]
-    # AUTH-001. This route used to read "then in a human-owned TTY run
-    # super-harness review authorize …" — the exact clause deleted from `review
-    # begin`'s hint as false once the TTY gate came out, surviving at a second
-    # decision point that no test held. It is also the sentence that sends the human
-    # out of the session to a second terminal, which is the tax the change removes.
-    assert "TTY" not in progress["next_command"]
-    assert "ask the human to run" in progress["next_command"]
-    # `<why>` unquoted is a shell redirection, so a route that is meant to be typeable
-    # cannot ship it bare (the same fix the begin hint carries).
-    assert '--reason "<why>"' in progress["next_command"]
-    assert "--reason <why>" not in progress["next_command"]
+    assert "Historical review data only" in progress["next_command"]
+    assert "review import demo --evidence" in progress["next_command"]
+    for retired in ("review prepare", "review begin", "review authorize", "review skip",
+                    "review human"):
+        assert retired not in progress["next_command"]
 
 
 def test_status_does_not_retain_run_state_from_a_different_packet_contract(
@@ -836,7 +821,7 @@ def test_status_does_not_retain_run_state_from_a_different_packet_contract(
     assert progress["failed_sources"] == []
     assert progress["retained_sources"] == []
     assert progress["stale_sources"] == ["codex"]
-    assert "collect required source(s): codex, claude" in progress["next_command"]
+    assert "review import demo --evidence" in progress["next_command"]
     assert "restore failed source(s)" not in progress["next_command"]
 
 
@@ -903,9 +888,8 @@ def test_status_invalidates_retained_receipts_when_packet_target_is_not_current_
     assert progress["packet"]["target_head"] == "old-head"
     assert progress["packet"]["current_head"] == current_head
     assert progress["packet"]["stale"] is True
-    assert progress["next_command"] == (
-        "super-harness review prepare demo --reviewer code-reviewer"
-    )
+    assert "Historical review data only" in progress["next_command"]
+    assert "review import demo --evidence" in progress["next_command"]
 
     rendered = CliRunner().invoke(
         main, ["--workspace", str(tmp_path), "status", "demo"]
@@ -915,10 +899,8 @@ def test_status_invalidates_retained_receipts_when_packet_target_is_not_current_
     assert "retained: codex" not in rendered.output
     assert "failed: claude" not in rendered.output
     assert "stale: codex" in rendered.output
-    assert (
-        "review next: super-harness review prepare demo --reviewer code-reviewer"
-        in rendered.output
-    )
+    assert "review next: Historical review data only" in rendered.output
+    assert "review prepare" not in rendered.output
 
 
 def test_status_exhaustion_recommends_human_path_only_for_role_participant(
@@ -946,10 +928,9 @@ def test_status_exhaustion_recommends_human_path_only_for_role_participant(
     next_command = json.loads(result.output)["data"]["changes"][0][
         "review_progress"
     ]["next_command"]
-    assert (
-        "review human inspect demo --reviewer code-reviewer --source human --pager"
-        in next_command
-    )
+    assert "Historical review data only" in next_command
+    assert "review import demo --evidence" in next_command
+    assert "review human" not in next_command
     assert "review skip --override" not in next_command
 
 
