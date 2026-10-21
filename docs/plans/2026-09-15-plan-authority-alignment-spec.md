@@ -47,6 +47,15 @@ their first-cutover exception does not authorize this Change.
   same plan approval. Exercise failed/empty external review and retired commands
   without creating core rounds, retry authorizations or approvals. Preserve plan/
   code reviews, exact subjects, real verification/CI and attestation through merge.
+- C7: For recognized external approvals, compute final attestation coverage from
+  the validated actual implementation coverage manifest, not the initial file
+  estimate. Preserve exact code/verification subjects, applicable plan authority,
+  recognized evidence, complete diff coverage and all other guards. Missing,
+  unassessed or unapproved files still fail. Legacy history keeps its original
+  scope rules. Disclose imported external review process/version, issuer and
+  subject separately from the importer; never infer verified independence from
+  either identifier. Complete PR #124 delivery evidence using genuine fresh
+  plan/code review and verification for its complete combined subject.
 
 ## Non-goals and escalation boundary
 
@@ -56,6 +65,15 @@ proven; only a minimal correction within these commitments is permitted. A mater
 authority-contract defect requires a minimal reproduction and impact assessment
 before revising this plan. Do not edit ratified decision bodies, reopen archived
 Changes, advance product-baseline, or touch unrelated untracked files.
+
+C7 was authorized on 2026-10-21 after the isolated fixture and PR #124 reproduced
+the legacy-scope defect. Keep CI's verifier built from trusted base unchanged:
+no candidate-verifier substitution, first-cutover exception, skip or manual ledger
+edits. No merge or deployment is authorized by this amendment. The combined PR
+includes the already reviewed rejected-code-resubmission implementation at 5abf127;
+it is retained supporting context, not a new change to that recovery contract.
+The revised delivery inventory explicitly enumerates all combined PR paths so
+the unmodified trusted-base verifier can validate its genuine refreshed lifecycle.
 
 ## Acceptance evidence
 
@@ -71,3 +89,12 @@ Changes, advance product-baseline, or touch unrelated untracked files.
 5. Isolated fixture addition completes real checks without another plan approval.
 6. External failure/empty result and retired commands emit no automatic orchestration
    or approval events. These are behavioral tests, not mocked success markers.
+7. Extend the real-Git discovered-fixture lifecycle through committed attestation:
+   the fixture passes under its original approval and actual coverage even when
+   absent from initial scope. Omitted/unrelated coverage, missing approval and
+   stale code/verification subjects still fail; legacy scope and skip rules hold.
+   Verify both external evidence disclosure and unchanged legacy classifications.
+8. Refresh the alignment attestation through the supported writer after fresh
+   exact-subject review. Retain its prior historical event prefix. Verify the
+   complete combined PR with an isolated verifier installed from trusted main,
+   then push and observe required CI. Report any remaining blocker without bypass.
