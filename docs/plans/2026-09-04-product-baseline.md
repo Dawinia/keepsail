@@ -3,113 +3,76 @@ change: 2026-09-04-product-baseline
 stage: plan
 scope:
   files:
-    - docs/product-baseline.md
+    - docs/product-architecture.md
+    - docs/product-architecture-coverage.md
     - docs/README.md
     - docs/plans/2026-09-04-product-baseline.md
 tier_hint: Normal
 ---
 
-# Publish the recovered product baseline
+# Record confirmed product architecture and separate implementation coverage
 
-## Authority, history and recovery
+## Authority and revision
 
-Resume the maintainer-authorized recovery and publication of the existing product,
-not a new design. Reuse the prior plan and baseline preserved in commit
-49f4cf0 on the historical product-baseline branch. That account used evidence
-9012958780549eabac6f7fa498024fc3b7f77fa6 and retained maintainer confirmation of
-the overall extraction, including F1–F5. Confirmation of extraction did not
-ratify candidate constitutional classifications or establish their historical origin.
+The owner redirected the unfinished publication on 2026-10-21/22: clarify product
+architecture using axiomatic-product-design, then independently audit coverage.
+The owner confirmed the architecture and required architecture to govern conflicts;
+implementation must not redefine or narrow product obligations.
 
-The recovery uses source revision bfcdb0073b1950067e8b3be278aa09535526bff7,
-checked on 2026-10-21. Keep the daily CLI source checkout on main; work in an
-isolated branch. The original ledger is preserved byte-for-byte as the starting
-ledger in this worktree; subsequent lifecycle events are appended by the CLI.
-The unfinished Change had legacy skipped/override approval and no effective
-approval. Preserve that history without treating it as new-contract approval.
-Use plain `plan redeclare`, then `plan ready --plan` and recognized external
-review before implementation. `redeclare --plan` requires an effective approval
-and is therefore not the initial migration route for this Change.
+This replaces B1-B6 in c5ed618. Their earlier approval does not cover the revision.
+Submit with plan redeclare --plan against the effective approval and obtain
+recognized independent approval before editing deliverables. Preserve all history.
+
+The confirmed draft is retained in the local change scratch directory as
+product-architecture-draft.md, SHA256
+7EEC4AC1347223FA07D7206D1A3DFCFD794CAFEB51D2E4A51DBECC8501966445.
+The independent audit concluded in chat 01a16266-4c69-7332-a351-492d3f2f9d42
+on 2026-10-22 against bfcdb0073b1950067e8b3be278aa09535526bff7.
+Retain original inputs in evidence. Public documents must stand alone without
+requiring local paths or chat access.
 
 ## Binding commitments
 
-- B1: Publish an English `docs/product-baseline.md` and one discoverability entry
-  in `docs/README.md`; retain this plan as the reviewed publication scope.
-- B2: Preserve stable F1–F5, P1–P2, capability and discrepancy IDs where meanings
-  continue. Distinguish confirmed recovery, candidate classification, observation,
-  necessary consequence, selected mechanism, unknown history and unresolved conflict.
-- B3: Refresh capability evidence against the stated source revision. Incorporate
-  the already confirmed local evolution in `docs/product-foundations.md`: plan
-  approval grants autonomy within commitments and restrictions; file additions
-  or new HEAD alone do not revoke it; changed commitments need new approval.
-  The core imports recognized exact-subject conclusions and does not orchestrate
-  reviewers. Describe recognition, implementation assessment, actual coverage,
-  verification, rejection recovery and attestation without conflating them.
-- B4: Use only Git-tracked public evidence or explicit maintainer-confirmed
-  statements. Preserve historical evidence and uncertainty. Separate source
-  coverage, default configuration, installed CLI behavior, published packages,
-  CI configuration, required branch protection and production effectiveness.
-- B5: No runtime, configuration, workflow, package, ratified decision or other
-  prose changes. No new product commitments, knowledge subsystem, coordination
-  feature, tests mirroring prose, private material, local model profiles or
-  automatic precedence rule. Normal generated lifecycle attestation is allowed.
-- B6: Validate links/fragments and tracked targets, whitespace, doc refs, doc
-  generation and decision checks; run configured verification via `done` and
-  obtain independent recognized exact-subject code review before PR readiness.
-  Record genuine gate failures and limits without bypasses. Prepare a PR;
-  merging or publishing is outside this authorization.
-
-## Content and evidence obligations
-
-Retain the bounded promise of continuity and visible accountability to confirmed
-constraints, not guaranteed code correctness. F1 prevents silent drift; F2
-preserves continuity across sessions; F3 covers positive guidance and negative
-experience through knowledge formation, use, checking, revision and retirement;
-F4 is independent of any one coding agent/framework; F5 applies reliability
-principles across identities while allowing work policy variation. Preserve
-concrete violations, authority and consequences without deriving specific storage,
-commands, adapters or states uniquely from those foundations.
-
-Keep human policy ownership, caller execution, external reviewer judgement and
-harness validation distinct. Cover local hook limits (including shell writes and
-Codex limitations), owner-controlled evidence trust, non-coordination boundaries,
-incomplete knowledge delivery and semantic freshness. Do not imply every check
-blocks or every reconciliation is independent.
-
-Recheck old D1–D5 rather than copying old conflicts as current. Record whether
-each was resolved, remains, or changed: tier-2 wording; sedimentation/research
-account; self-host versus shipped CI; native Windows/observer coverage; historical
-review governance versus active recognition. Preserve the old Windows false-success
-probe only as historical evidence and distinguish the later direct-argv runner
-and focused CI coverage. Do not repeat obsolete POSIX timeout claims without
-current evidence. Do not repair supporting documents in this scope.
-
-Describe the default CLI as invoking lifecycle/check/import commands against its
-resolved workspace, not invoking reviewers. Machine-specific executable paths
-are local validation evidence, not public product requirements. The foundation
-document's dated pre-implementation wording must be read in its historical
-context against current source; do not silently revise its authority or dates.
+- A1: Add English docs/product-architecture.md, faithfully expressing the confirmed
+  draft. Distinguish confirmed choices, foundation classification candidates,
+  derived obligations and mechanisms. Preserve F1-F5 history without falsely
+  claiming newly ratified classifications. No additional product choice.
+- A2: Cover product-level knowledge across Changes/sessions; control-layer
+  positioning; commitment-bound autonomy; candidate/effective knowledge;
+  guidance/constraint authority independent of checkability; owner policy and
+  delegated recognition; bounded delivery; versioned observable acquisition trace;
+  in-flight impact and dispute rules; responsibilities, limits, four scenarios
+  and C1-C6. No complete semantic-recall or correctness guarantee.
+- A3: Add English docs/product-architecture-coverage.md as a separate dated
+  descriptive audit snapshot. Cite tracked public evidence at the audited source.
+  Preserve covered/partial/no-evidence/conflict distinctions. The reported 233
+  targeted tests are historical audit results, not fresh runs or architecture
+  acceptance. Separate source, test, integration, CI and deployment claims.
+- A4: Architecture governs conflicts. Preserve knowledge authority, delivery,
+  acquisition/version trace and in-flight feedback gaps. Reliance on external
+  semantic judgment is intentional, not inherently a defect. Corrupt-state
+  fail-open is an observed explicit-handling gap; do not infer blanket blocking
+  as an approved new policy. Negative searches establish lack of located evidence.
+- A5: Update docs/README.md and retain this plan. Only these four prose files plus
+  normal generated attestation are in scope. No runtime/configuration/workflow/
+  ratified-decision/old-foundation/generated-reference changes, implementation
+  repair, PR, merge or release. Preserve main, unrelated files and old branches.
+- A6: Validate fidelity, relative links/fragments, tracked evidence, whitespace,
+  doc refs/generation and decision checks. No prose mirror tests. Record actual
+  coverage/assessment against the new approval, commit, run configured verification
+  via done, and obtain recognized independent exact-subject code review.
+  Report real failures and limitations without bypass.
 
 ## Review and delivery
 
-Commit this plan before submission. Submit B1–B6 as explicit commitments with
-`plan ready --plan`, preserving the complete frozen plan subject (including the
-adopted foundation). Use the owner-recognized `codex-subagent-review/v1` process
-in `.harness/review-recognition.yaml`: independent subagent plan/code review,
-exact subject, retained original conclusion, object identifier, provenance and
-explicit approve/reject decision. Import the exact evidence with `review import`.
-Failed execution, empty results and skip are not approval. Do not edit while
-review is pending; fix blocking findings and re-review through supported lifecycle.
+Commit the plan before submitting its frozen subject and A1-A6.
+Use the existing codex-subagent-review/v1 recognition policy: independent subagent,
+exact subject, explicit conclusion, original retained evidence, object identifier
+and provenance/policy digest. Import exact evidence with review import.
+Failure, empty results and skip are not approval. Do not edit product files
+while review is pending. Fix blocking findings through supported lifecycle.
 
-After approval, implement only the three declared documents. Record implementation
-assessment and actual coverage against the effective approval using
-`implementation record`. Within-approval adjustments do not require renewed plan
-authority; changed commitments do. Run checks, commit, `done`, independent code
-review/import, and eligible attestation/PR preparation. Stage only declared files
-and generated attestation. Preserve unrelated files and old branches. Report
-commits, real checks, review subjects/evidence, lifecycle state, PR and limitations.
-
-Updates are extraction corrections or evidence/capability refreshes unless they
-describe the separately authorized plan-authority evolution. That evolution is
-attributed to its existing foundation record; this publication creates no further
-commitment change. Git history preserves earlier accounts; the baseline remains
-one maintained public account with stable IDs and explicit update categories.
+Within-approval adjustments use implementation record; changed commitments require
+a newly approved revision. Never hand-edit events/state or ratified decision bodies.
+Use the isolated product-baseline-recovery checkout. The architecture is normative;
+coverage is descriptive. Neither authorizes bypassing current gates.
