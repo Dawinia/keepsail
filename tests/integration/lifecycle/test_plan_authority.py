@@ -96,8 +96,9 @@ def _evidence(
 
 
 @pytest.mark.parametrize("resubmit_rejected", [False, True])
+@pytest.mark.parametrize("historical_round", [False, True])
 def test_added_fixture_completes_real_verification_under_same_approval(
-    tmp_path: Path, resubmit_rejected: bool
+    tmp_path: Path, resubmit_rejected: bool, historical_round: bool
 ) -> None:
     """A newly discovered fixture changes coverage, not approved commitments."""
     root = tmp_path / "repo"
@@ -137,6 +138,13 @@ def test_added_fixture_completes_real_verification_under_same_approval(
     ready = cli("plan", "ready", "c", "--plan", "plan.md", "--scope", "[plan.md]",
                 "--commitment", "goal=Read and verify the answer fixture")
     assert ready.exit_code == 0, ready.output
+    if historical_round:
+        # Retained old protocol activity must not select the current contract.
+        EventWriter(events_path(root)).emit(_event("c", "review_round_started", {
+            "reviewer": "plan-reviewer", "epoch_id": "old-epoch", "round_id": "old-round",
+            "contract_digest": "old-contract", "target_head": "old-head",
+            "profile_digest": "old-profiles", "runs": [],
+        }))
     candidate = derive_state(events_path(root))["c"].pending_revision["subject"]
     evidence = _evidence(
         root, kind="plan", subject_id=candidate["subject_id"], evidence_id="plan-1"
@@ -261,11 +269,29 @@ def test_added_fixture_completes_real_verification_under_same_approval(
         ("approval", "requires an effective plan approval"),
         ("verification", "verification is for a different code subject"),
         ("code", "code subject does not match"),
+        ("missing-evidence", "code review evidence is not retained"),
+        ("malformed-evidence", "not backed by recognized code evidence"),
+        ("unrecognized-evidence", "not backed by recognized code evidence"),
+        ("wrong-subject-evidence", "not backed by recognized code evidence"),
+        ("wrong-policy-evidence", "code evidence is bound to another recognition policy"),
     ):
         # Corrupt only the isolated retained fixture; the real writer stays strict.
         records = [json.loads(line) for line in original_attestation.splitlines()]
         for record in records:
             payload = record["payload"]
+            if record["type"] == "review_evidence_imported":
+                evidence = payload.get("evidence", {})
+                if evidence.get("kind") == "code" and evidence.get("evidence_id") == "code-1":
+                    if defect == "missing-evidence":
+                        evidence["evidence_id"] = "unreferenced-code-evidence"
+                    elif defect == "malformed-evidence":
+                        evidence.pop("original_evidence")
+                    elif defect == "unrecognized-evidence":
+                        evidence["issuer"] = "unrecognized"
+                    elif defect == "wrong-subject-evidence":
+                        evidence["subject_id"] = "code:stale"
+                    elif defect == "wrong-policy-evidence":
+                        evidence["provenance"]["policy_digest"] = "another-policy"
             if defect in {"omitted", "unrelated"} and record["type"] == "implementation_recorded":
                 payload["coverage"] = [] if defect == "omitted" else [{"path": "unrelated.txt"}]
             elif defect == "approval" and record["type"] == "plan_approved":

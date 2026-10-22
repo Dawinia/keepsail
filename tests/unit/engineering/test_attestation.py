@@ -126,7 +126,8 @@ def test_check_attestation_clean_ready_stream_passes(tmp_path):
     assert check_attestation(att, "s") == []
 
 
-def test_check_attestation_protocol_stream_requires_imported_receipt(tmp_path):
+@pytest.mark.parametrize("evidence_marker", [False, True])
+def test_check_attestation_protocol_stream_requires_imported_receipt(tmp_path, evidence_marker):
     att = tmp_path / "s.jsonl"
     w = EventWriter(att)
     _emit(w, "intent_declared", "s")
@@ -149,7 +150,10 @@ def test_check_attestation_protocol_stream_requires_imported_receipt(tmp_path):
             "runs": [],
         },
     )
-    _emit(w, "code_review_passed", "s", {"independent_sources": ["codex"]})
+    payload = {"independent_sources": ["codex"]}
+    if evidence_marker:
+        payload["evidence_id"] = "marker-is-not-authority"
+    _emit(w, "code_review_passed", "s", payload)
 
     blockers = check_attestation(att, "s")
 
@@ -262,6 +266,16 @@ def test_verify_covered_subject_passes(tmp_path):
     ]
     v = verify_attestations(tmp_path, diff)
     assert v.ok, v.blockers
+
+
+def test_verify_unusable_recognition_cannot_cover_subjects(tmp_path):
+    _ready_with_scope(tmp_path, "s", ["src/x.py"])
+    (tmp_path / ".harness/review-recognition.yaml").write_text("enabled: true\n")
+    diff = [DiffEntry("A", (".harness/attestations/s.jsonl",)), DiffEntry("M", ("src/x.py",))]
+    verdict = verify_attestations(tmp_path, diff)
+    assert not verdict.ok
+    assert any("review recognition is not usable" in item for item in verdict.blockers)
+    assert verdict.covered == []
 
 
 def test_verify_uncovered_subject_fails_bypass(tmp_path):

@@ -137,12 +137,17 @@ def write_attestation(events_file: Path, attestations_dir: Path, slug: str) -> P
 # --------------------------------------------------------------------------- #
 # Verification
 # --------------------------------------------------------------------------- #
-def check_attestation(attestation_path: Path, slug: str) -> list[str]:
+def check_attestation(
+    attestation_path: Path, slug: str, *, recognition: Recognition | None = None
+) -> list[str]:
     """Return blocker strings for one attestation file (empty list = OK).
 
     The filename↔content binding is checked FIRST (and short-circuits) so a slug
     mismatch FAILs cleanly rather than ``KeyError``-ing on the state lookup.
     Reuses ``derive_state`` + ``find_ordering_violations`` unchanged.
+    A trusted recognition contract delegates review authority checks to
+    ``verify_attestations``' mandatory new-contract validation. Without that
+    context, direct callers retain legacy receipt enforcement.
     """
     blockers: list[str] = []
     states = derive_state(attestation_path)
@@ -172,7 +177,8 @@ def check_attestation(attestation_path: Path, slug: str) -> list[str]:
             continue
         if event.change_id == slug:
             events.append(event)
-    blockers.extend(_review_receipt_blockers(events, slug))
+    if recognition is None:
+        blockers.extend(_review_receipt_blockers(events, slug))
     return blockers
 
 
@@ -311,16 +317,19 @@ def verify_attestations(
         if not att_path.exists():
             blockers.append(f"attestation file for {slug!r} not found at head")
             continue
-        att_blockers = check_attestation(att_path, slug)
-        if att_blockers:
-            blockers.extend(att_blockers)
-            continue
-        cs = derive_state(att_path)[slug]
         try:
             recognition = _trusted_recognition(root, base=base)
         except ApprovalError as exc:
             blockers.append(f"attestation {slug}: review recognition is not usable: {exc}")
-            recognition = None
+            continue
+        # Historical rounds do not select the current review contract. When a
+        # trusted contract is active, its full authority checks below replace
+        # legacy receipt checks; an evidence marker alone grants no exemption.
+        att_blockers = check_attestation(att_path, slug, recognition=recognition)
+        if att_blockers:
+            blockers.extend(att_blockers)
+            continue
+        cs = derive_state(att_path)[slug]
         if recognition is not None and cs.effective_approval is None:
             blockers.append(
                 f"attestation {slug}: active review recognition requires an effective plan approval"
