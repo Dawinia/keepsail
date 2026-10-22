@@ -2,6 +2,11 @@
 
 Start here.
 
+- [Product architecture](product-architecture.md) — the normative product definition,
+  responsibilities, knowledge lifecycle and control boundaries.
+- [Architecture coverage](product-architecture-coverage.md) — a separate dated
+  implementation audit; gaps do not redefine product obligations.
+
 ## Narrative — what is this and how do I use it
 
 - [Overview](overview.md) — what super-harness is, the problem it solves, and how
