@@ -1,4 +1,4 @@
-# Register docs your generator can re-emit, so `super-harness doc check` guards
+# Register docs your generator can re-emit, so `keepsail doc check` guards
 # them against drift (and `--fix` regenerates them). Each entry: a repo-relative
 # `path` + a direct argv `command` that prints the doc's canonical content to
 # stdout, with optional structured `workdir` and `env` fields.

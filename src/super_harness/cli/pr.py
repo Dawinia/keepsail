@@ -1,7 +1,7 @@
-"""`super-harness pr` command group — PR-side validation + `pr_opened` emitter.
+"""`keepsail pr` command group — PR-side validation + `pr_opened` emitter.
 
 Phase 12 shipped the read-only `pr validate <num>` verdict: pulls a PR body via
-`gh pr view`, parses the super-harness metadata block (engineering-integration
+`gh pr view`, parses the keepsail metadata block (engineering-integration
 §2.5), and runs three blocker checks — block complete / lifecycle sequence
 violation-free / change READY_TO_MERGE. It is a pure verdict: it neither emits
 events nor mutates state (it only READS `.harness/events.jsonl` for the lifecycle
@@ -9,7 +9,7 @@ checks, which is why a missing `.harness/` is EXIT_NO_CONFIG, same as verify/don
 
 Phase 13 Task 13.7 adds `pr emit-opened` — the CI-side `pr_opened` emitter,
 symmetric with `on-merge`. CI workflow on `pull_request: opened` calls
-``super-harness pr emit-opened --pr <num> --change <slug>`` → emit ``pr_opened``
+``keepsail pr emit-opened --pr <num> --change <slug>`` → emit ``pr_opened``
 → refresh state → one-shot `SensorDispatcher([PRDecorator()])` injects the §2.5
 metadata block into the PR body. Internal / CI-only; humans use `pr create`.
 
@@ -123,7 +123,7 @@ def pr_validate(ctx: click.Context, pr_number: int) -> None:
     block = parse_metadata_block(body)
     fields_complete = block.present and REQUIRED_METADATA_KEYS <= block.fields.keys()
     if not block.present:
-        blockers.append("no super-harness metadata block")
+        blockers.append("no keepsail metadata block")
     elif block.block_count >= 2:
         blockers.append("multiple metadata blocks (AC-3 violation)")
     elif not fields_complete:
@@ -181,7 +181,7 @@ def pr_validate(ctx: click.Context, pr_number: int) -> None:
                 subcommand="pr validate",
                 message=f"PR #{pr_number} has {len(blockers)} blocker(s):\n  - "
                 + "\n  - ".join(blockers),
-                hint="Resolve each blocker, then re-run `super-harness pr validate`.",
+                hint="Resolve each blocker, then re-run `keepsail pr validate`.",
             ),
             err=True,
         )
@@ -321,8 +321,8 @@ def pr_emit_opened(ctx: click.Context, pr_number: int, change: str) -> None:
                 hint=(
                     "Inspect the `sensor_crashed` event for the root cause — "
                     "common causes: gh auth/network, PR body has multiple or "
-                    "malformed `super-harness:metadata` markers, or change_id "
-                    "resolution. Rerun `super-harness pr emit-opened` after fixing."
+                    "malformed `keepsail:metadata` markers, or change_id "
+                    "resolution. Rerun `keepsail pr emit-opened` after fixing."
                 ),
             ),
             err=True,

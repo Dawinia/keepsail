@@ -50,7 +50,7 @@ def register_builtin(name: str, cls: type[Gate]) -> None:
 def list_builtins() -> list[str]:
     """Return names of all registered built-in gates, sorted alphabetically.
 
-    Phase 3.5 (`super-harness gate list` CLI) and other introspection
+    Phase 3.5 (`keepsail gate list` CLI) and other introspection
     consumers should use this instead of peeking at the private `_BUILTIN`
     dict — the mutation surface (`register_builtin`) stays controlled.
     """
@@ -60,7 +60,7 @@ def list_builtins() -> list[str]:
 def get_builtin(name: str) -> type[Gate] | None:
     """Return the registered built-in Gate class for `name`, or None.
 
-    Read-only accessor used by `super-harness gate list` (Phase 3.5 CLI)
+    Read-only accessor used by `keepsail gate list` (Phase 3.5 CLI)
     to fetch `cls.version` for display. Returns None if no built-in is
     registered under that name — callers must handle the missing case.
     """

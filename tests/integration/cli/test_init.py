@@ -28,11 +28,11 @@ from super_harness.cli.init_ui import (
 from super_harness.engineering.gh import GhError
 from super_harness.version import __version__
 
-_FAKE_HOOK = "/usr/local/bin/super-harness-hook"
+_FAKE_HOOK = "/usr/local/bin/keepsail-hook"
 
 
 def _assert_single_guided_frame(output: str, final_content: str) -> None:
-    assert output.count("┌ super-harness init") == 1
+    assert output.count("┌ keepsail init") == 1
     assert output.count("└") == 1
     lines = output.splitlines()
     closing = [line for line in lines if line.startswith("└ ")]
@@ -356,7 +356,7 @@ def test_init_guided_verbose_changes_only_rendering_for_confirmed_plan(
             executable_lookup=(
                 lambda name: (
                     f"/abs/bin/{name}"
-                    if name in {"codex", "claude", "super-harness", "super-harness-hook"}
+                    if name in {"codex", "claude", "keepsail", "keepsail-hook"}
                     else None
                 )
             ),
@@ -563,7 +563,7 @@ def test_init_guided_prompt_interrupt_stays_inside_the_single_frame(
         lambda request: inspect_workspace(
             request,
             executable_lookup=lambda name: (
-                f"/abs/{name}" if name in {"super-harness-hook", "super-harness"} else None
+                f"/abs/{name}" if name in {"keepsail-hook", "keepsail"} else None
             ),
         ),
     )
@@ -612,7 +612,7 @@ def test_init_line_mode_uses_per_option_prompts_without_comma_parser(
         lambda request: inspect_workspace(
             request,
             executable_lookup=lambda name: (
-                f"/abs/{name}" if name in {"super-harness-hook", "super-harness"} else None
+                f"/abs/{name}" if name in {"keepsail-hook", "keepsail"} else None
             ),
         ),
     )
@@ -670,7 +670,7 @@ def test_init_guided_back_applies_the_revised_plan(
         lambda request: inspect_workspace(
             request,
             executable_lookup=lambda name: (
-                f"/abs/{name}" if name in {"super-harness-hook", "super-harness"} else None
+                f"/abs/{name}" if name in {"keepsail-hook", "keepsail"} else None
             ),
         ),
     )
@@ -932,7 +932,7 @@ def test_init_keyboard_interrupt_during_apply_keeps_completed_ledger(
         shutil,
         "which",
         lambda name: f"/abs/bin/{name}"
-        if name in {"codex", "super-harness-hook", "super-harness"}
+        if name in {"codex", "keepsail-hook", "keepsail"}
         else None,
     )
     monkeypatch.setattr(
@@ -1090,8 +1090,8 @@ def test_init_idempotent_without_force(tmp_path: Path):
     r2 = runner.invoke(main, ["--workspace", str(tmp_path), "init"])
     assert r2.exit_code == 3  # EXIT_NO_CONFIG-style for already-init
     # Status is the primary recovery; force is explicitly a review/reconfigure path.
-    assert "Hint: Run `super-harness status`" in r2.stderr
-    assert "Use `super-harness init --force` to review and reconfigure it." in r2.stderr
+    assert "Hint: Run `keepsail status`" in r2.stderr
+    assert "Use `keepsail init --force` to review and reconfigure it." in r2.stderr
 
 
 def test_init_guided_existing_harness_uses_cohesive_status_first_recovery(
@@ -1119,9 +1119,9 @@ def test_init_guided_existing_harness_uses_cohesive_status_first_recovery(
 
     assert repeated.exit_code == 3
     assert repeated.output.count("Already initialized") == 1
-    assert "Next: super-harness status" in repeated.output
-    assert "Review/reconfigure: super-harness init --force" in repeated.output
-    assert "Error: super-harness init" not in repeated.output
+    assert "Next: keepsail status" in repeated.output
+    assert "Review/reconfigure: keepsail init --force" in repeated.output
+    assert "Error: keepsail init" not in repeated.output
     _assert_single_guided_frame(repeated.output, "Already initialized")
 
 
@@ -1159,7 +1159,7 @@ def test_init_guided_success_has_one_completion_without_legacy_final_line(
     assert result.output.count("◇  Harness configuration") == 1
     assert result.output.count("◇  Agent integrations") == 1
     assert result.output.count("◇  Repository guidance") == 1
-    assert "super-harness initialized at" not in result.output
+    assert "keepsail initialized at" not in result.output
     _assert_single_guided_frame(result.output, "Setup complete in ")
 
 
@@ -1199,7 +1199,7 @@ def test_init_guided_apply_failure_keeps_actionable_failure_and_one_recovery_clo
     assert "✗  Repository guidance:" in result.output
     assert "failed to write .gitignore" in compact
     assert result.output.count("Setup failed after ") == 1
-    assert "Recovery: super-harness init --force" in compact
+    assert "Recovery: keepsail init --force" in compact
     assert "outcome:" not in result.output
     _assert_single_guided_frame(result.output, "Setup failed after ")
 
@@ -1226,7 +1226,7 @@ def test_init_guided_apply_interrupt_closes_frame_after_recovery(
         lambda request: inspect_workspace(
             request,
             executable_lookup=lambda name: (
-                f"/abs/{name}" if name in {"super-harness-hook", "super-harness"} else None
+                f"/abs/{name}" if name in {"keepsail-hook", "keepsail"} else None
             ),
         ),
     )
@@ -1241,15 +1241,15 @@ def test_init_guided_apply_interrupt_closes_frame_after_recovery(
     )
 
     assert result.exit_code == 1, result.output
-    assert "Recovery: super-harness init --force" in result.output
-    _assert_single_guided_frame(result.output, "Recovery: super-harness init --force")
+    assert "Recovery: keepsail init --force" in result.output
+    _assert_single_guided_frame(result.output, "Recovery: keepsail init --force")
 
 
 def test_init_non_guided_success_preserves_legacy_final_line(tmp_path: Path) -> None:
     result = CliRunner().invoke(main, ["--workspace", str(tmp_path), "init"])
 
     assert result.exit_code == 0, result.output
-    assert result.output.count(f"super-harness initialized at {tmp_path / '.harness'}") == 1
+    assert result.output.count(f"keepsail initialized at {tmp_path / '.harness'}") == 1
 
 
 def test_init_force_overwrites(tmp_path: Path):
@@ -1437,7 +1437,7 @@ def test_init_writes_agents_md_fresh_repo(tmp_path: Path):
 
 
 def test_init_preserves_existing_agents_md_user_content(tmp_path: Path):
-    """Existing AGENTS.md with user content (no super-harness section): init
+    """Existing AGENTS.md with user content (no keepsail section): init
     appends our section while preserving the user's content verbatim."""
     agents = tmp_path / "AGENTS.md"
     user_content = "# My project\n\nSome existing agent guidance.\n"
@@ -1451,7 +1451,7 @@ def test_init_preserves_existing_agents_md_user_content(tmp_path: Path):
 
 
 def test_init_force_does_not_duplicate_agents_md_section(tmp_path: Path):
-    """Re-running init with --force re-renders exactly one super-harness
+    """Re-running init with --force re-renders exactly one keepsail
     section (no duplicate blocks)."""
     runner = CliRunner()
     runner.invoke(main, ["--workspace", str(tmp_path), "init"])
@@ -1487,7 +1487,7 @@ def test_init_agents_md_write_failure_exits_generic_with_format_error(tmp_path: 
 
     assert r.exit_code == 1, r.output
     assert "Traceback" not in r.stderr, r.stderr
-    assert "super-harness init:" in r.stderr, r.stderr
+    assert "keepsail init:" in r.stderr, r.stderr
     assert "failed to write AGENTS.md" in r.stderr, r.stderr
     assert "Hint:" in r.stderr, r.stderr
     # .harness/ was scaffolded before the AGENTS.md write — it must survive so the
@@ -1497,12 +1497,12 @@ def test_init_agents_md_write_failure_exits_generic_with_format_error(tmp_path: 
 
 def test_init_force_reinjects_installed_adapters(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """`init` → `adapter install claude-code` → `init --force` re-renders the
-    AGENTS.md super-harness section AND re-injects every installed adapter's
+    AGENTS.md keepsail section AND re-injects every installed adapter's
     subsection, so a re-render never loses adapter guidance (full --force loop
     closure). The adapters.yaml entry + the settings.local.json hooks stay intact and
     are NOT touched by init.
 
-    `adapter install claude-code` resolves `super-harness-hook` via
+    `adapter install claude-code` resolves `keepsail-hook` via
     ``shutil.which``; we monkeypatch it to a fake absolute path so the real
     binary need not be on PATH — matching the pattern in
     ``tests/integration/cli/test_adapter.py``.
@@ -1651,7 +1651,7 @@ def test_init_writes_gitignore_block_fresh_repo(tmp_path: Path):
 
 
 def test_init_preserves_existing_gitignore_user_content(tmp_path: Path):
-    """Existing .gitignore (no super-harness block): init appends the block
+    """Existing .gitignore (no keepsail block): init appends the block
     while preserving the user's content verbatim."""
     gitignore = tmp_path / ".gitignore"
     user_content = "# User-written\n*.pyc\nnode_modules/\n.env\n"
@@ -1683,7 +1683,7 @@ def test_init_force_does_not_duplicate_gitignore_block(tmp_path: Path):
 
 
 def test_init_gitignore_multiple_blocks_fails_loud(tmp_path: Path):
-    """An existing .gitignore with ≥2 super-harness marker blocks fails loud
+    """An existing .gitignore with ≥2 keepsail marker blocks fails loud
     (never splices) and leaves the file untouched (Phase 7/9/12 marker
     discipline)."""
     gitignore = tmp_path / ".gitignore"
@@ -1701,7 +1701,7 @@ def test_init_gitignore_multiple_blocks_fails_loud(tmp_path: Path):
     r = CliRunner().invoke(main, ["--workspace", str(tmp_path), "init"])
     assert r.exit_code == 1, r.output
     assert "Traceback" not in r.stderr, r.stderr
-    assert "super-harness init:" in r.stderr
+    assert "keepsail init:" in r.stderr
     # File left untouched (never spliced).
     assert gitignore.read_text() == before
 

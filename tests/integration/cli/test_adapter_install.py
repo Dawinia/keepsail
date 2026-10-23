@@ -1,11 +1,11 @@
-"""Integration tests for `super-harness adapter install claude-code` (Task 5.7).
+"""Integration tests for `keepsail adapter install claude-code` (Task 5.7).
 
 Wires the v0.1 MINIMAL adapter CLI: only `adapter install claude-code`, which
 registers the PreToolUse hook into `.claude/settings.local.json` via the
 `ClaudeCodeAdapter` (Task 5.6). No uninstall/list, no other adapters, no
 adapters.yaml persistence (all Phase 6).
 
-`shutil.which` is monkeypatched so the real `super-harness-hook` binary need not
+`shutil.which` is monkeypatched so the real `keepsail-hook` binary need not
 be installed on PATH for the happy-path tests; the binary's resolved absolute
 path lands verbatim in the registered hook command (`<abs> --agent claude-code`).
 
@@ -28,7 +28,7 @@ from click.testing import CliRunner
 
 from super_harness.cli import main
 
-_FAKE_HOOK = "/usr/local/bin/super-harness-hook"
+_FAKE_HOOK = "/usr/local/bin/keepsail-hook"
 _EXPECTED_COMMAND = f"{_FAKE_HOOK} --agent claude-code"
 
 
@@ -95,7 +95,7 @@ def test_install_binary_not_on_path_exits_1(
     )
 
     assert r.exit_code == 1
-    assert "super-harness adapter install:" in r.stderr
+    assert "keepsail adapter install:" in r.stderr
     assert "not found on PATH" in r.stderr
     assert "Traceback" not in r.stderr
     # No settings file should have been written on failure.
@@ -111,7 +111,7 @@ def test_install_no_harness_exits_3(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     )
 
     assert r.exit_code == 3
-    assert "super-harness adapter install:" in r.stderr
+    assert "keepsail adapter install:" in r.stderr
     assert "Hint:" in r.stderr
 
 

@@ -63,7 +63,7 @@ def test_stale_version_stamp_is_drift(tmp_path: Path) -> None:
 
 
 def test_content_outside_markers_is_not_drift(tmp_path: Path) -> None:
-    """The managed-only guarantee: user content OUTSIDE the super-harness markers
+    """The managed-only guarantee: user content OUTSIDE the keepsail markers
     is never inspected, so adding it does not register as drift."""
     agents = tmp_path / "AGENTS.md"
     render_super_harness_section(tmp_path, agents, "0.1.0")

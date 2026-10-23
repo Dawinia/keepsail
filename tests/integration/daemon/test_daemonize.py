@@ -47,7 +47,7 @@ def test_pre_fork_threading_invariant() -> None:
 def test_no_super_harness_directory_exits_3(tmp_path) -> None:
     """No `.harness/` in workspace → exit 3 (EXIT_NO_CONFIG) per cli-command-surface."""
     proc = subprocess.run(
-        ["super-harness-daemon", "--workspace", str(tmp_path)],
+        ["keepsail-daemon", "--workspace", str(tmp_path)],
         capture_output=True,
         timeout=5.0,
     )

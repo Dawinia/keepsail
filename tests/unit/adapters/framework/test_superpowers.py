@@ -1,6 +1,6 @@
 """Unit tests for the SuperpowersAdapter (framework adapter).
 
-The adapter discovers superpowers design/plan artifacts by a super-harness-owned
+The adapter discovers superpowers design/plan artifacts by a keepsail-owned
 frontmatter marker (`change:` / `stage:`), NOT by superpowers' version-specific
 paths/filenames — see docs/plans/2026-06-02-superpowers-framework-adapter-design.md.
 """

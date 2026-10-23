@@ -135,7 +135,7 @@ def _inspect_template(path: Path, desired: bytes) -> GithubFileInspection:
         block = parse_metadata_block(existing.decode("utf-8"))
         if block.block_count >= 2:
             raise GithubFileError(
-                f"{path} has {block.block_count} super-harness metadata blocks; "
+                f"{path} has {block.block_count} keepsail metadata blocks; "
                 "refusing to splice (manual cleanup required).",
                 path=path,
                 hint=(

@@ -1,13 +1,13 @@
 ---
 name: discovering-architecture-norms
-description: Use when a team adopting super-harness needs to figure out which architecture norms to lock in an existing or greenfield codebase, and wants candidate rules surfaced from the code as hypotheses to judge before anything is ratified.
+description: Use when a team adopting keepsail needs to figure out which architecture norms to lock in an existing or greenfield codebase, and wants candidate rules surfaced from the code as hypotheses to judge before anything is ratified.
 ---
 
 # Discovering architecture norms
 
 ## Overview
 
-super-harness ships the mechanism to *lock* an architecture norm (`decision new` →
+keepsail ships the mechanism to *lock* an architecture norm (`decision new` →
 write a check → `ratify` → `decision check`) and the guide that teaches *how* to
 write one check:
 https://github.com/Dawinia/super-harness/blob/main/docs/architecture-fitness.md
@@ -24,7 +24,7 @@ is a candidate list for judgment, not a set of rules to apply.
 
 ## When to use
 
-- A team just installed super-harness and asks "now what do I lock?"
+- A team just installed keepsail and asks "now what do I lock?"
 - You want an on-ramp from "the architecture is in our heads" to a concrete list.
 - Greenfield: little/no code yet, but the team wants a few load-bearing norms early.
 

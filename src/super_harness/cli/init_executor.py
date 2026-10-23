@@ -136,8 +136,8 @@ class InitExecutor:
         self,
         operations: InitOperations,
         *,
-        success_next_command: str = "super-harness status",
-        default_recovery_command: str = "super-harness init --force",
+        success_next_command: str = "keepsail status",
+        default_recovery_command: str = "keepsail init --force",
         monotonic: Callable[[], float] = time.monotonic,
     ) -> None:
         self._operations = operations

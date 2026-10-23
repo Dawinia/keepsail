@@ -10,8 +10,8 @@ After Phase-fixup S8-misleading, the CLI catches this specific class of
 `NoSuchOption` and emits a corrective hint pointing the user at the
 correct slot:
 
-    Error: '--json' is a top-level flag of `super-harness`, not a
-           subcommand flag. Try: `super-harness --json verify ...`
+    Error: '--json' is a top-level flag of `keepsail`, not a
+           subcommand flag. Try: `keepsail --json verify ...`
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from super_harness.cli import main
 
 def _invoke(args: list[str]):
     """Invoke `main` with stable prog_name so command_path renders correctly."""
-    return CliRunner().invoke(main, args, prog_name="super-harness")
+    return CliRunner().invoke(main, args, prog_name="keepsail")
 
 
 def test_json_at_subcommand_position_emits_redirect_hint() -> None:
@@ -31,7 +31,7 @@ def test_json_at_subcommand_position_emits_redirect_hint() -> None:
     assert "top-level flag" in result.output
     assert "--json" in result.output
     # The corrected position should be shown.
-    assert "super-harness --json verify" in result.output
+    assert "keepsail --json verify" in result.output
 
 
 def test_quiet_at_subcommand_position_emits_redirect_hint() -> None:
@@ -39,7 +39,7 @@ def test_quiet_at_subcommand_position_emits_redirect_hint() -> None:
     assert result.exit_code == 2
     assert "top-level flag" in result.output
     assert "--quiet" in result.output
-    assert "super-harness --quiet done" in result.output
+    assert "keepsail --quiet done" in result.output
 
 
 def test_workspace_at_subcommand_position_emits_redirect_hint() -> None:
@@ -47,7 +47,7 @@ def test_workspace_at_subcommand_position_emits_redirect_hint() -> None:
     assert result.exit_code == 2
     assert "top-level flag" in result.output
     assert "--workspace" in result.output
-    assert "super-harness --workspace verify" in result.output
+    assert "keepsail --workspace verify" in result.output
 
 
 def test_verbose_at_subcommand_position_emits_redirect_hint() -> None:
@@ -55,7 +55,7 @@ def test_verbose_at_subcommand_position_emits_redirect_hint() -> None:
     assert result.exit_code == 2
     assert "top-level flag" in result.output
     assert "--verbose" in result.output
-    assert "super-harness --verbose verify" in result.output
+    assert "keepsail --verbose verify" in result.output
 
 
 def test_short_quiet_at_subcommand_position_emits_redirect_hint() -> None:
@@ -64,7 +64,7 @@ def test_short_quiet_at_subcommand_position_emits_redirect_hint() -> None:
     assert result.exit_code == 2
     assert "top-level flag" in result.output
     assert "-q" in result.output
-    assert "super-harness -q verify" in result.output
+    assert "keepsail -q verify" in result.output
 
 
 def test_short_verbose_at_subcommand_position_emits_redirect_hint() -> None:
@@ -73,19 +73,19 @@ def test_short_verbose_at_subcommand_position_emits_redirect_hint() -> None:
     assert result.exit_code == 2
     assert "top-level flag" in result.output
     assert "-v" in result.output
-    assert "super-harness -v verify" in result.output
+    assert "keepsail -v verify" in result.output
 
 
 def test_version_at_subcommand_position_emits_redirect_hint() -> None:
     """`--version` is an eager top-level flag — mispositioning it should
-    still get the redirect (the example "Try: super-harness --version verify"
+    still get the redirect (the example "Try: keepsail --version verify"
     is slightly imperfect for eager flags, but points the user in the right
     direction)."""
     result = _invoke(["verify", "--version"])
     assert result.exit_code == 2
     assert "top-level flag" in result.output
     assert "--version" in result.output
-    assert "super-harness --version verify" in result.output
+    assert "keepsail --version verify" in result.output
 
 
 def test_short_version_at_subcommand_position_emits_redirect_hint() -> None:
@@ -94,7 +94,7 @@ def test_short_version_at_subcommand_position_emits_redirect_hint() -> None:
     assert result.exit_code == 2
     assert "top-level flag" in result.output
     assert "-V" in result.output
-    assert "super-harness -V done" in result.output
+    assert "keepsail -V done" in result.output
 
 
 def test_nested_subgroup_redirect_includes_full_command_chain() -> None:
@@ -105,7 +105,7 @@ def test_nested_subgroup_redirect_includes_full_command_chain() -> None:
     assert "--json" in result.output
     # Hint must preserve the full nested chain so user knows where to put
     # the moved flag.
-    assert "super-harness --json change start" in result.output
+    assert "keepsail --json change start" in result.output
 
 
 def test_unknown_subcommand_flag_keeps_original_click_message() -> None:
@@ -136,15 +136,15 @@ def test_typo_of_top_level_flag_keeps_original_click_behavior() -> None:
 
 
 def test_correctly_positioned_top_level_flag_is_unaffected() -> None:
-    """`super-harness --help` should succeed normally — the custom Command
+    """`keepsail --help` should succeed normally — the custom Command
     class must not interfere with valid invocations."""
     result = _invoke(["--help"])
     assert result.exit_code == 0
-    assert "super-harness" in result.output
+    assert "keepsail" in result.output
 
 
 def test_correctly_positioned_json_then_subcommand_help_unaffected() -> None:
-    """`super-harness --json verify --help` flows normally; the override
+    """`keepsail --json verify --help` flows normally; the override
     must not regress correct usage."""
     result = _invoke(["--json", "verify", "--help"])
     assert result.exit_code == 0

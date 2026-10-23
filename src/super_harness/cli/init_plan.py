@@ -1,4 +1,4 @@
-"""Immutable preflight and planning boundary for ``super-harness init``.
+"""Immutable preflight and planning boundary for ``keepsail init``.
 
 The module deliberately stops before prompting, rendering, or applying a plan.
 ``inspect_workspace`` only observes filesystem and executable availability;
@@ -294,7 +294,7 @@ _USER_FILES = (Path("AGENTS.md"), Path(".gitignore"))
 _GITHUB_FILES: tuple[tuple[Path, bytes], ...] = (
     (
         Path(".github/workflows/super-harness.yml"),
-        b"name: super-harness\non: [pull_request]\n",
+        b"name: keepsail\non: [pull_request]\n",
     ),
     (
         Path(".github/pull_request_template.md"),
@@ -344,12 +344,12 @@ def inspect_workspace(
             "codex",
             "claude",
             "gh",
-            "super-harness-hook",
-            "super-harness",
+            "keepsail-hook",
+            "keepsail",
         }
     }
     management_available = all(
-        executable_paths[name] is not None for name in ("super-harness-hook", "super-harness")
+        executable_paths[name] is not None for name in ("keepsail-hook", "keepsail")
     )
     available_integrations = frozenset(_INTEGRATIONS) if management_available else frozenset()
     # Reviewer execution is no longer an init concern.  Keep the historical
@@ -521,7 +521,7 @@ def build_init_plan(
     ]
     if missing_plans:
         raise InitPlanValidationError(
-            "super-harness-hook and super-harness must be available to configure "
+            "keepsail-hook and keepsail must be available to configure "
             f"integration {missing_plans[0]!r}"
         )
     producers, models = _resolve_reviews(request, preflight, choices, review_write)

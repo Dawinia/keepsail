@@ -26,8 +26,8 @@ _GITIGNORE_END = b"# <<< super-harness gitignore"
 
 
 def _console_script() -> str:
-    entrypoint = shutil.which("super-harness")
-    assert entrypoint is not None, "the super-harness console script must be installed"
+    entrypoint = shutil.which("keepsail")
+    assert entrypoint is not None, "the keepsail console script must be installed"
     return entrypoint
 
 

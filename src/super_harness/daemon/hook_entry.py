@@ -1,21 +1,21 @@
 """Click-less PreToolUse hook entry-point.
 
-Registered in pyproject.toml `[project.scripts]` as `super-harness-hook`.
+Registered in pyproject.toml `[project.scripts]` as `keepsail-hook`.
 PreToolUse hook script invokes this binary; the click-less import chain
-saves ~10ms of cold-start cost vs invoking `super-harness gate check`
+saves ~10ms of cold-start cost vs invoking `keepsail gate check`
 (per sensor-gate-architecture §3.6 #5 / daemon-architecture §3.5).
 
 Three invocation modes share ONE decision core (`_decide`); only input
 parsing + the block signalling differ:
 
   1. Positional (default — generic / shell PreToolUse scripts):
-        super-harness-hook <tool> [file]
+        keepsail-hook <tool> [file]
             argv[0] = tool name (e.g. "Edit", "Write")
             argv[1] = file path (optional; some tools have no file argument)
      Exit codes: 0 = ALLOW, 1 = BLOCK (reason on stderr).
 
   2. Claude Code shim:
-        super-harness-hook --agent claude-code
+        keepsail-hook --agent claude-code
      Reads a JSON object from STDIN (Claude Code delivers PreToolUse input
      as JSON on stdin, not argv) with keys `tool_name` + `tool_input.file_path`.
      Exit codes: 0 = ALLOW, **2 = BLOCK**. Claude Code treats exit 2 as a
@@ -24,7 +24,7 @@ parsing + the block signalling differ:
      block, else blocking silently fails open.
 
   3. Codex shim:
-        super-harness-hook --agent codex
+        keepsail-hook --agent codex
      Reads a JSON object from STDIN (Codex delivers PreToolUse input as JSON
      on stdin) with keys `tool_name` + `tool_input.command`. Codex blocks via
      a stdout JSON `hookSpecificOutput.permissionDecision: "deny"` (the
@@ -60,7 +60,7 @@ from super_harness.core.paths import (
 )
 
 _HALT_HINT = (
-    "Stop and tell the human — run `super-harness status` for the next valid step. "
+    "Stop and tell the human — run `keepsail status` for the next valid step. "
     "Do NOT bypass the gate yourself."
 )
 
@@ -70,7 +70,7 @@ def _format_block(reason: str, suggested: str | None) -> str:
     (suggested_action, F8 — previously dropped by the daemon dispatch) + the halt
     hint. `suggested` is None for allowing states / no-active-change."""
     next_step = f" {suggested}" if suggested else ""
-    return f"super-harness: BLOCK ({reason}).{next_step} {_HALT_HINT}"
+    return f"keepsail: BLOCK ({reason}).{next_step} {_HALT_HINT}"
 
 
 def main() -> None:  # console_script entry
@@ -99,7 +99,7 @@ def main() -> None:  # console_script entry
                 _run_codex_shim()
             return
         # Fail-open: never block on a shim contract we don't understand.
-        sys.stderr.write(f"super-harness-hook: unknown --agent {agent!r}\n")
+        sys.stderr.write(f"keepsail-hook: unknown --agent {agent!r}\n")
         sys.exit(0)
     _run_positional(argv)
 
@@ -244,7 +244,7 @@ def _decide(
     import os
 
     # Function-local (matches every other import in this function): keeps the
-    # `super-harness-hook` cold-start light when `_decide` is never reached
+    # `keepsail-hook` cold-start light when `_decide` is never reached
     # (empty argv / unknown --agent return before this point).
     from super_harness.core.plan_paths import patterns_for_state
     from super_harness.core.state_snapshot import load_state_snapshot

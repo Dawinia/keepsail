@@ -1,4 +1,4 @@
-"""Integration tests for `super-harness status` (Phase 2 Task 2.4).
+"""Integration tests for `keepsail status` (Phase 2 Task 2.4).
 
 Read-only command: replays events.jsonl through reducer and renders per-change
 state. No event emission, no post_emit_refresh wiring needed.
@@ -75,7 +75,7 @@ def test_status_unknown_slug_exits_validation_with_format_error(tmp_path: Path) 
         ["--workspace", str(tmp_path), "status", "no-such-slug"],
     )
     assert r.exit_code == 2  # EXIT_VALIDATION — same as `change resume <unknown>`
-    assert "super-harness status:" in r.stderr
+    assert "keepsail status:" in r.stderr
     assert "unknown change slug" in r.stderr
     assert "no-such-slug" in r.stderr
     assert "Hint:" in r.stderr
@@ -167,7 +167,7 @@ def test_status_shows_next_step_for_blocking_state(tmp_path: Path) -> None:
     After `change start`, the change is INTENT_DECLARED (blocking), so the
     human render carries a `next:` line and the `--json` entry a `next` key,
     both holding SUGGESTIONS["INTENT_DECLARED"]. The block-message redirect
-    from Task 3 ("run `super-harness status` for the next valid step") lands
+    from Task 3 ("run `keepsail status` for the next valid step") lands
     on a real next step, not a dead end.
     """
     _init(tmp_path)

@@ -68,7 +68,7 @@ def test_reducer_round_trip_via_state_yaml(tmp_path: Path) -> None:
 def test_read_rejects_non_mapping_root(tmp_path: Path) -> None:
     """A corrupted state.yaml that's a list/scalar must raise ValueError, not AssertionError.
 
-    Rationale: `super-harness state verify` (Task 1.8) needs to catch this cleanly
+    Rationale: `keepsail state verify` (Task 1.8) needs to catch this cleanly
     and emit exit code 2 + actionable stderr. assert would crash, and is stripped
     under python -O.
     """

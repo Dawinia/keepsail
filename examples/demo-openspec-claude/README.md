@@ -1,7 +1,7 @@
 # demo-openspec-claude
 
 A minimal OpenSpec + Claude Code workspace seeded at `IMPLEMENTATION_IN_PROGRESS`.
-Opening it in Claude Code lets you watch super-harness's gate, sensors, and
+Opening it in Claude Code lets you watch keepsail's gate, sensors, and
 post-merge L1 follow-up wire up around you while you complete one small change.
 
 **Why seeded mid-lifecycle?** v0.1's public CLI does not yet expose verbs to
@@ -12,28 +12,28 @@ does NOT ship yet" section). The demo seeds past the plan-review middle states
 all pre-emitted in `.harness/events.jsonl`) so visitors can exercise the
 `Edit` / `verify` / `done` slice that v0.1 actually ships end-to-end.
 
-This is the canonical onboarding demo for `super-harness` v0.1. It lives
+This is the canonical onboarding demo for `keepsail` v0.1. It lives
 in-tree so the README on GitHub doubles as a tutorial; a future end-to-end
 test fixture will reuse this folder.
 
 ## Prerequisites
 
-- `super-harness` installed and on `PATH` (`pipx install super-harness`).
+- `keepsail` installed and on `PATH` (`pipx install keepsail`).
 - OpenSpec Node CLI (`@fission-ai/openspec@1.3.1+`) — required for the
   framework-adapter verification check (`openspec validate <slug> --strict`).
-- `gh` authenticated (`gh auth login`) — required for `super-harness pr` and
+- `gh` authenticated (`gh auth login`) — required for `keepsail pr` and
   `on-merge` plumbing, not for browsing the seed state.
 - Claude Code — required to exercise the PreToolUse gate and SessionStart hook
   end-to-end (which is the point of the walkthrough). To follow along without
-  Claude Code, run the listed `super-harness` commands directly from a shell;
-  the gate enforcement step won't apply (super-harness's gate hooks into
+  Claude Code, run the listed `keepsail` commands directly from a shell;
+  the gate enforcement step won't apply (keepsail's gate hooks into
   Claude Code's PreToolUse event), but the lifecycle / verify / done flow
   still works.
 
 ## A note on `.claude/settings.json` and absolute paths
 
 The committed `.claude/settings.json` references the hook binaries by their
-**bare names** (`super-harness-hook` and `super-harness`). A real install
+**bare names** (`keepsail-hook` and `keepsail`). A real install
 writes **absolute paths** resolved via `shutil.which` at adapter-install time
 (see `adapters/agent/claude_code.py`), since Claude Code spawns hooks with a
 minimal `PATH` and the bare names will not resolve at runtime.
@@ -43,7 +43,7 @@ The bare names are deliberate for the committed copy:
 - They are stable across machines, so the file is readable as documentation.
 - They make the file diff-friendly across contributors.
 - Anyone wiring this demo into their own Claude Code session re-runs
-  `super-harness adapter install claude-code` (see step 1 below) which rewrites
+  `keepsail adapter install claude-code` (see step 1 below) which rewrites
   `settings.json` with their machine's actual absolute paths.
 
 ## What's already done in this folder
@@ -51,7 +51,7 @@ The bare names are deliberate for the committed copy:
 - OpenSpec layout under `openspec/`:
   - `changes/demo-add-greeter/proposal.md` + `tasks.md` (the seed change).
   - `specs/greeter/spec.md` (initial capability spec the change targets).
-- super-harness initialized: `.harness/state.yaml`, `events.jsonl`,
+- keepsail initialized: `.harness/state.yaml`, `events.jsonl`,
   `verification.yaml`, `gates.yaml`, `source-paths.yaml`, etc.
 - OpenSpec + Claude Code adapters installed: `.harness/adapters.yaml`.
 - Lifecycle pre-seeded to `IMPLEMENTATION_IN_PROGRESS`:
@@ -66,7 +66,7 @@ The bare names are deliberate for the committed copy:
   `tests/test_greeter.py` (asserts the stub raises) that the proposal asks
   you to flesh out.
 
-Run `super-harness --workspace examples/demo-openspec-claude/ status` from the
+Run `keepsail --workspace examples/demo-openspec-claude/ status` from the
 repo root and you should see:
 
 ```
@@ -80,7 +80,7 @@ demo-add-greeter: IMPLEMENTATION_IN_PROGRESS
 
    ```
    cd examples/demo-openspec-claude
-   super-harness adapter install claude-code
+   keepsail adapter install claude-code
    ```
 
    This rewrites `.claude/settings.json` so Claude Code can actually invoke the
@@ -89,7 +89,7 @@ demo-add-greeter: IMPLEMENTATION_IN_PROGRESS
    committed form.
 
 2. Open the folder in Claude Code. The `SessionStart` hook runs
-   `super-harness change resume` which dumps the active change context (the
+   `keepsail change resume` which dumps the active change context (the
    `demo-add-greeter` proposal + tasks).
 
 3. Read the proposal and tasks:
@@ -109,11 +109,11 @@ demo-add-greeter: IMPLEMENTATION_IN_PROGRESS
 5. Advance:
 
    ```
-   super-harness done          # runs verify internally, then on a pass
+   keepsail done          # runs verify internally, then on a pass
                                # advances to AWAITING_CODE_REVIEW
    ```
 
-   (`super-harness verify` is also exposed if you want to run the checks
+   (`keepsail verify` is also exposed if you want to run the checks
    without advancing state; `done` calls the same checks first, so you do
    not need to invoke `verify` separately.)
 
@@ -123,22 +123,22 @@ demo-add-greeter: IMPLEMENTATION_IN_PROGRESS
 ## Troubleshooting
 
 - **PreToolUse hook blocks an `Edit` you expected to work**: run
-  `super-harness --workspace . status`. v0.1's gate matrix
+  `keepsail --workspace . status`. v0.1's gate matrix
   (`super_harness/gates/decisions.py`) only allows `Edit` / `Write` at
   `PLAN_APPROVED`, `IMPLEMENTATION_IN_PROGRESS`, and `CODE_REVIEW_REJECTED`;
   every other state blocks mutations. If the state has regressed (for example
   an `intent_abandoned` event landed) or you're on a fresh clone where the
-  seeded events somehow got dropped, re-derive with `super-harness state
+  seeded events somehow got dropped, re-derive with `keepsail state
   rebuild` and confirm `current_state` is `IMPLEMENTATION_IN_PROGRESS`. If
   the gate config looks right but the hook isn't firing at all, you probably
   skipped step 1 — bare hook names in `.claude/settings.json` will not resolve
-  under Claude Code's minimal `PATH`; `super-harness adapter install
+  under Claude Code's minimal `PATH`; `keepsail adapter install
   claude-code` repins abs paths.
 - **`openspec validate` fails with "command not found"**: install the OpenSpec
-  Node CLI (`npm i -g @fission-ai/openspec`). super-harness's
+  Node CLI (`npm i -g @fission-ai/openspec`). keepsail's
   `verification.yaml` registers `openspec validate ${SLUG} --strict --json` as
   an adapter-provided check; without the binary the check fails.
-- **`super-harness status` says "no active change"**: you're running from the
+- **`keepsail status` says "no active change"**: you're running from the
   wrong directory. Either `cd` into `examples/demo-openspec-claude` or pass
   `--workspace examples/demo-openspec-claude/` from the repo root.
 

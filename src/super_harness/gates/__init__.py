@@ -1,4 +1,4 @@
-"""Gate base architecture for super-harness.
+"""Gate base architecture for keepsail.
 
 Per sensor-gate-architecture §2.2: Gates are gatekeepers — given a ProposedAction,
 the current ChangeState, and the event log, they return GateResult(allow|block).

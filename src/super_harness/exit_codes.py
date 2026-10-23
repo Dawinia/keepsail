@@ -1,4 +1,4 @@
-"""Exit code constants for super-harness CLI commands.
+"""Exit code constants for keepsail CLI commands.
 
 Per cli-command-surface §2.2 global convention:
 - 0 = success

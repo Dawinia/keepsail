@@ -1,7 +1,7 @@
 """Consolidated END-TO-END integration test for the Claude Code adapter (Task 9).
 
 The reference-adapter ship guard: ONE realistic flow that runs the real
-``super-harness init`` followed by ``super-harness adapter install claude-code``
+``keepsail init`` followed by ``keepsail adapter install claude-code``
 against a workspace whose ``.claude/settings.local.json`` already holds user content,
 then asserts that EVERYTHING lands together — both hooks, the settings backup,
 and the AGENTS.md injection.
@@ -23,7 +23,7 @@ The NET-NEW guard here: realistic pre-populated settings (exercises the
 backup-on-prepopulated path), BOTH hooks resolved to the REAL on-PATH binaries,
 the AGENTS.md anchor → real block in ONE CLI flow, and idempotency of all three.
 
-⚠ This test SPAWNS the ``super-harness`` / ``super-harness-hook`` entry-point
+⚠ This test SPAWNS the ``keepsail`` / ``keepsail-hook`` entry-point
 binaries by NAME (it does NOT mock ``shutil.which``), so it requires the project
 ``.venv/bin`` to be on ``PATH``. Like the ``tests/e2e/`` binary-spawning suites
 it is FAIL-LOUD: if the binaries are not on PATH the resolving assertions below
@@ -49,9 +49,9 @@ def _expected_pre_tool_use() -> str:
     assertion fails with an actionable message instead of skipping — a silent
     skip here would be a false-green for this reference-adapter ship guard.
     """
-    hook_bin = shutil.which("super-harness-hook")
+    hook_bin = shutil.which("keepsail-hook")
     assert hook_bin is not None, (
-        "super-harness-hook not on PATH — run pytest with `.venv/bin` on PATH"
+        "keepsail-hook not on PATH — run pytest with `.venv/bin` on PATH"
     )
     return f"{hook_bin} --agent claude-code"
 
@@ -62,8 +62,8 @@ def _expected_session_start() -> str:
     FAIL-LOUD (matching ``tests/e2e/``): if the entry point is not on PATH the
     assertion fails with an actionable message instead of skipping.
     """
-    cli_bin = shutil.which("super-harness")
-    assert cli_bin is not None, "super-harness not on PATH — run pytest with `.venv/bin` on PATH"
+    cli_bin = shutil.which("keepsail")
+    assert cli_bin is not None, "keepsail not on PATH — run pytest with `.venv/bin` on PATH"
     return f"{cli_bin} change resume"
 
 
@@ -149,7 +149,7 @@ def test_init_then_install_lands_hooks_backup_and_agents_md(tmp_path: Path) -> N
     # 1. A workspace whose `.claude/settings.local.json` already holds user content.
     _prepopulate_settings(tmp_path)
 
-    # 2. `super-harness init` — writes `.harness/` + the root AGENTS.md (outer
+    # 2. `keepsail init` — writes `.harness/` + the root AGENTS.md (outer
     #    section + plain framework block + the no-agent anchor).
     init_result = _init(tmp_path)
     assert init_result.exit_code == 0, init_result.output
@@ -161,7 +161,7 @@ def test_init_then_install_lands_hooks_backup_and_agents_md(tmp_path: Path) -> N
     assert _AGENT_LITERAL not in agents_after_init
     assert _FRAMEWORK_LITERAL not in agents_after_init
 
-    # 3. `super-harness adapter install claude-code`.
+    # 3. `keepsail adapter install claude-code`.
     install_result = _install(tmp_path)
     assert install_result.exit_code == 0, install_result.output
 

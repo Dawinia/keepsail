@@ -1,4 +1,4 @@
-"""Integration tests for `super-harness init --setup-github` (engineering-integration §2.6/§3.1).
+"""Integration tests for `keepsail init --setup-github` (engineering-integration §2.6/§3.1).
 
 `gh` is ALWAYS mocked — never real gh, never network. stdlib unittest.mock only
 (no pytest-mock). Uses Click's CliRunner, mirroring tests/integration/cli/test_init.py.
@@ -58,7 +58,7 @@ def test_setup_github_gh_not_installed_exits_4_no_github_written(tmp_path: Path)
     assert not _template_path(tmp_path).exists()
     assert not (tmp_path / ".github").exists()
     # actionable hint in stderr (install / auth / refresh)
-    assert "super-harness init:" in r.stderr
+    assert "keepsail init:" in r.stderr
     assert "brew install gh" in r.stderr or "gh auth login" in r.stderr
 
 
@@ -255,7 +255,7 @@ def test_setup_github_existing_file_two_blocks_fails_loud(tmp_path: Path):
         )
     assert r.exit_code != 0, r.output
     assert "Traceback" not in r.stderr, r.stderr
-    assert "super-harness init:" in r.stderr
+    assert "keepsail init:" in r.stderr
     # never spliced — file left untouched
     assert user_tpl.read_text() == before
 
@@ -345,7 +345,7 @@ def test_setup_github_non_utf8_existing_template_friendly_error(tmp_path: Path):
         r = CliRunner().invoke(main, ["--workspace", str(tmp_path), "-q", "init", "--setup-github"])
     assert r.exit_code == 1, r.output
     assert "Traceback" not in r.stderr, r.stderr
-    assert "super-harness init:" in r.stderr
+    assert "keepsail init:" in r.stderr
     assert "could not read" in r.stderr
 
 
@@ -527,7 +527,7 @@ def test_setup_github_non_utf8_existing_workflow_friendly_error(tmp_path: Path):
         r = CliRunner().invoke(main, ["--workspace", str(tmp_path), "-q", "init", "--setup-github"])
     assert r.exit_code == 1, r.output
     assert "Traceback" not in r.stderr, r.stderr
-    assert "super-harness init:" in r.stderr
+    assert "keepsail init:" in r.stderr
     assert "could not read" in r.stderr
 
 
@@ -576,7 +576,7 @@ def test_setup_github_existing_workflow_identical_is_noop(tmp_path: Path):
 def test_setup_github_advisories_appear_on_fresh_success(tmp_path: Path):
     """Fresh repo + success path: stdout shows one advisory line per substep
     (gh CLI ok / wrote PR template / wrote workflow / enabled merge settings)
-    plus the final 'super-harness initialized at ...' line."""
+    plus the final 'keepsail initialized at ...' line."""
     with (
         patch("super_harness.cli.init.check_gh"),
         patch("super_harness.cli.init.enable_repo_merge_settings"),
@@ -589,7 +589,7 @@ def test_setup_github_advisories_appear_on_fresh_success(tmp_path: Path):
     assert "wrote .github/workflows/super-harness.yml" in out, out
     assert "repo merge settings: enabled" in out, out
     # Final line still present.
-    assert "super-harness initialized at" in out
+    assert "keepsail initialized at" in out
 
 
 def test_setup_github_advisories_suppressed_under_quiet(tmp_path: Path):
@@ -834,7 +834,7 @@ def test_inspect_github_files_rejects_duplicate_blocks_before_apply(
         "<!-- super-harness:metadata -->\n<!-- /super-harness:metadata -->\n"
     )
 
-    with pytest.raises(GithubFileError, match="2 super-harness metadata blocks"):
+    with pytest.raises(GithubFileError, match="2 keepsail metadata blocks"):
         inspect_github_files(tmp_path, bundled_pr, bundled_workflow)
 
 

@@ -1,4 +1,4 @@
-"""Unit tests for `super-harness gate list` (Phase 3 Task 3.5 — symmetric mirror).
+"""Unit tests for `keepsail gate list` (Phase 3 Task 3.5 — symmetric mirror).
 
 v0.1 is builtin-only. Covers (mirrors sensor list):
   1. No `.harness/` workspace → EXIT_NO_CONFIG
@@ -151,7 +151,7 @@ def test_list_reports_yaml_validation_errors(
     assert r.exit_code == EXIT_VALIDATION
     combined = r.output + (r.stderr or "")
     assert "must be a list" in combined
-    assert "super-harness gate list" in combined
+    assert "keepsail gate list" in combined
 
 
 def test_list_corrupt_yaml_exits_validation_not_traceback(

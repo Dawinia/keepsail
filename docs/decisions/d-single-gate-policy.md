@@ -5,13 +5,14 @@ ratified_by: dawinialo@163.com
 ratified_at: '2026-07-29T13:19:06.561089Z'
 ratified_text_hash: sha256:c70ba32e4314d0da59b5a5bc844c5995d4b592b7240d81bf6afea764a5eec92b
 last_reconciled_by: dawinialo@163.com
-last_reconciled_at: '2026-09-19T18:15:07.221589Z'
+last_reconciled_at: '2026-10-23T08:28:46.967398Z'
 last_reconcile_kind: self
-last_reconcile_justification: 'Only recovery guidance changed: rejected code remains
-  editable; gate policy literals, disjoint allow-state sets, and path whitelists are
-  unchanged. The gate still reads the single policy module.'
+last_reconcile_justification: 'Reviewed complete decisions.py diff and pre_tool_use
+  reader: only docstring command name and AWAITING_PLAN_REVIEW suggestion changed.
+  PRE_TOOL_USE_DECISIONS, disjoint allow-state sets, hard-coded canonical-path whitelists
+  and single policy reader unchanged.'
 reconciled_anchors:
-  src/super_harness/gates/decisions.py: sha256:0097ea8b655d93c7291d3d3ae78089cd5dc0456034c28dd6983fdc5eabb870f0
+  src/super_harness/gates/decisions.py: sha256:971f2f25caffa146cc01f2f85ea0548d808fcefb3de843886087bf8b507ff07e
 ---
 Gate policy lives in one module (gates.decisions); the in-process gate reads it, neither invents nor forks policy.
 

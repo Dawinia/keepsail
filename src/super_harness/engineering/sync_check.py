@@ -1,6 +1,6 @@
 """Drift check for the managed `sync` artifacts (AGENTS.md section + .gitignore).
 
-`super-harness sync --check` is a dry-run: it renders what `sync` WOULD write into
+`keepsail sync --check` is a dry-run: it renders what `sync` WOULD write into
 a throwaway temp copy of each managed artifact — reusing the EXACT init/sync render
 path, so there is no second template — diffs that canonical result against the
 on-disk file, and reports drift WITHOUT writing. Exit semantics live in the CLI.

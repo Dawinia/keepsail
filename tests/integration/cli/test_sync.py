@@ -1,6 +1,6 @@
-"""Integration tests for `super-harness sync` (Phase 9 batch late).
+"""Integration tests for `keepsail sync` (Phase 9 batch late).
 
-`sync` re-renders the AGENTS.md "super-harness section" (version stamp + every
+`sync` re-renders the AGENTS.md "keepsail section" (version stamp + every
 installed adapter's subsection) WITHOUT re-running `init` (it never touches
 `.harness/`) and WITHOUT modifying user content outside the begin/end markers.
 It is the re-render-without-reinit path; the render logic itself is shared with
@@ -15,7 +15,7 @@ Surface under test (cli-command-surface §sync; eng-integration §2.2 / §3.2):
 
 Drives the root ``main`` group via Click's ``CliRunner`` (mirroring
 ``test_init.py`` / ``test_adapter.py``). ``shutil.which`` is monkeypatched for
-the agent-install legs so the real ``super-harness-hook`` binary need not be on
+the agent-install legs so the real ``keepsail-hook`` binary need not be on
 PATH.
 """
 
@@ -30,7 +30,7 @@ from click.testing import CliRunner
 from super_harness.cli import main
 from super_harness.version import __version__
 
-_FAKE_HOOK = "/usr/local/bin/super-harness-hook"
+_FAKE_HOOK = "/usr/local/bin/keepsail-hook"
 _VERSION_STAMP = (
     f"<!-- super-harness section begin · v{__version__} · DO NOT EDIT MANUALLY -->"
 )
@@ -67,7 +67,7 @@ def test_sync_no_harness_exits_no_config(tmp_path: Path) -> None:
     r = CliRunner().invoke(main, ["--workspace", str(tmp_path), "sync"])
     assert r.exit_code == 3, r.output
     assert "Traceback" not in r.stderr
-    assert "super-harness sync:" in r.stderr
+    assert "keepsail sync:" in r.stderr
 
 
 # --------------------------------------------------------------------------- #
@@ -436,7 +436,7 @@ def test_sync_unreadable_agents_md_surfaces_clean_error(tmp_path: Path) -> None:
     r = CliRunner().invoke(main, ["--workspace", str(tmp_path), "sync"])
     assert r.exit_code == 1, r.output
     assert "Traceback" not in r.stderr
-    assert "super-harness sync:" in r.stderr
+    assert "keepsail sync:" in r.stderr
 
 
 def test_sync_non_utf8_agents_md_surfaces_clean_error(tmp_path: Path) -> None:

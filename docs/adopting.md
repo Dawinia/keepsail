@@ -1,6 +1,6 @@
-# Adopting super-harness in your project
+# Adopting keepsail in your project
 
-super-harness earns its keep when it binds a rule *your team actually cares
+keepsail earns its keep when it binds a rule *your team actually cares
 about* so an AI agent can't quietly break it. Two guides walk the two halves of
 that:
 
@@ -12,7 +12,7 @@ maintainer's mental model has usually drifted from what the code actually does.
 
 The **discovering-architecture-norms** skill mines your codebase for candidate
 norms (dependency-direction / layering rules) and hands you a ranked list of
-hypotheses to ratify. Your own agent runs it — super-harness does not spawn it.
+hypotheses to ratify. Your own agent runs it — keepsail does not spawn it.
 
 - Skill: [`skills/discovering-architecture-norms/SKILL.md`](https://github.com/Dawinia/super-harness/blob/main/skills/discovering-architecture-norms/SKILL.md)
   (private repo during v0.1; needs repo access until the public release).
@@ -29,5 +29,5 @@ code, fails on a counterexample). From then on, violating code is blocked in CI.
 
 Adopting is orthogonal to the per-change lifecycle in [Concepts](concepts.md):
 you lock rules once (they live in `docs/decisions/`), and every subsequent change
-is checked against them by `super-harness decision check`. New to the lifecycle
+is checked against them by `keepsail decision check`. New to the lifecycle
 itself? Start with the [Getting started](getting-started.md) walkthrough.

@@ -131,7 +131,7 @@ def status_cmd(ctx: click.Context, slug: str | None, all_changes: bool) -> None:
                 format_error(
                     subcommand="status",
                     message=f"unknown change slug: {slug!r}",
-                    hint="Run `super-harness change list` to see known changes.",
+                    hint="Run `keepsail change list` to see known changes.",
                 ),
                 err=True,
             )
@@ -262,7 +262,7 @@ def status_cmd(ctx: click.Context, slug: str | None, all_changes: bool) -> None:
             "Historical review data only; retired execution commands cannot resume it. "
             "Assess this Change under the active recognition contract, snapshot an applicable "
             "plan/code subject and import recognized external evidence with "
-            f"super-harness review import {change_id} --evidence <path>. "
+            f"keepsail review import {change_id} --evidence <path>. "
             "Historical skip/failure is not approval."
         )
         return {

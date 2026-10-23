@@ -1,4 +1,4 @@
-"""CLI tests for `super-harness attest write` / `attest verify`."""
+"""CLI tests for `keepsail attest write` / `attest verify`."""
 from __future__ import annotations
 
 from pathlib import Path

@@ -3,7 +3,7 @@
 Phase 13 Task 13.2 (engineering-integration spec §3.3).
 
 Triggers on ``pr_opened`` event, fetches the current PR body, builds a
-super-harness metadata block via ``build_metadata``, merges it idempotently,
+keepsail metadata block via ``build_metadata``, merges it idempotently,
 and writes the result back via ``edit_pr_body``.
 
 Merge strategy (§3.3 reconcile note):
@@ -65,7 +65,7 @@ def _merge_metadata_block(body: str, block: str) -> str:
 
     if result.block_count >= 2:
         raise PRDecoratorError(
-            f"PR-decorator: PR body contains {result.block_count} super-harness "
+            f"PR-decorator: PR body contains {result.block_count} keepsail "
             f"metadata blocks; manual cleanup required (only 1 expected)"
         )
 
@@ -74,7 +74,7 @@ def _merge_metadata_block(body: str, block: str) -> str:
     # where parse_metadata_block sets present=False despite a marker being found.
     if not result.present and (METADATA_BEGIN in body or METADATA_END in body):
         raise PRDecoratorError(
-            "PR-decorator: PR body contains unbalanced or malformed super-harness "
+            "PR-decorator: PR body contains unbalanced or malformed keepsail "
             "marker(s); manual cleanup required before auto-injection"
         )
 
@@ -91,7 +91,7 @@ def _merge_metadata_block(body: str, block: str) -> str:
 
 
 class PRDecorator(Sensor):
-    """Injects the super-harness metadata block into a newly opened PR's body.
+    """Injects the keepsail metadata block into a newly opened PR's body.
 
     Triggers on ``pr_opened``. Reads the PR body, builds a metadata block from
     events.jsonl, merges idempotently, and writes back via gh CLI.

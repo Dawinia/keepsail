@@ -31,7 +31,7 @@ Source files stay blocked; only the recorded marked-`.md` plan doc is editable t
 ## Recording what not to do
 
 Some of what you learn while building is negative: don't do this, here be dragons,
-doing X also requires Y. super-harness has no separate place for that. A `proposed`
+doing X also requires Y. keepsail has no separate place for that. A `proposed`
 decision record *is* the place.
 
 A proposed record is the state for "we got burned, we haven't settled the rule yet".
@@ -64,7 +64,7 @@ A decision record can carry all three, and adds two those forms lack: a lifecycl
 that retires it, and anchors that flag it as suspect when the code it describes
 changes.
 
-## super-harness does not review your code for you
+## keepsail does not review your code for you
 
 The core checks recognized external evidence before implementation and merge.
 The owner enables `.harness/review-recognition.yaml` for a process, issuer,
@@ -102,7 +102,7 @@ Removed execution commands are described as retired in the CLI reference and
 cannot advance a new Change. See [Getting started](getting-started.md) for the
 current workflow and [Report semantics](reporting.md) for observation boundaries.
 
-## super-harness does not spawn your agent
+## keepsail does not spawn your agent
 
 Your agent or terminal calls the harness through hooks and CLI. The harness gates
 implementation and validates retained evidence. The external review workflow owns

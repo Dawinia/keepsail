@@ -993,7 +993,7 @@ def make_verification_event(
             ],
             "suggested_fix": (
                 "Re-run the failed checks locally, fix the underlying issues, "
-                "then re-run `super-harness verify`."
+                "then re-run `keepsail verify`."
             ),
         }
     if verification is not None:

@@ -27,10 +27,10 @@ from super_harness.engineering.agents_md import (
 )
 
 # A minimal init-style outer section seed, with both placeholders present, as
-# `super-harness init` would first write it (before consuming the placeholders).
+# `keepsail init` would first write it (before consuming the placeholders).
 _SEED_WITH_PLACEHOLDERS = (
     "<!-- super-harness section begin · v0.1.0 · DO NOT EDIT MANUALLY -->\n"
-    "## Super-harness conventions\n\n"
+    "## Keepsail conventions\n\n"
     "### PR creation\n\n"
     "[FRAMEWORK_SECTION_AUTO_INSERTED]\n\n"
     "### Agent-specific guidance\n\n"
@@ -365,14 +365,14 @@ def test_section_present_absent_file_is_false(tmp_path: Path) -> None:
 
 
 def test_section_present_file_with_section_is_true(tmp_path: Path) -> None:
-    """A file carrying an outer super-harness section block → True."""
+    """A file carrying an outer keepsail section block → True."""
     path = tmp_path / "AGENTS.md"
     path.write_text(_SEED_WITH_PLACEHOLDERS)
     assert section_present(path) is True
 
 
 def test_section_present_file_without_section_is_false(tmp_path: Path) -> None:
-    """A file with only user content (no super-harness markers) → False."""
+    """A file with only user content (no keepsail markers) → False."""
     path = tmp_path / "AGENTS.md"
     path.write_text("# My project\n\nJust user prose, no markers.\n")
     assert section_present(path) is False

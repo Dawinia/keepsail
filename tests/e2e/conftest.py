@@ -4,7 +4,7 @@ Two fixtures + a small helper API:
 
 - ``demo_repo`` — pytest fixture: a fresh ``git init``-ed tmp dir with one
   empty initial commit and isolated git identity. The fixture does NOT call
-  ``super-harness init`` — each test does that itself so it can assert on the
+  ``keepsail init`` — each test does that itself so it can assert on the
   bootstrap output.
 - ``mock_gh`` — pytest fixture: installs a PATH-shimmed fake ``gh``
   executable that records every invocation to ``calls.jsonl`` and emits
@@ -111,7 +111,7 @@ def _events_contain_type(demo_repo: Path, event_type: str) -> bool:
 def _derive_and_read(demo_repo: Path, slug: str) -> str:
     """Read state.yaml directly and return ``changes[slug].current_state``.
 
-    Does NOT spawn ``super-harness state rebuild`` — every shipped emit
+    Does NOT spawn ``keepsail state rebuild`` — every shipped emit
     site already calls ``refresh_state_after_emit``, and so does
     ``_emit_via_writer`` below. A subprocess per assertion would add
     ~100-200 ms each (Phase 14 cold-start measurement).
@@ -316,7 +316,7 @@ class MockGh:
 # behaviour is identical across macOS/Linux and the JSON serialization is
 # done by stdlib rather than fragile shell quoting.
 _GH_SHIM_SOURCE = '''#!/usr/bin/env python3
-"""PATH-shim fake `gh` for the super-harness E2E tests.
+"""PATH-shim fake `gh` for the keepsail E2E tests.
 
 Records every invocation to $SUPER_HARNESS_E2E_GH_LOG as one JSON line:
     {"argv": [...], "stdin": "..."}

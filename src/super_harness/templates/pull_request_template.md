@@ -9,5 +9,5 @@
 
 ---
 <!-- super-harness:metadata -->
-<!-- auto-filled by super-harness PR-decorator sensor; do not edit manually -->
+<!-- auto-filled by Keepsail PR-decorator sensor; do not edit manually -->
 <!-- /super-harness:metadata -->

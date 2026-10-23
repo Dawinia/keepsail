@@ -1,15 +1,15 @@
 """Reference ``AgentAdapter`` for Claude Code (adapter-architecture §3.5).
 
-This is the canonical adapter super-harness ships in v0.1. It bridges Claude
+This is the canonical adapter keepsail ships in v0.1. It bridges Claude
 Code's runtime to the harness by registering three hooks directly into
 ``.claude/settings.local.json`` (the per-machine, conventionally-gitignored
 settings file — NEVER the committed shared ``settings.json`` — because the hook
 ``command`` pins a machine-specific absolute path):
 
-- a **PreToolUse** hook whose ``command`` points at the ``super-harness-hook``
+- a **PreToolUse** hook whose ``command`` points at the ``keepsail-hook``
   binary (no ``.sh`` wrapper; input parsing lives inside that binary, see
   sensor-gate §3.2.1 + daemon §3.5), and
-- a **SessionStart** hook whose ``command`` is ``<super-harness> change resume``
+- a **SessionStart** hook whose ``command`` is ``<keepsail> change resume``
   (no slug → active change): Claude Code injects its stdout as session context.
 
 Scope deltas baked in per spec §3.5:
@@ -52,9 +52,9 @@ __all__ = [
 # The binary the PreToolUse hook invokes. A click-less entry point that imports
 # the gate directly to skip the ~10ms click-group dispatch cold start (daemon
 # §3.5). Resolved to an absolute path at install time via shutil.which.
-_HOOK_BINARY = "super-harness-hook"
+_HOOK_BINARY = "keepsail-hook"
 # The user-facing entry point `inject_context` shells out to for `change resume`.
-_CLI_BINARY = "super-harness"
+_CLI_BINARY = "keepsail"
 
 # Static AGENTS.md subsection content (this module returns the string; the
 # injection is wired in cli/init.py + cli/adapter.py). Wrapped in markers so the
@@ -62,10 +62,10 @@ _CLI_BINARY = "super-harness"
 _AGENTS_MD_BEGIN = "<!-- super-harness agent: claude-code -->"
 _AGENTS_MD_END = "<!-- /super-harness agent: claude-code -->"
 _AGENTS_MD_SUBSECTION = f"""{_AGENTS_MD_BEGIN}
-### super-harness (Claude Code)
+### keepsail (Claude Code)
 
 A **PreToolUse** hook is enabled for this workspace. `Edit` / `Write` /
-`MultiEdit` / `NotebookEdit` tool calls are blocked by super-harness when the
+`MultiEdit` / `NotebookEdit` tool calls are blocked by keepsail when the
 current change state forbids the mutation (deterministic gate enforcement).
 
 A **Stop** hook also runs a turn-end authoring-time conformance check: when you
@@ -76,9 +76,9 @@ undoes your edit and never blocks twice (it nudges once per turn); the merge gat
 the authoritative floor.
 
 When a tool call is blocked by the gate:
-- Run `super-harness status` to see the current change, its state, and why the
+- Run `keepsail status` to see the current change, its state, and why the
   edit was rejected, plus the next valid step.
-- Resume context for a change with `super-harness change resume <change_id>`.
+- Resume context for a change with `keepsail change resume <change_id>`.
 - **Revising a rejected plan is authorized in-gate:** in `PLAN_REJECTED`, editing
   the change's own recorded plan document (a marked `.md` in the declared scope) is
   ALLOWED through the normal `Edit`/`Write` tools — that is the intended reject-loop
@@ -90,14 +90,14 @@ When a tool call is blocked by the gate:
   in **every** state — it is gitignored and never reviewed. Source files stay blocked
   until the plan is approved. Never write these through the shell to dodge the gate.
 - **If a tool call is blocked by the gate:** stop, and surface the block plus the
-  next valid step (`super-harness status`) to the human. Do **not** try to disable
+  next valid step (`keepsail status`) to the human. Do **not** try to disable
   or work around the gate yourself — overriding it is a **human-only** decision, and
   any bypass is recorded and disclosed at the merge gate. Whether to override is the
   human's call.
 
 #### Review protocol
 
-super-harness does NOT start, spawn, or host reviewers. It records the exact
+keepsail does NOT start, spawn, or host reviewers. It records the exact
 conclusion from an external or human process. The active recognition contract is
 `.harness/review-recognition.yaml`; `.harness/review-governance.yaml` and the
 gitignored `.harness/review-profiles.local.yaml` are historical data and do not
@@ -110,9 +110,9 @@ For each review epoch:
    must identify the current subject, explicit decision, provenance, and retained
    original evidence; the core does not infer approval from a model, failed call,
    empty result, or skip.
-3. Import that exact record with `super-harness review import <change>
+3. Import that exact record with `keepsail review import <change>
    --evidence <path>`. Review execution, retries, and substantive judgment stay
-   outside super-harness.
+   outside keepsail.
 4. Batch code-only fixes after `implementation reopen <change> --reason "<why>"`;
    if approved commitments change or explicit restrictions are relaxed, require a
    new plan candidate and review. Within-approval file additions and implementation
@@ -129,7 +129,7 @@ class ClaudeCodeAdapter(AgentAdapter):
     """Reference adapter for the Claude Code runtime (adapter-architecture §3.5).
 
     Registers a PreToolUse gate hook into ``.claude/settings.local.json`` and
-    resumes change context via the ``super-harness change resume`` CLI.
+    resumes change context via the ``keepsail change resume`` CLI.
     """
 
     name: ClassVar[str] = "claude-code"
@@ -151,7 +151,7 @@ class ClaudeCodeAdapter(AgentAdapter):
         return (workspace / ".claude").is_dir()
 
     def install_hooks(self, workspace: Path) -> None:
-        """Register the super-harness PreToolUse + SessionStart hooks.
+        """Register the keepsail PreToolUse + SessionStart hooks.
 
         Resolves both management binaries to absolute paths up front, plans all
         three hook entries as one settings transaction, then applies that plan
@@ -160,30 +160,30 @@ class ClaudeCodeAdapter(AgentAdapter):
         per-machine, conventionally-gitignored ``settings.local.json`` — never
         the committed shared ``settings.json``:
 
-        - **PreToolUse**: ``command`` = ``<abs super-harness-hook> --agent
+        - **PreToolUse**: ``command`` = ``<abs keepsail-hook> --agent
           claude-code`` (deterministic gate enforcement).
-        - **SessionStart**: ``command`` = ``<abs super-harness> change resume``
+        - **SessionStart**: ``command`` = ``<abs keepsail> change resume``
           (no slug → active change); Claude Code injects its stdout as context.
 
         Per spec §3.5 this writes NO ``.sh`` script.
 
         Raises:
-            RuntimeError: if ``super-harness-hook`` or ``super-harness`` is not
+            RuntimeError: if ``keepsail-hook`` or ``keepsail`` is not
                 resolvable on PATH (a broken install the user must fix by
                 reinstalling) — raised BEFORE any write.
         """
         resolved_hook = shutil.which(_HOOK_BINARY)
         if resolved_hook is None:
             raise RuntimeError(
-                f"{_HOOK_BINARY} not found on PATH; reinstall super-harness "
-                f"(e.g. `pipx reinstall super-harness`) so the gate hook binary "
+                f"{_HOOK_BINARY} not found on PATH; reinstall keepsail "
+                f"(e.g. `pipx reinstall keepsail`) so the gate hook binary "
                 f"is available before installing the Claude Code adapter."
             )
         resolved_cli = shutil.which(_CLI_BINARY)
         if resolved_cli is None:
             raise RuntimeError(
-                f"{_CLI_BINARY} not found on PATH; reinstall super-harness "
-                f"(e.g. `pipx reinstall super-harness`) so the CLI binary is "
+                f"{_CLI_BINARY} not found on PATH; reinstall keepsail "
+                f"(e.g. `pipx reinstall keepsail`) so the CLI binary is "
                 f"available before installing the Claude Code adapter."
             )
 
@@ -219,11 +219,11 @@ class ClaudeCodeAdapter(AgentAdapter):
     def inject_context(self, change_id: str) -> str:
         """Return the ``change resume`` context dump for ``change_id``.
 
-        Delegates to ``super-harness change resume <change_id>`` and returns its
+        Delegates to ``keepsail change resume <change_id>`` and returns its
         stdout. A non-zero exit or empty stdout (e.g. unknown slug) yields ``""``
         rather than raising — context injection is best-effort.
         """
-        # Intentionally shells out to the BARE `super-harness` name (runtime PATH),
+        # Intentionally shells out to the BARE `keepsail` name (runtime PATH),
         # not the shutil.which-resolved absolute path the SessionStart hook pins at
         # install time. This is a best-effort programmatic call, never the gate
         # path, so it doesn't need the install-time pinned absolute path.
@@ -241,7 +241,7 @@ class ClaudeCodeAdapter(AgentAdapter):
         Content-only: the actual injection is wired in ``cli/init.py`` (outer
         section + anchor) and ``cli/adapter.py`` (install injects this / uninstall
         removes it). The text teaches the agent that a PreToolUse gate is enforced
-        and how to recover from a block (`super-harness status` + `change resume`).
+        and how to recover from a block (`keepsail status` + `change resume`).
         """
         return _AGENTS_MD_SUBSECTION
 

@@ -1,6 +1,6 @@
 """Tests for the .gitignore marker-bounded injector (S2 fix).
 
-`super-harness init` writes a marker-bounded block listing the canonical
+`keepsail init` writes a marker-bounded block listing the canonical
 `.harness/` auto-generated paths into the repo-root `.gitignore`. The injector
 follows the same marker-discipline contract as the AGENTS.md injector
 (Phase 7/9/12 lesson): exactly one block expected; multiple blocks → fail loud
@@ -86,7 +86,7 @@ def test_absent_gitignore_writes_marker_block_only(tmp_path: Path) -> None:
 
 
 def test_existing_gitignore_zero_blocks_appends_block(tmp_path: Path) -> None:
-    """When .gitignore has user content but no super-harness block, the
+    """When .gitignore has user content but no keepsail block, the
     injector appends a marker block while preserving user content verbatim."""
     path = tmp_path / ".gitignore"
     user_content = "# User-written gitignore\n*.pyc\nnode_modules/\n.env\n"
@@ -98,7 +98,7 @@ def test_existing_gitignore_zero_blocks_appends_block(tmp_path: Path) -> None:
     assert "*.pyc" in text
     assert "node_modules/" in text
     assert ".env" in text
-    # Super-harness block appended after user content.
+    # Keepsail block appended after user content.
     user_idx = text.index("node_modules/")
     block_idx = text.index(GITIGNORE_BEGIN_MARKER)
     assert user_idx < block_idx
@@ -225,7 +225,7 @@ def test_existing_gitignore_two_blocks_fails_loud(tmp_path: Path) -> None:
 def test_existing_gitignore_unbalanced_markers_fails_loud(
     tmp_path: Path, content: str, expected_begin: int, expected_end: int
 ) -> None:
-    """Unbalanced super-harness markers (orphan begin xor orphan end) →
+    """Unbalanced keepsail markers (orphan begin xor orphan end) →
     raise GitignoreInjectionError. Locks in the data-loss guard: without it,
     a subsequent run would splice over user content trapped between an
     orphan marker and the newly written block."""
@@ -316,7 +316,7 @@ def test_block_covers_gate_blocks_log(tmp_path: Path) -> None:
 def test_block_covers_flock_lock_sentinels(tmp_path: Path) -> None:
     """F4: the managed block ignores transient flock sentinels via the
     `.harness/.*.lock` glob (product behavior, not a per-repo hand-edit), so
-    downstream `super-harness init` repos never commit `.state.lock` /
+    downstream `keepsail init` repos never commit `.state.lock` /
     `.events.lock`. Assert the glob is emitted and matches both sentinels.
     """
     import fnmatch
@@ -378,12 +378,12 @@ def test_block_covers_claude_settings_backup_filenames(tmp_path: Path) -> None:
 
 
 def test_committed_repo_gitignore_block_matches_injector() -> None:
-    """Dogfood drift-guard: this repo's committed root `.gitignore` super-harness
+    """Dogfood drift-guard: this repo's committed root `.gitignore` keepsail
     block is byte-identical to what `inject_gitignore_block` would render today.
 
     Guards against `_CANONICAL_PATHS` drifting from the committed block (the gap
     that masked PR #34 review I-1). If this fails, run
-    `super-harness sync --gitignore` and commit the updated `.gitignore`.
+    `keepsail sync --gitignore` and commit the updated `.gitignore`.
     """
     from super_harness.engineering.gitignore_injector import _render_block
 
@@ -402,8 +402,8 @@ def test_committed_repo_gitignore_block_matches_injector() -> None:
     # `_render_block()` ends with a trailing LF; the in-file block does not carry
     # its own trailing LF inside the [begin, end] slice — strip for comparison.
     assert committed_block == _render_block().rstrip("\n"), (
-        "Committed .gitignore super-harness block has drifted from "
-        "_CANONICAL_PATHS. Run `super-harness sync --gitignore` and commit."
+        "Committed .gitignore keepsail block has drifted from "
+        "_CANONICAL_PATHS. Run `keepsail sync --gitignore` and commit."
     )
 
 

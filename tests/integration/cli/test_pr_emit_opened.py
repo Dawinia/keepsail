@@ -1,4 +1,4 @@
-"""Integration tests for ``super-harness pr emit-opened`` (Phase 13 Task 13.7).
+"""Integration tests for ``keepsail pr emit-opened`` (Phase 13 Task 13.7).
 
 ``pr emit-opened`` is the CI-side ``pr_opened`` emitter that fires the
 PR-decorator workflow. Symmetric with Task 13.6's ``on-merge`` but simpler:

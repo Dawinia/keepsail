@@ -1,4 +1,4 @@
-"""`super-harness implementation` — implementation-phase lifecycle emitters.
+"""`keepsail implementation` — implementation-phase lifecycle emitters.
 
 `implementation start <slug> [--first-commit <sha>]` (cli-command-surface §429)
 manually emits `implementation_started`, advancing PLAN_APPROVED →
@@ -144,7 +144,7 @@ def start(ctx: click.Context, slug: str, first_commit: str | None) -> None:
             )
         )
     elif not ctx.obj.get("quiet"):
-        click.echo(f"super-harness: emitted implementation_started for {slug} → {new_state}")
+        click.echo(f"keepsail: emitted implementation_started for {slug} → {new_state}")
     sys.exit(EXIT_OK)
 
 
@@ -180,7 +180,7 @@ _REOPEN_STATES: tuple[str, ...] = (
     "--reason",
     required=True,
     help="Why the frozen or rejected implementation is being reopened (recorded on the event and "
-    "counted by `super-harness report`).",
+    "counted by `keepsail report`).",
 )
 @click.pass_context
 def reopen(ctx: click.Context, slug: str, reason: str) -> None:
@@ -280,7 +280,7 @@ def reopen(ctx: click.Context, slug: str, reason: str) -> None:
             )
         )
     elif not ctx.obj.get("quiet"):
-        click.echo(f"super-harness: emitted implementation_invalidated for {slug} → {new_state}")
+        click.echo(f"keepsail: emitted implementation_invalidated for {slug} → {new_state}")
         # The cost, stated where the verb is used rather than folded into its name. An
         # agent that reads `reopen` as free needs to be told here what it just spent.
         #
@@ -402,5 +402,5 @@ def record(ctx: click.Context, slug: str, assessment: str) -> None:
             )
         )
     elif not ctx.obj.get("quiet"):
-        click.echo(f"super-harness: recorded implementation assessment for {slug}")
+        click.echo(f"keepsail: recorded implementation assessment for {slug}")
     sys.exit(EXIT_OK)

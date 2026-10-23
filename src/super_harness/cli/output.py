@@ -1,4 +1,4 @@
-"""JSON envelope wrapper for super-harness CLI machine-readable output.
+"""JSON envelope wrapper for keepsail CLI machine-readable output.
 
 Per cli-command-surface §3.4. All `--json` invocations emit a single-line JSON
 object with this exact 6-key shape:

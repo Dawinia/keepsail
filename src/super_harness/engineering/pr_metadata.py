@@ -372,10 +372,10 @@ def resolve_slug_from_pr_body_strict(body: str, *, pr_number: int) -> str:
         # `pr validate` is intentional — see module docstring.
         raise PrSlugLookupError(
             exit_code=_EXIT_EXTERNAL_TOOL,
-            message=f"PR #{pr_number} has no super-harness metadata block",
+            message=f"PR #{pr_number} has no keepsail metadata block",
             hint=(
                 f"Inject the metadata block by running "
-                f"`super-harness pr emit-opened --pr {pr_number} "
+                f"`keepsail pr emit-opened --pr {pr_number} "
                 f"--change <slug>` first."
             ),
         )
@@ -387,7 +387,7 @@ def resolve_slug_from_pr_body_strict(body: str, *, pr_number: int) -> str:
         raise PrSlugLookupError(
             exit_code=_EXIT_VALIDATION,
             message=(
-                f"PR #{pr_number} has a malformed super-harness metadata block "
+                f"PR #{pr_number} has a malformed keepsail metadata block "
                 "(unbalanced markers)"
             ),
             hint="Manually fix or remove the broken block, then re-run.",
@@ -399,7 +399,7 @@ def resolve_slug_from_pr_body_strict(body: str, *, pr_number: int) -> str:
         raise PrSlugLookupError(
             exit_code=_EXIT_VALIDATION,
             message=(
-                f"PR #{pr_number} has {block.block_count} super-harness metadata "
+                f"PR #{pr_number} has {block.block_count} keepsail metadata "
                 "blocks (AC-3: exactly one expected)"
             ),
             hint="Remove the duplicate block(s).",
@@ -415,12 +415,12 @@ def resolve_slug_from_pr_body_strict(body: str, *, pr_number: int) -> str:
         raise PrSlugLookupError(
             exit_code=_EXIT_EXTERNAL_TOOL,
             message=(
-                f"PR #{pr_number}'s super-harness metadata block has no "
+                f"PR #{pr_number}'s keepsail metadata block has no "
                 "Change field"
             ),
             hint=(
                 "The PR-decorator should set Change. Re-run "
-                f"`super-harness pr emit-opened --pr {pr_number} "
+                f"`keepsail pr emit-opened --pr {pr_number} "
                 f"--change <slug>`."
             ),
         )

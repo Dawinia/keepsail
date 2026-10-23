@@ -1,6 +1,6 @@
 # Report semantics after plan-authority cutover
 
-`super-harness report` reads the existing ledger and gate-block telemetry. It
+`keepsail report` reads the existing ledger and gate-block telemetry. It
 does not execute reviewers or modify history. `--brief` carries the same limits;
 `--json` exposes per-record details in `cost_breakdown`. For current approval
 applicability, use `status` and attestation, not aggregate report counts.

@@ -1,7 +1,7 @@
-"""Shared AGENTS.md "super-harness section" renderer (init + sync SSOT).
+"""Shared AGENTS.md "keepsail section" renderer (init + sync SSOT).
 
-`super-harness init` and (later) `super-harness sync` must re-render the §2.2
-outer super-harness section the EXACT same way. Keeping that render logic in one
+`keepsail init` and (later) `keepsail sync` must re-render the §2.2
+outer keepsail section the EXACT same way. Keeping that render logic in one
 place avoids the §2.2 template drifting between two copies and a smelly private
 cross-CLI import. This module is that single source of truth:
 
@@ -51,14 +51,14 @@ __all__ = [
 # This leaves NO [*_SECTION_AUTO_INSERTED] literal after a render (§3.2 line 676).
 _AGENTS_MD_SECTION_TEMPLATE = """\
 <!-- super-harness section begin · v{version} · DO NOT EDIT MANUALLY -->
-## Super-harness conventions
+## Keepsail conventions
 
-This project uses super-harness to ensure AI coding reliability.
+This project uses Keepsail, a product-work control layer across agent harnesses.
 
 ### Branch naming
 
 Branch naming is YOURS — keep whatever convention your team already uses.
-super-harness identifies a change by its **slug**, which it carries explicitly
+keepsail identifies a change by its **slug**, which it carries explicitly
 in the PR metadata block (and, for framework adapters, the artifact frontmatter)
 — NOT in the branch name. Naming a branch after the slug
 (e.g. `2026-05-26-add-l1-anchors`) is a convenient default that lets CI resolve
@@ -70,7 +70,7 @@ Use your framework's native PR command:
 
 [FRAMEWORK_SECTION_AUTO_INSERTED]
 
-super-harness will automatically append a metadata block to your PR description
+keepsail will automatically append a metadata block to your PR description
 between `<!-- super-harness:metadata -->` markers.
 **Do not modify content between those markers manually.**
 
@@ -80,14 +80,14 @@ between `<!-- super-harness:metadata -->` markers.
 
 ### Before opening PR
 
-Ensure `super-harness verify` passes (tests / lint / build / anchor sentinels).
-If using a `done` skill, run `super-harness done <slug>` instead—it triggers
+Ensure `keepsail verify` passes (tests / lint / build / anchor sentinels).
+If using a `done` skill, run `keepsail done <slug>` instead—it triggers
 verify and emits the lifecycle event automatically.
 
 Plan and code review are supplied by an external, user-recognized process. The
 harness does not start reviewers, choose models, manage rounds, or turn a
 failed/empty result into approval. Import the exact retained conclusion with
-`super-harness review import <change> --evidence <path>`; the record must name
+`keepsail review import <change> --evidence <path>`; the record must name
 the current subject and an explicit decision. A skipped review is disclosure,
 not approval.
 
@@ -103,20 +103,20 @@ Code review and verification must still cover the exact current implementation.
 
 ### Decision conformance
 
-Ratified decisions under `docs/decisions/` are binding: super-harness
+Ratified decisions under `docs/decisions/` are binding: keepsail
 hash-locks each decision's text and, where configured, attaches an executable
-check. Treat `super-harness decision check` as a LOCAL SENSOR you consult while
+check. Treat `keepsail decision check` as a LOCAL SENSOR you consult while
 you work — CI runs it too as the un-bypassable floor, so keep it green locally.
 
 - **At natural checkpoints** (a chunk done, before you commit) run
-  `super-harness decision check --changed`. A non-zero exit means you violated a
+  `keepsail decision check --changed`. A non-zero exit means you violated a
   ratified decision or edited a ratified decision's body text — fix it before
   continuing; don't push the drift downstream to CI.
 - **Don't hand-edit the body of a ratified decision.** Its text is hash-locked;
-  re-ratifying (`super-harness decision ratify <id>`) is the only unlock, and is
+  re-ratifying (`keepsail decision ratify <id>`) is the only unlock, and is
   a deliberate, recorded act.
 - **Hit a trap worth remembering?** Record it with
-  `super-harness decision new <id> --text "..."`. Filing costs nothing — a
+  `keepsail decision new <id> --text "..."`. Filing costs nothing — a
   `proposed` record is excluded from every `decision check` verdict — and unlike a
   note it has an exit: `ratify` once you can state the rule (arm it with a check if
   you can), `retire` once it stops being true. **Do not attach a `@decision:`
@@ -125,9 +125,9 @@ you work — CI runs it too as the un-bypassable floor, so keep it green locally
   not. Do not open a scratch notes file or a pitfall directory either; a record with
   no lifecycle has no way to stop being wrong.
 - **Attaching an executable check to a decision?** Before you propose it, run
-  `super-harness decision ratify <id> --dry-run` to confirm the check actually
+  `keepsail decision ratify <id> --dry-run` to confirm the check actually
   bites (runs the bite-test without ratifying).
-- `super-harness decision check` (full) and `super-harness doc check` are also
+- `keepsail decision check` (full) and `keepsail doc check` are also
   CI gates — keep both green locally so a push never bounces.
 
 **Arming a decision with a check (the craft).** A check is a shell snippet that
@@ -147,7 +147,7 @@ yours, not the tool's — and the recipe is:
   check runs over the whole tree, so a bare `.` scans the decision file itself
   (which holds the counterexample) and reports "check fails on current code".
 - Add a check + a minimal counterexample, then
-  `super-harness decision ratify <id> --dry-run` until it reports `bites`:
+  `keepsail decision ratify <id> --dry-run` until it reports `bites`:
 
   ```check
   ! grep -rn '<brittle pattern>' <scoped paths>
@@ -176,7 +176,7 @@ yours, not the tool's — and the recipe is:
 
 
 def render_super_harness_section(root: Path, agents_path: Path, version: str) -> None:
-    """Render the §2.2 super-harness section into ``agents_path`` (init + sync SSOT).
+    """Render the §2.2 keepsail section into ``agents_path`` (init + sync SSOT).
 
     Performs the 3-step sequence both ``init`` and ``sync`` share:
       1. inject_section with the outer template stamped at ``version``;
@@ -190,7 +190,7 @@ def render_super_harness_section(root: Path, agents_path: Path, version: str) ->
     3 is a no-op.
 
     Error contract: ``OSError`` (unwritable AGENTS.md / full disk) and
-    ``AgentsMdInjectionError`` (duplicate super-harness outer block) PROPAGATE to
+    ``AgentsMdInjectionError`` (duplicate keepsail outer block) PROPAGATE to
     the caller — each CLI owns its own ``format_error`` envelope + exit code, so
     this renderer never swallows them. The internal adapters.yaml load IS
     non-fatal (advisory + skip) — see ``_reinject_installed_adapters``.
@@ -236,7 +236,7 @@ def _reinject_installed_adapters(root: Path, agents_path: Path) -> None:
         click.echo(
             "Note: couldn't re-inject installed adapters into AGENTS.md "
             f"(adapters.yaml unreadable: {e}); re-run "
-            "`super-harness adapter install <name>` to restore their guidance.",
+            "`keepsail adapter install <name>` to restore their guidance.",
             err=True,
         )
         return

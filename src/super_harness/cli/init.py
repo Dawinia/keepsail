@@ -1,4 +1,4 @@
-"""super-harness init — scaffold the `.harness/` workspace.
+"""keepsail init — scaffold the `.harness/` workspace.
 
 Creates the canonical directory layout (4 subdirs + 6 skeleton files) per
 `engineering-integration` §2.1. Idempotent without `--force`; `--force`
@@ -127,8 +127,8 @@ def _pull_request_template() -> str:
     src = _TEMPLATES.joinpath("pull_request_template.md")
     if not src.is_file():
         raise click.ClickException(
-            "super-harness install is corrupt — bundled template "
-            "'pull_request_template.md' missing. Reinstall super-harness."
+            "keepsail install is corrupt — bundled template "
+            "'pull_request_template.md' missing. Reinstall keepsail."
         )
     return src.read_text(encoding="utf-8")
 
@@ -138,8 +138,8 @@ def _workflow_template() -> str:
     src = _TEMPLATES.joinpath("super_harness_workflow.yml")
     if not src.is_file():
         raise click.ClickException(
-            "super-harness install is corrupt — bundled template "
-            "'super_harness_workflow.yml' missing. Reinstall super-harness."
+            "keepsail install is corrupt — bundled template "
+            "'super_harness_workflow.yml' missing. Reinstall keepsail."
         )
     return src.read_text(encoding="utf-8")
 
@@ -161,15 +161,15 @@ def _derived_docs_default() -> str:
 
 def _verification_default() -> str:
     # I-1 fix: load lazily (inside init_cmd, not at module import) so that
-    # `super-harness --help` and every unrelated subcommand still works even
+    # `keepsail --help` and every unrelated subcommand still works even
     # if the wheel install is corrupt. Asymmetric with _source_paths_default
     # because we have NO sensible inline fallback for verification policy —
     # the only honest behavior is to abort with an actionable message.
     src = _TEMPLATES.joinpath("verification_defaults.yaml")
     if not src.is_file():
         raise click.ClickException(
-            "super-harness install is corrupt — bundled template "
-            "'verification_defaults.yaml' missing. Reinstall super-harness."
+            "keepsail install is corrupt — bundled template "
+            "'verification_defaults.yaml' missing. Reinstall keepsail."
         )
     return src.read_text(encoding="utf-8")
 
@@ -211,7 +211,7 @@ def _skeleton_files() -> dict[str, str]:
             "      # blocking_severity: major   # optional; one of blocker|major|minor\n"
             "      #   (default major). A code-review round rejects only when a finding\n"
             "      #   is at or above this severity; findings below it pass with the\n"
-            "      #   finding left open (recorded + surfaced by `super-harness report`),\n"
+            "      #   finding left open (recorded + surfaced by `keepsail report`),\n"
             "      #   not forcing a re-review round. Plan review always rejects on any\n"
             "      #   checklist fail (its findings are not tracked in the report).\n"
             "  require_distinct_model_families: false\n"
@@ -278,7 +278,7 @@ def build_init_operations(
             raise InitOperationError(
                 str(error),
                 exit_code=EXIT_GENERIC,
-                recovery_command="super-harness init --force",
+                recovery_command="keepsail init --force",
             ) from error
         return InitOperationResult("Wrote skeleton configuration.")
 
@@ -305,7 +305,7 @@ def build_init_operations(
                     hint=(
                         "Settings or executable paths may have changed after review; "
                         "rerun init and review the refreshed plan. If a management "
-                        "executable is missing, reinstall super-harness first."
+                        "executable is missing, reinstall keepsail first."
                     ),
                 ) from error
             configured.append(integration)
@@ -341,7 +341,7 @@ def build_init_operations(
                 f"scaffolded .harness/ but failed to write AGENTS.md: {error}",
                 exit_code=EXIT_GENERIC,
                 hint=(
-                    "Fix AGENTS.md (permissions / duplicate super-harness markers) "
+                    "Fix AGENTS.md (permissions / duplicate keepsail markers) "
                     "and re-run `init --force`."
                 ),
             ) from error
@@ -355,7 +355,7 @@ def build_init_operations(
                 f"scaffolded .harness/ but failed to write .gitignore: {error}",
                 exit_code=EXIT_GENERIC,
                 hint=(
-                    "Fix .gitignore (permissions / duplicate super-harness markers) "
+                    "Fix .gitignore (permissions / duplicate keepsail markers) "
                     "and re-run `init --force`."
                 ),
             ) from error
@@ -425,14 +425,14 @@ def build_init_operations(
     "review_producers",
     multiple=True,
     type=str,
-    help="Retired; reviewer producers are configured outside super-harness.",
+    help="Retired; reviewer producers are configured outside keepsail.",
 )
 @click.option(
     "--review-model",
     "review_models",
     multiple=True,
     metavar="SOURCE=MODEL",
-    help="Retired; super-harness does not select reviewer models.",
+    help="Retired; keepsail does not select reviewer models.",
 )
 @click.option(
     "--yes",
@@ -452,7 +452,7 @@ def init_cmd(
     review_models: tuple[str, ...],
     assume_yes: bool,
 ) -> None:
-    """Initialize a project for super-harness.
+    """Initialize a project for keepsail.
 
     v0.1: --json is not honored by init (bootstrap command produces no
     machine-parseable state).
@@ -509,8 +509,8 @@ def init_cmd(
                     subcommand="init",
                     message=f".harness/ already exists at {harness}",
                     hint=(
-                        "Run `super-harness status` to inspect the existing setup. "
-                        "Use `super-harness init --force` to review and reconfigure it."
+                        "Run `keepsail status` to inspect the existing setup. "
+                        "Use `keepsail init --force` to review and reconfigure it."
                     ),
                 ),
                 err=True,
@@ -571,7 +571,7 @@ def init_cmd(
         ctx.exit(result.exit_code)
 
     if capabilities.mode is not InteractionMode.GUIDED:
-        click.echo(f"super-harness initialized at {harness}")
+        click.echo(f"keepsail initialized at {harness}")
     ctx.exit(EXIT_OK)
 
 
@@ -631,7 +631,7 @@ def _plan_github_setup(
             decisions[relative] = write_decision
             continue
         prompt = (
-            f"Append super-harness metadata placeholder to existing {file.path}?"
+            f"Append keepsail metadata placeholder to existing {file.path}?"
             if file.kind is GithubFileKind.PR_TEMPLATE
             else f"Overwrite existing {file.path}?"
         )

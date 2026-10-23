@@ -1,4 +1,4 @@
-"""Unit tests for the `super-harness plan` group (HG-13): `ready` + `redeclare`.
+"""Unit tests for the `keepsail plan` group (HG-13): `ready` + `redeclare`.
 
 `plan ready <slug> [--scope <files-yaml>] [--tier-hint <t>]`
 (cli-command-surface §418) manually emits `plan_ready`, advancing

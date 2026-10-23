@@ -86,8 +86,8 @@ def start(ctx: click.Context) -> None:
             format_error(
                 subcommand="observe start", message=str(e),
                 hint=(
-                    "check super-harness-daemon is installed alongside "
-                    "super-harness and `.harness/` is writable"
+                    "check keepsail-daemon is installed alongside "
+                    "keepsail and `.harness/` is writable"
                 ),
             ),
             err=True,

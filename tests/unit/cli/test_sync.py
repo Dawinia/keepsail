@@ -1,4 +1,4 @@
-"""Unit tests for `super-harness sync` error envelopes (Phase 9 batch late).
+"""Unit tests for `keepsail sync` error envelopes (Phase 9 batch late).
 
 Focused on the failure paths the integration suite does not exercise: a corrupt
 ``.harness/adapters.yaml`` on the ``--adapter`` leg (EXIT_NO_CONFIG) and an
@@ -60,7 +60,7 @@ def test_sync_full_agents_md_write_failure_exits_generic(tmp_path: Path) -> None
     r = CliRunner().invoke(main, ["--workspace", str(tmp_path), "--quiet", "sync"])
     assert r.exit_code == 1, r.output
     assert "Traceback" not in r.stderr
-    assert "super-harness sync:" in r.stderr
+    assert "keepsail sync:" in r.stderr
     assert "failed to update AGENTS.md" in r.stderr
     assert "Hint:" in r.stderr
 
@@ -98,7 +98,7 @@ def test_sync_gitignore_write_failure_exits_generic(tmp_path: Path) -> None:
     )
     assert r.exit_code == 1, r.output
     assert "Traceback" not in r.stderr
-    assert "super-harness sync:" in r.stderr
+    assert "keepsail sync:" in r.stderr
     assert "failed to update .gitignore" in r.stderr
     assert "Hint:" in r.stderr
 

@@ -1,6 +1,6 @@
 """.gitignore marker-bounded block injector (S2 fix).
 
-`super-harness init` writes a marker-bounded block into the repo-root
+`keepsail init` writes a marker-bounded block into the repo-root
 `.gitignore` listing the canonical auto-generated / per-machine paths that
 are NOT version-control candidates (runtime state, sensor results,
 per-machine local settings, etc.).
@@ -23,7 +23,7 @@ Behavior
 --------
 
 1. ``.gitignore`` absent → write the marker block ONLY.
-2. ``.gitignore`` present + 0 super-harness marker blocks → append the block,
+2. ``.gitignore`` present + 0 keepsail marker blocks → append the block,
    preserving the user's existing content verbatim.
 3. ``.gitignore`` present + exactly 1 marker block → REPLACE the body between
    the markers (idempotent re-init; a re-run on the canonical state is a
@@ -108,7 +108,7 @@ _CANONICAL_PATHS: tuple[str, ...] = (
 class GitignoreInjectionError(Exception):
     """Raised when .gitignore is in a state we refuse to guess about.
 
-    Currently triggered when more than one super-harness marker block is
+    Currently triggered when more than one keepsail marker block is
     present (user mis-edit or duplicate markers) — manual cleanup is
     required, mirroring `AgentsMdInjectionError`.
     """
@@ -143,10 +143,10 @@ def _atomic_write(path: Path, text: str) -> None:
 
 
 def inject_gitignore_block(path: Path) -> None:
-    """Inject / replace the super-harness marker block in ``path``.
+    """Inject / replace the keepsail marker block in ``path``.
 
     See module docstring for full behavior. Raises `GitignoreInjectionError`
-    if ``path`` already has ≥2 super-harness marker blocks (manual cleanup).
+    if ``path`` already has ≥2 keepsail marker blocks (manual cleanup).
     May raise `OSError` if read/write fails (caller's responsibility to
     surface as a friendly error).
 
@@ -165,7 +165,7 @@ def inject_gitignore_block(path: Path) -> None:
         existing = path.read_text(encoding="utf-8")
     except UnicodeDecodeError as e:
         raise GitignoreInjectionError(
-            f"{path} is not valid UTF-8 ({e}); super-harness only edits UTF-8 "
+            f"{path} is not valid UTF-8 ({e}); keepsail only edits UTF-8 "
             f"`.gitignore` — convert it to UTF-8 and retry."
         ) from e
 
@@ -174,7 +174,7 @@ def inject_gitignore_block(path: Path) -> None:
 
     if begin_count >= 2 or end_count >= 2:
         raise GitignoreInjectionError(
-            f"{path} has {max(begin_count, end_count)} super-harness gitignore "
+            f"{path} has {max(begin_count, end_count)} keepsail gitignore "
             f"marker blocks; refusing to splice (manual cleanup required). "
             f"Expected exactly one block between "
             f"'{GITIGNORE_BEGIN_MARKER}' and '{GITIGNORE_END_MARKER}'."
@@ -185,7 +185,7 @@ def inject_gitignore_block(path: Path) -> None:
         # run silently delete the user content trapped between an orphan begin
         # and the new block's end. Fail loud (data-loss guard).
         raise GitignoreInjectionError(
-            f"{path} has unbalanced super-harness gitignore markers "
+            f"{path} has unbalanced keepsail gitignore markers "
             f"({begin_count} begin, {end_count} end); manual cleanup required."
         )
 

@@ -1,4 +1,4 @@
-# Getting started with super-harness
+# Getting started with Keepsail
 
 A 10-minute walkthrough of the full v0.1 lifecycle — from installing the CLI
 to landing a PR with all gates green. By the end you'll have:
@@ -25,13 +25,18 @@ see [`examples/demo-openspec-claude/`](../examples/demo-openspec-claude/).
 
 ## 1. Install the CLI
 
-`super-harness` ships as a Python package; we recommend `pipx` so its
+`keepsail` ships as a Python package; we recommend `pipx` so its
 dependencies don't collide with your project's environment.
 
 ```bash
-pipx install super-harness
-super-harness --version
+# From a checkout containing the migration; registry publication is pending:
+pipx install .
+keepsail --version
 ```
+
+See the [migration guide](keepsail-migration.md) before upgrading an existing
+installation. Registry installation and the bundled workflow's pinned package
+require an actual Keepsail release; this source change does not publish one.
 
 If you plan to use the bundled CI workflow (`init --setup-github`), you
 also need the GitHub CLI:
@@ -48,13 +53,13 @@ That's it for one-time setup. Everything below is per-repo.
 ## 2. Bootstrap a repo
 
 `cd` into the repo you want to harness. It can be brand new or an existing
-project. `super-harness init` never deletes project code; it plans its managed
+project. `keepsail init` never deletes project code; it plans its managed
 file changes and, in either interactive mode, shows the complete plan before
 the first write.
 
 ```bash
 cd path/to/your/repo
-super-harness init --setup-github
+keepsail init --setup-github
 ```
 
 The guided setup has five stages:
@@ -74,7 +79,7 @@ The guided setup has five stages:
 5. **Outcome** reports the real elapsed time and one next command on success.
    On partial failure, the ledger keeps completed writes visible, names the
    failed step and exit code, and gives a recovery command such as
-   `super-harness init --force` after the named problem is corrected; it does not
+   `keepsail init --force` after the named problem is corrected; it does not
    attempt a broad rollback of user-owned files.
 
 On a full interactive terminal, use the arrow keys to move, Space to toggle a
@@ -92,8 +97,8 @@ A representative guided terminal session looks like this (paths and selections
 will reflect your machine):
 
 ```text
-$ super-harness init --setup-github
-┌ super-harness init
+$ keepsail init --setup-github
+┌ keepsail init
 │
 ◇  Workspace  /work/my-project
 │
@@ -113,7 +118,7 @@ $ super-harness init --setup-github
 │
 ▲  GitHub setup: GitHub repository settings need manual confirmation. Settings -> General -> Pull Requests.
 │
-└ Setup complete in 3.1s · Next: super-harness status
+└ Setup complete in 3.1s · Next: keepsail status
 ```
 
 The session reads as one continuous clack-style flow: a single spine (`│`) runs
@@ -126,7 +131,7 @@ on the spine.
 The default guided review is a single `◇ Plan  N files to write` header with the
 changed files inlined and one hidden-count line. Preserved and skipped files are
 summarized as hidden unchanged detail, and successful apply steps are grouped by
-user-visible outcome. Run `super-harness --verbose init` to expand exact
+user-visible outcome. Run `keepsail --verbose init` to expand exact
 preserved/skipped and backup paths (as `Update`/`Create`/`Delete`/`Preserve`/`Skip`
 and `Back up` rows on the spine) and show per-operation apply diagnostics. Verbose
 mode changes only rendering; it does not change the reviewed plan or writes.
@@ -135,13 +140,13 @@ In the verbose review, if the plan will change an existing `.codex/hooks.json`
 or `.claude/settings.local.json`, a **Back up** row lists that path. The default
 review leaves that unchanged diagnostic detail collapsed.
 The adapter transaction is frozen at review time: the original settings bytes,
-desired bytes, and resolved `super-harness` executable paths are checked again
+desired bytes, and resolved `keepsail` executable paths are checked again
 immediately before apply. If any of them changed, init stops before backing up or
 writing and asks you to rerun configuration and review.
 
-Running `super-harness init` again without `--force` keeps the recovery message
-inside the same frame: run `super-harness status` first to inspect the current
-setup. Use `super-harness init --force` only when you want to review and apply a
+Running `keepsail init` again without `--force` keeps the recovery message
+inside the same frame: run `keepsail status` first to inspect the current
+setup. Use `keepsail init --force` only when you want to review and apply a
 reconfiguration; it does not silently overwrite the existing setup.
 
 TTY input with redirected output, `TERM=dumb`, or another cursor-limited
@@ -180,7 +185,7 @@ immediately when stdin is not a TTY):
    `review-governance.yaml` and `review-profiles.local.yaml` are preserved and
    inert for new Changes. Init never installs a third-party agent or reviewer
    producer binary.
-2. Writes `AGENTS.md` (or extends an existing one) with a `super-harness`
+2. Writes `AGENTS.md` (or extends an existing one) with a `keepsail`
    section your AI agent will read.
    Selected integrations install their existing local gate hooks as one atomic
    settings transaction. A fresh local settings file creates no backup; changing
@@ -203,10 +208,10 @@ Verify:
 ```bash
 ls -la .harness/
 cat .github/workflows/super-harness.yml | head -10
-super-harness status
+keepsail status
 ```
 
-If you're not yet ready to wire up CI, run plain `super-harness init`
+If you're not yet ready to wire up CI, run plain `keepsail init`
 (without `--setup-github`) — everything still works locally; you just don't
 get the CI workflow yet.
 
@@ -214,7 +219,7 @@ get the CI workflow yet.
 
 ## 3. Install adapters
 
-An *adapter* tells super-harness how to translate between its lifecycle
+An *adapter* tells keepsail how to translate between its lifecycle
 events and a specific framework (e.g. OpenSpec, Spec Kit) or agent (e.g.
 Claude Code, Cursor). v0.1 ships:
 
@@ -224,8 +229,8 @@ Claude Code, Cursor). v0.1 ships:
 For this walkthrough we'll wire up the canonical pair:
 
 ```bash
-super-harness adapter install openspec
-super-harness adapter install claude-code
+keepsail adapter install openspec
+keepsail adapter install claude-code
 ```
 
 (If `init` detected a `.claude/` directory it already auto-installed
@@ -247,14 +252,14 @@ later.)
 - Writes `PreToolUse` + `SessionStart` hooks into `.claude/settings.local.json`
   (the per-machine, conventionally-gitignored settings file — not the committed
   `.claude/settings.json` — because the hook command pins a machine-specific
-  absolute path) so Claude Code consults super-harness before every `Edit` /
+  absolute path) so Claude Code consults keepsail before every `Edit` /
   `Write` tool call.
 - Extends `AGENTS.md` with a Claude-Code-specific subsection.
 
 Confirm both registered:
 
 ```bash
-super-harness adapter list
+keepsail adapter list
 ```
 
 You should see two rows, both with `enabled: true`.
@@ -267,7 +272,7 @@ Every code modification flows through a **change** — a kebab-case slug
 that's also the git branch name. Declare one before you start editing:
 
 ```bash
-super-harness change start "2026-06-01-add-greeting"
+keepsail change start "2026-06-01-add-greeting"
 ```
 
 What happens:
@@ -285,7 +290,7 @@ keeps your change list time-sortable.
 Check status:
 
 ```bash
-super-harness status
+keepsail status
 ```
 
 You should see the new change in state `INTENT_DECLARED`.
@@ -295,7 +300,7 @@ You should see the new change in state `INTENT_DECLARED`.
 ## 5. Let the agent implement
 
 This is where Claude Code (or your agent of choice) takes over. The agent
-sees the `AGENTS.md` super-harness section + the active change context and
+sees the `AGENTS.md` keepsail section + the active change context and
 starts editing. The hot-path gate enforces lifecycle rules:
 
 - In `INTENT_DECLARED`, authoring the plan document is allowed for any path
@@ -306,13 +311,13 @@ starts editing. The hot-path gate enforces lifecycle rules:
   emits `plan_ready` automatically → `AWAITING_PLAN_REVIEW`. Everything else
   (source files) stays blocked until then. Working notes that aren't part of
   the plan itself go in `.harness/scratch/<slug>/`, writable in every state.
-- The plan must be submitted for review before implementation. super-harness does
+- The plan must be submitted for review before implementation. keepsail does
   not run, retry, or configure a reviewer. `plan ready --plan <path>` snapshots
   the finite adopted document set (including the matching spec and
   `docs/product-foundations.md` when present) and the binding commitments.
 
   ```bash
-  super-harness plan ready my-first-change \
+  keepsail plan ready my-first-change \
     --scope "[docs/plans/my-first-change.md, src/app.py]" \
     --plan docs/plans/my-first-change.md \
     --commitment O1="observable behavior"
@@ -325,7 +330,7 @@ starts editing. The hot-path gate enforces lifecycle rules:
   the retained original evidence with:
 
   ```bash
-  super-harness review import my-first-change --evidence plan-review.json
+  keepsail review import my-first-change --evidence plan-review.json
   ```
 
   The recognition policy is the only active review configuration. The old
@@ -340,10 +345,10 @@ starts editing. The hot-path gate enforces lifecycle rules:
   explicitly before the previously approved plan can reach completion:
 
   ```bash
-  super-harness plan withdraw my-first-change \
+  keepsail plan withdraw my-first-change \
     --candidate <subject-id> --reason "revision not adopted"
   ```
-- After plan approval, run `super-harness implementation start my-first-change`.
+- After plan approval, run `keepsail implementation start my-first-change`.
   Now in `IMPLEMENTATION_IN_PROGRESS`, the agent can edit source code. If it
   tries to `Edit` before the lifecycle permits it, the `PreToolUseGate` blocks
   the tool call.
@@ -352,9 +357,9 @@ starts editing. The hot-path gate enforces lifecycle rules:
   (→ `AWAITING_CODE_REVIEW`); then obtain and import code evidence:
 
   ```bash
-  super-harness implementation record my-first-change --assessment implementation.json
-  super-harness done my-first-change
-  super-harness review import my-first-change --evidence code-review.json
+  keepsail implementation record my-first-change --assessment implementation.json
+  keepsail done my-first-change
+  keepsail review import my-first-change --evidence code-review.json
   ```
 
   Evidence is not a claim that a particular model or TTY was used; it is an
@@ -367,7 +372,7 @@ starts editing. The hot-path gate enforces lifecycle rules:
 > but the active core can emit them only from imported, recognized evidence. A
 > review skip remains a disclosed historical escape hatch and cannot create new
 > plan authority. Plain-mode advances past `INTENT_DECLARED` with the manual
-> `super-harness plan ready` command; framework adapters may emit `plan_ready`
+> `keepsail plan ready` command; framework adapters may emit `plan_ready`
 > from their artifacts.
 
 > **Revising a plan without silently expanding authority.** In `PLAN_REJECTED`,
@@ -384,15 +389,15 @@ in-process (no background daemon required). If you want to
 inspect what the gate would decide right now:
 
 ```bash
-super-harness gate check pre-tool-use --tool Edit --file src/foo.py
+keepsail gate check pre-tool-use --tool Edit --file src/foo.py
 ```
 
 If you want to manually walk events (e.g. when no framework adapter is
 emitting them yet), you can sync them:
 
 ```bash
-super-harness adapter scan-once openspec    # one-shot read of openspec/changes/
-super-harness event log 2026-06-01-add-greeting    # see what's been emitted
+keepsail adapter scan-once openspec    # one-shot read of openspec/changes/
+keepsail event log 2026-06-01-add-greeting    # see what's been emitted
 ```
 
 ---
@@ -404,7 +409,7 @@ runner to confirm the change passes all three layers — baseline checks,
 adapter-provided checks, and user checks:
 
 ```bash
-super-harness verify
+keepsail verify
 ```
 
 Exit codes:
@@ -422,7 +427,7 @@ change from `IMPLEMENTATION_IN_PROGRESS` to `AWAITING_CODE_REVIEW`, use
 `done`:
 
 ```bash
-super-harness done
+keepsail done
 ```
 
 `done` runs `verify` internally, and on pass emits an
@@ -435,7 +440,7 @@ super-harness done
 
 Create the PR with your normal git workflow (`gh pr create`, `git push`,
 etc.). The pull request template (installed in step 2) already contains the
-super-harness metadata block:
+keepsail metadata block:
 
 > **If your GitHub repo is brand-new (no commits on `main` yet)**: push an
 > initial commit to `main` before opening a feature-branch PR — `gh repo
@@ -454,24 +459,24 @@ this to link the PR to the change.
 
 When the PR opens, the CI workflow runs eight jobs:
 
-1. **`pr-decorate`** — calls `super-harness pr emit-opened` to emit a
+1. **`pr-decorate`** — calls `keepsail pr emit-opened` to emit a
    `pr_opened` event and inject the metadata block if missing.
-2. **`pr-validate`** — calls `super-harness pr validate <PR>` to check the
+2. **`pr-validate`** — calls `keepsail pr validate <PR>` to check the
    metadata block + lifecycle position.
-3. **`verification`** — runs `super-harness verify <slug>` (same checks as
+3. **`verification`** — runs `keepsail verify <slug>` (same checks as
    the local `verify` you ran in step 6).
-4. **`attest-verify`** — runs `super-harness attest verify --base ... --head ...`;
+4. **`attest-verify`** — runs `keepsail attest verify --base ... --head ...`;
    from a verifier installed from the trusted `BASE_SHA`, and blocks unless
    every changed file is covered by a complete, ordered lifecycle attestation
    and matching new-contract subjects.
 5. **`candidate-acceptance`** — installs the candidate package separately and
    runs the new-contract acceptance tests; it cannot approve the candidate's
    own attestation.
-6. **`decision-check`** — runs `super-harness decision check` (referential
+6. **`decision-check`** — runs `keepsail decision check` (referential
    integrity + text-lock + executable checks; see §10).
-7. **`doc-check`** — runs `super-harness doc check`; blocks if a derivable doc
+7. **`doc-check`** — runs `keepsail doc check`; blocks if a derivable doc
    drifted from its generator.
-8. **`on-merge`** — gated on the merge event; runs `super-harness on-merge`
+8. **`on-merge`** — gated on the merge event; runs `keepsail on-merge`
    after the PR lands.
 
 If any non-`on-merge` job fails, the PR cannot be merged (assuming you've
@@ -485,7 +490,7 @@ After the applicable external code evidence is imported and all required checks
 pass, you (or auto-merge) squash-merge to `main`. The `on-merge` job fires:
 
 ```bash
-super-harness on-merge --commit ${{ github.sha }}
+keepsail on-merge --commit ${{ github.sha }}
 ```
 
 What `on-merge` does:
@@ -504,13 +509,13 @@ or fails the merged PR.
 A few read-only commands that are useful for debugging or auditing:
 
 ```bash
-super-harness status                                  # all active changes
-super-harness status --all                            # include ARCHIVED + ABANDONED
-super-harness event log 2026-06-01-add-greeting      # this change's event history
-super-harness event log --type pr_opened --limit 20  # global filter
-super-harness decision list                           # all ratified decisions
-super-harness decision show d-some-decision           # one decision + its anchors
-super-harness state verify                            # invariant-check events.jsonl
+keepsail status                                  # all active changes
+keepsail status --all                            # include ARCHIVED + ABANDONED
+keepsail event log 2026-06-01-add-greeting      # this change's event history
+keepsail event log --type pr_opened --limit 20  # global filter
+keepsail decision list                           # all ratified decisions
+keepsail decision show d-some-decision           # one decision + its anchors
+keepsail state verify                            # invariant-check events.jsonl
 ```
 
 ---
@@ -520,15 +525,15 @@ super-harness state verify                            # invariant-check events.j
 The lifecycle above governs *how a change moves*. A second, independent layer
 governs *whether the code honors the decisions a human ratified* — so a decision
 can't be silently overturned and the code can't silently violate it. It runs
-through one command, `super-harness decision check` (a local sensor your agent can
+through one command, `keepsail decision check` (a local sensor your agent can
 call at any checkpoint, and the CI `decision-check` job as the un-bypassable
 backstop).
 
 **1. Record + ratify a decision.**
 
 ```bash
-super-harness decision new d-passwords --text "Passwords must be stored with bcrypt — never MD5."
-super-harness decision ratify d-passwords      # stamps who/when + freezes a body hash
+keepsail decision new d-passwords --text "Passwords must be stored with bcrypt — never MD5."
+keepsail decision ratify d-passwords      # stamps who/when + freezes a body hash
 ```
 
 **2. Anchor the code to it.** Drop a `# @decision:d-passwords` comment next to the
@@ -553,17 +558,17 @@ pw = md5(user.password)
 ```
 ````
 
-At `ratify`, super-harness proves the check *bites* — it must pass on your current
+At `ratify`, keepsail proves the check *bites* — it must pass on your current
 code **and** fail with the counterexample injected — or it refuses to ratify
 (no hollow checks). Then `decision check` runs it on every invocation; code that
 trips it is blocked (exit 2). Test a check before proposing it with
-`super-harness decision ratify <id> --dry-run`, and run only the checks whose
-anchored files changed with `super-harness decision check --changed` (CI runs the
+`keepsail decision ratify <id> --dry-run`, and run only the checks whose
+anchored files changed with `keepsail decision check --changed` (CI runs the
 full set).
 
 ```bash
-super-harness decision check            # referential + text-lock + executable, full
-super-harness decision check --changed  # local fast path: only touched anchors
+keepsail decision check            # referential + text-lock + executable, full
+keepsail decision check --changed  # local fast path: only touched anchors
 ```
 
 > Decisions you can't reduce to a runnable check are recorded as **context** — they
@@ -579,7 +584,7 @@ super-harness decision check --changed  # local fast path: only touched anchors
 
 **Attestation trail.** When you open a PR, the CI `attest-verify` job requires every
 changed file to be covered by a complete, ordered lifecycle attestation
-(`super-harness attest write <slug>` snapshots it to `.harness/attestations/`). This
+(`keepsail attest write <slug>` snapshots it to `.harness/attestations/`). This
 is what makes the merge gate refuse work that skipped a lifecycle step.
 
 ---
@@ -600,14 +605,14 @@ is what makes the merge gate refuse work that skipped a lifecycle step.
 - **Discover which rules to arm**: point your Code Agent at the
   [discovering-architecture-norms skill](https://github.com/Dawinia/super-harness/blob/main/skills/discovering-architecture-norms/SKILL.md)
   to sweep your codebase and propose candidate architecture norms (hypotheses you
-  then judge and ratify). The super-harness repo is private during v0.1, so the
+  then judge and ratify). The keepsail repo is private during v0.1, so the
   link requires repo access until the public release.
 
 ---
 
 ## 12. Tuning the dead-reference gate for non-C-family languages
 
-`super-harness doc refs` flags backtick code-symbols in your prose docs that no
+`keepsail doc refs` flags backtick code-symbols in your prose docs that no
 longer resolve in source. It recognizes a "code symbol" with a default identifier
 pattern that fits C-family languages (Python, JavaScript/TypeScript, Go, Rust, Java,
 C#, …): `[A-Za-z_][A-Za-z0-9_]*` with snake_case / camelCase shape. These work with
@@ -629,7 +634,7 @@ the C-family default — it never breaks the gate.
 
 ## Common issues
 
-**`super-harness: command not found` after `pipx install`**
+**`keepsail: command not found` after `pipx install`**
 
 `pipx` installs into `~/.local/bin` (Linux) or `~/Library/Application Support/...`
 (macOS). Make sure that directory is on your `$PATH`. `pipx ensurepath`
@@ -644,7 +649,7 @@ re-run `init --setup-github --force` to retry once gh is set up.
 
 First check whether the gate is simply right: if it's blocking a legitimate
 action, the underlying cause is often a stale `state.yaml` — run
-`super-harness state rebuild` to regenerate from `events.jsonl`. If the gate is
+`keepsail state rebuild` to regenerate from `events.jsonl`. If the gate is
 genuinely wrong, use the file-based kill switch: from the repo root, `touch
 .harness/gate-disabled` to disable enforcement immediately, and `rm
 .harness/gate-disabled` to re-enable. `Bash` is never gated, so this works even
@@ -654,13 +659,13 @@ is recorded and surfaced at the merge gate (`attest verify`).
 
 **Verify is failing but I don't see why**
 
-`super-harness --json verify` prints the structured verdict including
+`keepsail --json verify` prints the structured verdict including
 per-check details. For full debug traces, also check `.harness/events.jsonl`
 for any `sensor_crashed` or `verification_failed` events.
 
 **Multiple active changes**
 
-`super-harness change list --active` shows them all. Most slug-default
+`keepsail change list --active` shows them all. Most slug-default
 commands (`status`, `verify`, `done`, `change resume`) pick the FIRST
 non-terminal change. Pass an explicit `<slug>` argument to override.
 

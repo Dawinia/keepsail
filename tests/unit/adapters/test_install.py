@@ -111,12 +111,12 @@ def test_corrupt_yaml_error_propagates(tmp_path: Path) -> None:
         (
             "claude-code",
             ".claude/settings.local.json",
-            "/opt/super-harness-hook --agent claude-code",
+            "/opt/keepsail-hook --agent claude-code",
         ),
         (
             "codex",
             ".codex/hooks.json",
-            "/opt/super-harness-hook --agent codex",
+            "/opt/keepsail-hook --agent codex",
         ),
     ],
 )

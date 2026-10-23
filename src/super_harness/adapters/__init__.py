@@ -1,12 +1,12 @@
-"""Adapter base architecture for super-harness.
+"""Adapter base architecture for keepsail.
 
 Per adapter-architecture §2.2: an AgentAdapter bridges an AI coding agent
-runtime (Claude Code / Cursor / Codex / Aider) to super-harness — it installs
+runtime (Claude Code / Cursor / Codex / Aider) to keepsail — it installs
 hooks for deterministic gate enforcement and injects context for cross-session
 continuity (Ralph Loop).
 
 Per adapter-architecture §2.1: a FrameworkAdapter bridges a spec-driven
-framework (OpenSpec / Spec Kit / Superpowers / Plain) to super-harness —
+framework (OpenSpec / Spec Kit / Superpowers / Plain) to keepsail —
 observes framework artifacts, emits lifecycle events, and contributes
 verification checks.
 
@@ -28,7 +28,7 @@ canonical 9 keys (adapters do not invent their own; v0.2 adds a reserved
     pre_commit_hook      # agent-side git commit hook (distinct from git hook)
     rules_file_injection  # static rules file (.cursorrules / AGENTS.md)
     mcp_server           # MCP protocol server integration
-    subprocess_execution  # can run super-harness CLI subprocess
+    subprocess_execution  # can run keepsail CLI subprocess
     turn_end_feedback_hook  # turn-end (Stop) authoring-conformance advisory
 
 See adapter-architecture spec §2.2 for the full contract.
@@ -130,7 +130,7 @@ class AgentAdapter(ABC):
         Intentionally a non-abstract no-op (per adapter-architecture §2.2):
         adapters opt in to extra cleanup by overriding; not overriding is valid.
 
-        super-harness handles generic cleanup (removing the AGENTS.md subsection
+        keepsail handles generic cleanup (removing the AGENTS.md subsection
         / verification.yaml injection); adapters only override this for special
         cleanup (e.g. removing a hook entry from `.claude/settings.json`).
         """
@@ -183,7 +183,7 @@ class AgentAdapter(ABC):
         """Shared agent-agnostic advisory prose: the decision id + the check's own
         detail + a decision-doc pointer. No fabricated fix text (design §3b)."""
         lines = [
-            "super-harness authoring-time check — a ratified decision's check is "
+            "keepsail authoring-time check — a ratified decision's check is "
             "failing for your changes:",
         ]
         for v in verdict.violations:
@@ -226,7 +226,7 @@ class FrameworkAdapter(ABC):
     def detect(self, workspace: Path) -> bool:
         """Detect whether `workspace` uses this framework.
 
-        Typically a feature-file check (e.g. `.super-harness/` or `spec/` exists).
+        Typically a feature-file check (e.g. `.keepsail/` or `spec/` exists).
         """
         ...
 

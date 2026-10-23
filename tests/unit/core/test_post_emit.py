@@ -1,6 +1,6 @@
 """Tests for `post_emit_refresh` helper (Task 1.9 / B-3 fix).
 
-Per super-harness v0.1 Phase 1 plan: every emit site (CLI commands, dispatcher
+Per keepsail v0.1 Phase 1 plan: every emit site (CLI commands, dispatcher
 result handler, adapter observe loop) must call `refresh_state_after_emit`
 synchronously after writing to events.jsonl, so state.yaml never lags the event
 stream. v0.1 = full rebuild per lifecycle-event-model §3.8.2.

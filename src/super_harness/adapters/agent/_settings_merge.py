@@ -1,12 +1,12 @@
-"""Safe `.claude/settings.json` merge for super-harness's Claude Code hooks.
+"""Safe `.claude/settings.json` merge for keepsail's Claude Code hooks.
 
-Registers super-harness's PreToolUse and SessionStart hook entries into a Claude
+Registers keepsail's PreToolUse and SessionStart hook entries into a Claude
 Code `settings.json` WITHOUT clobbering the user's existing config — merge, not
 overwrite (adapter-architecture §3.5 install steps + OI-9):
 
 - Compute the desired settings state, then write ONLY if it differs from what
   was on disk (idempotent — a no-op re-install touches nothing, no backup).
-- **Replace, don't accumulate**: any prior super-harness PreToolUse entry is
+- **Replace, don't accumulate**: any prior keepsail PreToolUse entry is
   stripped before the fresh one is appended, identified by the stable
   ``--agent claude-code`` marker substring (NOT the full binary path) so a
   relocated binary (e.g. after ``pipx reinstall``) replaces the stale entry
@@ -49,22 +49,22 @@ __all__ = [
     "restore_or_remove_managed_hooks",
 ]
 
-# The PreToolUse matcher super-harness registers (sensor-gate §3.2.1). Covers
+# The PreToolUse matcher keepsail registers (sensor-gate §3.2.1). Covers
 # every file-mutating tool Claude Code exposes.
 _MATCHER = "Edit|Write|MultiEdit|NotebookEdit"
 # Per-hook timeout (seconds) for the gate command, per the hook entry shape.
 _TIMEOUT = 10
-# Stable marker that identifies a PreToolUse hook command as super-harness's,
+# Stable marker that identifies a PreToolUse hook command as keepsail's,
 # independent of the (install-location-dependent) binary path. Used to
 # dedupe/replace our own prior entries across binary relocations.
 _OURS_MARKER = "--agent claude-code"
 
 # Stable marker for our SessionStart hook command. The SessionStart command is
-# `<abs super-harness> change resume` (no slug → active change); `change resume`
+# `<abs keepsail> change resume` (no slug → active change); `change resume`
 # is the path-independent substring that identifies it as ours, mirroring how
 # `_OURS_MARKER` identifies the PreToolUse hook. Chosen over the bare binary
-# name so an unrelated user hook that merely shells out to `super-harness` (e.g.
-# `super-harness status`) is NOT mistaken for ours.
+# name so an unrelated user hook that merely shells out to `keepsail` (e.g.
+# `keepsail status`) is NOT mistaken for ours.
 _SESSION_OURS_MARKER = "change resume"
 # Per-hook timeout (seconds) for the SessionStart context-injection command.
 # `change resume` reads events.jsonl + renders Markdown; 10s is generous for
@@ -72,7 +72,7 @@ _SESSION_OURS_MARKER = "change resume"
 _SESSION_TIMEOUT = 10
 
 # Stable marker for our Stop hook command. The Stop command is
-# `<abs super-harness-hook> --agent claude-code --event stop`; the full
+# `<abs keepsail-hook> --agent claude-code --event stop`; the full
 # `--agent claude-code --event stop` flag-pair is the path-independent substring
 # identifying it as ours. Deliberately the WHOLE pair (not the bare `--event stop`) so
 # an unrelated user Stop hook that merely happens to pass `--event stop` to some other
@@ -91,7 +91,7 @@ class StaleSettingsPlanError(RuntimeError):
 
 
 class SettingsUpdateInProgressError(RuntimeError):
-    """Another super-harness writer owns the settings transaction lock."""
+    """Another keepsail writer owns the settings transaction lock."""
 
 
 class UnsafeSettingsPathError(ValueError):
@@ -239,9 +239,9 @@ def merge_pre_tool_use_hook(
     matcher: str = _MATCHER,
     marker: str = _OURS_MARKER,
 ) -> None:
-    """Register super-harness's PreToolUse hook in ``settings_path``, safely.
+    """Register keepsail's PreToolUse hook in ``settings_path``, safely.
 
-    Computes the desired settings (existing config with any prior super-harness
+    Computes the desired settings (existing config with any prior keepsail
     PreToolUse entry replaced by a fresh one for ``command``) and writes it only
     if it differs from what is on disk — so a true no-op re-install touches
     nothing. When a change IS made and the file pre-existed, the original is
@@ -290,10 +290,10 @@ def merge_session_start_hook(
     command: str,
     marker: str = _SESSION_OURS_MARKER,
 ) -> None:
-    """Register super-harness's SessionStart hook in ``settings_path``, safely.
+    """Register keepsail's SessionStart hook in ``settings_path``, safely.
 
     Symmetric with :func:`merge_pre_tool_use_hook`: computes the desired settings
-    (existing config with any prior super-harness SessionStart entry replaced by
+    (existing config with any prior keepsail SessionStart entry replaced by
     a fresh one for ``command``) and writes it only if it differs from disk — a
     true no-op re-install touches nothing. On a real change to a pre-existing
     file, the original is backed up FIRST to a collision-proof
@@ -343,11 +343,11 @@ def merge_stop_hook(
     command: str,
     marker: str = _STOP_OURS_MARKER,
 ) -> None:
-    """Register super-harness's Stop hook in ``settings_path``, safely.
+    """Register keepsail's Stop hook in ``settings_path``, safely.
 
     Mirrors :func:`merge_session_start_hook` exactly (Stop hooks, like SessionStart,
     take NO ``matcher`` — they always fire on every turn end): computes the desired
-    settings with any prior super-harness Stop entry replaced by a fresh one for
+    settings with any prior keepsail Stop entry replaced by a fresh one for
     ``command``, and writes only if it differs from disk. On a real change to a
     pre-existing file the original is backed up FIRST; an absent file starts from
     ``{}`` and writes no backup. "Ours" is the path-independent ``--event stop``
@@ -388,7 +388,7 @@ def _parse_settings_bytes(settings_path: Path, raw: bytes) -> dict[str, Any]:
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ValueError(
             f"{settings_path} is not valid JSON ({exc}); fix or remove it before "
-            f"installing the super-harness hook."
+            f"installing the keepsail hook."
         ) from exc
     if not isinstance(parsed, dict):
         raise ValueError(
@@ -603,7 +603,7 @@ def _windows_process_is_alive(pid: int) -> bool:
 
 def _atomic_replace_bytes(settings_path: Path, content: bytes) -> None:
     temp_fd, temp_name = tempfile.mkstemp(
-        prefix=f".{settings_path.name}.super-harness.",
+        prefix=f".{settings_path.name}.keepsail.",
         suffix=".tmp",
         dir=settings_path.parent,
     )
@@ -643,7 +643,7 @@ def _reject_symlink_settings(
         if candidate.is_symlink():
             raise UnsafeSettingsPathError(
                 f"{candidate} is a symlink in settings path {settings_path}; replace it with "
-                "a regular per-workspace path before configuring super-harness hooks"
+                "a regular per-workspace path before configuring keepsail hooks"
             )
 
 

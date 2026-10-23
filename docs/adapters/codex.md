@@ -1,6 +1,6 @@
 # Codex adapter
 
-The Codex adapter wires the OpenAI Codex CLI to super-harness. It is the second
+The Codex adapter wires the OpenAI Codex CLI to keepsail. It is the second
 agent adapter in v0.1 and is **experimental** (API stability may change). Claude
 Code remains the reference adapter — see [Claude Code adapter](claude-code.md).
 
@@ -21,12 +21,12 @@ authoring-conformance advisory.
 ## Install
 
 ```bash
-super-harness adapter install codex
+keepsail adapter install codex
 ```
 
 This writes all three hooks into `.codex/hooks.json` as one settings
-transaction. Before the first write, super-harness freezes the original and
-desired bytes plus the resolved `super-harness-hook` and `super-harness`
+transaction. Before the first write, keepsail freezes the original and
+desired bytes plus the resolved `keepsail-hook` and `keepsail`
 executable paths. Apply revalidates those inputs; settings or PATH drift stops
 the install before a backup or write and asks you to review again.
 
@@ -46,11 +46,11 @@ replace cannot unexpectedly modify or detach a linked target. These paths use
 stdlib platform checks, including native Windows process-liveness handling.
 
 > **Required trust step.** After `adapter install codex` the gate is **INACTIVE**
-> until you run `/hooks` in Codex and trust the super-harness hook. Codex skips
+> until you run `/hooks` in Codex and trust the keepsail hook. Codex skips
 > new or changed hooks until a human trusts them (trust is keyed to the hook's
-> hash); if you reinstall or relocate the `super-harness-hook` binary, re-trust it.
+> hash); if you reinstall or relocate the `keepsail-hook` binary, re-trust it.
 
-On a pre-existing repo, also run `super-harness sync --gitignore` so
+On a pre-existing repo, also run `keepsail sync --gitignore` so
 `.codex/hooks.json` is ignored by git.
 
 **Coverage caveat.** The PreToolUse gate is registered for the edit tools
@@ -61,10 +61,10 @@ gates back the gap: even an edit the hot path misses is caught before merge.
 
 ## What it injects into AGENTS.md
 
-`adapter install codex` injects a super-harness (Codex) subsection into
+`adapter install codex` injects a keepsail (Codex) subsection into
 `AGENTS.md` telling the agent the conventions: a PreToolUse hook gates the
-workspace; when a tool call is blocked, run `super-harness status` for the next
-step and `super-harness change resume <change_id>` to restore context; never work
+workspace; when a tool call is blocked, run `keepsail status` for the next
+step and `keepsail change resume <change_id>` to restore context; never work
 around the gate (overriding is a human-only decision, recorded and disclosed at
 the merge gate); recognized external plan/code evidence; approval-bound
 implementation assessments/coverage; and the turn-end authoring check.
@@ -87,7 +87,7 @@ an exact subject. See [Getting started](../getting-started.md) and
 - **Edits aren't blocked** — you haven't `/hooks`-trusted the hook yet, or you
   reinstalled/moved the binary and need to re-trust it. The gate is INACTIVE until
   trusted.
-- **`.codex/hooks.json` shows up in `git status`** — run `super-harness sync
+- **`.codex/hooks.json` shows up in `git status`** — run `keepsail sync
   --gitignore`.
 - **Install says the settings or executable plan is stale** — another process or
   PATH update changed an input after review. Rerun init or `adapter install
@@ -101,7 +101,7 @@ an exact subject. See [Getting started](../getting-started.md) and
 ## Uninstall
 
 ```bash
-super-harness adapter uninstall codex
+keepsail adapter uninstall codex
 ```
 
 Uninstall uses the same lock and atomic-write path as install. If a pristine

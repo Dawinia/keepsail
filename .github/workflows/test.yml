@@ -123,14 +123,14 @@ jobs:
             throw "super_harness did not resolve from site-packages: $modulePath"
           }
 
-          super-harness init --help
-          if ($LASTEXITCODE -ne 0) { throw "installed super-harness init --help failed" }
-          $workspace = Join-Path $env:RUNNER_TEMP "super harness init smoke"
+          keepsail init --help
+          if ($LASTEXITCODE -ne 0) { throw "installed keepsail init --help failed" }
+          $workspace = Join-Path $env:RUNNER_TEMP "keepsail init smoke"
           New-Item -ItemType Directory -Force -Path $workspace | Out-Null
-          "" | super-harness --workspace $workspace init --no-agent
-          if ($LASTEXITCODE -ne 0) { throw "installed super-harness init smoke failed" }
+          "" | keepsail --workspace $workspace init --no-agent
+          if ($LASTEXITCODE -ne 0) { throw "installed keepsail init smoke failed" }
           if (-not (Test-Path -Path (Join-Path $workspace ".harness") -PathType Container)) {
-            throw "installed super-harness init did not create .harness"
+            throw "installed keepsail init did not create .harness"
           }
       - name: Run the focused portable and Windows init tests against the wheel
         shell: pwsh
@@ -141,6 +141,7 @@ jobs:
         run: |
           python -P -m pytest --import-mode=importlib -q `
             tests/integration/cli/test_init_windows_entrypoint.py `
+            tests/integration/cli/test_keepsail_compatibility.py `
             tests/unit/cli/test_init_models.py `
             tests/unit/cli/test_init_plan.py `
             tests/unit/cli/test_init_ui.py `

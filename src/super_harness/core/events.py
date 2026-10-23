@@ -1,4 +1,4 @@
-"""Event dataclasses + JSON serialization for super-harness.
+"""Event dataclasses + JSON serialization for keepsail.
 
 Per lifecycle-event-model §2 (events.jsonl format) + §3 (5 core + 18 extension
 event types). Events are the single source of truth; state.yaml is derived.

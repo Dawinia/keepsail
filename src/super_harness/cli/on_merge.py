@@ -162,7 +162,7 @@ def on_merge_cli(ctx: click.Context, commit: str, change: str | None) -> None:
                 ),
                 hint=(
                     "Add `--change ${{ github.head_ref }}` to the CI workflow "
-                    "step invoking `super-harness on-merge`."
+                    "step invoking `keepsail on-merge`."
                 ),
             ),
             err=True,

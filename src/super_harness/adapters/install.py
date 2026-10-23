@@ -21,7 +21,7 @@ from super_harness.core.paths import adapters_yaml_path
 # tool-managed (mirrors state.yaml's AUTO-GENERATED header convention).
 _ADAPTERS_YAML_HEADER = (
     "# .harness/adapters.yaml\n"
-    "# AUTO-MANAGED by super-harness adapter install/uninstall. Do not edit.\n"
+    "# AUTO-MANAGED by keepsail adapter install/uninstall. Do not edit.\n"
 )
 
 
@@ -51,12 +51,12 @@ def preview_agent_integration(
     """Freeze executable resolution and the exact settings bytes for review."""
     adapter = _builtin_agent(name)
     executable_lookup = executable_lookup or shutil.which
-    resolved_hook = executable_lookup("super-harness-hook")
-    resolved_cli = executable_lookup("super-harness")
-    missing = "super-harness-hook" if resolved_hook is None else "super-harness"
+    resolved_hook = executable_lookup("keepsail-hook")
+    resolved_cli = executable_lookup("keepsail")
+    missing = "keepsail-hook" if resolved_hook is None else "keepsail"
     if resolved_hook is None or resolved_cli is None:
         raise RuntimeError(
-            f"{missing} not found on PATH; reinstall super-harness before configuring {name}."
+            f"{missing} not found on PATH; reinstall keepsail before configuring {name}."
         )
     settings = adapter.plan_hook_install(
         root, hook_executable=resolved_hook, cli_executable=resolved_cli
@@ -74,7 +74,7 @@ def install_agent_integration(
 ) -> AgentAdapter:
     """Install one built-in coding-agent integration for init or adapter CLI.
 
-    This wires only super-harness hooks and registry metadata. It never installs
+    This wires only keepsail hooks and registry metadata. It never installs
     the coding-agent binary itself. Registry loading stays deferred until an
     integration is selected so importing the service remains platform-neutral.
     """
@@ -88,11 +88,11 @@ def install_agent_integration(
             f"integration plan settings path {frozen.settings.path} does not belong "
             f"to requested workspace {root}"
         )
-    current_hook = shutil.which("super-harness-hook")
-    current_cli = shutil.which("super-harness")
+    current_hook = shutil.which("keepsail-hook")
+    current_cli = shutil.which("keepsail")
     if (current_hook, current_cli) != (frozen.hook_executable, frozen.cli_executable):
         raise RuntimeError(
-            "super-harness executable path changed after review; rerun init and review "
+            "keepsail executable path changed after review; rerun init and review "
             "the refreshed integration plan."
         )
     apply_settings_merge_plan(frozen.settings)

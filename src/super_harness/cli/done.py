@@ -143,7 +143,7 @@ def _current_state(root: Path, slug: str) -> str | None:
     default=None,
     help=(
         "PR number — when no positional <slug> is given, resolves the slug "
-        "from the PR body's super-harness metadata block. The raw --pr value "
+        "from the PR body's keepsail metadata block. The raw --pr value "
         "is ALSO recorded on implementation_complete as pr_url."
     ),
 )
@@ -212,7 +212,7 @@ def done_cmd(
             format_error(
                 subcommand="done",
                 message="no change specified and no active change found",
-                hint="Pass a `<slug>` or run `super-harness change start <slug>` first.",
+                hint="Pass a `<slug>` or run `keepsail change start <slug>` first.",
             ),
             err=True,
         )
@@ -239,7 +239,7 @@ def done_cmd(
                     "`done` to verify and freeze the corrected code subject."
                     if current == "CODE_REVIEW_REJECTED" else
                     "`done` completes an in-progress change; start implementation "
-                    "first, or check the slug with `super-harness status`."
+                    "first, or check the slug with `keepsail status`."
                 ),
             ),
             err=True,
@@ -272,7 +272,7 @@ def done_cmd(
             format_error(
                 subcommand="done",
                 message="new-contract changes require actual verification",
-                hint="Run `super-harness done` without `--skip-verify`.",
+                hint="Run `keepsail done` without `--skip-verify`.",
             ),
             err=True,
         )
@@ -384,7 +384,7 @@ def done_cmd(
             format_error(
                 subcommand="done",
                 message=f"verification config not found at {verification_yaml_path(root)}",
-                hint="Run `super-harness init` to create `.harness/verification.yaml`.",
+                hint="Run `keepsail init` to create `.harness/verification.yaml`.",
             ),
             err=True,
         )
@@ -466,7 +466,7 @@ def done_cmd(
                     message=(
                         f"verification failed for {resolved}; implementation_complete not emitted"
                     ),
-                    hint=("Fix the failing checks below, then re-run `super-harness done`."),
+                    hint=("Fix the failing checks below, then re-run `keepsail done`."),
                 ),
                 err=True,
             )

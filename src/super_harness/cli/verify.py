@@ -109,7 +109,7 @@ from super_harness.sensors.verification_runner import (
     default=None,
     help=(
         "PR number — when no positional <slug> is given, resolves the slug "
-        "from the PR body's super-harness metadata block."
+        "from the PR body's keepsail metadata block."
     ),
 )
 @click.option(
@@ -197,7 +197,7 @@ def verify_cmd(
             format_error(
                 subcommand="verify",
                 message="no change specified and no active change found",
-                hint="Pass a `<slug>` or run `super-harness change start <slug>` first.",
+                hint="Pass a `<slug>` or run `keepsail change start <slug>` first.",
             ),
             err=True,
         )
@@ -219,7 +219,7 @@ def verify_cmd(
             format_error(
                 subcommand="verify",
                 message=f"verification config not found at {verification_yaml_path(root)}",
-                hint="Run `super-harness init` to create `.harness/verification.yaml`.",
+                hint="Run `keepsail init` to create `.harness/verification.yaml`.",
             ),
             err=True,
         )

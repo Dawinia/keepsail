@@ -1,4 +1,4 @@
-"""super-harness daemon package.
+"""keepsail daemon package.
 
 Hosts the click-less PreToolUse hook entry-point (`hook_entry` — the in-process
 decision plane) and the optional framework-observer host (`server` +

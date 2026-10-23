@@ -1,6 +1,6 @@
 """E2E: the PLAN_REJECTED reject-loop needs no shell bypass (HG-PLAN-AUTHORING).
 
-Drives the real `super-harness-hook` binary (positional + Claude shim) against a
+Drives the real `keepsail-hook` binary (positional + Claude shim) against a
 seeded PLAN_REJECTED change whose plan artifact is recorded. Editing the artifact
 through the normal edit-tool path is ALLOWed; editing a source file is BLOCKed. This
 is the honest live proof — it does NOT claim this change proved it on its own plan
@@ -30,7 +30,7 @@ def _seed(root: Path) -> None:
 
 def _hook(root: Path, *args: str, stdin: str | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        ["super-harness-hook", *args], cwd=str(root), input=stdin,
+        ["keepsail-hook", *args], cwd=str(root), input=stdin,
         capture_output=True, text=True,
     )
 

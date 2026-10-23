@@ -179,7 +179,7 @@ def _review_prompt(
         f"This round rejects the change only when a finding's severity is at or "
         f"above `{blocking_severity}` (or scope is insufficient). A checklist item "
         "marked `fail` whose findings are all below that threshold passes with the "
-        "finding left open — it stays recorded and surfaced by `super-harness "
+        "finding left open — it stays recorded and surfaced by `keepsail "
         "report`, it does not force a re-review round. To block the change, raise a "
         f"finding at or above `{blocking_severity}`.\n"
         if pass_with_open
@@ -215,7 +215,7 @@ def _review_prompt(
         "# finding fields: id, severity (blocker | major | minor), file, summary\n"
         "prior_findings: []  # dispose open ids with resolved or wontfix + note\n"
         f"{pass_with_open_guidance}"
-        "Do not edit files or invoke super-harness verdict commands."
+        "Do not edit files or invoke keepsail verdict commands."
     )
 
 
@@ -325,7 +325,7 @@ def compile_review_contract(
             if changed_artifacts:
                 raise ReviewContractError(
                     "approved plan/spec changed without plan redeclaration; run "
-                    "`super-harness plan redeclare <change> --reason <why>`"
+                    "`keepsail plan redeclare <change> --reason <why>`"
                 )
 
     assignment_scope = (

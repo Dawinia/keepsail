@@ -1,6 +1,6 @@
-"""super-harness CLI root group.
+"""keepsail CLI root group.
 
-Defines the top-level `super-harness` Click group and its lazy command registry.
+Defines the top-level `keepsail` Click group and its lazy command registry.
 Per `cli-command-surface` §2.1 global conventions (`--workspace`, `--json`,
 `--quiet`, `--verbose` flags).
 """
@@ -19,7 +19,7 @@ from super_harness.version import __version__
 COMMAND_SPECS = {
     "adapter": CommandSpec(
         "super_harness.cli.adapter:adapter_group",
-        "Install / uninstall / list super-harness integrations for frameworks + agents.",
+        "Install / uninstall / list keepsail integrations for frameworks + agents.",
     ),
     "attest": CommandSpec(
         "super_harness.cli.attest:attest_group",
@@ -55,7 +55,7 @@ COMMAND_SPECS = {
     ),
     "init": CommandSpec(
         "super_harness.cli.init:init_cmd",
-        "Initialize a project for super-harness.",
+        "Initialize a project for keepsail.",
     ),
     "observe": CommandSpec(
         "super_harness.cli.observe:observe_group",
@@ -95,7 +95,7 @@ COMMAND_SPECS = {
     ),
     "sync": CommandSpec(
         "super_harness.cli.sync:sync_cmd",
-        "Re-render the managed super-harness artifacts without re-running init.",
+        "Re-render the managed keepsail artifacts without re-running init.",
     ),
     "verification": CommandSpec(
         "super_harness.cli.verification:verification_group",
@@ -111,10 +111,10 @@ COMMAND_SPECS = {
 @click.group(
     cls=LazyGroup,
     command_specs=COMMAND_SPECS,
-    help="super-harness — CI-first cross-framework + cross-agent AI coding harness.",
+    help="Keepsail — product-work control layer across agent harnesses.",
     context_settings={"help_option_names": ["-h", "--help"]},
 )
-@click.version_option(__version__, "--version", "-V")
+@click.version_option(__version__, "--version", "-V", package_name="keepsail")
 @click.option(
     "--workspace",
     type=click.Path(exists=True, file_okay=False),
@@ -132,7 +132,7 @@ def main(
     quiet: bool,
     verbose: int,
 ) -> None:
-    """Root command group for super-harness."""
+    """Root command group for keepsail."""
     # Naming convention for ctx.obj keys:
     #   - Keys use the SHORT CLI flag name (e.g. "json", "quiet", "workspace"), NOT the
     #     Python param name (`json_output` was renamed only to avoid shadowing stdlib `json`).

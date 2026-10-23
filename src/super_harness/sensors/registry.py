@@ -54,7 +54,7 @@ def register_builtin(name: str, cls: type[Sensor]) -> None:
 def list_builtins() -> list[str]:
     """Return names of all registered built-in sensors, sorted alphabetically.
 
-    Phase 3.5 (`super-harness sensor list` CLI) and other introspection
+    Phase 3.5 (`keepsail sensor list` CLI) and other introspection
     consumers should use this instead of peeking at the private `_BUILTIN`
     dict — the mutation surface (`register_builtin`) stays controlled.
     """
@@ -64,7 +64,7 @@ def list_builtins() -> list[str]:
 def get_builtin(name: str) -> type[Sensor] | None:
     """Return the registered built-in Sensor class for `name`, or None.
 
-    Read-only accessor used by `super-harness sensor list` (Phase 3.5 CLI)
+    Read-only accessor used by `keepsail sensor list` (Phase 3.5 CLI)
     to fetch `cls.version` for display. Returns None if no built-in is
     registered under that name — callers must handle the missing case.
     """

@@ -88,12 +88,12 @@ def test_workflow_template_yaml_parses() -> None:
 def test_workflow_template_command_invocation_counts() -> None:
     """Each shipped command appears exactly the required number of times."""
     text = _load_template()
-    assert text.count("super-harness pr emit-opened") == 1
-    assert text.count("super-harness pr validate") == 1
+    assert text.count("keepsail pr emit-opened") == 1
+    assert text.count("keepsail pr validate") == 1
     # trailing space is defensive future-proofing (won't match "verify-" prefixed tokens)
-    assert text.count("super-harness verify ") == 1
+    assert text.count("keepsail verify ") == 1
     # appears twice: if/else slug-fallback in the on-merge job's Process step
-    assert text.count("super-harness on-merge") == 2
+    assert text.count("keepsail on-merge") == 2
 
 
 def test_workflow_template_no_stale_tokens() -> None:
@@ -194,12 +194,12 @@ def test_template_has_attest_verify_job() -> None:
 
 def test_template_has_doc_check_job() -> None:
     """Derivable-doc conformance gate: the template must ship a `doc-check`
-    PR job whose steps run `super-harness doc check` (regen-and-diff)."""
+    PR job whose steps run `keepsail doc check` (regen-and-diff)."""
     parsed = yaml.safe_load(_load_template())
     assert "doc-check" in parsed["jobs"]
     job = parsed["jobs"]["doc-check"]
     runs = [s.get("run", "") for s in job["steps"]]
-    assert any("super-harness doc check" in r for r in runs)
+    assert any("keepsail doc check" in r for r in runs)
 
 
 def test_workflow_template_guard_does_not_false_fire_on_env_indirection() -> None:

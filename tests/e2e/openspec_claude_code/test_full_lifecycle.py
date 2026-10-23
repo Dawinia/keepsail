@@ -1,8 +1,8 @@
 """E2E happy-path lifecycle test — the v0.1 ship gate.
 
 Drives the full openspec + claude-code lifecycle slice using real
-subprocesses for every shipped surface: ``super-harness`` /
-``super-harness-hook`` binaries (the gate decides in-process), real local
+subprocesses for every shipped surface: ``keepsail`` /
+``keepsail-hook`` binaries (the gate decides in-process), real local
 ``git``, real ``EventWriter`` / reducer. The only mock is ``gh``
 (PATH-shim, via the ``mock_gh`` fixture in ``tests/e2e/conftest.py``).
 
@@ -46,24 +46,24 @@ def test_full_openspec_claude_lifecycle(demo_repo: Path, mock_gh: MockGh) -> Non
     emitted in v0.2.
     """
     # === Phase A — bootstrap ============================================
-    _run(["super-harness", "init"], cwd=demo_repo)
-    _run(["super-harness", "adapter", "install", "openspec"], cwd=demo_repo)
-    _run(["super-harness", "adapter", "install", "claude-code"], cwd=demo_repo)
+    _run(["keepsail", "init"], cwd=demo_repo)
+    _run(["keepsail", "adapter", "install", "openspec"], cwd=demo_repo)
+    _run(["keepsail", "adapter", "install", "claude-code"], cwd=demo_repo)
     assert (demo_repo / ".harness" / "events.jsonl").exists()
     settings = json.loads((demo_repo / ".claude" / "settings.local.json").read_text())
     pre_tool = settings["hooks"]["PreToolUse"]
     # The adapter writes the **absolute** path of the hook binary into
     # `command` (adapters/agent/claude_code.py:121 uses
-    # `shutil.which("super-harness-hook")`), not the bare name, so we match
+    # `shutil.which("keepsail-hook")`), not the bare name, so we match
     # by substring.
     assert any(
-        "super-harness-hook" in h.get("command", "")
+        "keepsail-hook" in h.get("command", "")
         and "--agent claude-code" in h.get("command", "")
         for entry in pre_tool
         for h in entry["hooks"]
     ), (
         "adapter install claude-code must register "
-        "`super-harness-hook --agent claude-code` in PreToolUse"
+        "`keepsail-hook --agent claude-code` in PreToolUse"
     )
 
     # === Phase C — cold state: hook ALLOWs (no active change) ===========
@@ -71,7 +71,7 @@ def test_full_openspec_claude_lifecycle(demo_repo: Path, mock_gh: MockGh) -> Non
     # (hook_entry.py:_run_positional; plan §16 reconcile #5).
     def _hook(*args: str) -> subprocess.CompletedProcess[bytes]:
         return subprocess.run(
-            ["super-harness-hook", *args],
+            ["keepsail-hook", *args],
             cwd=str(demo_repo),
             capture_output=True,
         )
@@ -84,7 +84,7 @@ def test_full_openspec_claude_lifecycle(demo_repo: Path, mock_gh: MockGh) -> Non
     # === Phase D — declare change → INTENT_DECLARED, hook BLOCKs ========
     _run(
         [
-            "super-harness", "change", "start", "demo-feature",
+            "keepsail", "change", "start", "demo-feature",
             "--framework", "openspec",
             "--description", "E2E test feature",
         ],
@@ -104,7 +104,7 @@ def test_full_openspec_claude_lifecycle(demo_repo: Path, mock_gh: MockGh) -> Non
         f"INTENT_DECLARED must BLOCK (positional exit 1); "
         f"got {proc.returncode}\n{proc.stderr.decode()}"
     )
-    assert b"super-harness: BLOCK" in proc.stderr
+    assert b"keepsail: BLOCK" in proc.stderr
 
     # === Phase E — proposal + tasks + scan-once → plan_ready ============
     proposal_dir = demo_repo / "openspec" / "changes" / "demo-feature"
@@ -113,7 +113,7 @@ def test_full_openspec_claude_lifecycle(demo_repo: Path, mock_gh: MockGh) -> Non
     (proposal_dir / "tasks.md").write_text(
         "scope:\n  files: [src/hello.py]\n"
     )
-    _run(["super-harness", "adapter", "scan-once", "openspec"], cwd=demo_repo)
+    _run(["keepsail", "adapter", "scan-once", "openspec"], cwd=demo_repo)
     assert _last_event_type(demo_repo) == "plan_ready"
     # State now AWAITING_PLAN_REVIEW (plan §16 reconcile #6) — NOT
     # PLAN_APPROVED.
@@ -182,7 +182,7 @@ def test_full_openspec_claude_lifecycle(demo_repo: Path, mock_gh: MockGh) -> Non
     #      orthogonal to OpenSpec proposal validity; we either ship a real
     #      fixture spec or keep this layer off in E2E by policy.
     # NB: load + edit + dump via PyYAML (not string-replace) because
-    # `super-harness init` reformats verification.yaml from the inline
+    # `keepsail init` reformats verification.yaml from the inline
     # template style to multi-line block style on write.
     vfile = demo_repo / ".harness" / "verification.yaml"
     vdata = yaml.safe_load(vfile.read_text())
@@ -192,7 +192,7 @@ def test_full_openspec_claude_lifecycle(demo_repo: Path, mock_gh: MockGh) -> Non
     ]
     vfile.write_text(yaml.safe_dump(vdata, sort_keys=False))
     r2 = subprocess.run(
-        ["super-harness", "done", "demo-feature"],
+        ["keepsail", "done", "demo-feature"],
         cwd=str(demo_repo),
         capture_output=True,
     )
@@ -216,7 +216,7 @@ def test_full_openspec_claude_lifecycle(demo_repo: Path, mock_gh: MockGh) -> Non
     # returns (cli/on_merge.py) — no sleep needed.
     _run(
         [
-            "super-harness", "on-merge",
+            "keepsail", "on-merge",
             "--commit", commit_sha,
             "--change", "demo-feature",
         ],

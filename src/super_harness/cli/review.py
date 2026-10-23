@@ -374,7 +374,7 @@ def import_evidence(ctx: click.Context, change: str, evidence_path: str) -> None
                     )
                 )
             elif not ctx.obj.get("quiet"):
-                click.echo(f"super-harness: evidence {evidence['evidence_id']} already imported")
+                click.echo(f"keepsail: evidence {evidence['evidence_id']} already imported")
             sys.exit(EXIT_OK)
         same_subject = [item for item in prior if item.get("subject_id") == subject_id]
         if same_subject and evidence.get("supersedes") != same_subject[-1].get("evidence_id"):
@@ -410,7 +410,7 @@ def import_evidence(ctx: click.Context, change: str, evidence_path: str) -> None
         click.echo(json_envelope(command=subcommand, status="pass", exit_code=EXIT_OK, data=data))
     elif not ctx.obj.get("quiet"):
         click.echo(
-            f"super-harness: imported {evidence['kind']} evidence "
+            f"keepsail: imported {evidence['kind']} evidence "
             f"{evidence['evidence_id']} for {change}"
         )
     sys.exit(EXIT_OK)

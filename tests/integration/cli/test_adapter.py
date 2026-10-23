@@ -22,7 +22,7 @@ happy-path mechanics, only the NEW behaviour:
   degrade gracefully.
 
 ``shutil.which`` is monkeypatched (as in ``test_adapter_install.py``) so the
-real ``super-harness-hook`` binary need not be on PATH for the agent path.
+real ``keepsail-hook`` binary need not be on PATH for the agent path.
 """
 import json
 from pathlib import Path
@@ -33,7 +33,7 @@ from click.testing import CliRunner
 
 from super_harness.cli import main
 
-_FAKE_HOOK = "/usr/local/bin/super-harness-hook"
+_FAKE_HOOK = "/usr/local/bin/keepsail-hook"
 
 
 def _adapters_yaml(ws: Path) -> Path:
@@ -129,7 +129,7 @@ def test_install_unknown_exits_generic_not_two(tmp_path: Path) -> None:
     r = _run(tmp_path, "install", "no-such-adapter")
 
     assert r.exit_code == 1, r.output
-    assert "super-harness adapter install:" in r.stderr
+    assert "keepsail adapter install:" in r.stderr
     assert "unknown adapter" in r.stderr
     assert not _adapters_yaml(tmp_path).exists()
 
@@ -150,7 +150,7 @@ def test_install_no_harness_exits_no_config(tmp_path: Path) -> None:
     r = _run(tmp_path, "install", "plain")
 
     assert r.exit_code == 3, r.output
-    assert "super-harness adapter install:" in r.stderr
+    assert "keepsail adapter install:" in r.stderr
     assert "Hint:" in r.stderr
 
 
@@ -160,7 +160,7 @@ def test_install_writes_header_comment_on_create(tmp_path: Path) -> None:
     _run(tmp_path, "install", "plain")
 
     text = _adapters_yaml(tmp_path).read_text()
-    assert "AUTO-MANAGED by super-harness" in text
+    assert "AUTO-MANAGED by keepsail" in text
 
 
 # --- uninstall ---------------------------------------------------------------
@@ -382,7 +382,7 @@ def test_corrupt_adapters_yaml_list_exits_no_config_with_format_error(
     r = _run(tmp_path, "list")
 
     assert r.exit_code == 3, r.output
-    assert "super-harness adapter list:" in r.stderr
+    assert "keepsail adapter list:" in r.stderr
     assert "corrupt" in r.stderr
     assert "Traceback" not in r.stderr
 
@@ -398,7 +398,7 @@ def test_corrupt_adapters_yaml_install_exits_no_config_with_format_error(
     r = _run(tmp_path, "install", "plain")
 
     assert r.exit_code == 3, r.output
-    assert "super-harness adapter install:" in r.stderr
+    assert "keepsail adapter install:" in r.stderr
     assert "corrupt" in r.stderr
     assert "Traceback" not in r.stderr
 
@@ -412,7 +412,7 @@ def test_uninstall_unknown_name_errors_clearly(tmp_path: Path) -> None:
     )
 
     assert r.exit_code == 1, r.output
-    assert "super-harness adapter uninstall:" in r.stderr
+    assert "keepsail adapter uninstall:" in r.stderr
     assert "unknown adapter" in r.stderr
     assert "Traceback" not in r.stderr
 
@@ -470,7 +470,7 @@ def test_uninstall_on_uninstall_oserror_exits_generic_registration_intact(
     # No raw traceback must escape.
     assert "Traceback" not in r.stderr, r.stderr
     # A format_error-shaped message must be present on stderr.
-    assert "super-harness adapter uninstall:" in r.stderr, r.stderr
+    assert "keepsail adapter uninstall:" in r.stderr, r.stderr
     assert "failed to clean up" in r.stderr, r.stderr
     assert "boom" in r.stderr, r.stderr
     # Registration must be intact — entry still in adapters.yaml.
@@ -516,7 +516,7 @@ _CLAUDE_END = "<!-- /super-harness agent: claude-code -->"
 
 
 def _init(ws: Path) -> object:
-    """Run `super-harness init` so a real AGENTS.md (with the no-agent anchor) exists."""
+    """Run `keepsail init` so a real AGENTS.md (with the no-agent anchor) exists."""
     return CliRunner().invoke(main, ["--workspace", str(ws), "init"])
 
 
@@ -653,7 +653,7 @@ def test_install_agents_md_write_failure_exits_generic_with_format_error(
 
     assert r.exit_code == 1, r.output
     assert "Traceback" not in r.stderr, r.stderr
-    assert "super-harness adapter install:" in r.stderr, r.stderr
+    assert "keepsail adapter install:" in r.stderr, r.stderr
     assert "failed to update AGENTS.md" in r.stderr, r.stderr
     assert "Hint:" in r.stderr, r.stderr
     # The yaml entry was recorded BEFORE the AGENTS.md write — it must survive so
@@ -690,7 +690,7 @@ def test_uninstall_agents_md_remove_failure_exits_generic_with_format_error(
 
     assert r.exit_code == 1, r.output
     assert "Traceback" not in r.stderr, r.stderr
-    assert "super-harness adapter uninstall:" in r.stderr, r.stderr
+    assert "keepsail adapter uninstall:" in r.stderr, r.stderr
     assert "failed to remove the AGENTS.md subsection" in r.stderr, r.stderr
 
 
@@ -714,7 +714,7 @@ def test_scan_once_agent_adapter_is_rejected(
 
     assert r.exit_code == 1, r.output
     assert "Traceback" not in r.stderr, r.stderr
-    assert "super-harness adapter scan-once:" in r.stderr, r.stderr
+    assert "keepsail adapter scan-once:" in r.stderr, r.stderr
     # The message must name WHY (agent adapters have no observe()).
     assert "observe" in r.stderr.lower() or "framework" in r.stderr.lower(), r.stderr
 
@@ -725,7 +725,7 @@ def test_scan_once_unknown_adapter_exits_generic(tmp_path: Path) -> None:
     r = _run(tmp_path, "scan-once", "nope")
 
     assert r.exit_code == 1, r.output
-    assert "super-harness adapter scan-once:" in r.stderr, r.stderr
+    assert "keepsail adapter scan-once:" in r.stderr, r.stderr
     assert "unknown adapter" in r.stderr, r.stderr
 
 
@@ -734,7 +734,7 @@ def test_scan_once_no_harness_exits_no_config(tmp_path: Path) -> None:
     r = _run(tmp_path, "scan-once", "plain")
 
     assert r.exit_code == 3, r.output
-    assert "super-harness adapter scan-once:" in r.stderr, r.stderr
+    assert "keepsail adapter scan-once:" in r.stderr, r.stderr
 
 
 def test_scan_once_emit_validation_failure_is_clean(
@@ -757,7 +757,7 @@ def test_scan_once_emit_validation_failure_is_clean(
 
     assert r.exit_code == 2, r.output
     assert "Traceback" not in r.stderr, r.stderr
-    assert "super-harness adapter scan-once:" in r.stderr, r.stderr
+    assert "keepsail adapter scan-once:" in r.stderr, r.stderr
     # The message names the offending change so the operator can fix it.
     assert "bad" in r.stderr, r.stderr
 
@@ -904,7 +904,7 @@ def test_install_conflicting_check_id_exits_validation_two(tmp_path: Path) -> No
 
     assert r.exit_code == 2, r.output
     assert "Traceback" not in r.stderr, r.stderr
-    assert "super-harness adapter install:" in r.stderr, r.stderr
+    assert "keepsail adapter install:" in r.stderr, r.stderr
     assert "openspec-validate" in r.stderr, r.stderr
     # The conflicting row is untouched (we rejected — never partially merged).
     rows = _read_adapter_provided(tmp_path)
@@ -973,7 +973,7 @@ def test_install_openspec_non_utf8_verification_yaml_exits_no_config(
     r = _run(tmp_path, "install", "openspec")
 
     assert r.exit_code == 3, r.output
-    assert "super-harness adapter install:" in r.stderr, r.stderr
+    assert "keepsail adapter install:" in r.stderr, r.stderr
     assert "corrupt" in r.stderr, r.stderr
     assert "Traceback" not in r.stderr, r.stderr
 
@@ -1002,6 +1002,6 @@ def test_uninstall_openspec_non_utf8_verification_yaml_exits_no_config(
     )
 
     assert r.exit_code == 3, r.output
-    assert "super-harness adapter uninstall:" in r.stderr, r.stderr
+    assert "keepsail adapter uninstall:" in r.stderr, r.stderr
     assert "corrupt" in r.stderr, r.stderr
     assert "Traceback" not in r.stderr, r.stderr

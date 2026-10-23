@@ -1,6 +1,6 @@
 """SuperpowersAdapter — FrameworkAdapter for workspaces driven by superpowers.
 
-Discovery is anchored on a super-harness-owned frontmatter marker (`change:` /
+Discovery is anchored on a keepsail-owned frontmatter marker (`change:` /
 `stage:`), NOT on superpowers' version-specific artifact paths or filenames —
 those moved between superpowers versions and the installed version is not
 detectable from the workspace. See
@@ -265,7 +265,7 @@ class SuperpowersAdapter(FrameworkAdapter):
             "<!-- super-harness framework: superpowers -->\n"
             "- Drive the lifecycle with the superpowers skills "
             "(brainstorming → writing-plans → TDD). Plans live under `docs/plans/`.\n"
-            "- Mark an artifact for super-harness with YAML frontmatter: "
+            "- Mark an artifact for keepsail with YAML frontmatter: "
             "`change: <slug>` (identity) plus optional `stage: design|plan`.\n"
             "  - `stage: design` declares intent; `stage: plan` (or omitted) means "
             "plan ready. A plan may also carry `scope` / `tier_hint`.\n"

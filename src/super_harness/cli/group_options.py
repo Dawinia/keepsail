@@ -10,8 +10,8 @@ and won't appear there, so the suggestion is misleading.
 flag tokens (long forms AND short aliases) and reraises with a
 `UsageError` redirect pointing at the right slot:
 
-    Error: '--json' is a top-level flag of `super-harness`, not a
-           subcommand flag. Try: `super-harness --json verify ...`
+    Error: '--json' is a top-level flag of `keepsail`, not a
+           subcommand flag. Try: `keepsail --json verify ...`
 
 `GroupAwareGroup` is the matching `click.Group` whose `command_class` and
 `group_class` propagate `GroupAwareCommand` to every (nested) subcommand
@@ -19,7 +19,7 @@ so per-command wiring is not needed.
 
 Trade-off: the redirect hint is direction-pointing, not copy-paste-ready.
 If the user mixes valid group-level args with a mispositioned flag (e.g.
-``super-harness --workspace /tmp verify --json``), the example drops the
+``keepsail --workspace /tmp verify --json``), the example drops the
 ``--workspace /tmp`` from its reconstruction. That is acceptable; the
 hint exists to teach correct slot, not to reproduce the full invocation.
 
@@ -53,14 +53,14 @@ def _redirect_hint(option_name: str, command_path: str) -> str:
     Args:
         option_name: the rejected option token, e.g. ``"--json"``.
         command_path: full subcommand chain as ``ctx.command_path`` reports
-            it, e.g. ``"super-harness change start"``.
+            it, e.g. ``"keepsail change start"``.
 
     Returns:
         Single-line error text (without trailing newline). Safe against
         brace injection because we use f-strings, not ``str.format``.
     """
     parts = command_path.split()
-    program = parts[0] if parts else "super-harness"
+    program = parts[0] if parts else "keepsail"
     subchain = " ".join(parts[1:]) if len(parts) > 1 else ""
     if subchain:
         example = f"`{program} {option_name} {subchain} ...`"

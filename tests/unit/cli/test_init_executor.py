@@ -86,7 +86,7 @@ def test_success_emits_started_then_succeeded_in_stable_order() -> None:
     )
     assert observed == list(result.ledger)
     assert all(seen is recorded for seen, recorded in zip(observed, result.ledger, strict=True))
-    assert result.next_command == "super-harness status"
+    assert result.next_command == "keepsail status"
     assert result.recovery_command is None
 
 
@@ -175,7 +175,7 @@ def test_domain_failure_retains_completed_ledger_and_domain_recovery_data() -> N
             "gh authentication expired",
             exit_code=4,
             hint="Run `gh auth login`.",
-            recovery_command="gh auth login && super-harness init --force",
+            recovery_command="gh auth login && keepsail init --force",
         )
 
     result = InitExecutor(_operations(calls, {"review_config": fail})).apply(_plan())
@@ -195,7 +195,7 @@ def test_domain_failure_retains_completed_ledger_and_domain_recovery_data() -> N
     assert result.interrupted_step_id is None
     assert result.message == "gh authentication expired"
     assert result.hint == "Run `gh auth login`."
-    assert result.recovery_command == "gh auth login && super-harness init --force"
+    assert result.recovery_command == "gh auth login && keepsail init --force"
     assert result.next_command is None
 
 
@@ -241,7 +241,7 @@ def test_keyboard_interrupt_during_fourth_step_keeps_completed_ledger() -> None:
     assert result.exit_code == 1
     assert result.failed_step_id is None
     assert result.interrupted_step_id == "agent_integrations"
-    assert result.recovery_command == "super-harness init --force"
+    assert result.recovery_command == "keepsail init --force"
 
 
 def test_event_sink_failure_is_isolated_without_rerunning_operations() -> None:

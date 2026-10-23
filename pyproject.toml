@@ -3,13 +3,13 @@ requires = ["hatchling>=1.21"]
 build-backend = "hatchling.build"
 
 [project]
-name = "super-harness"
+name = "keepsail"
 version = "0.1.0"
-description = "CI-first cross-framework + cross-agent AI coding harness"
+description = "Product-work control layer across agent harnesses"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-authors = [{ name = "super-harness contributors" }]
+authors = [{ name = "keepsail contributors" }]
 keywords = ["ai", "agent", "coding-agent", "ci", "claude-code", "openspec"]
 classifiers = [
   "Development Status :: 3 - Alpha",
@@ -36,7 +36,7 @@ dependencies = [
   # `python-ulid 3.1.0`'s installed metadata declares NO runtime requires,
   # but its `ulid/__init__.py` does `from typing_extensions import Self` —
   # upstream packaging bug. Declare it explicitly so `pipx install
-  # super-harness` works in a clean venv. Editable installs hide this
+  # keepsail` works in a clean venv. Editable installs hide this
   # because pytest/dev tools transitively pull typing_extensions into
   # `.venv/`. Smoke walk v4 surfaced this on first wheel install.
   "typing_extensions>=4.0",
@@ -66,6 +66,9 @@ dev = [
 super-harness = "super_harness.cli:main"
 super-harness-daemon = "super_harness.daemon.server:main"
 super-harness-hook = "super_harness.daemon.hook_entry:main"
+keepsail = "super_harness.cli:main"
+keepsail-daemon = "super_harness.daemon.server:main"
+keepsail-hook = "super_harness.daemon.hook_entry:main"
 
 [tool.hatch.build]
 # Hatchling default sdist includes ALL non-gitignored files. Smoke walk v4

@@ -30,7 +30,7 @@ from super_harness.core.state import ChangeState
 _HEADER = (
     "# .harness/state.yaml\n"
     "# AUTO-GENERATED from events.jsonl. DO NOT EDIT.\n"
-    "# Regenerate: `super-harness state rebuild`.\n"
+    "# Regenerate: `keepsail state rebuild`.\n"
 )
 
 
@@ -75,6 +75,6 @@ def read_state_yaml(path: Path) -> dict[str, Any]:
     if not isinstance(result, dict):
         raise ValueError(
             f"state.yaml root must be a mapping, got {type(result).__name__}; "
-            f"run `super-harness state rebuild` to regenerate"
+            f"run `keepsail state rebuild` to regenerate"
         )
     return result

@@ -1,4 +1,4 @@
-"""`super-harness attest` — Layer-2 CI merge gate (HG-DF item C).
+"""`keepsail attest` — Layer-2 CI merge gate (HG-DF item C).
 
 `attest write <slug>` snapshots a change's committed attestation
 (`.harness/attestations/<slug>.jsonl`); `attest verify --base --head` is the CI
@@ -159,7 +159,7 @@ def attest_write(ctx: click.Context, slug: str, disclose_reason: str | None) -> 
             )
         )
     elif not ctx.obj.get("quiet"):
-        click.echo(f"super-harness: wrote attestation {rel}")
+        click.echo(f"keepsail: wrote attestation {rel}")
     sys.exit(EXIT_OK)
 
 

@@ -1,4 +1,4 @@
-"""Unit tests for `super-harness done` (Phase 8 Task 8.7).
+"""Unit tests for `keepsail done` (Phase 8 Task 8.7).
 
 `done` runs verification (via the same dispatcher + VerificationRunner as
 `verify`) and, on a pass, emits `implementation_complete` to advance the change
@@ -119,7 +119,7 @@ execution:
   fail_fast: false
 checks:
   - id: missing-target
-    command: [super-harness-target-that-does-not-exist]
+    command: [keepsail-target-that-does-not-exist]
 adapter_provided: []
 """
 
@@ -497,7 +497,7 @@ def test_done_pr_no_metadata_block_exits_4(tmp_path: Path) -> None:
         )
     assert r.exit_code == EXIT_EXTERNAL_TOOL, r.output
     combined = r.output + (r.stderr or "")
-    assert "no super-harness metadata block" in combined
+    assert "no keepsail metadata block" in combined
     assert "pr emit-opened" in combined
     # No implementation_complete landed.
     assert "implementation_complete" not in _event_types(tmp_path)

@@ -22,7 +22,7 @@ from super_harness.cli.init_plan import (
 
 
 def _lookup(*available: str):
-    installed = frozenset((*available, "super-harness-hook", "super-harness"))
+    installed = frozenset((*available, "keepsail-hook", "keepsail"))
     return lambda executable: f"/bin/{executable}" if executable in installed else None
 
 
@@ -363,7 +363,7 @@ def test_plan_freezes_selected_integration_transactions_and_truthful_backups(
     current = tmp_path / ".claude" / "settings.local.json"
     current.parent.mkdir()
     current.write_text("{}\n")
-    lookup = _lookup("super-harness-hook", "super-harness")
+    lookup = _lookup("keepsail-hook", "keepsail")
     current.write_bytes(
         inspect_workspace(
             _request(tmp_path, integrations=("claude-code",)),
@@ -391,7 +391,7 @@ def test_integration_preflight_needs_management_binaries_not_agent_binaries(
 ) -> None:
     preflight = inspect_workspace(
         _request(tmp_path, mode=InteractionMode.GUIDED),
-        executable_lookup=_lookup("super-harness-hook", "super-harness"),
+        executable_lookup=_lookup("keepsail-hook", "keepsail"),
     )
     assert preflight.available_integrations == frozenset({"codex", "claude-code"})
 

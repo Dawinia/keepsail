@@ -1,4 +1,4 @@
-"""Sensor base architecture for super-harness.
+"""Sensor base architecture for keepsail.
 
 Per sensor-gate-architecture §2.1: Sensors observe lifecycle events / activities and
 emit new events. A Sensor subclass declares which events / activities trigger it and

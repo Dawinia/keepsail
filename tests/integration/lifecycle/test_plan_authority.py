@@ -712,7 +712,7 @@ def test_a17_candidate_import_path_cannot_replace_trusted_verifier(tmp_path: Pat
     baseline_cli_script = (
         "import sys; sys.path.insert(0, sys.argv[1]); "
         "from super_harness.cli import main; "
-        "sys.argv = ['super-harness', '--workspace', sys.argv[2], 'attest', 'verify', "
+        "sys.argv = ['keepsail', '--workspace', sys.argv[2], 'attest', 'verify', "
         "'--base', sys.argv[3], '--head', sys.argv[4]]; main()"
     )
     baseline_env = os.environ.copy()
@@ -753,7 +753,7 @@ def test_a17_candidate_import_path_cannot_replace_trusted_verifier(tmp_path: Pat
     new_cli_script = (
         "import sys; sys.path.insert(0, sys.argv[1]); "
         "from super_harness.cli import main; "
-        "sys.argv = ['super-harness', '--workspace', sys.argv[2], 'implementation', 'start', "
+        "sys.argv = ['keepsail', '--workspace', sys.argv[2], 'implementation', 'start', "
         "'later-change']; main()"
     )
     downgrade_env = os.environ.copy()
@@ -819,7 +819,7 @@ def test_a17_candidate_import_path_cannot_replace_trusted_verifier(tmp_path: Pat
     current_cli_script = (
         "import sys; sys.path.insert(0, sys.argv[1]); "
         "from super_harness.cli import main; "
-        "sys.argv = ['super-harness', '--workspace', sys.argv[2], 'attest', 'verify', "
+        "sys.argv = ['keepsail', '--workspace', sys.argv[2], 'attest', 'verify', "
         "'--base', sys.argv[3], '--head', sys.argv[4]]; main()"
     )
     legacy_env = os.environ.copy()

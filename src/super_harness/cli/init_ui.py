@@ -532,7 +532,7 @@ class RichGuidedRenderer:
         if self._session_open or self._session_closed:
             return
         self._session_open = True
-        self._print(f"{_CORNER_OPEN[self._unicode]} super-harness init")
+        self._print(f"{_CORNER_OPEN[self._unicode]} keepsail init")
         # The opener counts as prior content so the first group is preceded by a
         # separator ("the opener is followed by one separator").
         self._content_started = True
@@ -1158,7 +1158,7 @@ class InteractiveInitUI:
             RailState.COMPLETED,
             "Already initialized",
             secondary=(
-                "Next: super-harness status; Review/reconfigure: super-harness init --force"
+                "Next: keepsail status; Review/reconfigure: keepsail init --force"
             ),
         )
 
@@ -1276,8 +1276,8 @@ class _PlainInitUI:
     def render_already_initialized(self, harness: object) -> None:
         del harness
         self._output("Already initialized")
-        self._output("Next: super-harness status")
-        self._output("Review/reconfigure: super-harness init --force")
+        self._output("Next: keepsail status")
+        self._output("Review/reconfigure: keepsail init --force")
 
     def render_outcome(self, result: ExecutionResultLike) -> None:
         command = result.next_command if result.success else result.recovery_command

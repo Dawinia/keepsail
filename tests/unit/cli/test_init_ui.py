@@ -1618,8 +1618,8 @@ def _guided_review_plan(tmp_path: Path) -> InitPlan:
         integration_plans={
             "codex": AgentIntegrationPlan(
                 "codex",
-                "/usr/local/bin/super-harness-hook",
-                "/usr/local/bin/super-harness",
+                "/usr/local/bin/keepsail-hook",
+                "/usr/local/bin/keepsail",
                 SettingsMergePlan(
                     path=tmp_path / ".codex" / "hooks.json",
                     original_bytes=b"{}\n",
@@ -1630,8 +1630,8 @@ def _guided_review_plan(tmp_path: Path) -> InitPlan:
             ),
             "claude-code": AgentIntegrationPlan(
                 "claude-code",
-                "/usr/local/bin/super-harness-hook",
-                "/usr/local/bin/super-harness",
+                "/usr/local/bin/keepsail-hook",
+                "/usr/local/bin/keepsail",
                 SettingsMergePlan(
                     path=tmp_path / ".claude" / "settings.local.json",
                     original_bytes=b"{}\n",
@@ -1668,7 +1668,7 @@ def _guided_review_plan(tmp_path: Path) -> InitPlan:
 # the transcript budget.
 PRE_PROGRESSIVE_DISCLOSURE_REPRESENTATIVE_TRANSCRIPT = (
     """\
-┌ super-harness init
+┌ keepsail init
 ●  preflight: Inspected /work/my-project
 │  Detection is read-only
 ◆  configuration: Choose integrations and reviews
@@ -1706,7 +1706,7 @@ PRE_PROGRESSIVE_DISCLOSURE_REPRESENTATIVE_TRANSCRIPT = (
     "Settings -> General -> Pull Requests.\n"
     """\
 ●  outcome: Setup complete in 3.1s
-│  Next: super-harness status
+│  Next: keepsail status
 └
 """
 )
@@ -1818,7 +1818,7 @@ def _render_representative_progressive_disclosure_transcript(
         SimpleNamespace(
             success=True,
             elapsed_ms=3100,
-            next_command="super-harness status",
+            next_command="keepsail status",
             recovery_command=None,
         )
     )
@@ -1873,7 +1873,7 @@ def test_representative_guided_transcript_stays_within_progressive_disclosure_bu
         assert transcript.count(f"◇  {group}") == 1
     assert "▲  GitHub setup" in transcript
     assert "Settings -> General -> Pull Requests" in transcript
-    assert transcript.splitlines()[-1] == ("└ Setup complete in 3.1s · Next: super-harness status")
+    assert transcript.splitlines()[-1] == ("└ Setup complete in 3.1s · Next: keepsail status")
     for redundant in ("done (", "Applying setup", "outcome:"):
         assert redundant not in transcript
     assert "configuration: Choose integrations and reviews" not in transcript
@@ -1897,7 +1897,7 @@ def test_rich_guided_lines_never_have_trailing_whitespace() -> None:
     renderer.render_result(
         RailState.FAILED,
         "Setup failed after 1.2s",
-        secondary="Recovery: super-harness init --force",
+        secondary="Recovery: keepsail init --force",
     )
     renderer.close_session()
     for transcript in (wide, narrow, buffer.getvalue()):
@@ -1921,7 +1921,7 @@ def test_rich_guided_review_hides_unchanged_and_backup_detail_by_default(
 
     text = buffer.getvalue()
     lines = text.splitlines()
-    assert lines[0] == "┌ super-harness init"
+    assert lines[0] == "┌ keepsail init"
     assert lines[-1] == "└"
     assert text.count("└") == 1
     # Spine invariant: interior lines are a bare separator or hang on the spine.
@@ -1990,15 +1990,15 @@ def test_rich_guided_terminal_result_closes_session_once_without_empty_rail(
     renderer.render_result(
         RailState.COMPLETED,
         "Setup complete in 152ms",
-        secondary="Next: super-harness status",
+        secondary="Next: keepsail status",
     )
     renderer.close_session()
     renderer.close_session()
 
     text = buffer.getvalue()
-    assert text.count("┌ super-harness init") == 1
+    assert text.count("┌ keepsail init") == 1
     assert text.count("└") == 1
-    assert text.splitlines()[-1] == "└ Setup complete in 152ms · Next: super-harness status"
+    assert text.splitlines()[-1] == "└ Setup complete in 152ms · Next: keepsail status"
 
 
 def test_rich_guided_narrow_output_drops_hints_and_wraps_paths(tmp_path: Path) -> None:
@@ -2078,7 +2078,7 @@ def test_rich_guided_strict_ascii_escapes_cjk_windows_action_and_keeps_hidden_ro
     escaped_name = str(windows_path.name).encode("ascii", "backslashreplace").decode("ascii")
     compact = "".join(line.lstrip("|+o ").strip() for line in lines)
     assert text.isascii()
-    assert lines[0] == "+ super-harness init"
+    assert lines[0] == "+ keepsail init"
     assert lines[-1] == "+"
     # Interior lines are a bare rail or hang on the rail with a glyph/rail prefix.
     assert all(line == "|" or line.startswith(("o  ", "|  ")) for line in lines[1:-1])
@@ -2110,7 +2110,7 @@ def test_rich_guided_cjk_windows_path_wraps_inside_every_review_rail_line(
     renderer.render_plan(plan)
 
     lines = buffer.getvalue().splitlines()
-    assert lines[0] == "┌ super-harness init"
+    assert lines[0] == "┌ keepsail init"
     assert lines[-1] == "└"
     assert all(line == "│" or line.startswith(("◇  ", "│  ")) for line in lines[1:-1])
     # The default inline review shows the basename, wrapped on the spine.
@@ -2273,7 +2273,7 @@ def test_rich_guided_narrow_apply_and_failure_wrap_without_color_dependency(
     renderer.render_result(
         RailState.FAILED,
         "Setup failed after 1.2s",
-        secondary="Recovery: super-harness init --force",
+        secondary="Recovery: keepsail init --force",
     )
     renderer.close_session()
 
@@ -2296,7 +2296,7 @@ def test_rich_guided_narrow_apply_and_failure_wrap_without_color_dependency(
     )
     # The wrapped terminal result hangs on the spine, satisfying the invariant.
     assert all(line.startswith(f"{bar}  ") for line in plain_lines[close_index + 1 :])
-    assert "Recovery: super-harness init --force" in " ".join(
+    assert "Recovery: keepsail init --force" in " ".join(
         line.lstrip(f"{close_glyph}{bar} ") for line in plain_lines[close_index:]
     )
     if not color:
@@ -2308,13 +2308,13 @@ def test_rich_guided_narrow_apply_and_failure_wrap_without_color_dependency(
 @pytest.mark.parametrize(
     ("success", "message", "next_command", "recovery_command", "expected_secondary"),
     [
-        (True, None, "super-harness status", None, "Next: super-harness status"),
+        (True, None, "keepsail status", None, "Next: keepsail status"),
         (
             False,
             "GitHub setup failed",
             None,
-            "gh auth login && super-harness init --force",
-            "Recovery: gh auth login && super-harness init --force",
+            "gh auth login && keepsail init --force",
+            "Recovery: gh auth login && keepsail init --force",
         ),
     ],
 )
@@ -2360,8 +2360,8 @@ def test_guided_outcome_formats_truthful_elapsed_time(
     result = SimpleNamespace(
         success=success,
         message=message,
-        next_command="super-harness status" if success else None,
-        recovery_command=None if success else "super-harness init --force",
+        next_command="keepsail status" if success else None,
+        recovery_command=None if success else "keepsail init --force",
         elapsed_ms=elapsed_ms,
     )
 
@@ -2371,7 +2371,7 @@ def test_guided_outcome_formats_truthful_elapsed_time(
         (
             RailState.COMPLETED if success else RailState.FAILED,
             expected_detail,
-            ("Next: super-harness status" if success else "Recovery: super-harness init --force"),
+            ("Next: keepsail status" if success else "Recovery: keepsail init --force"),
         )
     ]
 
@@ -2388,7 +2388,7 @@ def test_guided_already_initialized_is_one_status_first_recovery_block(
         (
             RailState.COMPLETED,
             "Already initialized",
-            ("Next: super-harness status; Review/reconfigure: super-harness init --force"),
+            ("Next: keepsail status; Review/reconfigure: keepsail init --force"),
         )
     ]
 

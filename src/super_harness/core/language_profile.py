@@ -1,6 +1,6 @@
 """Per-workspace language tuning for the dead-doc-reference gate (design 2026-06-26).
 
-Today the ONLY governed-project language coupling in super-harness is the
+Today the ONLY governed-project language coupling in keepsail is the
 code-identifier recognizer in ``core/doc_refs.py``. This loader externalizes its
 identifier pattern so a non-C-family project (e.g. Ruby ``?``/``!`` methods) can tune
 it via ``.harness/language.yaml``:

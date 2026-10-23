@@ -1,4 +1,4 @@
-"""CLI tests for `super-harness doc refs` graded exit codes + the `done` warn helper."""
+"""CLI tests for `keepsail doc refs` graded exit codes + the `done` warn helper."""
 from __future__ import annotations
 
 import subprocess

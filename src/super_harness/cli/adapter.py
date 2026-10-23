@@ -1,4 +1,4 @@
-"""`adapter` subgroup — install / uninstall / list super-harness integrations.
+"""`adapter` subgroup — install / uninstall / list keepsail integrations.
 
 Generalizes the Phase-5 MINIMAL `adapter install claude-code` (a single pinned
 subcommand) into a registry-driven surface over BOTH framework and agent
@@ -33,7 +33,7 @@ install we inject the adapter's ``agents_md_subsection()`` into the repo-root
 ``AGENTS.md`` (agent → ``inject_agent_subsection``; framework →
 ``inject_framework_subsection``). If ``AGENTS.md`` is absent (the user never ran
 ``init``) we skip silently — install never CREATES a bare AGENTS.md. On
-uninstall we ``remove_subsection`` as super-harness-owned generic cleanup (NOT
+uninstall we ``remove_subsection`` as keepsail-owned generic cleanup (NOT
 inside ``on_uninstall``, per the ABC docstring); it is a no-op when AGENTS.md or
 the block is absent.
 
@@ -95,7 +95,7 @@ from super_harness.exit_codes import (
 
 @click.group("adapter")
 def adapter_group() -> None:
-    """Install / uninstall / list super-harness integrations for frameworks + agents."""
+    """Install / uninstall / list keepsail integrations for frameworks + agents."""
 
 
 @adapter_group.command("install")
@@ -149,7 +149,7 @@ def adapter_install(ctx: click.Context, name: str) -> None:
         try:
             adapter.install_hooks(root)
         except RuntimeError as e:
-            # The documented RuntimeError is "super-harness-hook not on PATH" — a
+            # The documented RuntimeError is "keepsail-hook not on PATH" — a
             # broken install the user must repair. Surface its message verbatim
             # through format_error rather than letting a traceback escape.
             click.echo(
@@ -180,7 +180,7 @@ def adapter_install(ctx: click.Context, name: str) -> None:
         subsection = adapter.agents_md_subsection()
         # The adapters.yaml entry is already persisted above. An OSError
         # (unwritable AGENTS.md / full disk) or AgentsMdInjectionError (duplicate
-        # super-harness outer block) here must surface through format_error like
+        # keepsail outer block) here must surface through format_error like
         # every other filesystem step — never a raw traceback. Re-install is
         # idempotent (the injectors replace in place), so the recovery contract
         # is "fix AGENTS.md, re-run install" — NO yaml-entry rollback in v0.1.
@@ -208,7 +208,7 @@ def adapter_install(ctx: click.Context, name: str) -> None:
                     subcommand="adapter install",
                     message=f"adapter installed but failed to update AGENTS.md: {e}",
                     hint=(
-                        "Fix AGENTS.md (file permissions / duplicate super-harness "
+                        "Fix AGENTS.md (file permissions / duplicate keepsail "
                         "markers), then re-run `adapter install` (idempotent)."
                     ),
                 ),
@@ -391,9 +391,9 @@ def adapter_uninstall(ctx: click.Context, name: str) -> None:
         )
         sys.exit(EXIT_NO_CONFIG)
 
-    # super-harness-owned generic cleanup (AC-4): remove the adapter's AGENTS.md
+    # keepsail-owned generic cleanup (AC-4): remove the adapter's AGENTS.md
     # subsection. NOT done inside on_uninstall — per the ABC docstring AGENTS.md
-    # cleanup is super-harness's responsibility, not the adapter's. No-op when
+    # cleanup is keepsail's responsibility, not the adapter's. No-op when
     # AGENTS.md or the block is absent (removing the last agent restores the
     # no-agent anchor so a later re-install still has somewhere to land).
     kind = "framework" if isinstance(adapter, FrameworkAdapter) else "agent"
@@ -409,7 +409,7 @@ def adapter_uninstall(ctx: click.Context, name: str) -> None:
                 message=f"failed to remove the AGENTS.md subsection: {e}",
                 hint=(
                     "Fix AGENTS.md (file permissions / encoding / duplicate "
-                    "super-harness markers) and re-run `adapter uninstall`."
+                    "keepsail markers) and re-run `adapter uninstall`."
                 ),
             ),
             err=True,

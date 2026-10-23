@@ -140,7 +140,7 @@ def load_review_governance(root: Path) -> ReviewGovernance:
                 "and a user-local review profile"
             )
         raise ReviewGovernanceError(
-            f"{path} not found; run `super-harness init` or add tracked review governance"
+            f"{path} not found; run `keepsail init` or add tracked review governance"
         )
     try:
         text = path.read_text(encoding="utf-8")

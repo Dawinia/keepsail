@@ -1,9 +1,9 @@
-"""Demo module for the super-harness lifecycle example.
+"""Demo module for the keepsail lifecycle example.
 
 This stub is intentionally incomplete. The demo walkthrough in
 ``examples/demo-openspec-claude/README.md`` asks the visitor to implement
 ``greet`` per ``openspec/changes/demo-add-greeter/proposal.md`` so they can
-watch the super-harness lifecycle advance from ``INTENT_DECLARED`` to
+watch the keepsail lifecycle advance from ``INTENT_DECLARED`` to
 ``AWAITING_CODE_REVIEW`` while editing this file.
 """
 

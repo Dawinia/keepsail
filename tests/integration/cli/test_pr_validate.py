@@ -1,6 +1,6 @@
-"""Integration tests for `super-harness pr validate <num>` (Phase 12 Task 12.3b).
+"""Integration tests for `keepsail pr validate <num>` (Phase 12 Task 12.3b).
 
-`pr validate` fetches a PR body via `gh pr view`, parses the super-harness
+`pr validate` fetches a PR body via `gh pr view`, parses the keepsail
 metadata block, and runs three blocker checks:
   1. metadata block present + complete (all REQUIRED_METADATA_KEYS)
   2. the resolved change's lifecycle event sequence is violation-free
@@ -103,7 +103,7 @@ _READY_SEQUENCE = [
 
 
 def _complete_metadata_body(change_id: str = CHANGE_ID) -> str:
-    """A PR body carrying ONE complete super-harness metadata block."""
+    """A PR body carrying ONE complete keepsail metadata block."""
     return (
         "Some PR description.\n\n"
         "<!-- super-harness:metadata -->\n"
@@ -132,7 +132,7 @@ def test_pr_validate_no_harness_exits_3(tmp_path: Path) -> None:
             main, ["--workspace", str(tmp_path), "--json", "pr", "validate", "7"]
         )
     assert r.exit_code == 3
-    assert "super-harness pr validate:" in r.stderr
+    assert "keepsail pr validate:" in r.stderr
     assert "Hint:" in r.stderr
     # No envelope emitted on stdout even under --json.
     assert r.stdout.strip() == ""
@@ -154,7 +154,7 @@ def test_pr_validate_gh_error_exits_4(tmp_path: Path) -> None:
             main, ["--workspace", str(tmp_path), "--json", "pr", "validate", "7"]
         )
     assert r.exit_code == 4
-    assert "super-harness pr validate:" in r.stderr
+    assert "keepsail pr validate:" in r.stderr
     assert r.stdout.strip() == ""
 
 
@@ -164,14 +164,14 @@ def test_pr_validate_gh_error_exits_4(tmp_path: Path) -> None:
 
 
 def test_pr_validate_no_metadata_block_exits_2(tmp_path: Path) -> None:
-    """A PR body with no super-harness block → no-block blocker → exit 2."""
+    """A PR body with no keepsail block → no-block blocker → exit 2."""
     _init(tmp_path)
     with mock.patch(VIEW_PR, return_value={"body": "just a normal PR description"}):
         r = CliRunner().invoke(
             main, ["--workspace", str(tmp_path), "pr", "validate", "7"]
         )
     assert r.exit_code == 2
-    assert "no super-harness metadata block" in r.stderr
+    assert "no keepsail metadata block" in r.stderr
 
 
 def test_pr_validate_null_body_exits_2(tmp_path: Path) -> None:
@@ -182,7 +182,7 @@ def test_pr_validate_null_body_exits_2(tmp_path: Path) -> None:
             main, ["--workspace", str(tmp_path), "pr", "validate", "7"]
         )
     assert r.exit_code == 2
-    assert "no super-harness metadata block" in r.stderr
+    assert "no keepsail metadata block" in r.stderr
 
 
 def test_pr_validate_empty_body_exits_2(tmp_path: Path) -> None:
@@ -193,7 +193,7 @@ def test_pr_validate_empty_body_exits_2(tmp_path: Path) -> None:
             main, ["--workspace", str(tmp_path), "pr", "validate", "7"]
         )
     assert r.exit_code == 2
-    assert "no super-harness metadata block" in r.stderr
+    assert "no keepsail metadata block" in r.stderr
 
 
 def test_pr_validate_multiple_blocks_exits_2(tmp_path: Path) -> None:

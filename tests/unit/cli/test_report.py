@@ -1,4 +1,4 @@
-"""Tests for the `super-harness report` CLI command (Stage 1 value report)."""
+"""Tests for the `keepsail report` CLI command (Stage 1 value report)."""
 import json as _json
 
 from click.testing import CliRunner

@@ -483,7 +483,7 @@ def resume(ctx: click.Context, slug: str | None) -> None:
             format_error(
                 subcommand="change resume",
                 message=f"unknown change slug: {slug!r}",
-                hint="Run `super-harness change list` to see known changes.",
+                hint="Run `keepsail change list` to see known changes.",
             ),
             err=True,
         )

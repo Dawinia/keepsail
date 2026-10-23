@@ -1,1 +1,1 @@
-"""Concrete framework adapters (Plain et al.) for super-harness."""
+"""Concrete framework adapters (Plain et al.) for keepsail."""

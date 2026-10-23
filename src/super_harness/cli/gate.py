@@ -126,7 +126,7 @@ def gate_check(
     """Check a gate decision (`pre-tool-use` decides in-process).
 
     Manual/CI/debug entry to the pre-tool-use gate; the click-less
-    `super-harness-hook` binary is the hot path. Both decide **in-process**
+    `keepsail-hook` binary is the hot path. Both decide **in-process**
     through `load_state_snapshot` + `PreToolUseGate` — NO daemon.
     The four cold-path gate names (`pre-commit`, `pre-push`,
     `pr-open`, `pr-merge`) are part of the ratified command surface but are not

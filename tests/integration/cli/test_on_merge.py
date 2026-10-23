@@ -1,4 +1,4 @@
-"""Integration tests for ``super-harness on-merge --commit <sha>`` (Phase 13 Task 13.6).
+"""Integration tests for ``keepsail on-merge --commit <sha>`` (Phase 13 Task 13.6).
 
 ``on-merge`` is the CI-side ``merged`` emitter. The ``merged`` event transitions
 the change directly to ARCHIVED — there is no post-merge sensor dispatch.

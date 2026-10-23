@@ -1,9 +1,9 @@
-"""super-harness sync — re-render the managed super-harness artifacts.
+"""keepsail sync — re-render the managed keepsail artifacts.
 
 The "re-render-without-reinit" path: bring the managed artifacts back up to date
 WITHOUT re-running `init` — it never touches `.harness/` config — and WITHOUT ever
 modifying user content outside the begin/end markers. There are TWO managed
-artifacts (both also written by `init`): the §2.2 outer AGENTS.md super-harness
+artifacts (both also written by `init`): the §2.2 outer AGENTS.md keepsail
 section (version stamp + every installed adapter's guidance block) and the
 repo-root marker-bounded ``.gitignore`` block (the canonical auto-generated /
 per-machine paths). Each render is shared with `init` via its SSOT —
@@ -13,7 +13,7 @@ drifts between init and sync.
 
 Surface (cli-command-surface §sync):
 
-    super-harness sync [--agents-md] [--gitignore] [--adapter <name>] [--yes/-y]
+    keepsail sync [--agents-md] [--gitignore] [--adapter <name>] [--yes/-y]
 
 Modes (no flag = all managed artifacts; each flag = one scope):
 1. No flags — FULL re-render: the AGENTS.md section (version stamp + plain
@@ -23,13 +23,13 @@ Modes (no flag = all managed artifacts; each flag = one scope):
    change). v0.1: built-in adapters contribute no verification.yaml checks yet,
    so the adapter-checks sync leg is a no-op (v0.2 adds it).
 3. ``--gitignore`` — re-render ONLY the managed ``.gitignore`` block. Picks up
-   ``_CANONICAL_PATHS`` additions from a super-harness upgrade non-destructively
+   ``_CANONICAL_PATHS`` additions from a keepsail upgrade non-destructively
    (``init --force`` would clobber skeleton config; this does not).
 4. ``--adapter <name>`` — re-inject ONLY that adapter's subsection (NO outer
    version bump). ``--adapter`` is the narrowest scope and wins if combined with
    ``--agents-md`` / ``--gitignore``.
 
-Overwrite-confirm (AGENTS.md legs): if an existing super-harness section would be
+Overwrite-confirm (AGENTS.md legs): if an existing keepsail section would be
 overwritten (``section_present``) we prompt — UNLESS global ``--quiet`` or the
 local ``--yes`` was passed. Declining raises Click's ``Abort`` → exit 1 (matches
 ``adapter uninstall``). No section present (AGENTS.md absent, or present without
@@ -84,11 +84,11 @@ from super_harness.version import __version__
 # (unwritable AGENTS.md / full disk) or AgentsMdInjectionError (duplicate outer
 # block) must surface through format_error — never a raw traceback.
 _AGENTS_MD_WRITE_HINT = (
-    "Fix AGENTS.md (file permissions / duplicate super-harness markers) and "
+    "Fix AGENTS.md (file permissions / duplicate keepsail markers) and "
     "re-run `sync`."
 )
 _GITIGNORE_WRITE_HINT = (
-    "Fix .gitignore (permissions / duplicate super-harness markers) and "
+    "Fix .gitignore (permissions / duplicate keepsail markers) and "
     "re-run `sync --gitignore`."
 )
 
@@ -99,7 +99,7 @@ _GITIGNORE_WRITE_HINT = (
     "agents_md",
     is_flag=True,
     help=(
-        "Re-render ONLY the AGENTS.md super-harness section (no .gitignore "
+        "Re-render ONLY the AGENTS.md keepsail section (no .gitignore "
         "change). v0.1: built-in adapters contribute no verification.yaml checks "
         "yet, so the adapter-checks sync leg is a no-op (v0.2 adds it)."
     ),
@@ -116,7 +116,7 @@ _GITIGNORE_WRITE_HINT = (
     "gitignore",
     is_flag=True,
     help="Re-render ONLY the managed .gitignore block (no AGENTS.md change). "
-    "Picks up `_CANONICAL_PATHS` additions from a super-harness upgrade "
+    "Picks up `_CANONICAL_PATHS` additions from a keepsail upgrade "
     "without re-running init.",
 )
 @click.option(
@@ -131,7 +131,7 @@ _GITIGNORE_WRITE_HINT = (
     "check",
     is_flag=True,
     help="Dry-run: report drift between the managed artifacts and the "
-    "super-harness template WITHOUT writing. Exit 2 on drift. Composes with "
+    "keepsail template WITHOUT writing. Exit 2 on drift. Composes with "
     "--agents-md / --gitignore; not supported with --adapter.",
 )
 @click.pass_context
@@ -143,9 +143,9 @@ def sync_cmd(
     assume_yes: bool,
     check: bool,
 ) -> None:
-    """Re-render the managed super-harness artifacts without re-running init.
+    """Re-render the managed keepsail artifacts without re-running init.
 
-    No-arg `sync` refreshes BOTH the AGENTS.md super-harness section and the
+    No-arg `sync` refreshes BOTH the AGENTS.md keepsail section and the
     managed `.gitignore` block. `--agents-md` / `--gitignore` are single-artifact
     scopes; `--adapter <name>` is the narrowest scope (one adapter subsection) and
     wins if combined. v0.1: --json is not honored (re-render produces no
@@ -230,7 +230,7 @@ def _sync_full(
 
     if not quiet:
         click.echo(
-            f"Synced AGENTS.md super-harness section (v{__version__}) "
+            f"Synced AGENTS.md keepsail section (v{__version__}) "
             f"and .gitignore block."
         )
     sys.exit(EXIT_OK)
@@ -266,8 +266,8 @@ def _sync_check(
         click.echo(
             format_error(
                 subcommand="sync",
-                message=f"{names} out of sync with the super-harness template",
-                hint="Run `super-harness sync` to regenerate, then commit the result.",
+                message=f"{names} out of sync with the keepsail template",
+                hint="Run `keepsail sync` to regenerate, then commit the result.",
             ),
             err=True,
         )
@@ -280,7 +280,7 @@ def _sync_check(
         if check_gitignore:
             checked.append(".gitignore")
         click.echo(
-            f"{' and '.join(checked)} in sync with the super-harness template."
+            f"{' and '.join(checked)} in sync with the keepsail template."
         )
     sys.exit(EXIT_OK)
 
@@ -310,7 +310,7 @@ def _sync_agents_md_only(
         sys.exit(EXIT_GENERIC)
 
     if not quiet:
-        click.echo(f"Synced AGENTS.md super-harness section (v{__version__}).")
+        click.echo(f"Synced AGENTS.md keepsail section (v{__version__}).")
     sys.exit(EXIT_OK)
 
 
@@ -336,7 +336,7 @@ def _sync_gitignore(root: Path, *, quiet: bool) -> None:
         sys.exit(EXIT_GENERIC)
 
     if not quiet:
-        click.echo("Synced .gitignore super-harness block.")
+        click.echo("Synced .gitignore keepsail block.")
     sys.exit(EXIT_OK)
 
 
@@ -424,7 +424,7 @@ def _confirm_overwrite_if_present(
 ) -> None:
     """Prompt before overwriting an existing section (skipped on --quiet / --yes).
 
-    Only prompts when a super-harness section is actually present (the only
+    Only prompts when a keepsail section is actually present (the only
     overwrite risk). Declining raises Click's ``Abort`` → exit 1 (matches
     ``adapter uninstall``).
     """
@@ -433,7 +433,7 @@ def _confirm_overwrite_if_present(
     if not section_present(agents_path):
         return
     click.confirm(
-        "This will overwrite content inside the super-harness section; continue?",
+        "This will overwrite content inside the keepsail section; continue?",
         abort=True,
     )
 

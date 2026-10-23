@@ -1,5 +1,5 @@
 # .github/workflows/super-harness.yml
-name: super-harness
+name: keepsail
 
 on:
   pull_request:
@@ -8,7 +8,7 @@ on:
     branches: [main]
 
 jobs:
-  # On `opened`, decorate the PR with the super-harness metadata block so
+  # On `opened`, decorate the PR with the keepsail metadata block so
   # downstream `pr validate` has something to check. Gated to `opened` only:
   # re-running on synchronize/reopened would no-op (block already present)
   # while burning CI minutes, and PR-decorator's idempotent merge would
@@ -29,14 +29,14 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
-      - name: Install super-harness
-        run: pipx install super-harness==0.1.0
+      - name: Install keepsail
+        run: pipx install keepsail==0.1.0
       - name: Inject PR metadata block
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           HEAD_REF: ${{ github.head_ref }}
-        run: super-harness pr emit-opened --pr "$PR_NUMBER" --change "$HEAD_REF"
+        run: keepsail pr emit-opened --pr "$PR_NUMBER" --change "$HEAD_REF"
 
   # Validate the metadata block + lifecycle ordering + READY_TO_MERGE state on
   # every PR event (after `pr-decorate` injects on `opened`; subsequent events
@@ -51,13 +51,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
-      - name: Install super-harness
-        run: pipx install super-harness==0.1.0
+      - name: Install keepsail
+        run: pipx install keepsail==0.1.0
       - name: Validate PR metadata + lifecycle
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: super-harness pr validate "$PR_NUMBER"
+        run: keepsail pr validate "$PR_NUMBER"
 
   # Run verification checks against the change's plan/spec. Uses head_ref as
   # the positional slug (VISION convention: branch = slug). A6 slug-validation
@@ -78,12 +78,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
-      - name: Install super-harness
-        run: pipx install super-harness==0.1.0
-      - name: Run super-harness verification
+      - name: Install keepsail
+        run: pipx install keepsail==0.1.0
+      - name: Run keepsail verification
         env:
           HEAD_REF: ${{ github.head_ref }}
-        run: super-harness verify "$HEAD_REF"
+        run: keepsail verify "$HEAD_REF"
 
   # Layer-2 merge gate (HG-DF C): re-derive from the PR diff + committed
   # attestations (.harness/attestations/<slug>.jsonl) whether every changed file
@@ -92,7 +92,7 @@ jobs:
   # (catches edits that bypassed any agent's edit-time hook). fetch-depth: 0 is
   # required so the base...head merge-base is reachable. BASE/HEAD SHAs are
   # mapped through env: (never raw ${{ }} in run) per the script-injection guard.
-  # NOTE: needs a super-harness release that ships `attest verify` — bump the
+  # NOTE: needs a keepsail release that ships `attest verify` — bump the
   # pinned version below when that release lands.
   attest-verify:
     if: github.event_name == 'pull_request'
@@ -116,8 +116,8 @@ jobs:
       - name: Build isolated verifier from trusted BASE_SHA
         shell: bash
         run: |
-          python -m venv "$RUNNER_TEMP/super-harness-verifier"
-          verifier="$RUNNER_TEMP/super-harness-verifier/bin"
+          python -m venv "$RUNNER_TEMP/keepsail-verifier"
+          verifier="$RUNNER_TEMP/keepsail-verifier/bin"
           trusted_sha="$(git -C .harness-trusted-base rev-parse HEAD)"
           test "$trusted_sha" = "$BASE_SHA"
           "$verifier/python" -m pip install --disable-pip-version-check \
@@ -129,7 +129,11 @@ jobs:
         shell: bash
         run: |
           cd "$GITHUB_WORKSPACE"
-          env -u PYTHONPATH "$RUNNER_TEMP/super-harness-verifier/bin/super-harness" \
+          # The trusted base may predate Keepsail; select only its installed CLI.
+          verifier="$RUNNER_TEMP/keepsail-verifier/bin"
+          cli="$verifier/keepsail"
+          if [ ! -x "$cli" ]; then cli="$verifier/super-harness"; fi
+          env -u PYTHONPATH "$cli" \
             attest verify --base "$BASE_SHA" --head "$HEAD_SHA"
 
   candidate-acceptance:
@@ -173,8 +177,8 @@ jobs:
         with: { fetch-depth: 0 }
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
-      - name: Install super-harness
-        run: pipx install super-harness==0.1.0
+      - name: Install keepsail
+        run: pipx install keepsail==0.1.0
       - name: Resolve change slug from merged PR
         id: pr_lookup
         env:
@@ -191,9 +195,9 @@ jobs:
           RESOLVED_SLUG: ${{ steps.pr_lookup.outputs.slug }}
         run: |
           if [ -n "$RESOLVED_SLUG" ]; then
-            super-harness on-merge --commit "$COMMIT_SHA" --change "$RESOLVED_SLUG"
+            keepsail on-merge --commit "$COMMIT_SHA" --change "$RESOLVED_SLUG"
           else
-            super-harness on-merge --commit "$COMMIT_SHA"
+            keepsail on-merge --commit "$COMMIT_SHA"
           fi
 
   # Decision-conformance dangling check (referential integrity): block anchors
@@ -208,10 +212,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
-      - name: Install super-harness
-        run: pipx install super-harness==0.1.0
+      - name: Install keepsail
+        run: pipx install keepsail==0.1.0
       - name: Decision conformance (dangling check)
-        run: super-harness decision check
+        run: keepsail decision check
 
   # Derivable-doc conformance (regen-and-diff): re-generate every derivable
   # doc and fail the PR if the committed copy drifts from the regenerated
@@ -225,7 +229,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
-      - name: Install super-harness
-        run: pipx install super-harness==0.1.0
+      - name: Install keepsail
+        run: pipx install keepsail==0.1.0
       - name: Derivable-doc conformance (regen-and-diff)
-        run: super-harness doc check
+        run: keepsail doc check

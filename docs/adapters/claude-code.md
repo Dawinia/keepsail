@@ -1,6 +1,6 @@
 # Claude Code adapter
 
-The Claude Code adapter is super-harness's reference *agent* adapter in v0.1
+The Claude Code adapter is keepsail's reference *agent* adapter in v0.1
 (Codex ships as an experimental second adapter — see [Codex adapter](codex.md)).
 It wires Claude Code's runtime to the
 harness by registering three hooks directly in `.claude/settings.local.json`
@@ -8,13 +8,13 @@ harness by registering three hooks directly in `.claude/settings.local.json`
 shared `.claude/settings.json` — because the hook `command` pins a
 machine-specific absolute path that must not be committed):
 
-- a **PreToolUse** hook that invokes the `super-harness-hook` binary on
+- a **PreToolUse** hook that invokes the `keepsail-hook` binary on
   every `Edit` / `Write` / `MultiEdit` / `NotebookEdit` tool call (the
   deterministic gate enforcement path),
-- a **SessionStart** hook that invokes `super-harness change resume` (no
+- a **SessionStart** hook that invokes `keepsail change resume` (no
   slug, so it resolves the active change) and lets Claude Code inject the
   resulting context dump into the session, and
-- a **Stop** hook (`super-harness-hook --agent claude-code --event stop`)
+- a **Stop** hook (`keepsail-hook --agent claude-code --event stop`)
   that, when a turn ends, runs the ratified, `authoring_time`-opted-in tier-1
   decision checks once and — on a violation — blocks the stop with a
   **non-blocking advisory** (`{"decision":"block","reason": ...}`) naming the
@@ -23,7 +23,7 @@ machine-specific absolute path that must not be committed):
 
 Claude Code's PreToolUse contract treats process exit code `2` as a hard
 deny — that is how the harness blocks an `Edit` / `Write` without a CC
-plugin API: `super-harness-hook` decides **in-process** (loads `state.yaml`
+plugin API: `keepsail-hook` decides **in-process** (loads `state.yaml`
 once → `PreToolUseGate`), then exits `2` (block, stderr → model) or `0`
 (allow). No background daemon required. JSON `permissionDecision: deny` would
 be cleaner but is blocked upstream (OPEN-ITEMS #3); exit-2 is the v0.1 fallback.
@@ -37,25 +37,25 @@ Auto-detected when the workspace contains a `.claude/` directory. If
 |---|---|
 | `detect` | `.claude/` directory exists at the workspace root |
 | `install_hooks` | Merges three entries into `.claude/settings.local.json` (PreToolUse + SessionStart + Stop) without clobbering existing entries; snapshots+rolls back on failure |
-| `inject_context` | Shells out to `super-harness change resume <slug>` and returns its stdout (best-effort; empty string on non-zero exit) |
+| `inject_context` | Shells out to `keepsail change resume <slug>` and returns its stdout (best-effort; empty string on non-zero exit) |
 | `format_stop_feedback` | Renders a turn-end conformance `Verdict` into Claude Code's Stop-hook `{"decision":"block","reason": ...}` (or `""` when clean) |
 | `agents_md_subsection` | Static block explaining the PreToolUse gate + Stop advisory behavior and recovery commands |
 | `capabilities` | `pre_tool_use_hook`, `post_tool_use_hook`, `session_start_hook`, `rules_file_injection`, `mcp_server`, `subprocess_execution`, `turn_end_feedback_hook` (all `True`); `session_end_hook`, `pre_commit_hook` (`False`) |
 
 ## Install
 
-`super-harness init` auto-installs this hook when it detects a `.claude/`
+`keepsail init` auto-installs this hook when it detects a `.claude/`
 directory — no separate step needed. To install explicitly (or stand-alone in
-a repo that already ran `init`), use `super-harness adapter install
+a repo that already ran `init`), use `keepsail adapter install
 claude-code`; to skip the auto-install during `init`, pass `init --no-agent`.
 
 ```bash
-super-harness adapter install claude-code
+keepsail adapter install claude-code
 ```
 
 Mechanics:
 
-1. Resolves `super-harness-hook` and `super-harness` to absolute paths via
+1. Resolves `keepsail-hook` and `keepsail` to absolute paths via
    `shutil.which` — a missing binary raises `RuntimeError` before any write.
    Resolution happens at *install* time (not hook runtime) because Claude
    Code runs hooks with a minimal PATH; a bare reference would fail there.
@@ -63,11 +63,11 @@ Mechanics:
    resolved executable paths as one reviewed transaction. Apply revalidates
    those inputs before any backup or write.
 3. Plans a **PreToolUse** entry: `matcher: "Edit|Write|MultiEdit|NotebookEdit"`,
-   `command: "<abs super-harness-hook> --agent claude-code"`, `timeout: 10`.
+   `command: "<abs keepsail-hook> --agent claude-code"`, `timeout: 10`.
 4. Plans a **SessionStart** entry (no `matcher` → fires on every session
-   source): `command: "<abs super-harness> change resume"`, `timeout: 10`.
+   source): `command: "<abs keepsail> change resume"`, `timeout: 10`.
    Plans a **Stop** entry (no `matcher` → fires on every turn end):
-   `command: "<abs super-harness-hook> --agent claude-code --event stop"`,
+   `command: "<abs keepsail-hook> --agent claude-code --event stop"`,
    `timeout: 10` (the outer bound; the inner authoring check budget is 8s).
 5. Under an exclusive sibling lock, confirms the settings and executable paths
    still match the reviewed transaction, then writes the complete settings file
@@ -98,10 +98,10 @@ subsection also carries a review-protocol section):
 
 ```markdown
 <!-- super-harness agent: claude-code -->
-### super-harness (Claude Code)
+### keepsail (Claude Code)
 
 A **PreToolUse** hook is enabled for this workspace. `Edit` / `Write` /
-`MultiEdit` / `NotebookEdit` tool calls are blocked by super-harness when the
+`MultiEdit` / `NotebookEdit` tool calls are blocked by keepsail when the
 current change state forbids the mutation (deterministic gate enforcement).
 
 A **Stop** hook also runs a turn-end authoring-time conformance check: when you
@@ -112,11 +112,11 @@ undoes your edit and never blocks twice (it nudges once per turn); the merge gat
 the authoritative floor.
 
 When a tool call is blocked by the gate:
-- Run `super-harness status` to see the current change, its state, and why the
+- Run `keepsail status` to see the current change, its state, and why the
   edit was rejected, plus the next valid step.
-- Resume context for a change with `super-harness change resume <change_id>`.
+- Resume context for a change with `keepsail change resume <change_id>`.
 - **If a tool call is blocked by the gate:** stop, and surface the block plus the
-  next valid step (`super-harness status`) to the human. Do **not** try to disable
+  next valid step (`keepsail status`) to the human. Do **not** try to disable
   or work around the gate yourself — overriding it is a human-only decision, and any
   bypass is recorded and disclosed at the merge gate.
 <!-- /super-harness agent: claude-code -->
@@ -127,16 +127,16 @@ by exact marker match. Re-run `adapter install claude-code` if it drifts.
 
 ## Common issues
 
-- **`adapter install claude-code` exits with `super-harness-hook not found
+- **`adapter install claude-code` exits with `keepsail-hook not found
   on PATH`.** The PreToolUse shim is a separate console entry point that
   ships with the same wheel. Reinstall the package: `pipx reinstall
-  super-harness` (or `pip install --force-reinstall super-harness`). Verify
-  with `command -v super-harness-hook`.
+  keepsail` (or `pip install --force-reinstall keepsail`). Verify
+  with `command -v keepsail-hook`.
 - **`.claude/settings.local.json` reports `not valid JSON`.** The merge layer
   refuses to splice into a malformed settings file. Open the file, fix the
-  JSON, and re-run. The previous super-harness run did not write — the
+  JSON, and re-run. The previous keepsail run did not write — the
   snapshot rollback rules out a partial write.
-- **`Edit` tool calls always blocked.** Run `super-harness status`. The
+- **`Edit` tool calls always blocked.** Run `keepsail status`. The
   hook output's `reason` field tells you which lifecycle rule fired (no
   active change / change is still in `INTENT_DECLARED` or
   `AWAITING_PLAN_REVIEW` / etc.). The gate only allows mutations at
@@ -172,7 +172,7 @@ by exact marker match. Re-run `adapter install claude-code` if it drifts.
 ## Uninstall
 
 ```bash
-super-harness adapter uninstall claude-code
+keepsail adapter uninstall claude-code
 ```
 
 Mechanics (reverse of install):
@@ -197,6 +197,6 @@ The `.claude/` directory is not deleted, even if `install_hooks` created it.
 - [`docs/getting-started.md`](../getting-started.md) — the end-to-end
   walkthrough that installs this adapter alongside `openspec`.
 - [`docs/cli-reference.md`](../cli-reference.md) — the full
-  `super-harness adapter` command surface.
+  `keepsail adapter` command surface.
 - [`examples/demo-openspec-claude/`](../../examples/demo-openspec-claude/) —
   a runnable demo wiring Claude Code + OpenSpec through the full lifecycle.

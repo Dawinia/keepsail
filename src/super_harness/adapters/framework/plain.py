@@ -37,7 +37,7 @@ class PlainAdapter(FrameworkAdapter):
     def agents_md_subsection(self) -> str:
         return (
             "<!-- super-harness framework: plain -->\n"
-            "- No framework: drive lifecycle via `super-harness change start <slug>` / "
-            "`super-harness plan ready <slug>` / `super-harness done <slug>`.\n"
+            "- No framework: drive lifecycle via `keepsail change start <slug>` / "
+            "`keepsail plan ready <slug>` / `keepsail done <slug>`.\n"
             "<!-- /super-harness framework: plain -->\n"
         )

@@ -18,4 +18,4 @@ jobs:
         # re-review), in addition to the tier-1 dangling/integrity/check gates. The
         # local feedforward sensor (AGENTS.md) stays plain `decision check` (warn-only) —
         # routing locally, teeth at the merge boundary (design §5 / §7.3).
-        run: super-harness decision check --gate-reconcile
+        run: keepsail decision check --gate-reconcile

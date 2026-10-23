@@ -2,12 +2,12 @@
 
 Covers the concrete Claude Code adapter contract:
 - `detect` — feature-file check (`.claude/` is a dir).
-- `install_hooks` — resolves BOTH the `super-harness-hook` (PreToolUse) and
-  `super-harness` (SessionStart) binaries via `shutil.which`, registers a
+- `install_hooks` — resolves BOTH the `keepsail-hook` (PreToolUse) and
+  `keepsail` (SessionStart) binaries via `shutil.which`, registers a
   PreToolUse + a SessionStart hook into `.claude/settings.local.json` (merge,
   no `.sh`), raises on a missing binary BEFORE any write, idempotent, and rolls
   back the settings.local.json snapshot if a merge fails mid-install.
-- `inject_context` — delegates to `super-harness change resume <id>`, returns
+- `inject_context` — delegates to `keepsail change resume <id>`, returns
   stdout, tolerates empty / non-zero results without crashing.
 - `agents_md_subsection` — returns a marker-wrapped static markdown block.
 
@@ -28,21 +28,21 @@ import pytest
 
 from super_harness.adapters.agent.claude_code import ClaudeCodeAdapter
 
-_RESOLVED = "/abs/bin/super-harness-hook"
+_RESOLVED = "/abs/bin/keepsail-hook"
 _EXPECTED_COMMAND = f"{_RESOLVED} --agent claude-code"
 _MATCHER = "Edit|Write|MultiEdit|NotebookEdit"
 
-# `super-harness` (the CLI binary) resolves to a distinct abs path; the
-# SessionStart hook invokes `<abs super-harness> change resume` (no slug).
-_RESOLVED_CLI = "/abs/bin/super-harness"
+# `keepsail` (the CLI binary) resolves to a distinct abs path; the
+# SessionStart hook invokes `<abs keepsail> change resume` (no slug).
+_RESOLVED_CLI = "/abs/bin/keepsail"
 _EXPECTED_SESSION_COMMAND = f"{_RESOLVED_CLI} change resume"
 
 
 def _which_both(name: str) -> str | None:
     """Resolve both binaries install_hooks needs (PreToolUse + SessionStart)."""
     return {
-        "super-harness-hook": _RESOLVED,
-        "super-harness": _RESOLVED_CLI,
+        "keepsail-hook": _RESOLVED,
+        "keepsail": _RESOLVED_CLI,
     }.get(name)
 
 
@@ -128,7 +128,7 @@ def test_install_hooks_writes_settings_entry(
     settings = json.loads(settings_path.read_text())
     cmds = _commands(settings)
     assert cmds == [_EXPECTED_COMMAND]
-    # SessionStart IS wired (Task 8): `<abs super-harness> change resume`.
+    # SessionStart IS wired (Task 8): `<abs keepsail> change resume`.
     assert _session_commands(settings) == [_EXPECTED_SESSION_COMMAND]
     # SessionStart entry carries no tool matcher (fires on all session sources).
     assert "matcher" not in settings["hooks"]["SessionStart"][0]
@@ -145,7 +145,7 @@ def test_install_hooks_missing_hook_binary_raises(
         "super_harness.adapters.agent.claude_code.shutil.which",
         lambda _name: None,
     )
-    with pytest.raises(RuntimeError, match="super-harness-hook"):
+    with pytest.raises(RuntimeError, match="keepsail-hook"):
         ClaudeCodeAdapter().install_hooks(tmp_path)
     # Nothing written before the abort.
     assert not (tmp_path / ".claude" / "settings.local.json").exists()
@@ -154,13 +154,13 @@ def test_install_hooks_missing_hook_binary_raises(
 def test_install_hooks_missing_cli_binary_raises_before_write(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """`super-harness-hook` resolves but `super-harness` (CLI) does not → abort
+    """`keepsail-hook` resolves but `keepsail` (CLI) does not → abort
     BEFORE writing either hook (both binaries resolved up front)."""
     monkeypatch.setattr(
         "super_harness.adapters.agent.claude_code.shutil.which",
-        lambda name: _RESOLVED if name == "super-harness-hook" else None,
+        lambda name: _RESOLVED if name == "keepsail-hook" else None,
     )
-    with pytest.raises(RuntimeError, match="super-harness"):
+    with pytest.raises(RuntimeError, match="keepsail"):
         ClaudeCodeAdapter().install_hooks(tmp_path)
     assert not (tmp_path / ".claude" / "settings.local.json").exists()
 
@@ -252,7 +252,7 @@ def test_inject_context_returns_stdout(monkeypatch: pytest.MonkeyPatch) -> None:
     out = ClaudeCodeAdapter().inject_context("my-slug")
     assert out == "# change my-slug\n"
     assert captured["cmd"] == [
-        "super-harness",
+        "keepsail",
         "change",
         "resume",
         "my-slug",
@@ -277,14 +277,14 @@ def test_agents_md_subsection_has_markers() -> None:
     assert "<!-- /super-harness agent: claude-code -->" in block
     # Mentions the gate behaviour + recovery path per spec §3.5.
     assert "PreToolUse" in block
-    assert "super-harness status" in block
+    assert "keepsail status" in block
 
 
 def test_agents_md_subsection_teaches_compiled_review_contract() -> None:
     block = " ".join(ClaudeCodeAdapter().agents_md_subsection().split()).lower()
     assert "does not start, spawn, or host reviewers" in block
     assert "review import" in block
-    assert "outside super-harness" in block
+    assert "outside keepsail" in block
     assert "do not edit while an external review is pending" in block
     assert "a skipped review is disclosure" in block
     assert "approved commitments change or explicit restrictions are relaxed" in block
@@ -526,8 +526,8 @@ def test_claude_symlinked_config_directory_is_rejected_without_external_mutation
     with pytest.raises(ValueError, match=r"\.claude.*symlink"):
         adapter.plan_hook_install(
             tmp_path,
-            hook_executable="/abs/super-harness-hook",
-            cli_executable="/abs/super-harness",
+            hook_executable="/abs/keepsail-hook",
+            cli_executable="/abs/keepsail",
         )
     with pytest.raises(ValueError, match=r"\.claude.*symlink"):
         adapter.on_uninstall(tmp_path)

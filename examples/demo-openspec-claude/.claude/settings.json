@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "super-harness-hook --agent claude-code",
+            "command": "keepsail-hook --agent claude-code",
             "timeout": 10
           }
         ]
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "super-harness change resume",
+            "command": "keepsail change resume",
             "timeout": 10
           }
         ]

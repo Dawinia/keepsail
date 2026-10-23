@@ -5,7 +5,7 @@ This module is the **canonical** home of lifecycle-event-model §3.7's "Gate
 per-state default `(decision, reason)` matrix) and `PLAN_ARTIFACT_ALLOW_STATES`
 (the PLAN_REJECTED plan-artifact narrowing — HG-PLAN-AUTHORING). The in-process
 `super_harness.gates.pre_tool_use.PreToolUseGate` — used by both the
-`super-harness-hook` decision path and the `gate check` CLI — reads BOTH literals
+`keepsail-hook` decision path and the `gate check` CLI — reads BOTH literals
 so the policy lives in exactly one module. The gate does NOT invent or fork policy
 — it only executes what this module declares. (Cold-path gates in Phase 12/13 read
 their own tables; the invariant is that no reader forks THESE.)
@@ -85,7 +85,7 @@ SUGGESTIONS: dict[str, str] = {
         "(default docs/plans/*<slug>*.md), then `plan ready`. Working notes go in "
         ".harness/scratch/<slug>/, which is writable in any state."
     ),
-    "AWAITING_PLAN_REVIEW": "Wait for the plan reviewer; `super-harness status` shows progress.",
+    "AWAITING_PLAN_REVIEW": "Wait for the plan reviewer; `keepsail status` shows progress.",
     "PLAN_REJECTED": "Revise the plan and re-submit, then retry.",
     "CODE_REVIEW_REJECTED": (
         'Fix feedback, then `implementation reopen <change> --reason "<why>"` and '

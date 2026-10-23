@@ -1,8 +1,8 @@
 """Unit tests for the shared AGENTS.md section renderer.
 
 `render_super_harness_section` is the single source of truth that both
-`super-harness init` and (later) `super-harness sync` use to re-render the §2.2
-super-harness outer section + plain framework block + installed-adapter
+`keepsail init` and (later) `keepsail sync` use to re-render the §2.2
+keepsail outer section + plain framework block + installed-adapter
 subsections into a repo's root AGENTS.md.
 
 These tests pin its observable behavior and regression-guard the
@@ -126,9 +126,9 @@ def test_outer_section_has_decision_conformance(tmp_path: Path) -> None:
 
     text = agents.read_text()
     assert "### Decision conformance" in text
-    assert "super-harness decision check --changed" in text
-    assert "super-harness decision ratify <id> --dry-run" in text
-    assert "super-harness doc check" in text
+    assert "keepsail decision check --changed" in text
+    assert "keepsail decision ratify <id> --dry-run" in text
+    assert "keepsail doc check" in text
     # The section sits inside the managed outer block (before the end marker).
     assert text.index("### Decision conformance") < text.index(
         "<!-- super-harness section end -->"
@@ -203,7 +203,7 @@ def test_section_states_where_negative_knowledge_goes(tmp_path: Path) -> None:
     render_super_harness_section(tmp_path, agents, "0.1.0")
 
     text = agents.read_text()
-    assert "super-harness decision new" in text
+    assert "keepsail decision new" in text
     assert "proposed" in text
     # No parallel corpus is offered as an alternative home.
     assert "pitfall directory" in text
@@ -211,7 +211,7 @@ def test_section_states_where_negative_knowledge_goes(tmp_path: Path) -> None:
     # sends an agent that files a trap and anchors it into a dangling-up CI failure.
     assert "until it is ratified" in text
     # It lives in the managed outer block, not an agent-specific subsection.
-    assert text.index("super-harness decision new") < text.index(
+    assert text.index("keepsail decision new") < text.index(
         "<!-- super-harness section end -->"
     )
 

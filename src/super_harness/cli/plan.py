@@ -135,7 +135,7 @@ def _warn_revoked_plan_artifacts(outgoing: list[str], prev: ChangeState | None) 
         "re-run of this command from here: the carve-out returns the next time you "
         "emit `plan ready` with `--scope` naming those plan document(s), each carrying "
         "`change:` frontmatter naming this change — reach that point either through "
-        "the next plan reject, or immediately via `super-harness plan redeclare "
+        "the next plan reject, or immediately via `keepsail plan redeclare "
         f"{prev.change_id}`.",
         err=True,
     )
@@ -331,7 +331,7 @@ def ready(
             )
         )
     elif not ctx.obj.get("quiet"):
-        click.echo(f"super-harness: emitted plan_ready for {slug} → {new_state}")
+        click.echo(f"keepsail: emitted plan_ready for {slug} → {new_state}")
     sys.exit(EXIT_OK)
 
 
@@ -482,7 +482,7 @@ def redeclare(
             )
         )
     elif not ctx.obj.get("quiet"):
-        click.echo(f"super-harness: emitted plan_redeclared for {slug} → {new_state}")
+        click.echo(f"keepsail: emitted plan_redeclared for {slug} → {new_state}")
     sys.exit(EXIT_OK)
 
 
@@ -508,7 +508,7 @@ def withdraw(ctx: click.Context, slug: str, candidate: str, reason: str) -> None
             format_error(
                 subcommand="plan withdraw",
                 message=f"candidate {candidate!r} is not the current pending revision",
-                hint="Use `super-harness status` and name the exact candidate id.",
+                hint="Use `keepsail status` and name the exact candidate id.",
             ),
             err=True,
         )
@@ -524,7 +524,7 @@ def withdraw(ctx: click.Context, slug: str, candidate: str, reason: str) -> None
                 )
             )
         elif not ctx.obj.get("quiet"):
-            click.echo(f"super-harness: candidate {candidate} is already withdrawn")
+            click.echo(f"keepsail: candidate {candidate} is already withdrawn")
         sys.exit(EXIT_OK)
     if pending.get("status") not in {"pending", "rejected"}:
         click.echo(
@@ -580,5 +580,5 @@ def withdraw(ctx: click.Context, slug: str, candidate: str, reason: str) -> None
             )
         )
     elif not ctx.obj.get("quiet"):
-        click.echo(f"super-harness: withdrew plan candidate {candidate} for {slug}")
+        click.echo(f"keepsail: withdrew plan candidate {candidate} for {slug}")
     sys.exit(EXIT_OK)

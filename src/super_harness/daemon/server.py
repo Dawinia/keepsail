@@ -1,4 +1,4 @@
-"""Framework-observer host process — `super-harness-daemon` entry-point.
+"""Framework-observer host process — `keepsail-daemon` entry-point.
 
 Demoted from a UDS gate server to a pure observation host (design 2026-07-03):
 the PreToolUse gate now decides in-process (core.state_snapshot +
@@ -160,11 +160,11 @@ def daemonize(pid_path: Path, log_path: Path) -> None:
 
 
 def main() -> int:
-    """`super-harness-daemon` entry-point (observer host).
+    """`keepsail-daemon` entry-point (observer host).
 
     Exit codes: 0 clean SIGTERM · 1 crash / flock loser · 3 no .harness/.
     """
-    parser = argparse.ArgumentParser(prog="super-harness-daemon")
+    parser = argparse.ArgumentParser(prog="keepsail-daemon")
     parser.add_argument("--workspace", default=".", type=Path)
     args = parser.parse_args()
 
@@ -172,7 +172,7 @@ def main() -> int:
     harness_dir = workspace / ".harness"
     if not harness_dir.exists():
         print(
-            f"super-harness-daemon: no .harness/ directory at {workspace}",
+            f"keepsail-daemon: no .harness/ directory at {workspace}",
             file=sys.stderr,
         )
         return 3
@@ -185,7 +185,7 @@ def main() -> int:
     _configure_logging(log_path)
     log = logging.getLogger("super_harness.daemon")
     log.info(
-        "super-harness observer host starting",
+        "keepsail observer host starting",
         extra={"workspace": str(workspace), "pid": os.getpid()},
     )
 
@@ -199,5 +199,5 @@ def main() -> int:
         log.exception("observer host crashed")
         return 1
 
-    log.info("super-harness observer host stopped cleanly")
+    log.info("keepsail observer host stopped cleanly")
     return 0

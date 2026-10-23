@@ -177,7 +177,7 @@ def run_authoring_check(
         )
         return _to_verdict(results)
     except Exception as exc:  # fail-open: never crash the agent's Stop; surface a diagnostic
-        print(f"super-harness authoring check failed open: {exc}", file=sys.stderr)
+        print(f"keepsail authoring check failed open: {exc}", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
         try:
             decisions, _errors = load_decisions(workspace_root)

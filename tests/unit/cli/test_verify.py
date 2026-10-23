@@ -1,4 +1,4 @@
-"""Unit tests for `super-harness verify` (Phase 8 Task 8.7).
+"""Unit tests for `keepsail verify` (Phase 8 Task 8.7).
 
 `verify` drives the builtin VerificationRunner sensor through a one-shot
 SensorDispatcher and reports its verdict. These tests stand up a real
@@ -419,7 +419,7 @@ VIEW_PR_VERIFY = "super_harness.cli.verify.gh.view_pr"
 
 
 def _metadata_body(change: str = "my-change") -> str:
-    """A PR body carrying ONE well-formed super-harness metadata block."""
+    """A PR body carrying ONE well-formed keepsail metadata block."""
     return (
         "Some PR description.\n\n"
         "<!-- super-harness:metadata -->\n"
@@ -468,7 +468,7 @@ def test_verify_pr_no_metadata_block_exits_4(tmp_path: Path) -> None:
         )
     assert r.exit_code == EXIT_EXTERNAL_TOOL, r.output
     combined = r.output + (r.stderr or "")
-    assert "no super-harness metadata block" in combined
+    assert "no keepsail metadata block" in combined
     # Actionable hint points at `pr emit-opened`.
     assert "pr emit-opened" in combined
 

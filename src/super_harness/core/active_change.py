@@ -5,7 +5,7 @@ The active change is the **most recently active** non-terminal change (by
 stale merged-but-not-archived change hijack the gate — HG-STALE-MERGED-CHANGE).
 state.yaml is reducer-generated and carries NO top-level `active_change_id` field
 — "active" is a derived notion computed at read time. `pick_active_change` is the
-single definition, shared with `super-harness status` so the two never drift.
+single definition, shared with `keepsail status` so the two never drift.
 
 Returns None if state.yaml is missing/unparseable or has no non-terminal change.
 """

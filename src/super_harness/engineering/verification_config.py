@@ -265,7 +265,7 @@ def load_verification_config(path: Path) -> VerificationConfig:
     """
     if not path.exists():
         raise FileNotFoundError(
-            f"verification config not found at {path}; run `super-harness init`"
+            f"verification config not found at {path}; run `keepsail init`"
         )
 
     # Let yaml.YAMLError propagate unwrapped (mirrors adapters.registry /

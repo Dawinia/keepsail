@@ -78,7 +78,7 @@ def _breakdown_lines(r: ValueReport) -> list[str]:
             ))
     lines.append("  External records have no round or invocation count; "
                  "findings exclude opaque prose.")
-    lines.append("  per-record detail: super-harness --json report -> .cost_breakdown")
+    lines.append("  per-record detail: keepsail --json report -> .cost_breakdown")
     return lines
 
 
@@ -242,7 +242,7 @@ def _bottom_line(r: ValueReport) -> str:
 def _render_human(r: ValueReport) -> str:
     window = f"{r.since or 'all'} - {r.until or 'now'}"
     lines = [
-        "super-harness - what it did for you",
+        "keepsail - what it did for you",
         f"  window: {window} - {r.changes_touched} change(s)",
         "",
         "Recorded findings (historical structured code-review IDs only)",

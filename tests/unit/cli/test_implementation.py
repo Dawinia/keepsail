@@ -1,4 +1,4 @@
-"""Unit tests for `super-harness implementation start` (HG-02.3).
+"""Unit tests for `keepsail implementation start` (HG-02.3).
 
 `implementation start <slug> [--first-commit <sha>]` (cli-command-surface §429)
 manually emits `implementation_started`, advancing PLAN_APPROVED →

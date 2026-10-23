@@ -33,8 +33,8 @@ if TYPE_CHECKING:
 
 __all__ = ["CodexAdapter"]
 
-_HOOK_BINARY = "super-harness-hook"
-_CLI_BINARY = "super-harness"
+_HOOK_BINARY = "keepsail-hook"
+_CLI_BINARY = "keepsail"
 _CODEX_MATCHER = "^(apply_patch|Edit|Write)$"
 _CODEX_MARKER = "--agent codex"
 # Codex-specific Stop marker: merge_stop_hook defaults to the CLAUDE pair
@@ -46,26 +46,26 @@ _CODEX_STOP_MARKER = "--agent codex --event stop"
 _AGENTS_MD_BEGIN = "<!-- super-harness agent: codex -->"
 _AGENTS_MD_END = "<!-- /super-harness agent: codex -->"
 _AGENTS_MD_SUBSECTION = f"""{_AGENTS_MD_BEGIN}
-### super-harness (Codex)
+### keepsail (Codex)
 
 A **PreToolUse** hook gates this workspace. `apply_patch` edits are blocked by
-super-harness when the current change state forbids the mutation (deterministic
+keepsail when the current change state forbids the mutation (deterministic
 gate enforcement). `Bash` is never gated (see the coverage caveat below).
 
 **REQUIRED trust step:** after `adapter install codex`, the gate is INACTIVE
-until you run `/hooks` in Codex and trust the super-harness hook. Codex skips
+until you run `/hooks` in Codex and trust the keepsail hook. Codex skips
 new/changed hooks until trusted (trust is keyed to the hook's hash); if you
 reinstall or relocate the binary, re-trust it. On a pre-existing repo also run
-`super-harness sync --gitignore` so `.codex/hooks.json` is ignored.
+`keepsail sync --gitignore` so `.codex/hooks.json` is ignored.
 
 **Coverage caveat:** Codex surfaces only shell commands and `apply_patch` to
 PreToolUse hooks — it does NOT expose `WebSearch` or other non-shell/non-MCP
-tools. super-harness gates `apply_patch` edits (never `Bash`, so the kill-switch
+tools. keepsail gates `apply_patch` edits (never `Bash`, so the kill-switch
 keeps working); an action taken through a tool Codex does not surface isn't caught
 in real time, so real-time coverage is narrower than Claude Code's. The CI cold
 floor backs the gap.
 
-**Authoring-space caveat:** super-harness also allows the change's plan document in
+**Authoring-space caveat:** keepsail also allows the change's plan document in
 `INTENT_DECLARED` (any path matching `.harness/plan-paths.yaml`) and scratch notes in
 `.harness/scratch/<slug>/` in every state — but both key off the edited file's path,
 and Codex's `apply_patch` hook payload never carries one (see the coverage caveat
@@ -74,17 +74,17 @@ location blocks in a blocking state exactly like any other edit. Draft the plan
 document before `change start` instead of relying on in-gate authoring for it.
 
 When a tool call is blocked:
-- Run `super-harness status` to see the change, its state, and the next step.
-- Resume context with `super-harness change resume <change_id>`.
+- Run `keepsail status` to see the change, its state, and the next step.
+- Resume context with `keepsail change resume <change_id>`.
 - If the gate blocks a tool call, stop and surface the block plus the next valid
-  step (`super-harness status`) to the human. Do **not** try to disable or work
+  step (`keepsail status`) to the human. Do **not** try to disable or work
   around the gate yourself — overriding it is a **human-only** decision, and any
   bypass is recorded and disclosed at the merge gate. Whether to override is the
   human's call.
 
 #### Review protocol
 
-super-harness does NOT start, spawn, or host reviewers. It records the exact
+keepsail does NOT start, spawn, or host reviewers. It records the exact
 conclusion from an external or human process. The active recognition contract is
 `.harness/review-recognition.yaml`; `.harness/review-governance.yaml` and the
 gitignored `.harness/review-profiles.local.yaml` are historical data and do not
@@ -97,9 +97,9 @@ For each review epoch:
    must identify the current subject, explicit decision, provenance, and retained
    original evidence; the core does not infer approval from a model, failed call,
    empty result, or skip.
-3. Import that exact record with `super-harness review import <change>
+3. Import that exact record with `keepsail review import <change>
    --evidence <path>`. Review execution, retries, and substantive judgment stay
-   outside super-harness.
+   outside keepsail.
 4. Batch code-only fixes after `implementation reopen <change> --reason "<why>"`;
    if approved commitments change or explicit restrictions are relaxed, require a
    new plan candidate and review. Within-approval file additions and implementation
@@ -141,15 +141,15 @@ class CodexAdapter(AgentAdapter):
         resolved_hook = shutil.which(_HOOK_BINARY)
         if resolved_hook is None:
             raise RuntimeError(
-                f"{_HOOK_BINARY} not found on PATH; reinstall super-harness "
-                f"(e.g. `pipx reinstall super-harness`) before installing the "
+                f"{_HOOK_BINARY} not found on PATH; reinstall keepsail "
+                f"(e.g. `pipx reinstall keepsail`) before installing the "
                 f"Codex adapter."
             )
         resolved_cli = shutil.which(_CLI_BINARY)
         if resolved_cli is None:
             raise RuntimeError(
-                f"{_CLI_BINARY} not found on PATH; reinstall super-harness "
-                f"(e.g. `pipx reinstall super-harness`) before installing the "
+                f"{_CLI_BINARY} not found on PATH; reinstall keepsail "
+                f"(e.g. `pipx reinstall keepsail`) before installing the "
                 f"Codex adapter."
             )
 

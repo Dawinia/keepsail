@@ -3,11 +3,11 @@
 Drives the REAL CLI surface end-to-end against a temp workspace that looks like
 an openspec project:
 
-  1. ``super-harness init``                  → scaffolds ``.harness/`` + AGENTS.md
-  2. ``super-harness adapter install openspec``
+  1. ``keepsail init``                  → scaffolds ``.harness/`` + AGENTS.md
+  2. ``keepsail adapter install openspec``
                                              → registers the framework adapter +
                                                 injects the AGENTS.md subsection
-  3. ``super-harness adapter scan-once openspec``
+  3. ``keepsail adapter scan-once openspec``
                                              → one synchronous ``observe()`` pass
                                                 that emits unseen lifecycle events
 
@@ -21,7 +21,7 @@ Asserts:
   changes are skipped by ``scan_changes``).
 
 ⚠ Like the sibling ``tests/integration/adapter/test_claude_code.py`` this SPAWNS
-nothing extra but DOES drive the real ``super-harness`` CLI through ``CliRunner``;
+nothing extra but DOES drive the real ``keepsail`` CLI through ``CliRunner``;
 no ``shutil.which`` mock is needed for a FRAMEWORK adapter (no hook binaries).
 """
 from __future__ import annotations

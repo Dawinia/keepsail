@@ -1,8 +1,8 @@
 """AGENTS.md inject/remove primitives (engineering-integration spec §2.2 / §3.2).
 
-Pure functions that maintain the marked "super-harness section" inside a repo's
+Pure functions that maintain the marked "keepsail section" inside a repo's
 root ``AGENTS.md`` so AI coding agents learn the project conventions. These are
-the building blocks `super-harness init` and `adapter install/uninstall` compose;
+the building blocks `keepsail init` and `adapter install/uninstall` compose;
 nothing in this module reaches the network or shells out.
 
 Marker grammar (§2.2):
@@ -83,7 +83,7 @@ _LF = "\n"
 class AgentsMdInjectionError(Exception):
     """Raised when AGENTS.md is in a state we refuse to guess about.
 
-    - More than one outer super-harness section block is present (user mis-edit
+    - More than one outer keepsail section block is present (user mis-edit
       or duplicated markers) — manual cleanup is required (§3.2).
     - The file is not valid UTF-8 (we only edit UTF-8 AGENTS.md). Surfacing this
       as the module's domain error lets every caller's existing
@@ -94,7 +94,7 @@ class AgentsMdInjectionError(Exception):
 
 
 def inject_section(path: Path, content: str) -> None:
-    """Inject / replace the outer super-harness section in ``path`` (§3.2).
+    """Inject / replace the outer keepsail section in ``path`` (§3.2).
 
     - File absent → write ``content + "\\n"``.
     - Exactly one existing section block → replace it (``count=1``).
@@ -127,7 +127,7 @@ def inject_section(path: Path, content: str) -> None:
     end_count = existing.count(_SECTION_END)
     if begin_count != end_count or begin_count != len(blocks):
         raise AgentsMdInjectionError(
-            f"{path} has unbalanced super-harness section markers "
+            f"{path} has unbalanced keepsail section markers "
             f"({begin_count} begin, {end_count} end, {len(blocks)} complete "
             f"block(s)); manual cleanup required — every 'section begin' needs a "
             f"matching 'section end' and exactly one complete block is expected."
@@ -135,7 +135,7 @@ def inject_section(path: Path, content: str) -> None:
 
     if len(blocks) > 1:
         raise AgentsMdInjectionError(
-            f"{path} has {len(blocks)} super-harness section blocks; manual "
+            f"{path} has {len(blocks)} keepsail section blocks; manual "
             f"cleanup required (only 1 expected)."
         )
     if len(blocks) == 1:
@@ -147,9 +147,9 @@ def inject_section(path: Path, content: str) -> None:
 
 
 def section_present(path: Path) -> bool:
-    """Return True iff ``path`` contains at least one outer super-harness section.
+    """Return True iff ``path`` contains at least one outer keepsail section.
 
-    The overwrite-confirm predicate `super-harness sync` uses to decide whether a
+    The overwrite-confirm predicate `keepsail sync` uses to decide whether a
     re-render would clobber an existing section (and thus warrants a confirm). A
     read-only counterpart to `inject_section`: it normalizes line endings the same
     way and matches the same generic begin-marker pattern. AGENTS.md absent → no
@@ -346,7 +346,7 @@ def _read_normalized(path: Path) -> tuple[str, str]:
         raw = path.read_bytes().decode("utf-8")
     except UnicodeDecodeError as e:
         raise AgentsMdInjectionError(
-            f"{path} is not valid UTF-8 ({e}); super-harness only edits UTF-8 "
+            f"{path} is not valid UTF-8 ({e}); keepsail only edits UTF-8 "
             f"AGENTS.md — convert it to UTF-8 and retry."
         ) from e
     newline = _detect_newline(raw)

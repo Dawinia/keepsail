@@ -6,7 +6,7 @@ This module manages only the observer host:
 
 - spawn by ABSOLUTE path resolved from the running interpreter's scripts dir
   (`sysconfig.get_path("scripts")` → the venv/pipx `bin/`), NOT PATH.
-  console_scripts install `super-harness` and `super-harness-daemon` side by side
+  console_scripts install `keepsail` and `keepsail-daemon` side by side
   there, but the hook/CLI environment often has no venv bin/ on PATH — a bare-name
   spawn then raises OSError and the process silently never comes up (the
   month-long fail-open root cause). This realizes the design's "absolute path,
@@ -46,7 +46,7 @@ def _pid_path(workspace_root: Path) -> Path:
 
 
 def _observer_binary() -> str:
-    """Absolute path to the `super-harness-daemon` entry-point (observer host),
+    """Absolute path to the `keepsail-daemon` entry-point (observer host),
     resolved from the RUNNING INTERPRETER's scripts dir (`sysconfig.get_path
     ("scripts")` → the venv/pipx `bin/` where console_scripts install side by
     side). Invocation-independent (works under the console script AND under
@@ -54,14 +54,14 @@ def _observer_binary() -> str:
 
     Raises:
         RuntimeError: the binary is absent (unusual install). We do NOT fall back
-        to a bare `super-harness-daemon` — that reintroduces the PATH ambiguity
+        to a bare `keepsail-daemon` — that reintroduces the PATH ambiguity
         this whole change exists to kill.
     """
-    binary = Path(sysconfig.get_path("scripts")) / "super-harness-daemon"
+    binary = Path(sysconfig.get_path("scripts")) / "keepsail-daemon"
     if not binary.exists():
         raise RuntimeError(
             f"observer host binary not found in the scripts dir ({binary}); "
-            "install super-harness-daemon alongside super-harness"
+            "install keepsail-daemon alongside keepsail"
         )
     return str(binary)
 

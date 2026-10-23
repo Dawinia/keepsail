@@ -1,8 +1,8 @@
-"""Error message formatter for super-harness CLI commands.
+"""Error message formatter for keepsail CLI commands.
 
 All CLI commands emit errors via `format_error(...)` to ensure consistent shape:
 
-    super-harness <subcommand>: <one-line error>
+    keepsail <subcommand>: <one-line error>
       Hint: <actionable suggestion>
       Docs: <link to relevant doc anchor>
 
@@ -14,18 +14,18 @@ Hint text style guide
 - Sentence-cased: first letter uppercase, trailing period.
 - One sentence; if longer guidance is needed, prefer a `Docs:` link via
   ``docs_anchor=`` instead of running multi-line in the hint.
-- Reference subcommands in backticks: ``super-harness <subcommand>``.
+- Reference subcommands in backticks: ``keepsail <subcommand>``.
 
 Examples (all current call sites follow this shape):
 
-- ``"Run `super-harness init` first."``
+- ``"Run `keepsail init` first."``
 - ``"Use `status <slug>` to query one change OR `status --all` to list all."``
 - ``"Pass `--force` to overwrite the existing directory."``
 - ``"Pick one filter at a time."``
 - ``"See cli-command-surface §3.2 for slug rules."``
 """
 
-DOCS_BASE = "https://super-harness.dev/docs"
+DOCS_BASE = "https://github.com/Dawinia/super-harness/blob/main/docs/cli-reference.md"
 
 
 def format_error(
@@ -46,9 +46,9 @@ def format_error(
     Returns:
         Multi-line string ready to write to stderr.
     """
-    lines = [f"super-harness {subcommand}: {message}"]
+    lines = [f"keepsail {subcommand}: {message}"]
     if hint:
         lines.append(f"  Hint: {hint}")
     if docs_anchor:
-        lines.append(f"  Docs: {DOCS_BASE}/{docs_anchor}")
+        lines.append(f"  Docs: {DOCS_BASE}#{docs_anchor}")
     return "\n".join(lines)

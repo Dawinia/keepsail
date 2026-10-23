@@ -1,4 +1,4 @@
-"""Integration tests for the `super-harness-hook` binary — in-process decision
+"""Integration tests for the `keepsail-hook` binary — in-process decision
 (design 2026-07-03). Drives the installed console-script as a real subprocess;
 asserts exit codes and the F8 suggestion in the block message. No daemon.
 """
@@ -25,7 +25,7 @@ def _init(root: Path, change_id: str | None = None, state: str | None = None) ->
 
 def _run(root: Path, *args: str, stdin: str | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        ["super-harness-hook", *args], cwd=str(root), input=stdin,
+        ["keepsail-hook", *args], cwd=str(root), input=stdin,
         capture_output=True, text=True,
     )
 

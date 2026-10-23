@@ -1,4 +1,4 @@
-"""Path resolution helpers for super-harness.
+"""Path resolution helpers for keepsail.
 
 Every CLI command + sensor + adapter that touches the workspace needs to find
 the `.harness/` directory. `find_harness_root` walks up from a given path
@@ -27,7 +27,7 @@ class HarnessNotInitialized(RuntimeError):
 
     # Stable hint text — every CLI wrap site reads this verbatim so any future
     # tweak lands in exactly one place.
-    HINT = "Run `super-harness init` first."
+    HINT = "Run `keepsail init` first."
 
     def __init__(self, message: str) -> None:
         super().__init__(message)
@@ -90,7 +90,7 @@ def sensors_yaml_path(root: Path) -> Path:
     """`.harness/sensors.yaml` — sensor registry config (sensor-gate-architecture §2.3).
 
     Optional file: absent → only built-in sensors are available. Phase 3.5
-    (`super-harness sensor list`) reads this to list the built-in sensors named
+    (`keepsail sensor list`) reads this to list the built-in sensors named
     in it (v0.1 is builtin-only).
     """
     return root / ".harness" / "sensors.yaml"
@@ -100,7 +100,7 @@ def gates_yaml_path(root: Path) -> Path:
     """`.harness/gates.yaml` — gate registry config (sensor-gate-architecture §2.3).
 
     Optional file: absent → only built-in gates are available. Phase 3.5
-    (`super-harness gate list`) reads this to list the built-in gates named in
+    (`keepsail gate list`) reads this to list the built-in gates named in
     it (v0.1 is builtin-only).
     """
     return root / ".harness" / "gates.yaml"
@@ -111,7 +111,7 @@ def adapters_yaml_path(root: Path) -> Path:
 
     Optional file: absent → only built-in adapters are available. Lists both
     framework and agent adapters (the §2.3 list-of-dicts shape) for the
-    `super-harness adapter` CLI to enumerate.
+    `keepsail adapter` CLI to enumerate.
     """
     return root / ".harness" / "adapters.yaml"
 

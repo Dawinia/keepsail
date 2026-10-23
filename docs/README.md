@@ -1,6 +1,11 @@
-# super-harness documentation
+# Keepsail documentation
 
 Start here.
+
+- [Keepsail migration](keepsail-migration.md) — source installation, legacy names
+  and external cutover boundaries.
+- [Legacy-name audit](keepsail-name-audit.md) — per-file residual classification;
+  the read-only scanner emits line-level occurrence evidence.
 
 - [Product architecture](product-architecture.md) — the normative product definition,
   responsibilities, knowledge lifecycle and control boundaries.
@@ -9,7 +14,7 @@ Start here.
 
 ## Narrative — what is this and how do I use it
 
-- [Overview](overview.md) — what super-harness is, the problem it solves, and how
+- [Overview](overview.md) — what keepsail is, the problem it solves, and how
   it relates to neighboring tools.
 - [Getting started](getting-started.md) — a 10-minute end-to-end walkthrough (the
   full version of the README Quickstart).

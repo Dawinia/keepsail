@@ -1,8 +1,8 @@
-# Add a `greet()` helper to demo super-harness
+# Add a `greet()` helper to demo keepsail
 
 ## Why
 
-This change exists to demonstrate the super-harness lifecycle end-to-end inside
+This change exists to demonstrate the keepsail lifecycle end-to-end inside
 a realistic OpenSpec + Claude Code workspace. The actual code change is tiny by
 design — the value is in watching state advance from `INTENT_DECLARED` through
 `AWAITING_CODE_REVIEW` while the gate, sensors, and L1 follow-up wire up around
