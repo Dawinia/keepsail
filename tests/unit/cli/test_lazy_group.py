@@ -9,8 +9,8 @@ import click
 import pytest
 from click.testing import CliRunner
 
-from super_harness.cli.group_options import GroupAwareCommand, GroupAwareGroup
-from super_harness.cli.lazy_group import CommandSpec, LazyGroup
+from keepsail.cli.group_options import GroupAwareCommand, GroupAwareGroup
+from keepsail.cli.lazy_group import CommandSpec, LazyGroup
 
 
 def _write_command_package(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
@@ -243,9 +243,9 @@ def test_get_command_rewraps_group_root_and_every_descendant(
 
 
 def test_real_init_leaf_is_rewrapped_without_walking_a_subtree() -> None:
-    from super_harness.cli import main
+    from keepsail.cli import main
 
-    with patch("super_harness.cli.lazy_group.rewrap_subtree") as rewrap:
+    with patch("keepsail.cli.lazy_group.rewrap_subtree") as rewrap:
         command = main.get_command(click.Context(main), "init")
 
     assert command is not None
@@ -254,7 +254,7 @@ def test_real_init_leaf_is_rewrapped_without_walking_a_subtree() -> None:
 
 
 def test_real_subgroup_root_and_descendants_are_group_aware() -> None:
-    from super_harness.cli import main
+    from keepsail.cli import main
 
     command = main.get_command(click.Context(main), "state")
 
@@ -265,6 +265,6 @@ def test_real_subgroup_root_and_descendants_are_group_aware() -> None:
 
 
 def test_unknown_command_keeps_click_lookup_behavior() -> None:
-    from super_harness.cli import main
+    from keepsail.cli import main
 
     assert main.get_command(click.Context(main), "does-not-exist") is None

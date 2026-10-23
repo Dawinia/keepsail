@@ -1,4 +1,4 @@
-"""Unit tests for `super-harness sync` error envelopes (Phase 9 batch late).
+"""Unit tests for `keepsail sync` error envelopes (Phase 9 batch late).
 
 Focused on the failure paths the integration suite does not exercise: a corrupt
 ``.harness/adapters.yaml`` on the ``--adapter`` leg (EXIT_NO_CONFIG) and an
@@ -13,10 +13,10 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from super_harness.cli import main
-from super_harness.engineering.agents_md_render import render_super_harness_section
-from super_harness.engineering.gitignore_injector import inject_gitignore_block
-from super_harness.version import __version__
+from keepsail.cli import main
+from keepsail.engineering.agents_md_render import render_keepsail_section
+from keepsail.engineering.gitignore_injector import inject_gitignore_block
+from keepsail.version import __version__
 
 
 def test_sync_adapter_corrupt_adapters_yaml_exits_no_config(tmp_path: Path) -> None:
@@ -60,7 +60,7 @@ def test_sync_full_agents_md_write_failure_exits_generic(tmp_path: Path) -> None
     r = CliRunner().invoke(main, ["--workspace", str(tmp_path), "--quiet", "sync"])
     assert r.exit_code == 1, r.output
     assert "Traceback" not in r.stderr
-    assert "super-harness sync:" in r.stderr
+    assert "keepsail sync:" in r.stderr
     assert "failed to update AGENTS.md" in r.stderr
     assert "Hint:" in r.stderr
 
@@ -98,7 +98,7 @@ def test_sync_gitignore_write_failure_exits_generic(tmp_path: Path) -> None:
     )
     assert r.exit_code == 1, r.output
     assert "Traceback" not in r.stderr
-    assert "super-harness sync:" in r.stderr
+    assert "keepsail sync:" in r.stderr
     assert "failed to update .gitignore" in r.stderr
     assert "Hint:" in r.stderr
 
@@ -129,7 +129,7 @@ def _init_harness(root: Path) -> None:
 def test_sync_check_clean_repo_exits_ok(tmp_path: Path) -> None:
     """`sync --check` on a freshly-rendered repo → exit 0, no diff written."""
     _init_harness(tmp_path)
-    render_super_harness_section(tmp_path, tmp_path / "AGENTS.md", __version__)
+    render_keepsail_section(tmp_path, tmp_path / "AGENTS.md", __version__)
     inject_gitignore_block(tmp_path / ".gitignore")
 
     r = CliRunner().invoke(main, ["--workspace", str(tmp_path), "sync", "--check"])
@@ -141,7 +141,7 @@ def test_sync_check_drifted_agents_md_exits_validation(tmp_path: Path) -> None:
     file unchanged."""
     _init_harness(tmp_path)
     agents = tmp_path / "AGENTS.md"
-    render_super_harness_section(tmp_path, agents, __version__)
+    render_keepsail_section(tmp_path, agents, __version__)
     mutated = agents.read_text().replace("### File scope", "### File scope EDITED")
     agents.write_text(mutated)
 
@@ -169,7 +169,7 @@ def test_sync_check_agents_only_scope(tmp_path: Path) -> None:
     """`sync --agents-md --check` checks ONLY AGENTS.md: a drifted .gitignore does
     not fail the agents-only check."""
     _init_harness(tmp_path)
-    render_super_harness_section(tmp_path, tmp_path / "AGENTS.md", __version__)
+    render_keepsail_section(tmp_path, tmp_path / "AGENTS.md", __version__)
     # .gitignore intentionally absent → would drift if checked, but scope excludes it.
 
     r = CliRunner().invoke(

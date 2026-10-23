@@ -8,7 +8,7 @@ negative; never fabricate) is the acceptance oracle.
 import json
 from pathlib import Path
 
-from super_harness.engineering.value_report import ValueReport, build_value_report
+from keepsail.engineering.value_report import ValueReport, build_value_report
 
 
 def _write_events(tmp_path: Path, lines: list[str]) -> Path:
@@ -372,7 +372,7 @@ def test_usage_tokens_counts_claude_cache_fields():
     """Cache reads are where reviewer CLIs actually bill. A real claude receipt has a
     near-empty input_tokens and millions of cache-read tokens; counting only
     input+output under-reports by ~86x."""
-    from super_harness.engineering.value_report import usage_tokens
+    from keepsail.engineering.value_report import usage_tokens
 
     assert usage_tokens({
         "input_tokens": 63,
@@ -386,7 +386,7 @@ def test_usage_tokens_does_not_add_the_codex_subset_key():
     """codex reports cached_input_tokens as a portion ALREADY INSIDE input_tokens.
     Adding it would inflate that producer's total by ~89%. The rule is per named
     key, never 'anything containing cache'."""
-    from super_harness.engineering.value_report import usage_tokens
+    from keepsail.engineering.value_report import usage_tokens
 
     assert usage_tokens({
         "input_tokens": 1007614,
@@ -397,7 +397,7 @@ def test_usage_tokens_does_not_add_the_codex_subset_key():
 
 
 def test_usage_tokens_prefers_reported_total():
-    from super_harness.engineering.value_report import usage_tokens
+    from keepsail.engineering.value_report import usage_tokens
 
     assert usage_tokens({
         "total_tokens": 500,
@@ -407,7 +407,7 @@ def test_usage_tokens_prefers_reported_total():
 
 
 def test_usage_tokens_absent_usage_is_none_not_zero():
-    from super_harness.engineering.value_report import usage_tokens
+    from keepsail.engineering.value_report import usage_tokens
 
     assert usage_tokens(None) is None
     assert usage_tokens({}) is None
@@ -415,7 +415,7 @@ def test_usage_tokens_absent_usage_is_none_not_zero():
 
 
 def test_usage_tokens_never_raises_on_junk_values():
-    from super_harness.engineering.value_report import usage_tokens
+    from keepsail.engineering.value_report import usage_tokens
 
     assert usage_tokens({"input_tokens": "x", "cache_read_input_tokens": None}) is None
     assert usage_tokens({"input_tokens": 10, "cache_read_input_tokens": "x"}) == 10

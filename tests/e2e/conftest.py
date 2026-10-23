@@ -4,7 +4,7 @@ Two fixtures + a small helper API:
 
 - ``demo_repo`` — pytest fixture: a fresh ``git init``-ed tmp dir with one
   empty initial commit and isolated git identity. The fixture does NOT call
-  ``super-harness init`` — each test does that itself so it can assert on the
+  ``keepsail init`` — each test does that itself so it can assert on the
   bootstrap output.
 - ``mock_gh`` — pytest fixture: installs a PATH-shimmed fake ``gh``
   executable that records every invocation to ``calls.jsonl`` and emits
@@ -111,7 +111,7 @@ def _events_contain_type(demo_repo: Path, event_type: str) -> bool:
 def _derive_and_read(demo_repo: Path, slug: str) -> str:
     """Read state.yaml directly and return ``changes[slug].current_state``.
 
-    Does NOT spawn ``super-harness state rebuild`` — every shipped emit
+    Does NOT spawn ``keepsail state rebuild`` — every shipped emit
     site already calls ``refresh_state_after_emit``, and so does
     ``_emit_via_writer`` below. A subprocess per assertion would add
     ~100-200 ms each (Phase 14 cold-start measurement).
@@ -148,14 +148,14 @@ def _emit_via_writer(
 
     Returns the event_id (mostly for debug — callers usually ignore it).
     """
-    # Imported lazily so a stale ``super_harness`` install during test
+    # Imported lazily so a stale ``keepsail`` install during test
     # collection doesn't poison conftest import (the test process and
     # the installed CLI both come from the same venv, but being defensive
     # here costs nothing).
-    from super_harness.core.events import Actor, Event
-    from super_harness.core.post_emit import refresh_state_after_emit
-    from super_harness.core.ulid import new_event_id
-    from super_harness.core.writer import EventWriter
+    from keepsail.core.events import Actor, Event
+    from keepsail.core.post_emit import refresh_state_after_emit
+    from keepsail.core.ulid import new_event_id
+    from keepsail.core.writer import EventWriter
 
     event_id = new_event_id()
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
@@ -316,9 +316,9 @@ class MockGh:
 # behaviour is identical across macOS/Linux and the JSON serialization is
 # done by stdlib rather than fragile shell quoting.
 _GH_SHIM_SOURCE = '''#!/usr/bin/env python3
-"""PATH-shim fake `gh` for the super-harness E2E tests.
+"""PATH-shim fake `gh` for the keepsail E2E tests.
 
-Records every invocation to $SUPER_HARNESS_E2E_GH_LOG as one JSON line:
+Records every invocation to $KEEPSAIL_E2E_GH_LOG as one JSON line:
     {"argv": [...], "stdin": "..."}
 
 Emits canned stdout for the small set of subcommands the engineering
@@ -353,7 +353,7 @@ def _read_stdin_nonblocking() -> str:
 def main() -> int:
     argv = ["gh", *sys.argv[1:]]
     stdin_text = _read_stdin_nonblocking()
-    log_path = os.environ.get("SUPER_HARNESS_E2E_GH_LOG")
+    log_path = os.environ.get("KEEPSAIL_E2E_GH_LOG")
     if log_path:
         record = {"argv": argv, "stdin": stdin_text}
         # Append a single newline-terminated JSON line. open(..., "a")
@@ -423,7 +423,7 @@ def mock_gh(
     # the system `gh` resolution will be ours after monkeypatch.
     old_path = os.environ.get("PATH", "")
     monkeypatch.setenv("PATH", f"{shim_dir}{os.pathsep}{old_path}")
-    monkeypatch.setenv("SUPER_HARNESS_E2E_GH_LOG", str(calls_path))
+    monkeypatch.setenv("KEEPSAIL_E2E_GH_LOG", str(calls_path))
 
     # Defensive sanity-check: `shutil.which` should resolve to our shim.
     # If it doesn't, fail loudly here instead of surfacing as a confusing

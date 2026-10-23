@@ -6,8 +6,8 @@ from typing import Any, ClassVar
 
 import pytest
 
-from super_harness.adapters import AgentAdapter, FrameworkAdapter
-from super_harness.core.events import Event
+from keepsail.adapters import AgentAdapter, FrameworkAdapter
+from keepsail.core.events import Event
 
 
 class _MinimalAdapter(AgentAdapter):
@@ -271,15 +271,15 @@ def test_framework_adapter_is_fallback_can_be_true() -> None:
 
 
 def test_workspace_context_is_reexported_from_sensors() -> None:
-    from super_harness.adapters import WorkspaceContext as AdapterWC
-    from super_harness.sensors import WorkspaceContext as SensorWC
+    from keepsail.adapters import WorkspaceContext as AdapterWC
+    from keepsail.sensors import WorkspaceContext as SensorWC
 
     assert AdapterWC is SensorWC
 
 
 def test_default_format_stop_feedback_is_empty():
-    from super_harness.adapters import AgentAdapter
-    from super_harness.core.authoring_check import Verdict, Violation
+    from keepsail.adapters import AgentAdapter
+    from keepsail.core.authoring_check import Verdict, Violation
 
     class _Bare(AgentAdapter):
         name: ClassVar[str] = "bare"

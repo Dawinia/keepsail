@@ -10,7 +10,7 @@ diffs, and vigilance drops after a few good experiences.
 
 Writing the rule into an AGENTS.md or CLAUDE.md file as prose does not hold —
 agents read the instruction and violate it anyway. What holds is a *mechanical*
-check the agent cannot talk its way past. super-harness already ships that
+check the agent cannot talk its way past. keepsail already ships that
 mechanism; this guide shows how to point it at your architecture rules.
 
 ## Why not just grep?
@@ -26,12 +26,12 @@ realistic state of the art (see the table below).
 
 ## The pattern
 
-super-harness lets a ratified *decision record* carry an inline runnable check and
+keepsail lets a ratified *decision record* carry an inline runnable check and
 a counterexample. Any dependency checker whose CLI **exits non-zero on a forbidden
 edge** can be wired in:
 
 1. Add an executable check and a counterexample to the decision's Markdown body.
-2. At `ratify`, super-harness runs a two-sided *bite-test*: the check must pass on
+2. At `ratify`, keepsail runs a two-sided *bite-test*: the check must pass on
    your current code **and** fail when the counterexample is injected. If it
    doesn't bite, ratify is refused — no hollow checks.
 3. `decision check` (local and in CI) then runs the check on every invocation;
@@ -58,7 +58,7 @@ this guide is about the *check* you put inside it.
 
 ## Worked example — Python (import-linter)
 
-This is the example super-harness runs on *itself*: the `d-core-is-base` decision
+This is the example keepsail runs on *itself*: the `d-core-is-base` decision
 (`docs/decisions/d-core-is-base.md`) enforces an import-graph contract on every PR
 via CI. Reproduce the shape in your repo.
 
@@ -96,7 +96,7 @@ no build, and it catches the transitive and function-local edges `grep` misses.
 
 ## Language support
 
-super-harness's check runner is language-agnostic — it runs any shell command and
+keepsail's check runner is language-agnostic — it runs any shell command and
 treats a non-zero exit as a violation. What varies by language is whether a mature
 *static* dependency-checker CLI exists that fits the bite-test. Two independent
 questions decide the fit:

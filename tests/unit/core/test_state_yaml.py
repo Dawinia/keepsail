@@ -7,10 +7,10 @@ from pathlib import Path
 
 import pytest
 
-from super_harness.core.reducer import derive_state
-from super_harness.core.state import ChangeState
-from super_harness.core.state_yaml import read_state_yaml, write_state_yaml
-from super_harness.core.writer import EventWriter
+from keepsail.core.reducer import derive_state
+from keepsail.core.state import ChangeState
+from keepsail.core.state_yaml import read_state_yaml, write_state_yaml
+from keepsail.core.writer import EventWriter
 from tests.unit.core.test_writer import _make_event
 
 
@@ -68,7 +68,7 @@ def test_reducer_round_trip_via_state_yaml(tmp_path: Path) -> None:
 def test_read_rejects_non_mapping_root(tmp_path: Path) -> None:
     """A corrupted state.yaml that's a list/scalar must raise ValueError, not AssertionError.
 
-    Rationale: `super-harness state verify` (Task 1.8) needs to catch this cleanly
+    Rationale: `keepsail state verify` (Task 1.8) needs to catch this cleanly
     and emit exit code 2 + actionable stderr. assert would crash, and is stripped
     under python -O.
     """

@@ -28,9 +28,9 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from super_harness.cli import main
-from super_harness.core.writer import EventWriter
-from super_harness.exit_codes import EXIT_VALIDATION
+from keepsail.cli import main
+from keepsail.core.writer import EventWriter
+from keepsail.exit_codes import EXIT_VALIDATION
 from tests.unit.core.test_writer import _make_event
 
 
@@ -117,7 +117,7 @@ def test_state_verify_detects_malformed_json(tmp_path: Path) -> None:
 
     r = CliRunner().invoke(main, ["--workspace", str(tmp_path), "state", "verify"])
     assert r.exit_code == EXIT_VALIDATION
-    assert "super-harness state verify:" in r.stderr
+    assert "keepsail state verify:" in r.stderr
     assert "malformed" in r.stderr
     assert "line 1" in r.stderr
 
@@ -155,7 +155,7 @@ def test_state_verify_detects_illegal_transition(tmp_path: Path) -> None:
 
     r = CliRunner().invoke(main, ["--workspace", str(tmp_path), "state", "verify"])
     assert r.exit_code == EXIT_VALIDATION
-    assert "super-harness state verify:" in r.stderr
+    assert "keepsail state verify:" in r.stderr
     assert "illegal transition" in r.stderr
     # The verifier tags the violation with the offending event_id so an
     # operator can grep the log for the exact line.

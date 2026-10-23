@@ -8,7 +8,7 @@ import sys
 import time
 from pathlib import Path
 
-from super_harness.core.file_lock import exclusive_file_lock
+from keepsail.core.file_lock import exclusive_file_lock
 
 
 def test_exclusive_lock_can_be_reacquired_after_release(tmp_path: Path) -> None:
@@ -32,7 +32,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, sys.argv[1])
-from super_harness.core.file_lock import exclusive_file_lock
+from keepsail.core.file_lock import exclusive_file_lock
 
 sentinel, ready, acquired = map(Path, sys.argv[2:])
 ready.touch()

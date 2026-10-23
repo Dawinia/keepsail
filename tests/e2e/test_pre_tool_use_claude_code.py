@@ -1,11 +1,11 @@
 """E2E: the pre-tool-use gate blocks/allows Edit via the Claude Code path.
 
 This is the payoff test for Phase 5. It drives the **production** entry points
-(subprocesses the installed ``super-harness`` / ``super-harness-hook`` binaries
+(subprocesses the installed ``keepsail`` / ``keepsail-hook`` binaries
 — they must be on PATH) end-to-end:
 
-  1. ``super-harness init``                  → scaffolds a real ``.harness/``
-  2. ``super-harness adapter install claude-code``
+  1. ``keepsail init``                  → scaffolds a real ``.harness/``
+  2. ``keepsail adapter install claude-code``
                                              → registers the PreToolUse gate hook
                                                 in ``.claude/settings.local.json``
   3. the **exact command string** registered in ``.claude/settings.local.json`` is
@@ -35,8 +35,8 @@ import shlex
 import subprocess
 from pathlib import Path
 
-from super_harness.core.state import ChangeState
-from super_harness.core.state_yaml import write_state_yaml
+from keepsail.core.state import ChangeState
+from keepsail.core.state_yaml import write_state_yaml
 from tests.e2e.conftest import _wait_for_returncode
 
 # Claude-Code-shaped PreToolUse payload for an Edit on a source file. The shim
@@ -52,7 +52,7 @@ _PAYLOAD = json.dumps(
 
 
 def _registered_command(ws: Path) -> str:
-    """Extract the super-harness PreToolUse hook command from settings.local.json.
+    """Extract the keepsail PreToolUse hook command from settings.local.json.
 
     Asserting on the EXACT registered string (rather than reconstructing it)
     proves the adapter wrote a runnable hook and that we invoke precisely what
@@ -64,15 +64,15 @@ def _registered_command(ws: Path) -> str:
             if "--agent claude-code" in hook["command"]:
                 command: str = hook["command"]
                 return command
-    raise AssertionError("super-harness PreToolUse hook not registered in settings.local.json")
+    raise AssertionError("keepsail PreToolUse hook not registered in settings.local.json")
 
 
 def test_pre_tool_use_blocks_then_allows(tmp_path: Path) -> None:
     ws = tmp_path
 
-    # 1. Real super-harness workspace (creates .harness/ + skeleton files).
+    # 1. Real keepsail workspace (creates .harness/ + skeleton files).
     subprocess.run(
-        ["super-harness", "--workspace", str(ws), "init"],
+        ["keepsail", "--workspace", str(ws), "init"],
         check=True,
         capture_output=True,
         text=True,
@@ -81,7 +81,7 @@ def test_pre_tool_use_blocks_then_allows(tmp_path: Path) -> None:
 
     # 2. Install the claude-code adapter (registers the hook in settings.local.json).
     subprocess.run(
-        ["super-harness", "--workspace", str(ws), "adapter", "install", "claude-code"],
+        ["keepsail", "--workspace", str(ws), "adapter", "install", "claude-code"],
         check=True,
         capture_output=True,
         text=True,

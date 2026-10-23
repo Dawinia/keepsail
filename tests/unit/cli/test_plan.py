@@ -1,4 +1,4 @@
-"""Unit tests for the `super-harness plan` group (HG-13): `ready` + `redeclare`.
+"""Unit tests for the `keepsail plan` group (HG-13): `ready` + `redeclare`.
 
 `plan ready <slug> [--scope <files-yaml>] [--tier-hint <t>]`
 (cli-command-surface §418) manually emits `plan_ready`, advancing
@@ -23,14 +23,14 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from super_harness.cli import main
-from super_harness.core.events import Actor, Event
-from super_harness.core.paths import events_path
-from super_harness.core.post_emit import refresh_state_after_emit
-from super_harness.core.reducer import derive_state
-from super_harness.core.ulid import new_event_id
-from super_harness.core.writer import EventWriter
-from super_harness.exit_codes import EXIT_NO_CONFIG, EXIT_OK, EXIT_VALIDATION
+from keepsail.cli import main
+from keepsail.core.events import Actor, Event
+from keepsail.core.paths import events_path
+from keepsail.core.post_emit import refresh_state_after_emit
+from keepsail.core.reducer import derive_state
+from keepsail.core.ulid import new_event_id
+from keepsail.core.writer import EventWriter
+from keepsail.exit_codes import EXIT_NO_CONFIG, EXIT_OK, EXIT_VALIDATION
 
 
 def _seed(ws: Path, slug: str, *types: str) -> None:

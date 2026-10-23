@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from super_harness.adapters.agent.codex import CodexAdapter
+from keepsail.adapters.agent.codex import CodexAdapter
 
 
 def test_detect_requires_codex_dir(tmp_path):
@@ -21,9 +21,9 @@ def test_install_writes_pre_tool_use_and_session_start(tmp_path, monkeypatch):
     data = json.loads((tmp_path / ".codex" / "hooks.json").read_text())
     pre = data["hooks"]["PreToolUse"][0]
     assert pre["matcher"] == "^(apply_patch|Edit|Write)$"
-    assert pre["hooks"][0]["command"] == "/abs/super-harness-hook --agent codex"
+    assert pre["hooks"][0]["command"] == "/abs/keepsail-hook --agent codex"
     ss = data["hooks"]["SessionStart"][0]
-    assert ss["hooks"][0]["command"] == "/abs/super-harness change resume"
+    assert ss["hooks"][0]["command"] == "/abs/keepsail change resume"
 
 
 def test_install_aborts_when_binary_missing(tmp_path, monkeypatch):
@@ -53,7 +53,7 @@ def test_agents_md_subsection_has_trust_and_caveat():
     assert "apply_patch" in sub
     assert "WebSearch" in sub  # coverage caveat
     # Coverage caveat must not conflate what Codex *surfaces* to a hook with what
-    # super-harness *gates*: the old "intercepts only simple shell" phrasing read as
+    # keepsail *gates*: the old "intercepts only simple shell" phrasing read as
     # a contradiction against "Bash is never gated" (PR#74 review).
     assert "simple shell" not in sub.lower()
     assert "Codex surfaces only shell commands" in sub  # caveat separates surface from gating
@@ -92,7 +92,7 @@ def test_codex_capabilities():
 
 
 def test_codex_stop_should_check_and_feedback_delegate():
-    from super_harness.core.authoring_check import Verdict, Violation
+    from keepsail.core.authoring_check import Verdict, Violation
 
     a = CodexAdapter()
     assert a.stop_should_check({"stop_hook_active": True}) is False
@@ -109,7 +109,7 @@ def test_codex_install_writes_stop_hook(tmp_path, monkeypatch):
     CodexAdapter().install_hooks(tmp_path)
     data = json.loads((tmp_path / ".codex" / "hooks.json").read_text())
     stop = data["hooks"]["Stop"][0]
-    assert stop["hooks"][0]["command"] == "/abs/super-harness-hook --agent codex --event stop"
+    assert stop["hooks"][0]["command"] == "/abs/keepsail-hook --agent codex --event stop"
 
 
 def test_codex_install_stop_is_idempotent_on_reinstall(tmp_path, monkeypatch):
@@ -159,7 +159,7 @@ def test_codex_agents_md_teaches_compiled_review_contract():
     sub = " ".join(CodexAdapter().agents_md_subsection().split()).lower()
     assert "does not start, spawn, or host reviewers" in sub
     assert "review import" in sub
-    assert "outside super-harness" in sub
+    assert "outside keepsail" in sub
     assert "do not edit while an external review is pending" in sub
     assert "a skipped review is disclosure" in sub
     assert "approved commitments change or explicit restrictions are relaxed" in sub
@@ -221,8 +221,8 @@ def test_codex_symlinked_config_directory_is_rejected_without_external_mutation(
     with pytest.raises(ValueError, match=r"\.codex.*symlink"):
         adapter.plan_hook_install(
             tmp_path,
-            hook_executable="/abs/super-harness-hook",
-            cli_executable="/abs/super-harness",
+            hook_executable="/abs/keepsail-hook",
+            cli_executable="/abs/keepsail",
         )
     with pytest.raises(ValueError, match=r"\.codex.*symlink"):
         adapter.on_uninstall(tmp_path)

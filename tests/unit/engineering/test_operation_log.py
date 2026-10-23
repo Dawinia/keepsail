@@ -11,7 +11,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
-from super_harness.engineering.operation_log import write_operation_log
+from keepsail.engineering.operation_log import write_operation_log
 
 
 def test_write_operation_log_creates_subdir_and_file(tmp_path: Path) -> None:
@@ -34,7 +34,7 @@ def test_write_operation_log_sanitizes_colons_in_filename(tmp_path: Path) -> Non
 
     # Force a deterministic timestamp with colons in it.
     with patch(
-        "super_harness.engineering.operation_log.utc_now_iso",
+        "keepsail.engineering.operation_log.utc_now_iso",
         return_value="2026-05-30T12:34:56Z",
     ):
         write_operation_log(harness, "sub", "body")
@@ -61,7 +61,7 @@ def test_write_operation_log_swallows_write_oserror(tmp_path: Path) -> None:
     harness.mkdir()
 
     with patch(
-        "super_harness.engineering.operation_log.Path.write_text",
+        "keepsail.engineering.operation_log.Path.write_text",
         side_effect=OSError("disk full"),
     ):
         # Must not raise.

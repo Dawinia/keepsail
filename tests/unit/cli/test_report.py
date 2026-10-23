@@ -1,9 +1,9 @@
-"""Tests for the `super-harness report` CLI command (Stage 1 value report)."""
+"""Tests for the `keepsail report` CLI command (Stage 1 value report)."""
 import json as _json
 
 from click.testing import CliRunner
 
-from super_harness.cli import main
+from keepsail.cli import main
 
 
 def _seed(tmp_path, lines):
@@ -164,8 +164,8 @@ def test_report_bad_since_is_ignored_not_crash(tmp_path):
 
 # --- Stage 2: gate-held targets rendered honestly across all modes ---
 
-from super_harness.cli.report import _bottom_line, _render_brief, _render_human  # noqa: E402
-from super_harness.engineering.value_report import ValueReport  # noqa: E402
+from keepsail.cli.report import _bottom_line, _render_brief, _render_human  # noqa: E402
+from keepsail.engineering.value_report import ValueReport  # noqa: E402
 
 
 def _vr(**over):
@@ -463,7 +463,7 @@ def test_report_counts_authorizations_not_funded_rounds(tmp_path):
 def test_report_human_cannot_be_made_to_print_a_forged_row_by_any_field(tmp_path):
     """AUTH-005. The AUTH-004 hardening covered `reason` alone, but every field on the
     row is interpolated into the same single line. `actor` is the reachable vector:
-    `resolve_identity`'s `SUPER_HARNESS_ACTOR` branch only strips the ends, so an
+    `resolve_identity`'s `KEEPSAIL_ACTOR` branch only strips the ends, so an
     interior newline survives into the record.
 
     One authorization must print as one row no matter which field carries the

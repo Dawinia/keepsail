@@ -1,8 +1,9 @@
 ---
 id: d-pitfall-is-proposed-decision
-status: ratified
+status: superseded
 ratified_by: dawinialo@163.com
 ratified_at: '2026-07-30T07:05:06.458059Z'
+superseded_by: d-keepsail-pitfall-is-proposed-decision
 ratified_text_hash: sha256:d18656cdb3b6adddba986e3c531f6b662ebf9bbc7483f2fd02e28bb10f58a75d
 last_reconciled_by: dawinialo@163.com
 last_reconciled_at: '2026-09-08T16:27:55.671468Z'

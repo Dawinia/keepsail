@@ -8,9 +8,9 @@ import threading
 import time
 from pathlib import Path
 
-from super_harness.core.authoring_check import _run_checks_parallel, run_authoring_check
-from super_harness.core.check_runner import CheckRun
-from super_harness.core.decisions import Decision, compute_body_hash
+from keepsail.core.authoring_check import _run_checks_parallel, run_authoring_check
+from keepsail.core.check_runner import CheckRun
+from keepsail.core.decisions import Decision, compute_body_hash
 
 
 def _arm(root: Path, id: str, check: str) -> None:

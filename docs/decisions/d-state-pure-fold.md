@@ -5,13 +5,15 @@ ratified_by: dawinialo@163.com
 ratified_at: '2026-06-22T19:25:38.517675Z'
 ratified_text_hash: sha256:8a106295b2f00df8c9f657c22e02af8cf6b37cee29ee005e772647d62be48ed0
 last_reconciled_by: dawinialo@163.com
-last_reconciled_at: '2026-09-13T15:51:06.569880Z'
+last_reconciled_at: '2026-10-23T14:04:06.345620Z'
 last_reconcile_kind: self
-last_reconcile_justification: 'Re-reviewed reducer.py: derive_state still constructs
-  a fresh per-change fold over the append-only event stream; added authority/evidence
-  fields are derived during replay and no external state mutation or I/O was introduced.'
+last_reconcile_justification: Compared the complete anchored modules with 9442ba0
+  after normalizing only namespace, environment and product names. No behavior changed;
+  decision_check only repoints its sentinel to the ratified successor. Event append-only/frozen
+  semantics, pure fold, transition matrix, integrity verdicts, record lifecycle and
+  canonical hard-coded gate allowances remain intact. Re-stamp anchors at src/keepsail.
 reconciled_anchors:
-  src/super_harness/core/reducer.py: sha256:70e4224febc6b56938a44df9dbc8ab8af768852d22bf5e26ff6788b2916475f2
+  src/keepsail/core/reducer.py: sha256:6d7624bf5e5110e5643ececc50d100a12b8924c3737dfdb673530f770becd229
 ---
 State is a pure left-fold over the event log; never mutated in place.
 

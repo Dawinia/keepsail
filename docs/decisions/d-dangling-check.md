@@ -5,14 +5,15 @@ ratified_by: dawinialo@163.com
 ratified_at: '2026-06-26T09:45:28.846809Z'
 ratified_text_hash: sha256:d1aa4710844e840396baf69320b33fa30565d79879eb8c0c0ab03d6a7f2273b2
 last_reconciled_by: dawinialo@163.com
-last_reconciled_at: '2026-09-08T16:27:54.708425Z'
+last_reconciled_at: '2026-10-23T14:04:07.391697Z'
 last_reconcile_kind: self
-last_reconcile_justification: 'Re-reviewed after making tier-2 fingerprints line-ending
-  invariant. CheckResult.ok and CLI routing are unchanged: dangling_up blocks and
-  dangling_down remains warning-only; the fingerprint change only prevents CRLF/LF
-  checkout conversion from creating a false suspect result.'
+last_reconcile_justification: Compared the complete anchored modules with 9442ba0
+  after normalizing only namespace, environment and product names. No behavior changed;
+  decision_check only repoints its sentinel to the ratified successor. Event append-only/frozen
+  semantics, pure fold, transition matrix, integrity verdicts, record lifecycle and
+  canonical hard-coded gate allowances remain intact. Re-stamp anchors at src/keepsail.
 reconciled_anchors:
-  src/super_harness/core/decision_check.py: sha256:cc419ccc59ffd42be58b694cbb16fe9ce07d8660a7759c86d13f48f2e12a2ca4
+  src/keepsail/core/decision_check.py: sha256:a3f0db0624c9c69f88ea5ffc5614dd9409e82ba7bb8a7842b094ea6d33374ada
 ---
 CI checks referential integrity: dangling-up blocks, dangling-down warns.
 

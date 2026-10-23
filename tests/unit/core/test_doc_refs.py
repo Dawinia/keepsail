@@ -5,7 +5,7 @@ import re
 import subprocess
 from pathlib import Path
 
-from super_harness.core.doc_refs import (
+from keepsail.core.doc_refs import (
     _TOKEN_RE,
     DEFAULT_DOC_EXCLUDE,
     DEFAULT_DOC_INCLUDE,
@@ -15,7 +15,7 @@ from super_harness.core.doc_refs import (
     looks_like_symbol,
     scan_doc_refs,
 )
-from super_harness.core.language_profile import IDENTIFIER_PATTERN_DEFAULT
+from keepsail.core.language_profile import IDENTIFIER_PATTERN_DEFAULT
 
 
 def _harness(tmp_path: Path) -> Path:

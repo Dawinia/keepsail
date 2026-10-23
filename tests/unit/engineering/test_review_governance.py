@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from super_harness.engineering.review_governance import (
+from keepsail.engineering.review_governance import (
     ReviewerRoleGovernance,
     ReviewerSourceGovernance,
     ReviewGovernance,

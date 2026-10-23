@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 def test_workspace_context_lives_in_core() -> None:
-    from super_harness.core.workspace import WorkspaceContext
+    from keepsail.core.workspace import WorkspaceContext
 
     ctx = WorkspaceContext(workspace_root=Path("/x"))
     assert ctx.workspace_root == Path("/x")
@@ -15,7 +15,7 @@ def test_workspace_context_lives_in_core() -> None:
 
 
 def test_sensors_reexports_same_class() -> None:
-    from super_harness.core.workspace import WorkspaceContext as Core
-    from super_harness.sensors import WorkspaceContext as Sensors
+    from keepsail.core.workspace import WorkspaceContext as Core
+    from keepsail.sensors import WorkspaceContext as Sensors
 
     assert Core is Sensors  # sensors re-exports the core definition (single source of truth)

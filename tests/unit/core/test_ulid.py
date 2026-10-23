@@ -1,4 +1,4 @@
-from super_harness.core.ulid import new_event_id
+from keepsail.core.ulid import new_event_id
 
 
 def test_ulid_unique():

@@ -1,5 +1,5 @@
 """End-to-end through the real hook entry point: plan-path config on disk →
-allow/block (design 2026-07-29). Drives the installed `super-harness-hook`
+allow/block (design 2026-07-29). Drives the installed `keepsail-hook`
 console script as a real subprocess, matching the convention in
 `test_hook_entry.py` — the click-less binary IS the hot path these tests
 exercise, not an import of `main()` in-process.
@@ -17,7 +17,7 @@ import yaml
 def _hook(root: Path, tool: str, file: str) -> int:
     payload = json.dumps({"tool_name": tool, "tool_input": {"file_path": file}})
     proc = subprocess.run(
-        ["super-harness-hook", "--agent", "claude-code"],
+        ["keepsail-hook", "--agent", "claude-code"],
         cwd=str(root), input=payload, capture_output=True, text=True,
     )
     return proc.returncode

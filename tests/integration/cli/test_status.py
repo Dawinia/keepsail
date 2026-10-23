@@ -1,4 +1,4 @@
-"""Integration tests for `super-harness status` (Phase 2 Task 2.4).
+"""Integration tests for `keepsail status` (Phase 2 Task 2.4).
 
 Read-only command: replays events.jsonl through reducer and renders per-change
 state. No event emission, no post_emit_refresh wiring needed.
@@ -21,9 +21,9 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from super_harness.cli import main
-from super_harness.core.review_verdict import read_change_events
-from super_harness.gates.decisions import SUGGESTIONS
+from keepsail.cli import main
+from keepsail.core.review_verdict import read_change_events
+from keepsail.gates.decisions import SUGGESTIONS
 
 
 def _init(tmp_path: Path) -> None:
@@ -75,7 +75,7 @@ def test_status_unknown_slug_exits_validation_with_format_error(tmp_path: Path) 
         ["--workspace", str(tmp_path), "status", "no-such-slug"],
     )
     assert r.exit_code == 2  # EXIT_VALIDATION — same as `change resume <unknown>`
-    assert "super-harness status:" in r.stderr
+    assert "keepsail status:" in r.stderr
     assert "unknown change slug" in r.stderr
     assert "no-such-slug" in r.stderr
     assert "Hint:" in r.stderr
@@ -167,7 +167,7 @@ def test_status_shows_next_step_for_blocking_state(tmp_path: Path) -> None:
     After `change start`, the change is INTENT_DECLARED (blocking), so the
     human render carries a `next:` line and the `--json` entry a `next` key,
     both holding SUGGESTIONS["INTENT_DECLARED"]. The block-message redirect
-    from Task 3 ("run `super-harness status` for the next valid step") lands
+    from Task 3 ("run `keepsail status` for the next valid step") lands
     on a real next step, not a dead end.
     """
     _init(tmp_path)
@@ -188,11 +188,11 @@ def test_status_shows_next_step_for_blocking_state(tmp_path: Path) -> None:
 
 
 def _seed_awaiting_plan_review(tmp_path: Path, slug: str) -> None:
-    from super_harness.core.events import Actor, Event
-    from super_harness.core.paths import events_path
-    from super_harness.core.post_emit import refresh_state_after_emit
-    from super_harness.core.ulid import new_event_id
-    from super_harness.core.writer import EventWriter
+    from keepsail.core.events import Actor, Event
+    from keepsail.core.paths import events_path
+    from keepsail.core.post_emit import refresh_state_after_emit
+    from keepsail.core.ulid import new_event_id
+    from keepsail.core.writer import EventWriter
 
     w = EventWriter(events_path(tmp_path))
     for t in ("intent_declared", "plan_ready"):
@@ -208,11 +208,11 @@ def _seed_awaiting_plan_review(tmp_path: Path, slug: str) -> None:
 
 
 def _seed_awaiting_code_review(tmp_path: Path, slug: str) -> None:
-    from super_harness.core.events import Actor, Event
-    from super_harness.core.paths import events_path
-    from super_harness.core.post_emit import refresh_state_after_emit
-    from super_harness.core.ulid import new_event_id
-    from super_harness.core.writer import EventWriter
+    from keepsail.core.events import Actor, Event
+    from keepsail.core.paths import events_path
+    from keepsail.core.post_emit import refresh_state_after_emit
+    from keepsail.core.ulid import new_event_id
+    from keepsail.core.writer import EventWriter
 
     w = EventWriter(events_path(tmp_path))
     for t in (
@@ -282,11 +282,11 @@ def _set_code_review_independent_policy(tmp_path: Path) -> None:
 
 
 def _record_partial_review(tmp_path: Path, slug: str, source: str) -> None:
-    from super_harness.core.events import Actor, Event
-    from super_harness.core.paths import events_path
-    from super_harness.core.post_emit import refresh_state_after_emit
-    from super_harness.core.ulid import new_event_id
-    from super_harness.core.writer import EventWriter
+    from keepsail.core.events import Actor, Event
+    from keepsail.core.paths import events_path
+    from keepsail.core.post_emit import refresh_state_after_emit
+    from keepsail.core.ulid import new_event_id
+    from keepsail.core.writer import EventWriter
 
     events = read_change_events(events_path(tmp_path), slug)
     epoch_id = next(event.event_id for event in reversed(events) if event.type == "plan_ready")
@@ -351,11 +351,11 @@ def _record_partial_review(tmp_path: Path, slug: str, source: str) -> None:
 
 
 def _record_code_review_partial(tmp_path: Path, slug: str, source: str, digest: str) -> None:
-    from super_harness.core.events import Actor, Event
-    from super_harness.core.paths import events_path
-    from super_harness.core.post_emit import refresh_state_after_emit
-    from super_harness.core.ulid import new_event_id
-    from super_harness.core.writer import EventWriter
+    from keepsail.core.events import Actor, Event
+    from keepsail.core.paths import events_path
+    from keepsail.core.post_emit import refresh_state_after_emit
+    from keepsail.core.ulid import new_event_id
+    from keepsail.core.writer import EventWriter
 
     events = read_change_events(events_path(tmp_path), slug)
     epoch_id = next(
@@ -611,11 +611,11 @@ def _record_review_round(
     profile_digest: str,
     include_failed_claude: bool,
 ) -> None:
-    from super_harness.core.events import Actor, Event
-    from super_harness.core.paths import events_path
-    from super_harness.core.post_emit import refresh_state_after_emit
-    from super_harness.core.ulid import new_event_id
-    from super_harness.core.writer import EventWriter
+    from keepsail.core.events import Actor, Event
+    from keepsail.core.paths import events_path
+    from keepsail.core.post_emit import refresh_state_after_emit
+    from keepsail.core.ulid import new_event_id
+    from keepsail.core.writer import EventWriter
 
     events = read_change_events(events_path(tmp_path), slug)
     epoch_id = next(
@@ -935,11 +935,11 @@ def test_status_exhaustion_recommends_human_path_only_for_role_participant(
 
 
 def _emit(tmp_path: Path, slug: str, event_type: str, payload: dict) -> None:
-    from super_harness.core.events import Actor, Event
-    from super_harness.core.paths import events_path
-    from super_harness.core.post_emit import refresh_state_after_emit
-    from super_harness.core.ulid import new_event_id
-    from super_harness.core.writer import EventWriter
+    from keepsail.core.events import Actor, Event
+    from keepsail.core.paths import events_path
+    from keepsail.core.post_emit import refresh_state_after_emit
+    from keepsail.core.ulid import new_event_id
+    from keepsail.core.writer import EventWriter
 
     EventWriter(events_path(tmp_path)).emit(
         Event(

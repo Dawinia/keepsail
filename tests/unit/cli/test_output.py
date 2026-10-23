@@ -1,6 +1,6 @@
 import json
 
-from super_harness.cli.output import json_envelope
+from keepsail.cli.output import json_envelope
 
 
 def test_envelope_shape():

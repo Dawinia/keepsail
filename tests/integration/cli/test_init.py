@@ -8,10 +8,10 @@ import pytest
 import yaml
 from click.testing import CliRunner
 
-from super_harness.adapters.framework.plain import PlainAdapter
-from super_harness.cli import main
-from super_harness.cli.init_executor import InitOperationResult, InitOperations
-from super_harness.cli.init_plan import (
+from keepsail.adapters.framework.plain import PlainAdapter
+from keepsail.cli import main
+from keepsail.cli.init_executor import InitOperationResult, InitOperations
+from keepsail.cli.init_plan import (
     FileAction,
     GitHubDecision,
     InitChoices,
@@ -19,20 +19,20 @@ from super_harness.cli.init_plan import (
     build_init_plan,
     inspect_workspace,
 )
-from super_harness.cli.init_ui import (
+from keepsail.cli.init_ui import (
     InteractiveInitUI,
     TerminalCapabilities,
     WizardDecision,
     WizardResult,
 )
-from super_harness.engineering.gh import GhError
-from super_harness.version import __version__
+from keepsail.engineering.gh import GhError
+from keepsail.version import __version__
 
-_FAKE_HOOK = "/usr/local/bin/super-harness-hook"
+_FAKE_HOOK = "/usr/local/bin/keepsail-hook"
 
 
 def _assert_single_guided_frame(output: str, final_content: str) -> None:
-    assert output.count("┌ super-harness init") == 1
+    assert output.count("┌ keepsail init") == 1
     assert output.count("└") == 1
     lines = output.splitlines()
     closing = [line for line in lines if line.startswith("└ ")]
@@ -256,11 +256,11 @@ def test_init_non_tty_configures_multiple_agent_integrations(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(
-        "super_harness.adapters.agent.codex.shutil.which",
+        "keepsail.adapters.agent.codex.shutil.which",
         lambda name: f"/abs/bin/{name}",
     )
     monkeypatch.setattr(
-        "super_harness.adapters.agent.claude_code.shutil.which",
+        "keepsail.adapters.agent.claude_code.shutil.which",
         lambda name: f"/abs/bin/{name}",
     )
 
@@ -282,7 +282,7 @@ def test_init_non_tty_configures_multiple_agent_integrations(
     assert [entry["name"] for entry in adapters] == ["codex", "claude-code"]
     assert (tmp_path / ".codex" / "hooks.json").exists()
     assert (tmp_path / ".claude" / "settings.local.json").exists()
-    assert list(tmp_path.rglob("*.super-harness-backup.*")) == []
+    assert list(tmp_path.rglob("*.keepsail-backup.*")) == []
 
 
 def test_init_rejects_reviewed_settings_drift_before_backup_or_settings_write(
@@ -298,7 +298,7 @@ def test_init_rejects_reviewed_settings_drift_before_backup_or_settings_write(
         return WizardResult.confirmed(plan)
 
     ui = _ScriptedInitUI(confirm)
-    monkeypatch.setattr("super_harness.cli.init.create_init_ui", lambda *_a, **_kw: ui)
+    monkeypatch.setattr("keepsail.cli.init.create_init_ui", lambda *_a, **_kw: ui)
     result = CliRunner().invoke(
         main,
         ["--workspace", str(tmp_path), "init", "--integration", "codex"],
@@ -306,7 +306,7 @@ def test_init_rejects_reviewed_settings_drift_before_backup_or_settings_write(
 
     assert result.exit_code == 1, result.output
     assert settings.read_bytes() == b'{"review":"drifted"}\n'
-    assert list(settings.parent.glob("*.super-harness-backup.*")) == []
+    assert list(settings.parent.glob("*.keepsail-backup.*")) == []
     assert "changed after review" in result.output
     assert "rerun init" in result.output
 
@@ -319,7 +319,7 @@ def test_init_guided_confirmation_boundary_writes_only_after_confirm(
         return WizardResult.confirmed(build_init_plan(request, preflight, initial or InitChoices()))
 
     ui = _ScriptedInitUI(confirm)
-    monkeypatch.setattr("super_harness.cli.init.create_init_ui", lambda *_a, **_kw: ui)
+    monkeypatch.setattr("keepsail.cli.init.create_init_ui", lambda *_a, **_kw: ui)
 
     result = CliRunner().invoke(
         main,
@@ -346,17 +346,17 @@ def test_init_guided_verbose_changes_only_rendering_for_confirmed_plan(
     )
     capabilities = TerminalCapabilities(InteractionMode.GUIDED, False, True, 100)
     monkeypatch.setattr(
-        "super_harness.cli.init.detect_runtime_terminal_capabilities",
+        "keepsail.cli.init.detect_runtime_terminal_capabilities",
         lambda *_a, **_kw: capabilities,
     )
     monkeypatch.setattr(
-        "super_harness.cli.init.inspect_workspace",
+        "keepsail.cli.init.inspect_workspace",
         lambda request: inspect_workspace(
             request,
             executable_lookup=(
                 lambda name: (
                     f"/abs/bin/{name}"
-                    if name in {"codex", "claude", "super-harness", "super-harness-hook"}
+                    if name in {"codex", "claude", "keepsail", "keepsail-hook"}
                     else None
                 )
             ),
@@ -383,7 +383,7 @@ def test_init_guided_verbose_changes_only_rendering_for_confirmed_plan(
         uis.append(ui)
         return ui
 
-    monkeypatch.setattr("super_harness.cli.init.create_init_ui", create_ui)
+    monkeypatch.setattr("keepsail.cli.init.create_init_ui", create_ui)
     operation_runs: list[list[str]] = []
 
     def build_operations(**_kwargs: Any) -> InitOperations:
@@ -391,7 +391,7 @@ def test_init_guided_verbose_changes_only_rendering_for_confirmed_plan(
         operation_runs.append(calls)
         return _recording_operations(calls)
 
-    monkeypatch.setattr("super_harness.cli.init.build_init_operations", build_operations)
+    monkeypatch.setattr("keepsail.cli.init.build_init_operations", build_operations)
     before = _snapshot_files(tmp_path)
 
     default = CliRunner().invoke(main, ["--workspace", str(tmp_path), "init"])
@@ -442,11 +442,11 @@ def test_init_guided_verbose_rejection_has_no_executor_calls_or_writes(
     (home / ".codex" / "config.toml").write_text(f'model = "gpt-review"\napi_key = "{secret}"\n')
     capabilities = TerminalCapabilities(InteractionMode.GUIDED, False, True, 100)
     monkeypatch.setattr(
-        "super_harness.cli.init.detect_runtime_terminal_capabilities",
+        "keepsail.cli.init.detect_runtime_terminal_capabilities",
         lambda *_a, **_kw: capabilities,
     )
     monkeypatch.setattr(
-        "super_harness.cli.init.inspect_workspace",
+        "keepsail.cli.init.inspect_workspace",
         lambda request: inspect_workspace(
             request,
             executable_lookup=(lambda name: "/abs/bin/codex" if name == "codex" else None),
@@ -473,10 +473,10 @@ def test_init_guided_verbose_rejection_has_no_executor_calls_or_writes(
         uis.append(ui)
         return ui
 
-    monkeypatch.setattr("super_harness.cli.init.create_init_ui", create_ui)
+    monkeypatch.setattr("keepsail.cli.init.create_init_ui", create_ui)
     build_calls: list[object] = []
     monkeypatch.setattr(
-        "super_harness.cli.init.build_init_operations",
+        "keepsail.cli.init.build_init_operations",
         lambda **kwargs: build_calls.append(kwargs),
     )
     before = _snapshot_files(tmp_path)
@@ -509,7 +509,7 @@ def test_init_explicit_cancel_is_a_normal_noop(
         return WizardResult.cancelled()
 
     ui = _ScriptedInitUI(cancel)
-    monkeypatch.setattr("super_harness.cli.init.create_init_ui", lambda *_a, **_kw: ui)
+    monkeypatch.setattr("keepsail.cli.init.create_init_ui", lambda *_a, **_kw: ui)
 
     result = CliRunner().invoke(main, ["--workspace", str(tmp_path), "init"])
 
@@ -527,7 +527,7 @@ def test_init_keyboard_interrupt_before_apply_exits_one_without_writes(
         raise KeyboardInterrupt
 
     monkeypatch.setattr(
-        "super_harness.cli.init.create_init_ui",
+        "keepsail.cli.init.create_init_ui",
         lambda *_a, **_kw: _ScriptedInitUI(interrupt),
     )
 
@@ -543,11 +543,11 @@ def test_init_guided_prompt_interrupt_stays_inside_the_single_frame(
 ) -> None:
     capabilities = TerminalCapabilities(InteractionMode.GUIDED, False, True, 100)
     monkeypatch.setattr(
-        "super_harness.cli.init.detect_runtime_terminal_capabilities",
+        "keepsail.cli.init.detect_runtime_terminal_capabilities",
         lambda *_a, **_kw: capabilities,
     )
     monkeypatch.setattr(
-        "super_harness.cli.init.create_init_ui",
+        "keepsail.cli.init.create_init_ui",
         lambda *_a, **_kw: InteractiveInitUI(
             prompt_adapter=_GuidedAnswers(
                 checkboxes=[KeyboardInterrupt()],
@@ -559,11 +559,11 @@ def test_init_guided_prompt_interrupt_stays_inside_the_single_frame(
         ),
     )
     monkeypatch.setattr(
-        "super_harness.cli.init.inspect_workspace",
+        "keepsail.cli.init.inspect_workspace",
         lambda request: inspect_workspace(
             request,
             executable_lookup=lambda name: (
-                f"/abs/{name}" if name in {"super-harness-hook", "super-harness"} else None
+                f"/abs/{name}" if name in {"keepsail-hook", "keepsail"} else None
             ),
         ),
     )
@@ -604,15 +604,15 @@ def test_init_line_mode_uses_per_option_prompts_without_comma_parser(
 ) -> None:
     capabilities = TerminalCapabilities(InteractionMode.LINE, False, False, 80)
     monkeypatch.setattr(
-        "super_harness.cli.init.detect_runtime_terminal_capabilities",
+        "keepsail.cli.init.detect_runtime_terminal_capabilities",
         lambda *_a, **_kw: capabilities,
     )
     monkeypatch.setattr(
-        "super_harness.cli.init.inspect_workspace",
+        "keepsail.cli.init.inspect_workspace",
         lambda request: inspect_workspace(
             request,
             executable_lookup=lambda name: (
-                f"/abs/{name}" if name in {"super-harness-hook", "super-harness"} else None
+                f"/abs/{name}" if name in {"keepsail-hook", "keepsail"} else None
             ),
         ),
     )
@@ -635,11 +635,11 @@ def test_init_line_yes_skips_only_final_review(
 ) -> None:
     capabilities = TerminalCapabilities(InteractionMode.LINE, False, False, 80)
     monkeypatch.setattr(
-        "super_harness.cli.init.detect_runtime_terminal_capabilities",
+        "keepsail.cli.init.detect_runtime_terminal_capabilities",
         lambda *_a, **_kw: capabilities,
     )
     monkeypatch.setattr(
-        "super_harness.cli.init.inspect_workspace",
+        "keepsail.cli.init.inspect_workspace",
         lambda request: inspect_workspace(request, executable_lookup=lambda _name: None),
     )
 
@@ -664,13 +664,13 @@ def test_init_guided_back_applies_the_revised_plan(
         before_review=lambda: _assert_init_owned_paths_absent(tmp_path),
     )
     ui = InteractiveInitUI(prompt_adapter=answers)
-    monkeypatch.setattr("super_harness.cli.init.create_init_ui", lambda *_a, **_kw: ui)
+    monkeypatch.setattr("keepsail.cli.init.create_init_ui", lambda *_a, **_kw: ui)
     monkeypatch.setattr(
-        "super_harness.cli.init.inspect_workspace",
+        "keepsail.cli.init.inspect_workspace",
         lambda request: inspect_workspace(
             request,
             executable_lookup=lambda name: (
-                f"/abs/{name}" if name in {"super-harness-hook", "super-harness"} else None
+                f"/abs/{name}" if name in {"keepsail-hook", "keepsail"} else None
             ),
         ),
     )
@@ -687,7 +687,7 @@ def test_init_guided_can_enable_github_without_the_flag(
 ) -> None:
     capabilities = TerminalCapabilities(InteractionMode.GUIDED, False, False, 80)
     monkeypatch.setattr(
-        "super_harness.cli.init.detect_runtime_terminal_capabilities",
+        "keepsail.cli.init.detect_runtime_terminal_capabilities",
         lambda *_a, **_kw: capabilities,
     )
     monkeypatch.setattr(
@@ -696,14 +696,14 @@ def test_init_guided_can_enable_github_without_the_flag(
         lambda name: "/abs/bin/gh" if name == "gh" else None,
     )
     monkeypatch.setattr(
-        "super_harness.cli.init.inspect_workspace",
+        "keepsail.cli.init.inspect_workspace",
         lambda request: inspect_workspace(
             request,
             executable_lookup=(lambda name: "/abs/bin/gh" if name == "gh" else None),
         ),
     )
-    monkeypatch.setattr("super_harness.cli.init.check_gh", lambda: None)
-    monkeypatch.setattr("super_harness.cli.init.enable_repo_merge_settings", lambda: None)
+    monkeypatch.setattr("keepsail.cli.init.check_gh", lambda: None)
+    monkeypatch.setattr("keepsail.cli.init.enable_repo_merge_settings", lambda: None)
     renderer = _PlanCaptureRenderer()
     ui = InteractiveInitUI(
         prompt_adapter=_GuidedAnswers(
@@ -712,7 +712,7 @@ def test_init_guided_can_enable_github_without_the_flag(
         ),
         renderer=renderer,
     )
-    monkeypatch.setattr("super_harness.cli.init.create_init_ui", lambda *_a, **_kw: ui)
+    monkeypatch.setattr("keepsail.cli.init.create_init_ui", lambda *_a, **_kw: ui)
 
     result = CliRunner().invoke(
         main,
@@ -722,7 +722,7 @@ def test_init_guided_can_enable_github_without_the_flag(
     assert result.exit_code == 0, result.output
     assert renderer.plans[-1].github_decision is GitHubDecision.CREATE
     assert (tmp_path / ".github" / "pull_request_template.md").is_file()
-    assert (tmp_path / ".github" / "workflows" / "super-harness.yml").is_file()
+    assert (tmp_path / ".github" / "workflows" / "keepsail.yml").is_file()
 
 
 def test_init_guided_compacts_github_apply_warning(
@@ -730,24 +730,24 @@ def test_init_guided_compacts_github_apply_warning(
 ) -> None:
     capabilities = TerminalCapabilities(InteractionMode.GUIDED, False, True, 100)
     monkeypatch.setattr(
-        "super_harness.cli.init.detect_runtime_terminal_capabilities",
+        "keepsail.cli.init.detect_runtime_terminal_capabilities",
         lambda *_a, **_kw: capabilities,
     )
     monkeypatch.setattr(
-        "super_harness.cli.init.inspect_workspace",
+        "keepsail.cli.init.inspect_workspace",
         lambda request: inspect_workspace(
             request,
             executable_lookup=(lambda name: "/abs/bin/gh" if name == "gh" else None),
         ),
     )
-    monkeypatch.setattr("super_harness.cli.init.check_gh", lambda: None)
+    monkeypatch.setattr("keepsail.cli.init.check_gh", lambda: None)
     monkeypatch.setattr(
-        "super_harness.cli.init.enable_repo_merge_settings",
+        "keepsail.cli.init.enable_repo_merge_settings",
         lambda: (_ for _ in ()).throw(GhError("non-admin")),
     )
     answers = _GuidedAnswers(checkboxes=[], selects=["create", "confirm"])
     monkeypatch.setattr(
-        "super_harness.cli.init.create_init_ui",
+        "keepsail.cli.init.create_init_ui",
         lambda *_a, **_kw: InteractiveInitUI(
             prompt_adapter=answers,
             unicode=True,
@@ -788,11 +788,11 @@ def test_init_guided_does_not_discover_reviewer_models(
     )
     capabilities = TerminalCapabilities(InteractionMode.GUIDED, False, False, 80)
     monkeypatch.setattr(
-        "super_harness.cli.init.detect_runtime_terminal_capabilities",
+        "keepsail.cli.init.detect_runtime_terminal_capabilities",
         lambda *_a, **_kw: capabilities,
     )
     monkeypatch.setattr(
-        "super_harness.cli.init.inspect_workspace",
+        "keepsail.cli.init.inspect_workspace",
         lambda request: inspect_workspace(
             request,
             executable_lookup=(
@@ -807,7 +807,7 @@ def test_init_guided_does_not_discover_reviewer_models(
         before_review=lambda: _assert_init_owned_paths_absent(tmp_path),
     )
     ui = InteractiveInitUI(prompt_adapter=answers)
-    monkeypatch.setattr("super_harness.cli.init.create_init_ui", lambda *_a, **_kw: ui)
+    monkeypatch.setattr("keepsail.cli.init.create_init_ui", lambda *_a, **_kw: ui)
 
     result = CliRunner().invoke(main, ["--workspace", str(tmp_path), "init"])
 
@@ -830,11 +830,11 @@ def test_init_guided_without_configured_models_uses_human_only_review(
     home.mkdir()
     capabilities = TerminalCapabilities(InteractionMode.GUIDED, False, False, 80)
     monkeypatch.setattr(
-        "super_harness.cli.init.detect_runtime_terminal_capabilities",
+        "keepsail.cli.init.detect_runtime_terminal_capabilities",
         lambda *_a, **_kw: capabilities,
     )
     monkeypatch.setattr(
-        "super_harness.cli.init.inspect_workspace",
+        "keepsail.cli.init.inspect_workspace",
         lambda request: inspect_workspace(
             request,
             executable_lookup=(
@@ -845,7 +845,7 @@ def test_init_guided_without_configured_models_uses_human_only_review(
     )
     answers = _GuidedAnswers(checkboxes=[()], selects=["confirm"])
     ui = InteractiveInitUI(prompt_adapter=answers)
-    monkeypatch.setattr("super_harness.cli.init.create_init_ui", lambda *_a, **_kw: ui)
+    monkeypatch.setattr("keepsail.cli.init.create_init_ui", lambda *_a, **_kw: ui)
 
     result = CliRunner().invoke(main, ["--workspace", str(tmp_path), "init"])
 
@@ -870,11 +870,11 @@ def test_init_guided_isolates_malformed_provider_config(
     (home / ".claude" / "settings.json").write_text(json.dumps({"model": "claude-sonnet-4"}))
     capabilities = TerminalCapabilities(InteractionMode.GUIDED, False, False, 80)
     monkeypatch.setattr(
-        "super_harness.cli.init.detect_runtime_terminal_capabilities",
+        "keepsail.cli.init.detect_runtime_terminal_capabilities",
         lambda *_a, **_kw: capabilities,
     )
     monkeypatch.setattr(
-        "super_harness.cli.init.inspect_workspace",
+        "keepsail.cli.init.inspect_workspace",
         lambda request: inspect_workspace(
             request,
             executable_lookup=(
@@ -888,7 +888,7 @@ def test_init_guided_isolates_malformed_provider_config(
         selects=["confirm"],
     )
     ui = InteractiveInitUI(prompt_adapter=answers)
-    monkeypatch.setattr("super_harness.cli.init.create_init_ui", lambda *_a, **_kw: ui)
+    monkeypatch.setattr("keepsail.cli.init.create_init_ui", lambda *_a, **_kw: ui)
 
     result = CliRunner().invoke(main, ["--workspace", str(tmp_path), "init"])
 
@@ -906,7 +906,7 @@ def test_init_questionary_none_cancels_without_writes(
 ) -> None:
     capabilities = TerminalCapabilities(InteractionMode.GUIDED, False, True, 80)
     monkeypatch.setattr(
-        "super_harness.cli.init.detect_runtime_terminal_capabilities",
+        "keepsail.cli.init.detect_runtime_terminal_capabilities",
         lambda *_a, **_kw: capabilities,
     )
     ui = InteractiveInitUI(
@@ -915,7 +915,7 @@ def test_init_questionary_none_cancels_without_writes(
         color=False,
         width=80,
     )
-    monkeypatch.setattr("super_harness.cli.init.create_init_ui", lambda *_a, **_kw: ui)
+    monkeypatch.setattr("keepsail.cli.init.create_init_ui", lambda *_a, **_kw: ui)
 
     result = CliRunner().invoke(main, ["--workspace", str(tmp_path), "init"])
 
@@ -932,11 +932,11 @@ def test_init_keyboard_interrupt_during_apply_keeps_completed_ledger(
         shutil,
         "which",
         lambda name: f"/abs/bin/{name}"
-        if name in {"codex", "super-harness-hook", "super-harness"}
+        if name in {"codex", "keepsail-hook", "keepsail"}
         else None,
     )
     monkeypatch.setattr(
-        "super_harness.cli.init.install_agent_integration",
+        "keepsail.cli.init.install_agent_integration",
         lambda *_a, **_kw: (_ for _ in ()).throw(KeyboardInterrupt()),
     )
 
@@ -965,7 +965,7 @@ def test_init_force_guided_preserves_persisted_review_configuration(
 
     capabilities = TerminalCapabilities(InteractionMode.GUIDED, False, False, 80)
     monkeypatch.setattr(
-        "super_harness.cli.init.detect_runtime_terminal_capabilities",
+        "keepsail.cli.init.detect_runtime_terminal_capabilities",
         lambda *_a, **_kw: capabilities,
     )
     renderer = _PlanCaptureRenderer()
@@ -976,7 +976,7 @@ def test_init_force_guided_preserves_persisted_review_configuration(
         ),
         renderer=renderer,
     )
-    monkeypatch.setattr("super_harness.cli.init.create_init_ui", lambda *_a, **_kw: ui)
+    monkeypatch.setattr("keepsail.cli.init.create_init_ui", lambda *_a, **_kw: ui)
 
     forced = CliRunner().invoke(
         main,
@@ -1002,7 +1002,7 @@ def test_init_force_guided_does_not_delete_persisted_review_configuration(
 
     capabilities = TerminalCapabilities(InteractionMode.GUIDED, False, False, 80)
     monkeypatch.setattr(
-        "super_harness.cli.init.detect_runtime_terminal_capabilities",
+        "keepsail.cli.init.detect_runtime_terminal_capabilities",
         lambda *_a, **_kw: capabilities,
     )
     renderer = _PlanCaptureRenderer()
@@ -1013,7 +1013,7 @@ def test_init_force_guided_does_not_delete_persisted_review_configuration(
         ),
         renderer=renderer,
     )
-    monkeypatch.setattr("super_harness.cli.init.create_init_ui", lambda *_a, **_kw: ui)
+    monkeypatch.setattr("keepsail.cli.init.create_init_ui", lambda *_a, **_kw: ui)
 
     forced = CliRunner().invoke(main, ["--workspace", str(tmp_path), "init", "--force"])
 
@@ -1035,7 +1035,7 @@ def test_init_scaffolds_derived_docs_skeleton(tmp_path: Path):
     assert f.is_file()
     # The skeleton must parse as a VALID empty registry (`derived_docs: []` ->
     # ([], [])), NOT a malformed one.
-    from super_harness.core.doc_check import load_derived_docs
+    from keepsail.core.doc_check import load_derived_docs
 
     docs, errors = load_derived_docs(tmp_path)
     assert docs == []
@@ -1043,7 +1043,7 @@ def test_init_scaffolds_derived_docs_skeleton(tmp_path: Path):
 
 
 def test_init_writes_plan_paths_skeleton(tmp_path: Path):
-    from super_harness.cli.init import _skeleton_files
+    from keepsail.cli.init import _skeleton_files
 
     assert "plan-paths.yaml" in _skeleton_files()
 
@@ -1051,8 +1051,8 @@ def test_init_writes_plan_paths_skeleton(tmp_path: Path):
 def test_plan_paths_skeleton_survives_its_own_loader(tmp_path: Path):
     """Every shipped pattern must pass validation — one that fails silently ships
     a narrower allowance than the docs promise."""
-    from super_harness.cli.init import _skeleton_files
-    from super_harness.core.plan_paths import load_plan_paths
+    from keepsail.cli.init import _skeleton_files
+    from keepsail.core.plan_paths import load_plan_paths
 
     (tmp_path / ".harness").mkdir()
     (tmp_path / ".harness" / "plan-paths.yaml").write_text(
@@ -1072,7 +1072,7 @@ def test_skeleton_openspec_pattern_matches_the_files_openspec_watches(tmp_path: 
     the files the OpenSpec adapter emits plan_ready from."""
     from fnmatch import fnmatchcase
 
-    from super_harness.cli.init import _skeleton_files
+    from keepsail.cli.init import _skeleton_files
 
     patterns = yaml.safe_load(_skeleton_files()["plan-paths.yaml"])["plan_paths"]
     openspec = [p for p in patterns if p.startswith("openspec/")]
@@ -1090,8 +1090,8 @@ def test_init_idempotent_without_force(tmp_path: Path):
     r2 = runner.invoke(main, ["--workspace", str(tmp_path), "init"])
     assert r2.exit_code == 3  # EXIT_NO_CONFIG-style for already-init
     # Status is the primary recovery; force is explicitly a review/reconfigure path.
-    assert "Hint: Run `super-harness status`" in r2.stderr
-    assert "Use `super-harness init --force` to review and reconfigure it." in r2.stderr
+    assert "Hint: Run `keepsail status`" in r2.stderr
+    assert "Use `keepsail init --force` to review and reconfigure it." in r2.stderr
 
 
 def test_init_guided_existing_harness_uses_cohesive_status_first_recovery(
@@ -1102,11 +1102,11 @@ def test_init_guided_existing_harness_uses_cohesive_status_first_recovery(
     assert first.exit_code == 0, first.output
     capabilities = TerminalCapabilities(InteractionMode.GUIDED, False, True, 100)
     monkeypatch.setattr(
-        "super_harness.cli.init.detect_runtime_terminal_capabilities",
+        "keepsail.cli.init.detect_runtime_terminal_capabilities",
         lambda *_a, **_kw: capabilities,
     )
     monkeypatch.setattr(
-        "super_harness.cli.init.create_init_ui",
+        "keepsail.cli.init.create_init_ui",
         lambda *_a, **_kw: InteractiveInitUI(
             prompt_adapter=_GuidedAnswers(checkboxes=[], selects=[]),
             unicode=True,
@@ -1119,9 +1119,9 @@ def test_init_guided_existing_harness_uses_cohesive_status_first_recovery(
 
     assert repeated.exit_code == 3
     assert repeated.output.count("Already initialized") == 1
-    assert "Next: super-harness status" in repeated.output
-    assert "Review/reconfigure: super-harness init --force" in repeated.output
-    assert "Error: super-harness init" not in repeated.output
+    assert "Next: keepsail status" in repeated.output
+    assert "Review/reconfigure: keepsail init --force" in repeated.output
+    assert "Error: keepsail init" not in repeated.output
     _assert_single_guided_frame(repeated.output, "Already initialized")
 
 
@@ -1130,11 +1130,11 @@ def test_init_guided_success_has_one_completion_without_legacy_final_line(
 ) -> None:
     capabilities = TerminalCapabilities(InteractionMode.GUIDED, False, True, 100)
     monkeypatch.setattr(
-        "super_harness.cli.init.detect_runtime_terminal_capabilities",
+        "keepsail.cli.init.detect_runtime_terminal_capabilities",
         lambda *_a, **_kw: capabilities,
     )
     monkeypatch.setattr(
-        "super_harness.cli.init.create_init_ui",
+        "keepsail.cli.init.create_init_ui",
         lambda *_a, **_kw: InteractiveInitUI(
             prompt_adapter=_GuidedAnswers(checkboxes=[()], selects=["confirm"]),
             unicode=True,
@@ -1143,7 +1143,7 @@ def test_init_guided_success_has_one_completion_without_legacy_final_line(
         ),
     )
     monkeypatch.setattr(
-        "super_harness.cli.init.inspect_workspace",
+        "keepsail.cli.init.inspect_workspace",
         lambda request: inspect_workspace(request, executable_lookup=lambda _name: None),
     )
 
@@ -1159,7 +1159,7 @@ def test_init_guided_success_has_one_completion_without_legacy_final_line(
     assert result.output.count("◇  Harness configuration") == 1
     assert result.output.count("◇  Agent integrations") == 1
     assert result.output.count("◇  Repository guidance") == 1
-    assert "super-harness initialized at" not in result.output
+    assert "keepsail initialized at" not in result.output
     _assert_single_guided_frame(result.output, "Setup complete in ")
 
 
@@ -1168,11 +1168,11 @@ def test_init_guided_apply_failure_keeps_actionable_failure_and_one_recovery_clo
 ) -> None:
     capabilities = TerminalCapabilities(InteractionMode.GUIDED, False, True, 44)
     monkeypatch.setattr(
-        "super_harness.cli.init.detect_runtime_terminal_capabilities",
+        "keepsail.cli.init.detect_runtime_terminal_capabilities",
         lambda *_a, **_kw: capabilities,
     )
     monkeypatch.setattr(
-        "super_harness.cli.init.create_init_ui",
+        "keepsail.cli.init.create_init_ui",
         lambda *_a, **_kw: InteractiveInitUI(
             prompt_adapter=_GuidedAnswers(checkboxes=[()], selects=["confirm"]),
             unicode=True,
@@ -1181,11 +1181,11 @@ def test_init_guided_apply_failure_keeps_actionable_failure_and_one_recovery_clo
         ),
     )
     monkeypatch.setattr(
-        "super_harness.cli.init.inspect_workspace",
+        "keepsail.cli.init.inspect_workspace",
         lambda request: inspect_workspace(request, executable_lookup=lambda _name: None),
     )
     monkeypatch.setattr(
-        "super_harness.cli.init.inject_gitignore_block",
+        "keepsail.cli.init.inject_gitignore_block",
         lambda _path: (_ for _ in ()).throw(OSError("read-only repository guidance")),
     )
 
@@ -1199,7 +1199,7 @@ def test_init_guided_apply_failure_keeps_actionable_failure_and_one_recovery_clo
     assert "✗  Repository guidance:" in result.output
     assert "failed to write .gitignore" in compact
     assert result.output.count("Setup failed after ") == 1
-    assert "Recovery: super-harness init --force" in compact
+    assert "Recovery: keepsail init --force" in compact
     assert "outcome:" not in result.output
     _assert_single_guided_frame(result.output, "Setup failed after ")
 
@@ -1209,11 +1209,11 @@ def test_init_guided_apply_interrupt_closes_frame_after_recovery(
 ) -> None:
     capabilities = TerminalCapabilities(InteractionMode.GUIDED, False, True, 100)
     monkeypatch.setattr(
-        "super_harness.cli.init.detect_runtime_terminal_capabilities",
+        "keepsail.cli.init.detect_runtime_terminal_capabilities",
         lambda *_a, **_kw: capabilities,
     )
     monkeypatch.setattr(
-        "super_harness.cli.init.create_init_ui",
+        "keepsail.cli.init.create_init_ui",
         lambda *_a, **_kw: InteractiveInitUI(
             prompt_adapter=_GuidedAnswers(checkboxes=[], selects=["confirm"]),
             unicode=True,
@@ -1222,16 +1222,16 @@ def test_init_guided_apply_interrupt_closes_frame_after_recovery(
         ),
     )
     monkeypatch.setattr(
-        "super_harness.cli.init.inspect_workspace",
+        "keepsail.cli.init.inspect_workspace",
         lambda request: inspect_workspace(
             request,
             executable_lookup=lambda name: (
-                f"/abs/{name}" if name in {"super-harness-hook", "super-harness"} else None
+                f"/abs/{name}" if name in {"keepsail-hook", "keepsail"} else None
             ),
         ),
     )
     monkeypatch.setattr(
-        "super_harness.cli.init.install_agent_integration",
+        "keepsail.cli.init.install_agent_integration",
         lambda *_a, **_kw: (_ for _ in ()).throw(KeyboardInterrupt()),
     )
 
@@ -1241,15 +1241,15 @@ def test_init_guided_apply_interrupt_closes_frame_after_recovery(
     )
 
     assert result.exit_code == 1, result.output
-    assert "Recovery: super-harness init --force" in result.output
-    _assert_single_guided_frame(result.output, "Recovery: super-harness init --force")
+    assert "Recovery: keepsail init --force" in result.output
+    _assert_single_guided_frame(result.output, "Recovery: keepsail init --force")
 
 
 def test_init_non_guided_success_preserves_legacy_final_line(tmp_path: Path) -> None:
     result = CliRunner().invoke(main, ["--workspace", str(tmp_path), "init"])
 
     assert result.exit_code == 0, result.output
-    assert result.output.count(f"super-harness initialized at {tmp_path / '.harness'}") == 1
+    assert result.output.count(f"keepsail initialized at {tmp_path / '.harness'}") == 1
 
 
 def test_init_force_overwrites(tmp_path: Path):
@@ -1339,7 +1339,7 @@ def test_init_non_tty_does_not_auto_install_detected_integration(
 ) -> None:
     """Detection informs the TTY wizard; non-TTY init requires explicit flags."""
     monkeypatch.setattr(
-        "super_harness.adapters.agent.claude_code.shutil.which",
+        "keepsail.adapters.agent.claude_code.shutil.which",
         lambda name: f"/abs/bin/{name}",
     )
     (tmp_path / ".claude").mkdir()
@@ -1357,14 +1357,14 @@ def test_init_selected_integration_registry_error_fails_actionably(
 ) -> None:
     """An explicit integration selection must not hide partial installation."""
     monkeypatch.setattr(
-        "super_harness.adapters.agent.claude_code.shutil.which",
+        "keepsail.adapters.agent.claude_code.shutil.which",
         lambda name: f"/abs/bin/{name}",
     )
 
     def _raise(*args: object, **kwargs: object) -> None:
         raise yaml.YAMLError("boom")
 
-    monkeypatch.setattr("super_harness.adapters.install._persist_install_entry", _raise)
+    monkeypatch.setattr("keepsail.adapters.install._persist_install_entry", _raise)
     runner = CliRunner()
     result = runner.invoke(
         main,
@@ -1380,7 +1380,7 @@ def test_init_selected_integration_missing_hook_fails_actionably(
 ) -> None:
     """Explicit integration selection fails when its hook cannot be installed."""
     monkeypatch.setattr(
-        "super_harness.adapters.agent.claude_code.shutil.which",
+        "keepsail.adapters.agent.claude_code.shutil.which",
         lambda name: None,
     )
     runner = CliRunner()
@@ -1425,19 +1425,19 @@ def test_init_writes_agents_md_fresh_repo(tmp_path: Path):
     assert agents.exists()
     text = agents.read_text()
     # version-stamped begin marker
-    assert f"<!-- super-harness section begin · v{__version__} · DO NOT EDIT MANUALLY -->" in text
-    assert "<!-- super-harness section end -->" in text
+    assert f"<!-- keepsail section begin · v{__version__} · DO NOT EDIT MANUALLY -->" in text
+    assert "<!-- keepsail section end -->" in text
     # plain framework block injected in place of the framework placeholder
     assert PlainAdapter().agents_md_subsection().rstrip("\n") in text
     # no-agent anchor present
-    assert "<!-- super-harness no-agent-adapter-installed -->" in text
+    assert "<!-- keepsail no-agent-adapter-installed -->" in text
     # zero literal placeholders remain
     assert "[FRAMEWORK_SECTION_AUTO_INSERTED]" not in text
     assert "[AGENT_SECTION_AUTO_INSERTED]" not in text
 
 
 def test_init_preserves_existing_agents_md_user_content(tmp_path: Path):
-    """Existing AGENTS.md with user content (no super-harness section): init
+    """Existing AGENTS.md with user content (no keepsail section): init
     appends our section while preserving the user's content verbatim."""
     agents = tmp_path / "AGENTS.md"
     user_content = "# My project\n\nSome existing agent guidance.\n"
@@ -1446,22 +1446,22 @@ def test_init_preserves_existing_agents_md_user_content(tmp_path: Path):
     assert r.exit_code == 0
     text = agents.read_text()
     assert user_content.rstrip() in text
-    assert f"<!-- super-harness section begin · v{__version__} · DO NOT EDIT MANUALLY -->" in text
+    assert f"<!-- keepsail section begin · v{__version__} · DO NOT EDIT MANUALLY -->" in text
     assert PlainAdapter().agents_md_subsection().rstrip("\n") in text
 
 
 def test_init_force_does_not_duplicate_agents_md_section(tmp_path: Path):
-    """Re-running init with --force re-renders exactly one super-harness
+    """Re-running init with --force re-renders exactly one keepsail
     section (no duplicate blocks)."""
     runner = CliRunner()
     runner.invoke(main, ["--workspace", str(tmp_path), "init"])
     r2 = runner.invoke(main, ["--workspace", str(tmp_path), "init", "--force"])
     assert r2.exit_code == 0
     text = (tmp_path / "AGENTS.md").read_text()
-    assert text.count("<!-- super-harness section begin ") == 1
-    assert text.count("<!-- super-harness section end -->") == 1
+    assert text.count("<!-- keepsail section begin ") == 1
+    assert text.count("<!-- keepsail section end -->") == 1
     # framework block still present exactly once after re-render
-    assert text.count("<!-- super-harness framework: plain -->") == 1
+    assert text.count("<!-- keepsail framework: plain -->") == 1
 
 
 def test_init_does_not_write_agents_md_on_error_path(tmp_path: Path):
@@ -1487,7 +1487,7 @@ def test_init_agents_md_write_failure_exits_generic_with_format_error(tmp_path: 
 
     assert r.exit_code == 1, r.output
     assert "Traceback" not in r.stderr, r.stderr
-    assert "super-harness init:" in r.stderr, r.stderr
+    assert "keepsail init:" in r.stderr, r.stderr
     assert "failed to write AGENTS.md" in r.stderr, r.stderr
     assert "Hint:" in r.stderr, r.stderr
     # .harness/ was scaffolded before the AGENTS.md write — it must survive so the
@@ -1497,19 +1497,19 @@ def test_init_agents_md_write_failure_exits_generic_with_format_error(tmp_path: 
 
 def test_init_force_reinjects_installed_adapters(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """`init` → `adapter install claude-code` → `init --force` re-renders the
-    AGENTS.md super-harness section AND re-injects every installed adapter's
+    AGENTS.md keepsail section AND re-injects every installed adapter's
     subsection, so a re-render never loses adapter guidance (full --force loop
     closure). The adapters.yaml entry + the settings.local.json hooks stay intact and
     are NOT touched by init.
 
-    `adapter install claude-code` resolves `super-harness-hook` via
+    `adapter install claude-code` resolves `keepsail-hook` via
     ``shutil.which``; we monkeypatch it to a fake absolute path so the real
     binary need not be on PATH — matching the pattern in
     ``tests/integration/cli/test_adapter.py``.
     """
     runner = CliRunner()
-    no_agent_anchor = "<!-- super-harness no-agent-adapter-installed -->"
-    claude_begin = "<!-- super-harness agent: claude-code -->"
+    no_agent_anchor = "<!-- keepsail no-agent-adapter-installed -->"
+    claude_begin = "<!-- keepsail agent: claude-code -->"
 
     # init → real AGENTS.md (with the no-agent anchor) exists.
     assert runner.invoke(main, ["--workspace", str(tmp_path), "init"]).exit_code == 0
@@ -1536,8 +1536,8 @@ def test_init_force_reinjects_installed_adapters(tmp_path: Path, monkeypatch: py
     assert claude_begin in text
     assert text.count(claude_begin) == 1
     assert no_agent_anchor not in text
-    assert "<!-- super-harness section begin " in text
-    assert text.count("<!-- super-harness framework: plain -->") == 1
+    assert "<!-- keepsail section begin " in text
+    assert text.count("<!-- keepsail framework: plain -->") == 1
 
     # 2) adapters.yaml STILL lists claude-code (init never touches it).
     adapters = yaml.safe_load((tmp_path / ".harness" / "adapters.yaml").read_text())
@@ -1600,9 +1600,9 @@ def test_init_force_corrupt_adapters_yaml_emits_advisory_and_exits_ok(
 
     # Base AGENTS.md section is still valid (init did not crash on the bad yaml).
     text = (tmp_path / "AGENTS.md").read_text()
-    assert "<!-- super-harness section begin " in text
-    assert text.count("<!-- super-harness framework: plain -->") == 1
-    assert "<!-- super-harness no-agent-adapter-installed -->" in text
+    assert "<!-- keepsail section begin " in text
+    assert text.count("<!-- keepsail framework: plain -->") == 1
+    assert "<!-- keepsail no-agent-adapter-installed -->" in text
 
 
 def test_init_fresh_does_not_reinject_or_warn(tmp_path: Path):
@@ -1613,8 +1613,8 @@ def test_init_fresh_does_not_reinject_or_warn(tmp_path: Path):
     assert "couldn't re-inject" not in r.stderr
     assert "was reset" not in r.stderr
     text = (tmp_path / "AGENTS.md").read_text()
-    assert "<!-- super-harness no-agent-adapter-installed -->" in text
-    assert "<!-- super-harness agent:" not in text
+    assert "<!-- keepsail no-agent-adapter-installed -->" in text
+    assert "<!-- keepsail agent:" not in text
 
 
 # --------------------------------------------------------------------------- #
@@ -1622,8 +1622,8 @@ def test_init_fresh_does_not_reinject_or_warn(tmp_path: Path):
 # --------------------------------------------------------------------------- #
 
 
-_GITIGNORE_BEGIN = "# >>> super-harness gitignore (do not edit between markers)"
-_GITIGNORE_END = "# <<< super-harness gitignore"
+_GITIGNORE_BEGIN = "# >>> keepsail gitignore (do not edit between markers)"
+_GITIGNORE_END = "# <<< keepsail gitignore"
 _CANONICAL_GITIGNORE_PATHS = (
     ".harness/state.yaml",
     ".harness/events.jsonl",
@@ -1651,7 +1651,7 @@ def test_init_writes_gitignore_block_fresh_repo(tmp_path: Path):
 
 
 def test_init_preserves_existing_gitignore_user_content(tmp_path: Path):
-    """Existing .gitignore (no super-harness block): init appends the block
+    """Existing .gitignore (no keepsail block): init appends the block
     while preserving the user's content verbatim."""
     gitignore = tmp_path / ".gitignore"
     user_content = "# User-written\n*.pyc\nnode_modules/\n.env\n"
@@ -1683,7 +1683,7 @@ def test_init_force_does_not_duplicate_gitignore_block(tmp_path: Path):
 
 
 def test_init_gitignore_multiple_blocks_fails_loud(tmp_path: Path):
-    """An existing .gitignore with ≥2 super-harness marker blocks fails loud
+    """An existing .gitignore with ≥2 keepsail marker blocks fails loud
     (never splices) and leaves the file untouched (Phase 7/9/12 marker
     discipline)."""
     gitignore = tmp_path / ".gitignore"
@@ -1701,7 +1701,7 @@ def test_init_gitignore_multiple_blocks_fails_loud(tmp_path: Path):
     r = CliRunner().invoke(main, ["--workspace", str(tmp_path), "init"])
     assert r.exit_code == 1, r.output
     assert "Traceback" not in r.stderr, r.stderr
-    assert "super-harness init:" in r.stderr
+    assert "keepsail init:" in r.stderr
     # File left untouched (never spliced).
     assert gitignore.read_text() == before
 
@@ -1715,8 +1715,8 @@ def test_every_skeleton_file_is_announced_in_the_frozen_plan() -> None:
     happened when `plan-paths.yaml` was added, so pin the invariant rather than the
     one file.
     """
-    from super_harness.cli.init import _skeleton_files
-    from super_harness.cli.init_plan import _REVIEW_PATHS, _SKELETON_PATHS
+    from keepsail.cli.init import _skeleton_files
+    from keepsail.cli.init_plan import _REVIEW_PATHS, _SKELETON_PATHS
 
     announced = {p.as_posix() for p in (*_SKELETON_PATHS, *_REVIEW_PATHS)}
     written = {f".harness/{name}" for name in _skeleton_files()}
@@ -1727,7 +1727,7 @@ def test_init_emits_per_role_round_budgets(tmp_path: Path):
     """A freshly init-ed repo's governance must load without error and carry the two
     different budgets. The old key is a hard error, so a generator left behind would
     emit a config that fails its own first governance load."""
-    from super_harness.engineering.review_governance import load_review_governance
+    from keepsail.engineering.review_governance import load_review_governance
 
     r = CliRunner().invoke(main, ["--workspace", str(tmp_path), "init"])
     assert r.exit_code == 0, r.output

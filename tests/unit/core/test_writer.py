@@ -8,9 +8,9 @@ from pathlib import Path
 
 import pytest
 
-from super_harness.core.events import Actor, Event
-from super_harness.core.ulid import new_event_id
-from super_harness.core.writer import EmitPreconditionError, EventWriter
+from keepsail.core.events import Actor, Event
+from keepsail.core.ulid import new_event_id
+from keepsail.core.writer import EmitPreconditionError, EventWriter
 
 
 def _make_event(change_id: str, event_type: str = "intent_declared") -> Event:
@@ -83,9 +83,9 @@ def test_writer_multi_process_append_no_loss(tmp_path: Path):
     worker_script = tmp_path / "worker.py"
     worker_script.write_text(textwrap.dedent(f"""
         import sys
-        from super_harness.core.events import Actor, Event
-        from super_harness.core.ulid import new_event_id
-        from super_harness.core.writer import EventWriter
+        from keepsail.core.events import Actor, Event
+        from keepsail.core.ulid import new_event_id
+        from keepsail.core.writer import EventWriter
 
         wid = sys.argv[1]
         w = EventWriter(r"{events_file}")
@@ -181,7 +181,7 @@ def test_writer_rejects_non_string_timestamp(tmp_path: Path):
     import dataclasses
     from datetime import datetime, timezone
 
-    from super_harness.core.writer import EmitPreconditionError
+    from keepsail.core.writer import EmitPreconditionError
 
     events_file = tmp_path / "events.jsonl"
     w = EventWriter(events_file)
@@ -197,7 +197,7 @@ def test_writer_rejects_non_string_timestamp(tmp_path: Path):
 # root, "events")) and that the lock is engaged even on the skip_validation path.
 
 def test_writer_lock_path_is_events_lock_sibling(tmp_path: Path):
-    from super_harness.core.paths import lock_path
+    from keepsail.core.paths import lock_path
 
     events_file = tmp_path / ".harness" / "events.jsonl"
     w = EventWriter(events_file)

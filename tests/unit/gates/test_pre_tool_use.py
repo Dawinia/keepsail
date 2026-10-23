@@ -1,9 +1,9 @@
 import pytest
 
-from super_harness.core.state import ChangeState
-from super_harness.gates import GateDecision, ProposedAction
-from super_harness.gates.decisions import PRE_TOOL_USE_DECISIONS
-from super_harness.gates.pre_tool_use import PreToolUseGate
+from keepsail.core.state import ChangeState
+from keepsail.gates import GateDecision, ProposedAction
+from keepsail.gates.decisions import PRE_TOOL_USE_DECISIONS
+from keepsail.gates.pre_tool_use import PreToolUseGate
 
 
 def _cs(state: str) -> ChangeState:
@@ -189,7 +189,7 @@ def test_traversal_out_of_scratch_resolves_and_blocks(tmp_path):
     # the gate blocks an already-resolved string. A raw `..` traversal out of
     # the scratch tree must canonicalize to its real target BEFORE the gate
     # ever sees it, and that real target (the gate's own kill switch) blocks.
-    from super_harness.core.paths import canonical_relpath
+    from keepsail.core.paths import canonical_relpath
 
     rp = canonical_relpath(tmp_path, ".harness/scratch/my-change/../../gate-disabled")
     assert rp == ".harness/gate-disabled"  # canonicalization did its job

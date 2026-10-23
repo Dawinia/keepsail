@@ -14,7 +14,7 @@ Covers per OPEN-ITEMS S6 fixup:
 """
 from __future__ import annotations
 
-from super_harness.cli.verify_render import render_failure_summary
+from keepsail.cli.verify_render import render_failure_summary
 
 
 def _row(

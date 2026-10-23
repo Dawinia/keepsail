@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from super_harness.core.review_checklist import (
+from keepsail.core.review_checklist import (
     CHECKLIST_DEFINITIONS,
     DEFAULT_CHECKLISTS,
     ReviewChecklistError,

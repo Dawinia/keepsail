@@ -4,9 +4,9 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from super_harness.cli import main
-from super_harness.core.decision_check import fingerprint_file
-from super_harness.core.decisions import (
+from keepsail.cli import main
+from keepsail.core.decision_check import fingerprint_file
+from keepsail.core.decisions import (
     Decision,
     compute_body_hash,
     decisions_dir,
@@ -131,7 +131,7 @@ def test_new_refuses_casefold_collision(tmp_path):
 
 def test_ratify_stamps_identity_and_time(tmp_path, monkeypatch):
     root = _init(tmp_path)
-    monkeypatch.setenv("SUPER_HARNESS_ACTOR", "alice@example.com")
+    monkeypatch.setenv("KEEPSAIL_ACTOR", "alice@example.com")
     CliRunner().invoke(main, ["--workspace", str(root), "decision", "new",
                               "d-a", "--text", "x"])
     r = CliRunner().invoke(main, ["--workspace", str(root), "decision", "ratify", "d-a"])
@@ -168,14 +168,14 @@ def test_ratify_rejects_superseded_and_retired(tmp_path):
 
 def test_reratify_restamps_all_three(tmp_path, monkeypatch):
     root = _init(tmp_path)
-    monkeypatch.setenv("SUPER_HARNESS_ACTOR", "alice@example.com")
+    monkeypatch.setenv("KEEPSAIL_ACTOR", "alice@example.com")
     CliRunner().invoke(main, ["--workspace", str(root), "decision", "new", "d-a", "--text", "v1"])
     CliRunner().invoke(main, ["--workspace", str(root), "decision", "ratify", "d-a"])
     first = parse_decision_file(root / "docs/decisions/d-a.md")
     # edit the body, then re-ratify under a different actor → fresh hash + identity + time
     p = root / "docs/decisions/d-a.md"
     p.write_text(p.read_text().replace("v1", "v2"), encoding="utf-8")
-    monkeypatch.setenv("SUPER_HARNESS_ACTOR", "bob@example.com")
+    monkeypatch.setenv("KEEPSAIL_ACTOR", "bob@example.com")
     r = CliRunner().invoke(main, ["--workspace", str(root), "decision", "ratify", "d-a"])
     assert r.exit_code == 0, r.output
     second = parse_decision_file(p)
@@ -710,7 +710,7 @@ def test_ratify_does_not_auto_reconcile(tmp_path):
     CliRunner().invoke(main, ["--workspace", str(root), "decision", "new", "d-t2",
                               "--text", "Body.\n\n```review\ncrit\n```"])
     CliRunner().invoke(main, ["--workspace", str(root), "decision", "ratify", "d-t2"])
-    from super_harness.core.decision_check import run_check
+    from keepsail.core.decision_check import run_check
     res = run_check(root)
     assert "d-t2" in res.unreconciled_tier2  # ratify did NOT baseline it
 

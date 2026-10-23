@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from super_harness.core.plan_paths import DEFAULT_PLAN_PATHS, load_plan_paths
+from keepsail.core.plan_paths import DEFAULT_PLAN_PATHS, load_plan_paths
 
 
 def _write(root: Path, body: str) -> None:
@@ -90,7 +90,7 @@ def test_default_plan_paths_matches_the_shipped_skeleton() -> None:
     """
     import yaml
 
-    from super_harness.cli.init import _skeleton_files
+    from keepsail.cli.init import _skeleton_files
 
     shipped = yaml.safe_load(_skeleton_files()["plan-paths.yaml"])["plan_paths"]
     assert list(DEFAULT_PLAN_PATHS) == shipped

@@ -1,4 +1,4 @@
-"""Integration tests for the Stop-hook authoring-time path of `super-harness-hook`.
+"""Integration tests for the Stop-hook authoring-time path of `keepsail-hook`.
 
 Invokes the real console script (like `test_hook_entry.py`), feeding a Claude Code
 Stop payload on stdin. The path is non-blocking (always exit 0), loop-safe
@@ -13,7 +13,7 @@ from pathlib import Path
 
 def _run_stop(cwd: Path, payload: dict) -> subprocess.CompletedProcess:
     return subprocess.run(
-        ["super-harness-hook", "--agent", "claude-code", "--event", "stop"],
+        ["keepsail-hook", "--agent", "claude-code", "--event", "stop"],
         input=json.dumps(payload),
         capture_output=True,
         text=True,
@@ -80,7 +80,7 @@ def test_stop_clean_workspace_allows(tmp_path: Path):
 def test_stop_malformed_stdin_is_silent(tmp_path: Path):
     _workspace_with_failing_opted_check(tmp_path)
     r = subprocess.run(
-        ["super-harness-hook", "--agent", "claude-code", "--event", "stop"],
+        ["keepsail-hook", "--agent", "claude-code", "--event", "stop"],
         input="not json at all", capture_output=True, text=True, cwd=str(tmp_path),
     )
     assert r.returncode == 0  # fail-open on malformed stdin
@@ -90,7 +90,7 @@ def test_stop_malformed_stdin_is_silent(tmp_path: Path):
 # --- Codex rides the SAME agnostic _run_stop orchestrator --------------------
 def _run_codex_stop(cwd: Path, payload: dict) -> subprocess.CompletedProcess:
     return subprocess.run(
-        ["super-harness-hook", "--agent", "codex", "--event", "stop"],
+        ["keepsail-hook", "--agent", "codex", "--event", "stop"],
         input=json.dumps(payload), capture_output=True, text=True, cwd=str(cwd),
     )
 

@@ -1,7 +1,11 @@
 # Overview
 
-super-harness is an open-source, CI-first, framework-agnostic, agent-agnostic
-harness that makes AI coding deterministic and reliable.
+Keepsail is a product-work control layer across agent harnesses. It keeps effective
+human commitments and long-lived product knowledge consequential across continuous
+work, enables autonomy within approved bounds, and preserves continuity and trace.
+The [product architecture](product-architecture.md) governs these meanings; the
+separate [coverage report](product-architecture-coverage.md) records implementation
+gaps. Existing hooks and CI are bounded control surfaces within that product.
 
 ## The problem
 
@@ -12,11 +16,11 @@ said was out of bounds, and nothing stops it. Human review catches some of this,
 but it is late, it doesn't scale to agent-sized diffs, and vigilance drops after
 a few good experiences.
 
-## What super-harness adds
+## What keepsail adds
 
 A harness embeds those constraints in the environment itself — hooks, CI, git,
 processes — so violations are blocked deterministically, not just discouraged.
-super-harness sits on top of your existing spec framework and agent; it is not a
+keepsail sits on top of your existing spec framework and agent; it is not a
 replacement for either.
 
 ## What v0.1 ships
@@ -41,7 +45,7 @@ replacement for either.
 - **Derivable-doc drift gate** — regenerates docs that have a generator (CLI
   reference, state-machine diagram) and blocks if the committed copy drifted.
   Prose docs have no generator and are out of scope by design.
-- **Bundled CI workflow** — `super-harness init --setup-github` deploys a GitHub
+- **Bundled CI workflow** — `keepsail init --setup-github` deploys a GitHub
   Actions workflow and a PR template. All GitHub operations go through the `gh`
   CLI — no webhooks, no PATs, no bot account.
 
@@ -50,13 +54,13 @@ internals see [Architecture](ARCHITECTURE.md).
 
 ## Relationship to neighboring tools
 
-super-harness is complementary to, not a replacement for, the spec-driven and
+keepsail is complementary to, not a replacement for, the spec-driven and
 agent-wrapping projects in the ecosystem:
 
 | Project | Relationship |
 |---|---|
-| GitHub Spec Kit / OpenSpec | Complementary — super-harness is an upper CI control layer that can stack on top. |
+| GitHub Spec Kit / OpenSpec | Complementary — Keepsail is a product-work control layer above execution harnesses and specification frameworks. |
 | Superpowers (obra) | Complementary — ships as a built-in framework adapter (marker-driven, version-agnostic discovery), or run in plain mode. |
-| Archon | Different axis — Archon wraps agents (agent-wrapper); super-harness is cross-cutting and CI-first. |
-| SpecFact | Complementary — SpecFact adds runtime contracts to OpenSpec specifically; super-harness provides cross-framework lifecycle above. |
-| Anthropic Managed Agents | Closed-source hosted; super-harness is open-source self-hosted. |
+| Archon | Different axis — Archon wraps agents; Keepsail supplies cross-cutting product-work control. |
+| SpecFact | Complementary — SpecFact adds runtime contracts to OpenSpec specifically; keepsail provides cross-framework lifecycle above. |
+| Anthropic Managed Agents | Closed-source hosted; keepsail is open-source self-hosted. |

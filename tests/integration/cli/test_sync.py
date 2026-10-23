@@ -1,10 +1,10 @@
-"""Integration tests for `super-harness sync` (Phase 9 batch late).
+"""Integration tests for `keepsail sync` (Phase 9 batch late).
 
-`sync` re-renders the AGENTS.md "super-harness section" (version stamp + every
+`sync` re-renders the AGENTS.md "keepsail section" (version stamp + every
 installed adapter's subsection) WITHOUT re-running `init` (it never touches
 `.harness/`) and WITHOUT modifying user content outside the begin/end markers.
 It is the re-render-without-reinit path; the render logic itself is shared with
-`init` (`engineering.agents_md_render.render_super_harness_section`).
+`init` (`engineering.agents_md_render.render_keepsail_section`).
 
 Surface under test (cli-command-surface §sync; eng-integration §2.2 / §3.2):
 
@@ -15,7 +15,7 @@ Surface under test (cli-command-surface §sync; eng-integration §2.2 / §3.2):
 
 Drives the root ``main`` group via Click's ``CliRunner`` (mirroring
 ``test_init.py`` / ``test_adapter.py``). ``shutil.which`` is monkeypatched for
-the agent-install legs so the real ``super-harness-hook`` binary need not be on
+the agent-install legs so the real ``keepsail-hook`` binary need not be on
 PATH.
 """
 
@@ -27,15 +27,15 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
-from super_harness.cli import main
-from super_harness.version import __version__
+from keepsail.cli import main
+from keepsail.version import __version__
 
-_FAKE_HOOK = "/usr/local/bin/super-harness-hook"
+_FAKE_HOOK = "/usr/local/bin/keepsail-hook"
 _VERSION_STAMP = (
-    f"<!-- super-harness section begin · v{__version__} · DO NOT EDIT MANUALLY -->"
+    f"<!-- keepsail section begin · v{__version__} · DO NOT EDIT MANUALLY -->"
 )
-_CLAUDE_BEGIN = "<!-- super-harness agent: claude-code -->"
-_NO_AGENT = "<!-- super-harness no-agent-adapter-installed -->"
+_CLAUDE_BEGIN = "<!-- keepsail agent: claude-code -->"
+_NO_AGENT = "<!-- keepsail no-agent-adapter-installed -->"
 
 
 def _agents_md(ws: Path) -> Path:
@@ -67,7 +67,7 @@ def test_sync_no_harness_exits_no_config(tmp_path: Path) -> None:
     r = CliRunner().invoke(main, ["--workspace", str(tmp_path), "sync"])
     assert r.exit_code == 3, r.output
     assert "Traceback" not in r.stderr
-    assert "super-harness sync:" in r.stderr
+    assert "keepsail sync:" in r.stderr
 
 
 # --------------------------------------------------------------------------- #
@@ -93,7 +93,7 @@ def test_sync_rerenders_version_stamp_and_preserves_user_content(tmp_path: Path)
     assert _VERSION_STAMP in after
     # User content outside the markers byte-preserved.
     assert after.startswith(user_tail)
-    assert after.count("<!-- super-harness section begin ") == 1
+    assert after.count("<!-- keepsail section begin ") == 1
 
     # Idempotent: a second sync produces byte-identical output.
     r2 = runner.invoke(main, ["--workspace", str(tmp_path), "--quiet", "sync"])
@@ -107,7 +107,7 @@ def test_sync_agents_md_is_agents_only_no_arg_also_does_gitignore(
     """`--agents-md` re-renders AGENTS.md but does NOT touch the gitignore block;
     no-arg `sync` refreshes BOTH. (v0.1 placeholder `--agents-md == no-arg`
     tightened to a real scope.)"""
-    from super_harness.engineering.gitignore_injector import _render_block
+    from keepsail.engineering.gitignore_injector import _render_block
 
     runner = CliRunner()
     assert _init(runner, tmp_path).exit_code == 0
@@ -116,9 +116,9 @@ def test_sync_agents_md_is_agents_only_no_arg_also_does_gitignore(
     # Drift the gitignore block (stale, NON-canonical body).
     gi = _gitignore(tmp_path)
     gi.write_text(
-        "# >>> super-harness gitignore (do not edit between markers)\n"
+        "# >>> keepsail gitignore (do not edit between markers)\n"
         ".harness/OLD-stale-line\n"
-        "# <<< super-harness gitignore\n"
+        "# <<< keepsail gitignore\n"
     )
 
     # --agents-md leaves the (drifted) gitignore block alone.
@@ -229,7 +229,7 @@ def test_sync_absent_agents_md_regenerates_without_prompt(tmp_path: Path) -> Non
 
 
 def test_sync_present_without_section_appends_no_prompt(tmp_path: Path) -> None:
-    """AGENTS.md present with ONLY user content (no super-harness section) → the
+    """AGENTS.md present with ONLY user content (no keepsail section) → the
     section is appended, user content preserved, NO prompt."""
     runner = CliRunner()
     (tmp_path / ".harness").mkdir()
@@ -365,14 +365,14 @@ def test_sync_adapter_beats_agents_md_flag(
 
 
 def test_sync_duplicate_section_surfaces_clean_error(tmp_path: Path) -> None:
-    """Two super-harness outer blocks → the underlying AgentsMdInjectionError is
+    """Two keepsail outer blocks → the underlying AgentsMdInjectionError is
     surfaced through the envelope (exit 1, "manual cleanup" message, NO traceback,
     file left untouched). `--yes` skips the prompt so we reach the render."""
     (tmp_path / ".harness").mkdir()
     block = (
-        "<!-- super-harness section begin · v0.0.1 · DO NOT EDIT MANUALLY -->\n"
+        "<!-- keepsail section begin · v0.0.1 · DO NOT EDIT MANUALLY -->\n"
         "old\n"
-        "<!-- super-harness section end -->\n"
+        "<!-- keepsail section end -->\n"
     )
     doubled = block + "\n" + block
     _agents_md(tmp_path).write_text(doubled)
@@ -412,7 +412,7 @@ def test_sync_orphan_begin_marker_no_data_loss(tmp_path: Path) -> None:
     (tmp_path / ".harness").mkdir()
     original = (
         "# My project\n\n"
-        "<!-- super-harness section begin · v0.0.1 · DO NOT EDIT MANUALLY -->\n"
+        "<!-- keepsail section begin · v0.0.1 · DO NOT EDIT MANUALLY -->\n"
         "IMPORTANT user notes that must survive\n"
     )
     _agents_md(tmp_path).write_text(original)
@@ -436,7 +436,7 @@ def test_sync_unreadable_agents_md_surfaces_clean_error(tmp_path: Path) -> None:
     r = CliRunner().invoke(main, ["--workspace", str(tmp_path), "sync"])
     assert r.exit_code == 1, r.output
     assert "Traceback" not in r.stderr
-    assert "super-harness sync:" in r.stderr
+    assert "keepsail sync:" in r.stderr
 
 
 def test_sync_non_utf8_agents_md_surfaces_clean_error(tmp_path: Path) -> None:
@@ -445,8 +445,8 @@ def test_sync_non_utf8_agents_md_surfaces_clean_error(tmp_path: Path) -> None:
     --yes write path (UnicodeDecodeError is a ValueError, not an OSError)."""
     (tmp_path / ".harness").mkdir()
     raw = (
-        b"<!-- super-harness section begin \xff v0.0.1 \xff DO NOT EDIT MANUALLY -->\n"
-        b"x\n<!-- super-harness section end -->\n"
+        b"<!-- keepsail section begin \xff v0.0.1 \xff DO NOT EDIT MANUALLY -->\n"
+        b"x\n<!-- keepsail section end -->\n"
     )
     (tmp_path / "AGENTS.md").write_bytes(raw)
 
@@ -500,7 +500,7 @@ def test_sync_full_lifecycle_init_install_sync(
     assert _CLAUDE_BEGIN in text
     assert text.count(_CLAUDE_BEGIN) == 1
     assert _NO_AGENT not in text
-    assert "<!-- super-harness framework: plain -->" in text
+    assert "<!-- keepsail framework: plain -->" in text
 
 
 # --------------------------------------------------------------------------- #
@@ -511,7 +511,7 @@ def test_sync_full_lifecycle_init_install_sync(
 def test_sync_gitignore_refreshes_block_in_place(tmp_path: Path) -> None:
     """`sync --gitignore` re-renders the managed block when it has drifted,
     preserving user content outside the markers and leaving AGENTS.md untouched."""
-    from super_harness.engineering.gitignore_injector import _render_block
+    from keepsail.engineering.gitignore_injector import _render_block
 
     runner = CliRunner()
     assert _init(runner, tmp_path).exit_code == 0
@@ -519,9 +519,9 @@ def test_sync_gitignore_refreshes_block_in_place(tmp_path: Path) -> None:
     # line, keeping the markers; add user content outside the markers.
     gi = _gitignore(tmp_path)
     gi.write_text(
-        "# >>> super-harness gitignore (do not edit between markers)\n"
+        "# >>> keepsail gitignore (do not edit between markers)\n"
         ".harness/OLD-stale-line\n"  # non-canonical so a no-op bug can't pass
-        "# <<< super-harness gitignore\n"
+        "# <<< keepsail gitignore\n"
         "my-own-ignore/\n"
     )
     agents_before = _agents_md(tmp_path).read_text()
@@ -551,7 +551,7 @@ def test_sync_gitignore_creates_block_when_absent(tmp_path: Path) -> None:
     )
     assert r.exit_code == 0, r.output
     text = _gitignore(tmp_path).read_text()
-    assert "# >>> super-harness gitignore" in text
+    assert "# >>> keepsail gitignore" in text
     assert ".claude/settings.local.json" in text
 
 

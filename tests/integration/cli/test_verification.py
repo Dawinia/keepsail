@@ -1,6 +1,6 @@
 """Integration tests for the `verification register` CLI (Task 10.5).
 
-Covers the new ``super-harness verification register <adapter-name> <yaml-file>``
+Covers the new ``keepsail verification register <adapter-name> <yaml-file>``
 surface that merges externally-defined checks into ``.harness/verification.yaml``'s
 ``adapter_provided`` region via the SHARED conflict-checked merge helper:
 
@@ -16,7 +16,7 @@ from pathlib import Path
 import yaml
 from click.testing import CliRunner
 
-from super_harness.cli import main
+from keepsail.cli import main
 
 
 def _verification_yaml(ws: Path) -> Path:
@@ -131,7 +131,7 @@ def test_register_conflict_exits_validation_two(tmp_path: Path) -> None:
 
     assert r.exit_code == 2, r.output
     assert "Traceback" not in r.stderr, r.stderr
-    assert "super-harness verification register:" in r.stderr, r.stderr
+    assert "keepsail verification register:" in r.stderr, r.stderr
     assert "shared" in r.stderr, r.stderr
     # Conflicting row untouched (rejected before any partial merge).
     assert _adapter_provided(tmp_path) == [
@@ -167,7 +167,7 @@ def test_register_no_harness_exits_no_config(tmp_path: Path) -> None:
     r = _run(tmp_path, "register", "my-adapter", str(cf))
 
     assert r.exit_code == 3, r.output
-    assert "super-harness verification register:" in r.stderr
+    assert "keepsail verification register:" in r.stderr
 
 
 def test_register_missing_file_errors_clean(tmp_path: Path) -> None:
@@ -177,7 +177,7 @@ def test_register_missing_file_errors_clean(tmp_path: Path) -> None:
 
     assert r.exit_code == 1, r.output
     assert "Traceback" not in r.stderr, r.stderr
-    assert "super-harness verification register:" in r.stderr, r.stderr
+    assert "keepsail verification register:" in r.stderr, r.stderr
 
 
 def test_register_wrong_shape_file_errors_clean(tmp_path: Path) -> None:
@@ -188,7 +188,7 @@ def test_register_wrong_shape_file_errors_clean(tmp_path: Path) -> None:
     r = _run(tmp_path, "register", "my-adapter", str(cf))
 
     assert r.exit_code == 1, r.output
-    assert "super-harness verification register:" in r.stderr, r.stderr
+    assert "keepsail verification register:" in r.stderr, r.stderr
 
 
 def test_register_corrupt_verification_yaml_exits_no_config(tmp_path: Path) -> None:
@@ -200,7 +200,7 @@ def test_register_corrupt_verification_yaml_exits_no_config(tmp_path: Path) -> N
     r = _run(tmp_path, "register", "my-adapter", str(cf))
 
     assert r.exit_code == 3, r.output
-    assert "super-harness verification register:" in r.stderr, r.stderr
+    assert "keepsail verification register:" in r.stderr, r.stderr
     assert "corrupt" in r.stderr, r.stderr
     assert "Traceback" not in r.stderr, r.stderr
 
@@ -222,6 +222,6 @@ def test_register_non_utf8_verification_yaml_exits_no_config(tmp_path: Path) -> 
     r = _run(tmp_path, "register", "my-adapter", str(cf))
 
     assert r.exit_code == 3, r.output
-    assert "super-harness verification register:" in r.stderr, r.stderr
+    assert "keepsail verification register:" in r.stderr, r.stderr
     assert "corrupt" in r.stderr, r.stderr
     assert "Traceback" not in r.stderr, r.stderr

@@ -1,6 +1,6 @@
 # Product architecture
 
-This is the normative product definition and architecture of super-harness.
+This is the normative product definition and architecture of keepsail.
 The product owner confirmed these meanings through product-design discussion on
 2026-10-21 and 2026-10-22, then confirmed the complete account. This publication
 does not assert that the implementation already satisfies it.
@@ -13,7 +13,7 @@ evidence or hand-editing ratified decisions. See the separate dated
 
 ## Purpose and positioning
 
-super-harness (sh) is a product-work control layer across agent harnesses. It
+Keepsail is a product-work control layer across agent harnesses. It
 serves developers and product owners using agents for software work. It keeps
 effective human commitments and long-lived product knowledge consequential across
 continuous work, enables agent autonomy within approved bounds, and makes
@@ -33,7 +33,7 @@ of authority.
 | F1 | Work must not silently depart from effective human commitments or present unmet obligations as completion. |
 | F2 | Recorded commitments, knowledge, approvals and unresolved matters must survive individual sessions. Complete recovery of all reasoning is not promised. |
 | F3 | Knowledge can be formed, used, tested, revised, superseded and retired, with the basis and authority changes preserved. |
-| F4 | Shared product meanings are independent of a particular agent or specification framework; sh is positioned above execution harnesses. Equal integration coverage does not follow. |
+| F4 | Shared product meanings are independent of a particular agent or specification framework; Keepsail is positioned above execution harnesses. Equal integration coverage does not follow. |
 | F5 | Reliability principles do not change solely with personal, team or enterprise identity; work policies may differ. This retained principle was not amended in this discussion. |
 
 F1–F3 organize the confirmed purpose and responsibilities. F4 expresses the
@@ -57,7 +57,7 @@ The following are confirmed product choices, not unique deductions:
   routine knowledge confirmation, applicability judgments and review automatically,
   without a person confirming every execution. Product goals, foundations,
   authority and risk-boundary changes remain with the authorized human.
-- sh does not own the complete agent execution loop, universal semantic
+- Keepsail does not own the complete agent execution loop, universal semantic
   understanding or complete knowledge recall. Independence requirements for
   reviewers are project policy rather than an intrinsic control-layer requirement.
 
@@ -128,9 +128,9 @@ to work (C6).
 | Product/project owner | Commitments, recognition policy, risk acceptance and authority boundaries. |
 | Execution agent harness | Context retrieval, semantic reasoning, tool invocation and execution. |
 | Recognized external process | Semantic applicability, knowledge assessment and review conclusions; may execute automatically. |
-| sh | Records, state, authority relationships, workflow preconditions, control and trace; validates recognized source, object and explicit conclusion without re-performing substantive review. |
+| Keepsail | Records, state, authority relationships, workflow preconditions, control and trace; validates recognized source, object and explicit conclusion without re-performing substantive review. |
 
-sh can mechanically match explicit scope. It does not promise to discover every
+Keepsail can mechanically match explicit scope. It does not promise to discover every
 semantic relation. A received applicability judgment proves completion of a
 prescribed process, not absence of omissions. A project's applicability policy
 can require judgments; an agent's assertion of completeness is not completeness
@@ -141,7 +141,7 @@ review quality.
 
 Long-lived knowledge/constraint changes must expose changes on recorded links to
 ongoing work. A recognized process decides applicability and whether approval
-remains suitable; sh records and applies that conclusion. Neither universal
+remains suitable; Keepsail records and applies that conclusion. Neither universal
 approval revocation nor automatic continued validity is the default inference.
 
 A challenge does not itself release a constraint. Actions that require violating
@@ -152,7 +152,7 @@ judge past actions as though today's knowledge had always applied.
 
 ## Trace and guarantee boundaries
 
-Distinguish what sh supplied, what observed retrieval/read operations returned,
+Distinguish what Keepsail supplied, what observed retrieval/read operations returned,
 what the agent stated it adopted/rejected/challenged and why, and what result
 checks verified. Record identity, version and provenance within the observable
 integration boundary and disclose missing observations.
@@ -163,7 +163,7 @@ other context sources are unobservable. Unchecked, failed, no-conclusion and
 passed are different states. Traceability supports investigation without claiming
 access to private reasoning.
 
-sh does not guarantee complete recall, correct semantic judgments, absence of
+Keepsail does not guarantee complete recall, correct semantic judgments, absence of
 omitted knowledge or correct code. Source configuration, package publication,
 installed behavior, CI execution and required branch protection are separate
 evidence layers.

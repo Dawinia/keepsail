@@ -5,9 +5,9 @@ from __future__ import annotations
 import pytest
 from click.testing import CliRunner
 
-from super_harness.cli import main
-from super_harness.cli.review import _model_contradicts
-from super_harness.exit_codes import EXIT_VALIDATION
+from keepsail.cli import main
+from keepsail.cli.review import _model_contradicts
+from keepsail.exit_codes import EXIT_VALIDATION
 
 
 @pytest.mark.parametrize(

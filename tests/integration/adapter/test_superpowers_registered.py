@@ -5,9 +5,9 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from super_harness.adapters.framework.superpowers import SuperpowersAdapter
-from super_harness.adapters.registry import get_builtin, list_builtins
-from super_harness.cli import main
+from keepsail.adapters.framework.superpowers import SuperpowersAdapter
+from keepsail.adapters.registry import get_builtin, list_builtins
+from keepsail.cli import main
 
 
 def test_superpowers_is_registered_builtin() -> None:

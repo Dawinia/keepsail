@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from super_harness.adapters.reviewer.base import ReviewerProtocolError
-from super_harness.adapters.reviewer.claude_cli import ClaudeCliReviewerProtocol
+from keepsail.adapters.reviewer.base import ReviewerProtocolError
+from keepsail.adapters.reviewer.claude_cli import ClaudeCliReviewerProtocol
 
 
 def test_compiles_fresh_claude_invocation_without_executing(tmp_path: Path) -> None:

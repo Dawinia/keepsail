@@ -3,11 +3,11 @@
 Drives the REAL CLI surface end-to-end against a temp workspace that looks like
 an openspec project:
 
-  1. ``super-harness init``                  → scaffolds ``.harness/`` + AGENTS.md
-  2. ``super-harness adapter install openspec``
+  1. ``keepsail init``                  → scaffolds ``.harness/`` + AGENTS.md
+  2. ``keepsail adapter install openspec``
                                              → registers the framework adapter +
                                                 injects the AGENTS.md subsection
-  3. ``super-harness adapter scan-once openspec``
+  3. ``keepsail adapter scan-once openspec``
                                              → one synchronous ``observe()`` pass
                                                 that emits unseen lifecycle events
 
@@ -16,12 +16,12 @@ Asserts:
 - a real ``openspec/changes/foo/proposal.md`` yields an ``intent_declared`` event
   for ``foo`` in ``events.jsonl``;
 - the repo-root ``AGENTS.md`` gained the
-  ``<!-- super-harness framework: openspec -->`` subsection;
+  ``<!-- keepsail framework: openspec -->`` subsection;
 - a change under ``openspec/changes/archive/<x>/`` emits NOTHING (archived
   changes are skipped by ``scan_changes``).
 
 ⚠ Like the sibling ``tests/integration/adapter/test_claude_code.py`` this SPAWNS
-nothing extra but DOES drive the real ``super-harness`` CLI through ``CliRunner``;
+nothing extra but DOES drive the real ``keepsail`` CLI through ``CliRunner``;
 no ``shutil.which`` mock is needed for a FRAMEWORK adapter (no hook binaries).
 """
 from __future__ import annotations
@@ -31,10 +31,10 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from super_harness.cli import main
+from keepsail.cli import main
 
-_OPENSPEC_BEGIN = "<!-- super-harness framework: openspec -->"
-_OPENSPEC_END = "<!-- /super-harness framework: openspec -->"
+_OPENSPEC_BEGIN = "<!-- keepsail framework: openspec -->"
+_OPENSPEC_END = "<!-- /keepsail framework: openspec -->"
 
 
 def _init(ws: Path):

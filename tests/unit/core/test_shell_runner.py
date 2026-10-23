@@ -8,7 +8,7 @@ import time
 
 import pytest
 
-from super_harness.core.shell_runner import (
+from keepsail.core.shell_runner import (
     ShellResult,
     run_command,
     run_shell,
@@ -163,9 +163,9 @@ def test_invalid_utf8_output_is_replaced_not_raised(tmp_path):
 
 
 def test_scrubbed_environ_strips_harness_prefix(monkeypatch):
-    monkeypatch.setenv("SUPER_HARNESS_X", "1")
-    monkeypatch.setenv("SUPER_HARNESS_CHANGE_ID", "poison")
+    monkeypatch.setenv("KEEPSAIL_X", "1")
+    monkeypatch.setenv("KEEPSAIL_CHANGE_ID", "poison")
     scrubbed = scrubbed_environ()
-    assert not any(k.startswith("SUPER_HARNESS_") for k in scrubbed)
+    assert not any(k.startswith("KEEPSAIL_") for k in scrubbed)
     assert "PATH" in scrubbed
-    assert os.environ.get("SUPER_HARNESS_X") == "1"  # ambient not mutated
+    assert os.environ.get("KEEPSAIL_X") == "1"  # ambient not mutated

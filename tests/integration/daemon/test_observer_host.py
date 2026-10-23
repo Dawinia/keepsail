@@ -1,6 +1,6 @@
 """Integration tests for the observer-host lifecycle (design 2026-07-03).
 
-Exercises the real `super-harness-daemon` binary via supervisor: absolute-path
+Exercises the real `keepsail-daemon` binary via supervisor: absolute-path
 spawn, pidfile-flock liveness, idempotent start, SIGTERM stop, and the
 single-instance invariant under concurrent starts (formerly covered by the
 deleted test_concurrent_spawn.py — the daemonize pidfile flock still enforces
@@ -14,7 +14,7 @@ import pytest
 
 pytest.importorskip("fcntl", reason="POSIX observer integration tests require fcntl")
 
-from super_harness.daemon import supervisor
+from keepsail.daemon import supervisor
 
 
 @pytest.fixture()
@@ -82,7 +82,7 @@ def test_stale_pidfile_under_concurrent_probe_processes_reads_not_running(
 
     probe = (
         "import sys; from pathlib import Path; "
-        "from super_harness.daemon import supervisor; "
+        "from keepsail.daemon import supervisor; "
         "sys.exit(0 if supervisor.is_running(Path(sys.argv[1])) else 1)"
     )
 
@@ -102,10 +102,10 @@ def test_stale_pidfile_under_concurrent_probe_processes_reads_not_running(
 def test_observer_binary_is_scripts_dir_sibling() -> None:
     # Resolution is invocation-independent (sysconfig scripts dir), so this holds
     # under `python -m pytest` too — unconditional, non-vacuous. The test venv
-    # installs super-harness-daemon, so _observer_binary() must NOT raise.
+    # installs keepsail-daemon, so _observer_binary() must NOT raise.
     import sysconfig
 
-    expected = Path(sysconfig.get_path("scripts")) / "super-harness-daemon"
+    expected = Path(sysconfig.get_path("scripts")) / "keepsail-daemon"
     resolved = supervisor._observer_binary()
     assert resolved == str(expected)
     assert Path(resolved).is_absolute()
@@ -122,7 +122,7 @@ def test_ensure_running_never_returns_zero_from_half_written_pidfile(
     # _read_pid returns 0 twice (half-written) before the real pid lands.
     from pathlib import Path
 
-    from super_harness.daemon import supervisor as sup
+    from keepsail.daemon import supervisor as sup
 
     monkeypatch.setattr(sup, "is_running", lambda root: True)
     pids = iter([0, 0, 4242])

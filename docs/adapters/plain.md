@@ -1,6 +1,6 @@
 # Plain adapter
 
-The Plain adapter is super-harness's *framework fallback*. When a workspace
+The Plain adapter is keepsail's *framework fallback*. When a workspace
 does not match any other framework adapter's `detect()` (no `openspec/`
 layout, no Spec Kit metadata, etc.), the dispatcher force-activates Plain so
 the lifecycle still works — you drive it by hand instead of having artifacts
@@ -25,14 +25,14 @@ to bind to, even on a fresh repo with no spec framework installed.
 | Capability | Implementation |
 |---|---|
 | `detect` | Always returns `False` — Plain is never auto-detected; the dispatcher force-activates it only when every other framework adapter's `detect()` returned `False` |
-| `observe` | No-op — yields no events; the user drives the lifecycle via `super-harness change start` / `plan ready` / `done` |
+| `observe` | No-op — yields no events; the user drives the lifecycle via `keepsail change start` / `plan ready` / `done` |
 | `verification_checks` | None — Plain contributes no `adapter_provided` checks |
 | `agents_md_subsection` | A one-bullet briefing pointing the agent at the manual CLI lifecycle commands |
 
 ## Install
 
 ```bash
-super-harness adapter install plain
+keepsail adapter install plain
 ```
 
 Mechanics (intentionally minimal):
@@ -41,10 +41,10 @@ Mechanics (intentionally minimal):
 2. Skips the `verification.yaml` merge — `verification_checks()` returns `[]`.
 3. Persists `{name: plain, type: framework, version: 0.1.0, enabled: true}`
    into `.harness/adapters.yaml`.
-4. Injects the `<!-- super-harness framework: plain -->` subsection into
+4. Injects the `<!-- keepsail framework: plain -->` subsection into
    `AGENTS.md` (re-injecting it if you previously removed it).
 
-In practice you rarely need to install Plain explicitly: `super-harness init`
+In practice you rarely need to install Plain explicitly: `keepsail init`
 already renders the Plain subsection into `AGENTS.md` as the default
 framework block, and the dispatcher activates it implicitly. Run the install
 command only when you want an explicit `adapters.yaml` row for Plain (for
@@ -57,9 +57,9 @@ nothing else, because nothing else is installed. Verbatim from
 `PlainAdapter.agents_md_subsection()`:
 
 ```markdown
-<!-- super-harness framework: plain -->
-- No framework: drive lifecycle via `super-harness change start <slug>` / `super-harness plan ready <slug>` / `super-harness done <slug>`.
-<!-- /super-harness framework: plain -->
+<!-- keepsail framework: plain -->
+- No framework: drive lifecycle via `keepsail change start <slug>` / `keepsail plan ready <slug>` / `keepsail done <slug>`.
+<!-- /keepsail framework: plain -->
 ```
 
 The marker comments are load-bearing — `adapter install` / `adapter
@@ -69,15 +69,15 @@ marker match. Do not edit content between the markers manually; re-run
 
 ## Common issues
 
-- **`super-harness status` shows no events even after I created proposal /
-  task files.** Plain emits no events by design. Run `super-harness change
-  start <slug>` to register a change, then `super-harness plan ready <slug>`
+- **`keepsail status` shows no events even after I created proposal /
+  task files.** Plain emits no events by design. Run `keepsail change
+  start <slug>` to register a change, then `keepsail plan ready <slug>`
   to advance past `INTENT_DECLARED`. If you want automatic event emission from
   on-disk artifacts, switch to a framework adapter (`adapter install openspec`).
-- **`super-harness adapter scan-once plain` reports `0 events emitted`.**
+- **`keepsail adapter scan-once plain` reports `0 events emitted`.**
   Expected. `PlainAdapter.observe()` returns an empty iterator; `scan-once`
   has nothing to do.
-- **`super-harness verify` runs only baseline checks.** Also expected —
+- **`keepsail verify` runs only baseline checks.** Also expected —
   Plain contributes no `adapter_provided` checks. Add your own user checks to
   `.harness/verification.yaml` if you want more (see
   [`docs/cli-reference.md`](../cli-reference.md) for the schema).
@@ -96,7 +96,7 @@ marker match. Do not edit content between the markers manually; re-run
 ## Uninstall
 
 ```bash
-super-harness adapter uninstall plain
+keepsail adapter uninstall plain
 ```
 
 Mechanics (reverse of install):
@@ -105,11 +105,11 @@ Mechanics (reverse of install):
 2. Removes the `plain` row from `.harness/adapters.yaml`.
 3. The `verification.yaml.adapter_provided` prune step is a no-op (Plain
    contributed no rows).
-4. Removes the `<!-- super-harness framework: plain -->` subsection from
+4. Removes the `<!-- keepsail framework: plain -->` subsection from
    `AGENTS.md`. If no other framework adapter is installed the framework slot
    falls back to the `init`-time anchor.
 
-Uninstalling Plain does **not** disable super-harness's lifecycle commands —
+Uninstalling Plain does **not** disable keepsail's lifecycle commands —
 the shipped v0.1 CLI surface (`change start` / `change abandon` / `change
 list` / `change resume` / `verify` / `done`) still works because they are
 CLI surface, not adapter surface. Uninstall only removes the documented

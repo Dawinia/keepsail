@@ -52,7 +52,7 @@ def _tool_executable(toolchain: Path, name: str) -> Path | None:
 
 
 def _error(message: str) -> int:
-    print(f"super-harness project check: {message}", file=sys.stderr)
+    print(f"keepsail project check: {message}", file=sys.stderr)
     return 127
 
 

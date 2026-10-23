@@ -1,8 +1,9 @@
 ---
 id: d-identity-resolution-order
-status: ratified
+status: superseded
 ratified_by: dawinialo@163.com
 ratified_at: '2026-06-26T09:45:28.587373Z'
+superseded_by: d-keepsail-identity-resolution-order
 ratified_text_hash: sha256:383d6b73759791371ded3c9f039e6e5d5ada1f50d0bdb0148e814a4fb1f61951
 last_reconciled_by: dawinialo@163.com
 last_reconciled_at: '2026-06-26T09:45:28.466002Z'

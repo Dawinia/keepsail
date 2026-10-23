@@ -14,21 +14,26 @@ import pytest
 import yaml
 from click.testing import CliRunner
 
-import super_harness.sensors.verification_runner as verification_runner
-from super_harness.cli import main
-from super_harness.core.approval import (
+import keepsail.sensors.verification_runner as verification_runner
+from keepsail.cli import main
+from keepsail.core.approval import (
     evidence_digest,
     make_code_subject,
     recognition_policy_digest,
 )
-from super_harness.core.clock import utc_now_iso
-from super_harness.core.events import Actor, Event
-from super_harness.core.paths import events_path
-from super_harness.core.post_emit import refresh_state_after_emit
-from super_harness.core.reducer import derive_state
-from super_harness.core.ulid import new_event_id
-from super_harness.core.writer import EmitPreconditionError, EventWriter
-from super_harness.sensors import Activity, WorkspaceContext
+from keepsail.core.clock import utc_now_iso
+from keepsail.core.events import Actor, Event
+from keepsail.core.paths import events_path
+from keepsail.core.post_emit import refresh_state_after_emit
+from keepsail.core.reducer import derive_state
+from keepsail.core.ulid import new_event_id
+from keepsail.core.writer import EmitPreconditionError, EventWriter
+from keepsail.sensors import Activity, WorkspaceContext
+
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli as tomllib
 
 
 def _git(root: Path, *args: str) -> str:
@@ -652,10 +657,12 @@ def test_a17_candidate_import_path_cannot_replace_trusted_verifier(tmp_path: Pat
             extracted = (trusted_checkout / member.name).resolve()
             assert extracted == root or root in extracted.parents
         tar.extractall(trusted_checkout)
-    shutil.copytree(trusted_checkout / "src" / "super_harness", trusted_site / "super_harness")
+    project = tomllib.loads((trusted_checkout / "pyproject.toml").read_text())["project"]
+    namespace = project["scripts"][project["name"]].split(".", 1)[0]
+    shutil.copytree(trusted_checkout / "src" / namespace, trusted_site / namespace)
 
     expected_events = hashlib.sha256(
-        (trusted_checkout / "src" / "super_harness" / "core" / "events.py").read_bytes()
+        (trusted_checkout / "src" / namespace / "core" / "events.py").read_bytes()
     ).hexdigest()
     env = os.environ.copy()
     # Deliberately put the candidate checkout on PYTHONPATH.  The verifier
@@ -665,10 +672,11 @@ def test_a17_candidate_import_path_cannot_replace_trusted_verifier(tmp_path: Pat
         [
             sys.executable,
             "-c",
-            "import hashlib, pathlib, sys; "
+            "import hashlib, importlib, pathlib, sys; "
             "trusted = pathlib.Path(sys.argv[1]).resolve(); expected = sys.argv[2]; "
             "sys.path.insert(0, str(trusted)); "
-            "from super_harness.cli import attest; from super_harness.core import events; "
+            f"attest = importlib.import_module('{namespace}.cli.attest'); "
+            f"events = importlib.import_module('{namespace}.core.events'); "
             "verifier = pathlib.Path(attest.__file__).resolve(); "
             "loaded = pathlib.Path(events.__file__).resolve(); "
             "assert str(verifier).startswith(str(trusted)); "
@@ -710,9 +718,9 @@ def test_a17_candidate_import_path_cannot_replace_trusted_verifier(tmp_path: Pat
     subprocess.run(["git", "commit", "-qm", "candidate"], cwd=cutover_checkout, check=True)
     cutover_head = _git(cutover_checkout, "rev-parse", "HEAD")
     baseline_cli_script = (
-        "import sys; sys.path.insert(0, sys.argv[1]); "
-        "from super_harness.cli import main; "
-        "sys.argv = ['super-harness', '--workspace', sys.argv[2], 'attest', 'verify', "
+        "import importlib, sys; sys.path.insert(0, sys.argv[1]); "
+        f"main = importlib.import_module('{namespace}.cli').main; "
+        f"sys.argv = ['{project['name']}', '--workspace', sys.argv[2], 'attest', 'verify', "
         "'--base', sys.argv[3], '--head', sys.argv[4]]; main()"
     )
     baseline_env = os.environ.copy()
@@ -740,7 +748,7 @@ def test_a17_candidate_import_path_cannot_replace_trusted_verifier(tmp_path: Pat
     # plan_approved event cannot downgrade an active recognition contract.
     new_trusted_site = tmp_path / "new-trusted-site-packages"
     shutil.copytree(
-        candidate_checkout / "src" / "super_harness", new_trusted_site / "super_harness"
+        candidate_checkout / "src" / "keepsail", new_trusted_site / "keepsail"
     )
     later_change = tmp_path / "later-change"
     (later_change / ".harness").mkdir(parents=True)
@@ -752,8 +760,8 @@ def test_a17_candidate_import_path_cannot_replace_trusted_verifier(tmp_path: Pat
         )
     new_cli_script = (
         "import sys; sys.path.insert(0, sys.argv[1]); "
-        "from super_harness.cli import main; "
-        "sys.argv = ['super-harness', '--workspace', sys.argv[2], 'implementation', 'start', "
+        "from keepsail.cli import main; "
+        "sys.argv = ['keepsail', '--workspace', sys.argv[2], 'implementation', 'start', "
         "'later-change']; main()"
     )
     downgrade_env = os.environ.copy()
@@ -818,8 +826,8 @@ def test_a17_candidate_import_path_cannot_replace_trusted_verifier(tmp_path: Pat
     subsequent_head = _git(subsequent_checkout, "rev-parse", "HEAD")
     current_cli_script = (
         "import sys; sys.path.insert(0, sys.argv[1]); "
-        "from super_harness.cli import main; "
-        "sys.argv = ['super-harness', '--workspace', sys.argv[2], 'attest', 'verify', "
+        "from keepsail.cli import main; "
+        "sys.argv = ['keepsail', '--workspace', sys.argv[2], 'attest', 'verify', "
         "'--base', sys.argv[3], '--head', sys.argv[4]]; main()"
     )
     legacy_env = os.environ.copy()

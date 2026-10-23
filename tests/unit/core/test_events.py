@@ -3,7 +3,7 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from super_harness.core.events import (
+from keepsail.core.events import (
     CORE_EVENT_TYPES,
     EXTENSION_EVENT_TYPES,
     KNOWN_EVENT_TYPES,

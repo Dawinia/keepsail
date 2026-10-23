@@ -10,8 +10,8 @@ from pathlib import Path
 
 import pytest
 
-from super_harness.daemon import hook_entry
-from super_harness.gates.decisions import SUGGESTIONS
+from keepsail.daemon import hook_entry
+from keepsail.gates.decisions import SUGGESTIONS
 
 
 def _init_state(root: Path, change_id: str, state: str, at: str = "2026-07-02T00:00:00Z") -> None:
@@ -28,7 +28,7 @@ def _init_state(root: Path, change_id: str, state: str, at: str = "2026-07-02T00
 @pytest.fixture()
 def in_workspace(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("SUPER_HARNESS_CHANGE_ID", raising=False)
+    monkeypatch.delenv("KEEPSAIL_CHANGE_ID", raising=False)
     return tmp_path
 
 
@@ -63,7 +63,7 @@ def test_env_override_selects_change(in_workspace: Path, monkeypatch: pytest.Mon
         "    last_event_at: '2026-07-01T00:00:00Z'\n",
         encoding="utf-8",
     )
-    monkeypatch.setenv("SUPER_HARNESS_CHANGE_ID", "frozen")
+    monkeypatch.setenv("KEEPSAIL_CHANGE_ID", "frozen")
     decision, _reason, suggested = hook_entry._decide("Edit", "f.py")
     assert decision == "block"
     assert suggested.startswith("Open/merge the PR; do not edit further.")

@@ -1,12 +1,12 @@
-<!-- super-harness section begin · v0.1.0 · DO NOT EDIT MANUALLY -->
-## Super-harness conventions
+<!-- keepsail section begin · v0.1.0 · DO NOT EDIT MANUALLY -->
+## Keepsail conventions
 
-This project uses super-harness to ensure AI coding reliability.
+This project uses Keepsail, a product-work control layer across agent harnesses.
 
 ### Branch naming
 
 Branch naming is YOURS — keep whatever convention your team already uses.
-super-harness identifies a change by its **slug**, which it carries explicitly
+keepsail identifies a change by its **slug**, which it carries explicitly
 in the PR metadata block (and, for framework adapters, the artifact frontmatter)
 — NOT in the branch name. Naming a branch after the slug
 (e.g. `2026-05-26-add-l1-anchors`) is a convenient default that lets CI resolve
@@ -16,28 +16,28 @@ the change with zero config, but it is optional, not required.
 
 Use your framework's native PR command:
 
-<!-- super-harness framework: plain -->
-- No framework: drive lifecycle via `super-harness change start <slug>` / `super-harness plan ready <slug>` / `super-harness done <slug>`.
-<!-- /super-harness framework: plain -->
+<!-- keepsail framework: plain -->
+- No framework: drive lifecycle via `keepsail change start <slug>` / `keepsail plan ready <slug>` / `keepsail done <slug>`.
+<!-- /keepsail framework: plain -->
 
-<!-- super-harness framework: superpowers -->
+<!-- keepsail framework: superpowers -->
 - Drive the lifecycle with the superpowers skills (brainstorming → writing-plans → TDD). Plans live under `docs/plans/`.
-- Mark an artifact for super-harness with YAML frontmatter: `change: <slug>` (identity) plus optional `stage: design|plan`.
+- Mark an artifact for keepsail with YAML frontmatter: `change: <slug>` (identity) plus optional `stage: design|plan`.
   - `stage: design` declares intent; `stage: plan` (or omitted) means plan ready. A plan may also carry `scope` / `tier_hint`.
 - Branch naming is yours — the slug travels in the `change:` frontmatter (and PR metadata), not the branch name.
-<!-- /super-harness framework: superpowers -->
+<!-- /keepsail framework: superpowers -->
 
-super-harness will automatically append a metadata block to your PR description
-between `<!-- super-harness:metadata -->` markers.
+keepsail will automatically append a metadata block to your PR description
+between `<!-- keepsail:metadata -->` markers.
 **Do not modify content between those markers manually.**
 
 ### Agent-specific guidance
 
-<!-- super-harness agent: claude-code -->
-### super-harness (Claude Code)
+<!-- keepsail agent: claude-code -->
+### keepsail (Claude Code)
 
 A **PreToolUse** hook is enabled for this workspace. `Edit` / `Write` /
-`MultiEdit` / `NotebookEdit` tool calls are blocked by super-harness when the
+`MultiEdit` / `NotebookEdit` tool calls are blocked by keepsail when the
 current change state forbids the mutation (deterministic gate enforcement).
 
 A **Stop** hook also runs a turn-end authoring-time conformance check: when you
@@ -48,9 +48,9 @@ undoes your edit and never blocks twice (it nudges once per turn); the merge gat
 the authoritative floor.
 
 When a tool call is blocked by the gate:
-- Run `super-harness status` to see the current change, its state, and why the
+- Run `keepsail status` to see the current change, its state, and why the
   edit was rejected, plus the next valid step.
-- Resume context for a change with `super-harness change resume <change_id>`.
+- Resume context for a change with `keepsail change resume <change_id>`.
 - **Revising a rejected plan is authorized in-gate:** in `PLAN_REJECTED`, editing
   the change's own recorded plan document (a marked `.md` in the declared scope) is
   ALLOWED through the normal `Edit`/`Write` tools — that is the intended reject-loop
@@ -62,14 +62,14 @@ When a tool call is blocked by the gate:
   in **every** state — it is gitignored and never reviewed. Source files stay blocked
   until the plan is approved. Never write these through the shell to dodge the gate.
 - **If a tool call is blocked by the gate:** stop, and surface the block plus the
-  next valid step (`super-harness status`) to the human. Do **not** try to disable
+  next valid step (`keepsail status`) to the human. Do **not** try to disable
   or work around the gate yourself — overriding it is a **human-only** decision, and
   any bypass is recorded and disclosed at the merge gate. Whether to override is the
   human's call.
 
 #### Review protocol
 
-super-harness does NOT start, spawn, or host reviewers. It records the exact
+keepsail does NOT start, spawn, or host reviewers. It records the exact
 conclusion from an external or human process. The active recognition contract is
 `.harness/review-recognition.yaml`; `.harness/review-governance.yaml` and the
 gitignored `.harness/review-profiles.local.yaml` are historical data and do not
@@ -82,9 +82,9 @@ For each review epoch:
    must identify the current subject, explicit decision, provenance, and retained
    original evidence; the core does not infer approval from a model, failed call,
    empty result, or skip.
-3. Import that exact record with `super-harness review import <change>
+3. Import that exact record with `keepsail review import <change>
    --evidence <path>`. Review execution, retries, and substantive judgment stay
-   outside super-harness.
+   outside keepsail.
 4. Batch code-only fixes after `implementation reopen <change> --reason "<why>"`;
    if approved commitments change or explicit restrictions are relaxed, require a
    new plan candidate and review. Within-approval file additions and implementation
@@ -94,18 +94,18 @@ For each review epoch:
 The imported evidence must cover the exact frozen subject. A reviewer may read
 unchanged repository material as supporting context, but a finding never widens
 the target implicitly. Do not edit while an external review is pending.
-<!-- /super-harness agent: claude-code -->
+<!-- /keepsail agent: claude-code -->
 
 ### Before opening PR
 
-Ensure `super-harness verify` passes (tests / lint / build / anchor sentinels).
-If using a `done` skill, run `super-harness done <slug>` instead—it triggers
+Ensure `keepsail verify` passes (tests / lint / build / anchor sentinels).
+If using a `done` skill, run `keepsail done <slug>` instead—it triggers
 verify and emits the lifecycle event automatically.
 
 Plan and code review are supplied by an external, user-recognized process. The
 harness does not start reviewers, choose models, manage rounds, or turn a
 failed/empty result into approval. Import the exact retained conclusion with
-`super-harness review import <change> --evidence <path>`; the record must name
+`keepsail review import <change> --evidence <path>`; the record must name
 the current subject and an explicit decision. A skipped review is disclosure,
 not approval.
 
@@ -121,20 +121,20 @@ Code review and verification must still cover the exact current implementation.
 
 ### Decision conformance
 
-Ratified decisions under `docs/decisions/` are binding: super-harness
+Ratified decisions under `docs/decisions/` are binding: keepsail
 hash-locks each decision's text and, where configured, attaches an executable
-check. Treat `super-harness decision check` as a LOCAL SENSOR you consult while
+check. Treat `keepsail decision check` as a LOCAL SENSOR you consult while
 you work — CI runs it too as the un-bypassable floor, so keep it green locally.
 
 - **At natural checkpoints** (a chunk done, before you commit) run
-  `super-harness decision check --changed`. A non-zero exit means you violated a
+  `keepsail decision check --changed`. A non-zero exit means you violated a
   ratified decision or edited a ratified decision's body text — fix it before
   continuing; don't push the drift downstream to CI.
 - **Don't hand-edit the body of a ratified decision.** Its text is hash-locked;
-  re-ratifying (`super-harness decision ratify <id>`) is the only unlock, and is
+  re-ratifying (`keepsail decision ratify <id>`) is the only unlock, and is
   a deliberate, recorded act.
 - **Hit a trap worth remembering?** Record it with
-  `super-harness decision new <id> --text "..."`. Filing costs nothing — a
+  `keepsail decision new <id> --text "..."`. Filing costs nothing — a
   `proposed` record is excluded from every `decision check` verdict — and unlike a
   note it has an exit: `ratify` once you can state the rule (arm it with a check if
   you can), `retire` once it stops being true. **Do not attach a `@decision:`
@@ -143,9 +143,9 @@ you work — CI runs it too as the un-bypassable floor, so keep it green locally
   not. Do not open a scratch notes file or a pitfall directory either; a record with
   no lifecycle has no way to stop being wrong.
 - **Attaching an executable check to a decision?** Before you propose it, run
-  `super-harness decision ratify <id> --dry-run` to confirm the check actually
+  `keepsail decision ratify <id> --dry-run` to confirm the check actually
   bites (runs the bite-test without ratifying).
-- `super-harness decision check` (full) and `super-harness doc check` are also
+- `keepsail decision check` (full) and `keepsail doc check` are also
   CI gates — keep both green locally so a push never bounces.
 
 **Arming a decision with a check (the craft).** A check is a shell snippet that
@@ -165,7 +165,7 @@ yours, not the tool's — and the recipe is:
   check runs over the whole tree, so a bare `.` scans the decision file itself
   (which holds the counterexample) and reports "check fails on current code".
 - Add a check + a minimal counterexample, then
-  `super-harness decision ratify <id> --dry-run` until it reports `bites`:
+  `keepsail decision ratify <id> --dry-run` until it reports `bites`:
 
   ```check
   ! grep -rn '<brittle pattern>' <scoped paths>
@@ -190,4 +190,4 @@ yours, not the tool's — and the recipe is:
   skill: https://github.com/Dawinia/super-harness/blob/main/skills/discovering-architecture-norms/SKILL.md
   (private repo during v0.1 — the link needs repo access until the public release).
 
-<!-- super-harness section end -->
+<!-- keepsail section end -->

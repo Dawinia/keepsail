@@ -15,7 +15,7 @@ pytestmark = pytest.mark.skipif(sys.platform != "win32", reason="requires native
 
 
 def _run(workspace: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    executable = Path(sysconfig.get_path("scripts")) / "super-harness.exe"
+    executable = Path(sysconfig.get_path("scripts")) / "keepsail.exe"
     assert executable.exists()
     return subprocess.run(
         [executable, "--workspace", str(workspace), *args],

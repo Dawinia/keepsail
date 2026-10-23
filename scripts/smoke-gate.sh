@@ -4,8 +4,8 @@
 # Spins up a throwaway workspace, starts the daemon, and verifies the gate
 # BLOCKS (exit 2) in a blocking lifecycle state and ALLOWS (exit 0) after the
 # state advances — via BOTH paths:
-#   - `super-harness gate check pre-tool-use`        (in-process decision)
-#   - `super-harness-hook --agent claude-code`       (the EXACT path Claude Code
+#   - `keepsail gate check pre-tool-use`        (in-process decision)
+#   - `keepsail-hook --agent claude-code`       (the EXACT path Claude Code
 #                                                     drives: JSON on stdin -> exit code)
 #
 # It does NOT verify that a live Claude Code session honours exit 2 to actually
@@ -21,17 +21,17 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(dirname "$SCRIPT_DIR")"
 VENV_BIN="$REPO/.venv/bin"
 
-if [ -x "$VENV_BIN/super-harness" ]; then
+if [ -x "$VENV_BIN/keepsail" ]; then
   export PATH="$VENV_BIN:$PATH"
-elif ! command -v super-harness >/dev/null 2>&1; then
-  echo "ERROR: super-harness not found ($VENV_BIN missing and not on PATH)." >&2
-  echo "       Build the repo venv, or 'pipx install super-harness'." >&2
+elif ! command -v keepsail >/dev/null 2>&1; then
+  echo "ERROR: keepsail not found ($VENV_BIN missing and not on PATH)." >&2
+  echo "       Build the repo venv, or 'pipx install keepsail'." >&2
   exit 1
 fi
 
 WS="$(mktemp -d)"
 cleanup() {
-  super-harness --workspace "$WS" daemon stop >/dev/null 2>&1 || true
+  keepsail --workspace "$WS" daemon stop >/dev/null 2>&1 || true
   rm -rf "$WS"
 }
 trap cleanup EXIT
@@ -50,16 +50,16 @@ check() {
 }
 
 echo "workspace: $WS"
-super-harness --workspace "$WS" init        >/dev/null || { echo "ERROR: init failed" >&2; exit 1; }
-super-harness --workspace "$WS" change start demo >/dev/null || { echo "ERROR: change start failed" >&2; exit 1; }
-super-harness --workspace "$WS" daemon start >/dev/null || { echo "ERROR: daemon start failed" >&2; exit 1; }
+keepsail --workspace "$WS" init        >/dev/null || { echo "ERROR: init failed" >&2; exit 1; }
+keepsail --workspace "$WS" change start demo >/dev/null || { echo "ERROR: change start failed" >&2; exit 1; }
+keepsail --workspace "$WS" daemon start >/dev/null || { echo "ERROR: daemon start failed" >&2; exit 1; }
 
 echo "== state INTENT_DECLARED (expect BLOCK / exit 2) =="
-super-harness --workspace "$WS" gate check pre-tool-use --tool Edit --file foo.py >/dev/null 2>&1
+keepsail --workspace "$WS" gate check pre-tool-use --tool Edit --file foo.py >/dev/null 2>&1
 check "gate check" 2 $?
-# super-harness-hook is cwd-based (no --workspace; Claude Code runs it from the
+# keepsail-hook is cwd-based (no --workspace; Claude Code runs it from the
 # project dir), so invoke it from inside $WS.
-( cd "$WS" && printf '%s' "$PAYLOAD" | super-harness-hook --agent claude-code ) >/dev/null 2>&1
+( cd "$WS" && printf '%s' "$PAYLOAD" | keepsail-hook --agent claude-code ) >/dev/null 2>&1
 check "hook shim " 2 $?
 
 # Advance to a permitting state. No CLI emits plan_approved yet, so write
@@ -67,8 +67,8 @@ check "hook shim " 2 $?
 python - "$WS" <<'PY'
 import sys
 from pathlib import Path
-from super_harness.core.state import ChangeState
-from super_harness.core.state_yaml import read_state_yaml, write_state_yaml
+from keepsail.core.state import ChangeState
+from keepsail.core.state_yaml import read_state_yaml, write_state_yaml
 
 p = Path(sys.argv[1]) / ".harness" / "state.yaml"
 data = read_state_yaml(p)
@@ -81,16 +81,16 @@ PY
 sleep 0.4
 
 echo "== state PLAN_APPROVED (expect ALLOW / exit 0) =="
-super-harness --workspace "$WS" gate check pre-tool-use --tool Edit --file foo.py >/dev/null 2>&1
+keepsail --workspace "$WS" gate check pre-tool-use --tool Edit --file foo.py >/dev/null 2>&1
 check "gate check" 0 $?
-( cd "$WS" && printf '%s' "$PAYLOAD" | super-harness-hook --agent claude-code ) >/dev/null 2>&1
+( cd "$WS" && printf '%s' "$PAYLOAD" | keepsail-hook --agent claude-code ) >/dev/null 2>&1
 check "hook shim " 0 $?
 
 echo ""
 if [ "$fail" = 0 ]; then
   echo "ALL PASS — gate blocks in INTENT_DECLARED, allows in PLAN_APPROVED."
   echo "Manual next step (can't automate): open a real Claude Code session in a"
-  echo "workspace with 'super-harness adapter install claude-code' + a blocking"
+  echo "workspace with 'keepsail adapter install claude-code' + a blocking"
   echo "state, ask it to Edit a file, and confirm the edit is blocked. Record the"
   echo "Claude Code version."
 else

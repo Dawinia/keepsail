@@ -3,8 +3,8 @@ from pathlib import Path
 
 import yaml
 
-from super_harness.core.decision_check import fingerprint_file, run_check
-from super_harness.core.decisions import compute_body_hash
+from keepsail.core.decision_check import fingerprint_file, run_check
+from keepsail.core.decisions import compute_body_hash
 
 
 def _w(p: Path, text: str) -> None:
@@ -104,7 +104,7 @@ def test_tampered_body_is_integrity_violation(tmp_path):
 
 
 def test_matching_hash_is_clean(tmp_path):
-    from super_harness.core.decisions import compute_body_hash
+    from keepsail.core.decisions import compute_body_hash
     body = "Passwords never stored with MD5."
     _w(tmp_path / "docs/decisions/d-pw.md",
        f"---\nid: d-pw\nstatus: ratified\nratified_by: a@b.com\n"

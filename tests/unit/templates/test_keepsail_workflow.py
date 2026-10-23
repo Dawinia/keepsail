@@ -1,0 +1,371 @@
+from __future__ import annotations
+
+import os
+import shlex
+import shutil
+import subprocess
+import sys
+import venv
+from importlib.resources import files
+from pathlib import Path
+
+import pytest
+import yaml
+
+_RAW_PATTERNS = ("${{ github.", "${{ steps.", "${{ inputs.")
+
+
+def _load_template() -> str:
+    return files("keepsail.templates").joinpath("keepsail_workflow.yml").read_text()
+
+
+def _assert_no_runblock_raw_interpolation(yaml_text: str) -> None:
+    """Walk yaml_text line-by-line and assert that no shell command content
+    contains raw GitHub-context interpolation (${{ github. or ${{ steps.).
+
+    Covers both single-line `run: <cmd>` and multi-line block scalars
+    (`run: |` / `run: >`), including every continuation line of the block.
+    A continuation block ends when a non-blank line appears whose indentation
+    is <= the indentation of the `run:` line that opened it.
+
+    Also handles the GitHub-Actions list-marker shorthand form where the step
+    key appears inline with the list item marker (`- run: |`), not on a
+    separate line below `- name:`.
+
+    Threat-model scope: ``github.*``, ``steps.*``, and ``inputs.*`` are the
+    contexts whose values can be controlled by PR-author content (branch
+    names, PR titles, step outputs derived from those, or
+    ``workflow_dispatch``/``workflow_call`` inputs). ``env.`` / ``vars.`` /
+    ``secrets.`` are repo-owner controlled; ``matrix.`` / ``runner.`` are
+    static. So this guard's scope is intentionally narrow. ``inputs.*`` is
+    not used by the current template (no ``workflow_dispatch`` trigger), but
+    is guarded as forward-proofing for any future trigger addition.
+    """
+    lines = yaml_text.splitlines()
+    in_run_block = False
+    run_indent = 0
+
+    for line in lines:
+        stripped = line.strip()
+
+        if in_run_block:
+            # A blank line does not end a block scalar — skip but stay in block.
+            if stripped == "":
+                continue
+            current_indent = len(line) - len(line.lstrip())
+            if current_indent <= run_indent:
+                # This line is at or above the run: key level — block ended.
+                in_run_block = False
+                # Fall through: this line may itself be a new `run:` key.
+            else:
+                # Still inside the run block — this is shell command content.
+                for pat in _RAW_PATTERNS:
+                    assert pat not in line, (
+                        f"raw interpolation {pat!r} on run-block continuation line: {line!r}"
+                    )
+                continue
+
+        # Not in a run block: check for a `run:` key on this line.
+        # Handle GitHub-Actions list-marker shorthand: `- run: ...`.
+        if stripped.startswith("- run:"):
+            stripped = stripped[2:]  # strip "- " leaving "run: ..."
+        if not stripped.startswith("run:"):
+            continue
+
+        run_indent = len(line) - len(line.lstrip())
+        after_run = stripped[len("run:") :].strip()
+
+        if after_run in ("|", ">", "|-", ">-", "|+", ">+"):
+            # Block scalar — continuation lines carry the shell content.
+            in_run_block = True
+        else:
+            # Single-line run: check only this line for raw interpolation.
+            for pat in _RAW_PATTERNS:
+                assert pat not in stripped, f"raw interpolation {pat!r} on run: line: {line!r}"
+
+
+def test_workflow_template_yaml_parses() -> None:
+    """Template must be syntactically valid YAML (yaml.safe_load succeeds)."""
+    text = _load_template()
+    # PyYAML Norway-problem: `on:` key is parsed as Python True — that's fine,
+    # GitHub Actions' own parser handles it correctly. We only assert no exception.
+    yaml.safe_load(text)
+
+
+def test_workflow_template_command_invocation_counts() -> None:
+    """Each shipped command appears exactly the required number of times."""
+    text = _load_template()
+    assert text.count("keepsail pr emit-opened") == 1
+    assert text.count("keepsail pr validate") == 1
+    # trailing space is defensive future-proofing (won't match "verify-" prefixed tokens)
+    assert text.count("keepsail verify ") == 1
+    # appears twice: if/else slug-fallback in the on-merge job's Process step
+    assert text.count("keepsail on-merge") == 2
+
+
+def test_workflow_template_no_stale_tokens() -> None:
+    """Template must not contain any stale/legacy tokens from older designs."""
+    text = _load_template()
+    assert "npx" not in text
+    assert "npm" not in text
+    assert "setup-node" not in text
+    assert "gate check" not in text
+
+
+def test_workflow_template_no_runline_raw_github_interpolation() -> None:
+    """Script-injection regression guard.
+
+    No run block (single-line or multi-line `run: |` / `run: >`) may contain
+    raw `${{ github.` or `${{ steps.` — all GitHub context values used inside
+    run blocks must be indirected through env: mappings.
+
+    This test walks every continuation line of block-scalar run steps, not
+    just the `run:` key line itself, so a future contributor cannot sneak
+    `echo "${{ github.head_ref }}"` into a multi-line shell block undetected.
+    """
+    _assert_no_runblock_raw_interpolation(_load_template())
+
+
+def test_workflow_template_continuation_lines_also_guarded() -> None:
+    """Regression test: the guard catches injection on block-scalar continuation lines.
+
+    Constructs a minimal synthetic yaml that contains the exact vulnerable
+    pattern — a ``run: |`` block with ``${{ github.head_ref }}`` on a
+    continuation line — and asserts the helper flags it.  This ensures the
+    multi-line tracking logic is non-vacuous: removing it would let this test
+    silently pass while the real template falsely appears safe.
+    """
+    # Case 1: full-form step — `- name:` on its own line, `run: |` nested below.
+    vulnerable_yaml_fullform = """\
+jobs:
+  example:
+    steps:
+      - name: Dangerous step
+        run: |
+          echo "branch=${{ github.head_ref }}"
+"""
+    with pytest.raises(AssertionError, match=r"raw interpolation.*continuation line"):
+        _assert_no_runblock_raw_interpolation(vulnerable_yaml_fullform)
+
+    # Case 2: list-marker shorthand — `- run: |` inline with the list marker.
+    # This is the idiomatic form in every official GitHub Actions doc example;
+    # the guard must handle it so a future contributor cannot bypass the check
+    # by using shorthand syntax.
+    vulnerable_yaml_shorthand = """\
+jobs:
+  example:
+    steps:
+      - run: |
+          echo "branch=${{ github.head_ref }}"
+"""
+    with pytest.raises(AssertionError, match=r"raw interpolation.*continuation line"):
+        _assert_no_runblock_raw_interpolation(vulnerable_yaml_shorthand)
+
+
+def test_workflow_template_pr_jobs_grant_contents_read() -> None:
+    """Regression for S10 — private-repo checkout requires contents: read.
+
+    `pr-decorate`, `pr-validate`, and `verification` all ship explicit
+    `permissions:` blocks. Without `contents: read` they silently drop the
+    default contents grant → on PRIVATE repos `actions/checkout@v4` fails
+    with `fatal: repository not found`. `on-merge` already has
+    `contents: write` so it is unaffected. This test guards every PR-event
+    job that runs `actions/checkout` against the same exposure class.
+    """
+    parsed = yaml.safe_load(_load_template())
+    for job in ("pr-decorate", "pr-validate", "verification", "attest-verify"):
+        perms = parsed["jobs"][job].get("permissions") or {}
+        assert perms.get("contents") == "read", (
+            f"{job}.permissions.contents must be 'read' "
+            f"(else actions/checkout fails on PRIVATE repos): got {perms!r}"
+        )
+
+
+def test_template_has_attest_verify_job() -> None:
+    """Layer-2 merge gate (HG-DF C): the template must ship an `attest-verify`
+    PR job that does a FULL-history checkout (fetch-depth: 0) so the
+    base...head merge-base is reachable for `attest verify`."""
+    parsed = yaml.safe_load(_load_template())
+    assert "attest-verify" in parsed["jobs"]
+    job = parsed["jobs"]["attest-verify"]
+    checkout = next(
+        s for s in job["steps"] if str(s.get("uses", "")).startswith("actions/checkout")
+    )
+    assert checkout["with"]["fetch-depth"] == 0
+    template = _load_template()
+    assert template.count("attest verify --base") == 1
+    assert "Checkout trusted baseline verifier source" in template
+    assert "env -u PYTHONPATH" in template
+    assert "candidate-acceptance" in parsed["jobs"]
+
+
+@pytest.mark.skipif(sys.version_info < (3, 11), reason="CI verifier runs Python 3.12")
+@pytest.mark.parametrize("source", ["template", "self-host"])
+def test_trusted_baseline_command_is_executed_from_its_own_metadata(
+    tmp_path: Path, source: str,
+) -> None:
+    bash = shutil.which("bash")
+    if os.name == "nt":
+        git = shutil.which("git")
+        git_bash = Path(git).resolve().parents[1] / "bin/bash.exe" if git else None
+        bash = str(git_bash) if git_bash and git_bash.is_file() else None
+    if bash is None:
+        pytest.skip("workflow execution requires bash")
+    text = (_load_template() if source == "template" else
+            (Path(__file__).resolve().parents[3] / ".github/workflows/merge-gate.yml")
+            .read_text(encoding="utf-8"))
+    steps = yaml.safe_load(text)["jobs"]["attest-verify"]["steps"]
+    command = next(step["run"] for step in steps
+                   if step.get("name") == "Verify lifecycle attestations cover the diff")
+    trusted = tmp_path / ".harness-trusted-base"
+    trusted.mkdir()
+    (trusted / "pyproject.toml").write_text(
+        '[project]\nname = "baseline-tool"\n'
+        '[project.scripts]\nbaseline-tool = "baseline_module.cli:main"\n',
+        encoding="utf-8",
+    )
+    verifier = tmp_path / "keepsail-verifier/bin"
+    verifier.mkdir(parents=True)
+    python = verifier / "python"
+    python.write_text(
+        "#!/bin/sh\nexec " + shlex.quote(Path(sys.executable).as_posix()) + ' "$@"\n',
+        encoding="utf-8",
+        newline="\n",
+    )
+    python.chmod(0o755)
+    cli = verifier / "baseline-tool"
+    cli.write_text(
+        '#!/bin/sh\ntest -z "${PYTHONPATH+x}" || exit 99\n'
+        'printf "%s\\n" "$@"\n',
+        encoding="utf-8",
+        newline="\n",
+    )
+    cli.chmod(0o755)
+    candidate = tmp_path / "candidate-source"
+    candidate.mkdir()
+    sentinel = tmp_path / "candidate-code-executed"
+    poison = (
+        "from builtins import open\n"
+        f"open({str(sentinel)!r}, 'w').close()\n"
+        "raise RuntimeError('candidate module imported by trusted resolver')\n"
+    )
+    for directory in (tmp_path, candidate):
+        for module in ("pathlib", "tomllib"):
+            (directory / (module + ".py")).write_text(poison, encoding="utf-8")
+    env = {**os.environ, "GITHUB_WORKSPACE": tmp_path.as_posix(),
+           "RUNNER_TEMP": tmp_path.as_posix(), "BASE_SHA": "base-subject",
+           "HEAD_SHA": "head-subject", "PYTHONPATH": candidate.as_posix()}
+    result = subprocess.run([bash, "-e", "-c", command], env=env,
+                            capture_output=True, text=True, check=False)
+    assert result.returncode == 0, result.stderr
+    assert not sentinel.exists()
+    assert result.stdout.splitlines() == [
+        "attest", "verify", "--base", "base-subject", "--head", "head-subject",
+    ]
+
+
+def test_template_has_doc_check_job() -> None:
+    """Derivable-doc conformance gate: the template must ship a `doc-check`
+    PR job whose steps run `keepsail doc check` (regen-and-diff)."""
+    parsed = yaml.safe_load(_load_template())
+    assert "doc-check" in parsed["jobs"]
+    job = parsed["jobs"]["doc-check"]
+    runs = [s.get("run", "") for s in job["steps"]]
+    assert any("keepsail doc check" in r for r in runs)
+
+
+@pytest.mark.skipif(sys.version_info < (3, 11), reason="CI verifier runs Python 3.12")
+@pytest.mark.parametrize("source", ["template", "self-host"])
+def test_bootstrap_uses_installed_baseline_with_hostile_candidate_imports(
+    tmp_path: Path, source: str,
+) -> None:
+    bash = shutil.which("bash")
+    if os.name == "nt":
+        git = shutil.which("git")
+        git_bash = Path(git).resolve().parents[1] / "bin/bash.exe" if git else None
+        bash = str(git_bash) if git_bash and git_bash.is_file() else None
+    if bash is None:
+        pytest.skip("workflow execution requires bash")
+    text = (_load_template() if source == "template" else
+            (Path(__file__).resolve().parents[3] / ".github/workflows/merge-gate.yml")
+            .read_text(encoding="utf-8"))
+    steps = yaml.safe_load(text)["jobs"]["attest-verify"]["steps"]
+    build = next(step["run"] for step in steps
+                 if step.get("name") == "Build isolated verifier from trusted BASE_SHA")
+    bootstrap = build[build.index("env -u PYTHONPATH"):]
+    environment = tmp_path / "installed-verifier"
+    venv.EnvBuilder(with_pip=False).create(environment)
+    python = environment / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    site = Path(subprocess.check_output(
+        [str(python), "-I", "-c", "import sysconfig; print(sysconfig.get_path('purelib'))"],
+        text=True,
+    ).strip())
+    trusted = tmp_path / ".harness-trusted-base"
+    events = "BASELINE = True\n"
+    for root in (trusted / "src", site):
+        package = root / "baseline_module"
+        for directory in (package, package / "cli", package / "core"):
+            directory.mkdir(parents=True)
+            (directory / "__init__.py").write_text("", encoding="utf-8")
+        (package / "cli/attest.py").write_text("# baseline verifier\n", encoding="utf-8")
+        (package / "core/events.py").write_text(events, encoding="utf-8")
+    (trusted / "pyproject.toml").write_text(
+        '[project]\nname = "baseline-tool"\n'
+        '[project.scripts]\nbaseline-tool = "baseline_module.cli:main"\n',
+        encoding="utf-8",
+    )
+    for arguments in (["init", "-q"], ["add", "."],
+                      ["-c", "user.name=Test", "-c", "user.email=test@example.com",
+                       "commit", "-qm", "trusted baseline"]):
+        subprocess.run(["git", *arguments], cwd=trusted, check=True)
+    sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=trusted, text=True).strip()
+    commands = tmp_path / "commands"
+    commands.mkdir()
+    wrapper = commands / "python"
+    wrapper.write_text(
+        "#!/bin/sh\nexec " + shlex.quote(python.as_posix()) + ' "$@"\n',
+        encoding="utf-8", newline="\n",
+    )
+    wrapper.chmod(0o755)
+    candidate = tmp_path / "candidate-source"
+    candidate.mkdir()
+    sentinel = tmp_path / "candidate-code-executed"
+    poison = (
+        "from builtins import open\n"
+        f"open({str(sentinel)!r}, 'w').close()\n"
+        "raise RuntimeError('candidate module imported by bootstrap')\n"
+    )
+    for directory in (tmp_path, candidate):
+        for module in ("hashlib", "pathlib", "tomllib"):
+            (directory / (module + ".py")).write_text(poison, encoding="utf-8")
+    env = {**os.environ, "GITHUB_WORKSPACE": tmp_path.as_posix(),
+           "BASE_SHA": sha, "PYTHONPATH": candidate.as_posix()}
+    command = "verifier=" + shlex.quote(commands.as_posix()) + "\n" + bootstrap
+    result = subprocess.run([bash, "-e", "-c", command], cwd=tmp_path, env=env,
+                            capture_output=True, text=True, check=False)
+    assert result.returncode == 0, result.stderr
+    assert not sentinel.exists()
+    assert "site-packages" in result.stdout
+    assert sha in result.stdout
+
+
+def test_workflow_template_guard_does_not_false_fire_on_env_indirection() -> None:
+    """Positive control: env-mapped ${{ github.* }} must NOT trip the guard.
+
+    The correct hardened pattern maps GitHub context values through env: so
+    that shell scripts reference env-var names only (never raw expressions).
+    Without this test, an accidental over-broadening of the helper (e.g.
+    matching `${{` anywhere instead of only inside run blocks) would silently
+    pass all other tests while breaking the legitimate env-indirection pattern.
+    """
+    safe_yaml = """\
+jobs:
+  ok:
+    steps:
+      - name: safe
+        env:
+          REF: ${{ github.head_ref }}
+        run: |
+          echo "$REF"
+"""
+    _assert_no_runblock_raw_interpolation(safe_yaml)  # must NOT raise

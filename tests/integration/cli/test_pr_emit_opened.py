@@ -1,4 +1,4 @@
-"""Integration tests for ``super-harness pr emit-opened`` (Phase 13 Task 13.7).
+"""Integration tests for ``keepsail pr emit-opened`` (Phase 13 Task 13.7).
 
 ``pr emit-opened`` is the CI-side ``pr_opened`` emitter that fires the
 PR-decorator workflow. Symmetric with Task 13.6's ``on-merge`` but simpler:
@@ -43,15 +43,15 @@ from unittest import mock
 
 from click.testing import CliRunner
 
-from super_harness.cli import main
-from super_harness.cli.pr import pr_group
-from super_harness.core.events import Actor, Event
-from super_harness.core.paths import events_path
-from super_harness.core.ulid import new_event_id
-from super_harness.core.writer import EventWriter
-from super_harness.engineering.gh import GhError
-from super_harness.engineering.pr_metadata import METADATA_BEGIN, METADATA_END
-from super_harness.exit_codes import (
+from keepsail.cli import main
+from keepsail.cli.pr import pr_group
+from keepsail.core.events import Actor, Event
+from keepsail.core.paths import events_path
+from keepsail.core.ulid import new_event_id
+from keepsail.core.writer import EventWriter
+from keepsail.engineering.gh import GhError
+from keepsail.engineering.pr_metadata import METADATA_BEGIN, METADATA_END
+from keepsail.exit_codes import (
     EXIT_EXTERNAL_TOOL,
     EXIT_GENERIC,
     EXIT_NO_CONFIG,
@@ -60,8 +60,8 @@ from super_harness.exit_codes import (
 
 # Mock at the SENSOR import site (Phase 12 pattern): the dispatcher
 # transitively calls these through PRDecorator.check().
-VIEW_PR = "super_harness.sensors.pr_decorator.view_pr"
-EDIT_PR_BODY = "super_harness.sensors.pr_decorator.edit_pr_body"
+VIEW_PR = "keepsail.sensors.pr_decorator.view_pr"
+EDIT_PR_BODY = "keepsail.sensors.pr_decorator.edit_pr_body"
 
 
 # --------------------------------------------------------------------------- #
@@ -295,6 +295,9 @@ def test_gh_failure_exits_4(tmp_path: Path) -> None:
 
     assert r.exit_code == EXIT_EXTERNAL_TOOL, r.output + (r.stderr or "")
     combined = (r.stderr or "") + r.output
+    assert "keepsail:metadata" in combined
+    assert METADATA_BEGIN not in combined
+    assert METADATA_END not in combined
     # Stderr mentions something gh-related ("gh"/"PR-decorator"/"network").
     assert "gh" in combined or "PR-decorator" in combined or "network" in combined
     # No JSON envelope on stdout even under --json (3/4 do not emit one).

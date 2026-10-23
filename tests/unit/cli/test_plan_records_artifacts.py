@@ -13,12 +13,12 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
-from super_harness.cli import main
-from super_harness.core.events import Actor, Event
-from super_harness.core.paths import events_path
-from super_harness.core.reducer import derive_state
-from super_harness.core.ulid import new_event_id
-from super_harness.core.writer import EventWriter
+from keepsail.cli import main
+from keepsail.core.events import Actor, Event
+from keepsail.core.paths import events_path
+from keepsail.core.reducer import derive_state
+from keepsail.core.ulid import new_event_id
+from keepsail.core.writer import EventWriter
 
 
 def _seed_intent(root: Path, slug: str) -> None:

@@ -29,9 +29,9 @@ import pytest
 
 pytest.importorskip("fcntl", reason="POSIX observer integration tests require fcntl")
 
-from super_harness.adapters.framework.openspec import OpenSpecAdapter
-from super_harness.daemon import server as observer_server
-from super_harness.daemon.framework_observer import (
+from keepsail.adapters.framework.openspec import OpenSpecAdapter
+from keepsail.daemon import server as observer_server
+from keepsail.daemon.framework_observer import (
     FrameworkObserverManager,
     _ObserveHandler,
 )

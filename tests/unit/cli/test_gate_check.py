@@ -1,9 +1,9 @@
-"""Unit tests for `super-harness gate check` (Phase 5 Task 5.2).
+"""Unit tests for `keepsail gate check` (Phase 5 Task 5.2).
 
 `gate check pre-tool-use` is the manual/CI/debug entry to the pre-tool-use gate
 decision. Per the ratified `cli-command-surface` §gate-check it decides
 **in-process** ("读 state.yaml + 事件流 → gate decide ALLOW/BLOCK") — NOT via
-the daemon (the daemon is only for the hot-path `super-harness-hook` binary).
+the daemon (the daemon is only for the hot-path `keepsail-hook` binary).
 These tests therefore set up `<ws>/.harness/state.yaml` with the production
 `write_state_yaml` + `ChangeState` and invoke `gate check` via CliRunner; no
 `supervisor` monkeypatch.
@@ -26,10 +26,10 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
-from super_harness.cli import main
-from super_harness.core.state import ChangeState
-from super_harness.core.state_yaml import write_state_yaml
-from super_harness.exit_codes import (
+from keepsail.cli import main
+from keepsail.core.state import ChangeState
+from keepsail.core.state_yaml import write_state_yaml
+from keepsail.exit_codes import (
     EXIT_GENERIC,
     EXIT_NO_CONFIG,
     EXIT_OK,

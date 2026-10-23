@@ -38,10 +38,10 @@ import time
 from contextlib import contextmanager
 from pathlib import Path
 
-from super_harness.core.emit_validation import find_ordering_violations
-from super_harness.core.events import Actor, Event
-from super_harness.core.ulid import new_event_id
-from super_harness.core.writer import EmitPreconditionError, EventWriter
+from keepsail.core.emit_validation import find_ordering_violations
+from keepsail.core.events import Actor, Event
+from keepsail.core.ulid import new_event_id
+from keepsail.core.writer import EmitPreconditionError, EventWriter
 
 # Window (seconds) injected after the real validation returns, to make the
 # post-validate/pre-append race deterministic regardless of scheduling skew.
@@ -82,7 +82,7 @@ def test_emit_holds_events_lock_across_validate_and_append(tmp_path, monkeypatch
     _seed_intent_declared(events_file, change_id)
     sentinel = events_file.parent / ".events.lock"
 
-    import super_harness.core.writer as writer_mod
+    import keepsail.core.writer as writer_mod
 
     real_validate = writer_mod.validate_preconditions
     observed: dict[str, bool] = {}
@@ -124,7 +124,7 @@ def test_thread_race_single_slot_stays_ordered(tmp_path, monkeypatch):
     change_id = "race-thread"
     _seed_intent_declared(events_file, change_id)
 
-    import super_harness.core.writer as writer_mod
+    import keepsail.core.writer as writer_mod
 
     real_validate = writer_mod.validate_preconditions
 
@@ -173,10 +173,10 @@ _WORKER_SRC = textwrap.dedent(
     events_file, change_id, ready_dir, wid = sys.argv[1:5]
     ready_dir = Path(ready_dir)
 
-    import super_harness.core.writer as writer_mod
-    from super_harness.core.events import Actor, Event
-    from super_harness.core.ulid import new_event_id
-    from super_harness.core.writer import EmitPreconditionError, EventWriter
+    import keepsail.core.writer as writer_mod
+    from keepsail.core.events import Actor, Event
+    from keepsail.core.ulid import new_event_id
+    from keepsail.core.writer import EmitPreconditionError, EventWriter
 
     _real = writer_mod.validate_preconditions
     def _slow(path, event):

@@ -2,12 +2,12 @@
 
 The generator walks a click command tree and emits a markdown reference. These
 tests use a minimal hand-rolled click group (decoupled from the real
-super-harness CLI) so the assertions are stable across future CLI surface
+keepsail CLI) so the assertions are stable across future CLI surface
 changes — the real-CLI in-sync check is the integration `run_check` exit-0 test
 at the end.
 
 The CLI surface is now `--emit` only: it prints the rendered markdown to stdout
-and the `super-harness doc check` gate owns regen-and-diff. The function-level
+and the `keepsail doc check` gate owns regen-and-diff. The function-level
 helpers (`render_markdown` / `run_check` / `write_reference`) are retained and
 tested directly.
 
@@ -19,7 +19,7 @@ Coverage:
   5. ``run_check`` exits 1 when on-disk file is missing (treated as drift, not crash)
   6. Repeated regeneration is idempotent (running twice produces no diff)
   7. ``main(["--emit"])`` prints the rendered markdown to stdout and returns 0
-  8. ``_HEADER_NOTICE`` references the live `super-harness doc check --fix` gate
+  8. ``_HEADER_NOTICE`` references the live `keepsail doc check --fix` gate
   9. Real ``init`` help documents the interactive-only ``--yes`` behavior
 """
 
@@ -31,8 +31,8 @@ from pathlib import Path
 
 import click
 
+from keepsail.cli.lazy_group import CommandSpec, LazyGroup
 from scripts import gen_cli_reference
-from super_harness.cli.lazy_group import CommandSpec, LazyGroup
 
 
 def _build_fixture_group() -> click.Group:
@@ -151,18 +151,18 @@ def test_render_intentionally_loads_the_complete_lazy_tree(tmp_path, monkeypatch
 
 def test_real_init_reference_documents_interactive_yes_without_losing_lazy_commands() -> None:
     """The real lazy tree includes every root command and init's exact --yes help."""
-    from super_harness.cli import main as real_main
+    from keepsail.cli import main as real_main
 
-    rendered = gen_cli_reference.render_markdown(real_main, root_name="super-harness")
-    init_section = rendered.split("## super-harness init", 1)[1].split(
-        "## super-harness observe", 1
+    rendered = gen_cli_reference.render_markdown(real_main, root_name="keepsail")
+    init_section = rendered.split("## keepsail init", 1)[1].split(
+        "## keepsail observe", 1
     )[0]
 
     assert (
         "| `--yes` | flag | `False` | Skip the final confirmation in interactive mode. |"
     ) in init_section
     for command_name in real_main.commands:
-        assert f"## super-harness {command_name}\n" in rendered
+        assert f"## keepsail {command_name}\n" in rendered
 
 
 def test_md_escape_cell_handles_pipe_and_newline() -> None:
@@ -228,37 +228,37 @@ def test_write_then_check_is_in_sync(tmp_path) -> None:
 def test_real_cli_reference_is_in_sync() -> None:
     """Integration: the committed docs/cli-reference.md is in sync with the real CLI.
 
-    Re-implements the regen-and-diff against the real super-harness CLI surface.
-    If this fails, regenerate via `super-harness doc check --fix` and commit.
+    Re-implements the regen-and-diff against the real keepsail CLI surface.
+    If this fails, regenerate via `keepsail doc check --fix` and commit.
     """
     from pathlib import Path
 
-    from super_harness.cli import main as real_main
+    from keepsail.cli import main as real_main
 
     repo_root = Path(__file__).resolve().parents[3]
     target = repo_root / "docs" / "cli-reference.md"
-    code = gen_cli_reference.run_check(real_main, root_name="super-harness", target=target)
+    code = gen_cli_reference.run_check(real_main, root_name="keepsail", target=target)
     assert code == 0, (
         "docs/cli-reference.md is out of sync with the CLI surface. "
-        "Run: super-harness doc check --fix"
+        "Run: keepsail doc check --fix"
     )
 
 
 def test_header_notice_references_doc_check_gate() -> None:
     """The autogen header points at the live gate, not the dead module command."""
     notice = gen_cli_reference._HEADER_NOTICE
-    assert "super-harness doc check --fix" in notice
+    assert "keepsail doc check --fix" in notice
     # The old module-invocation regen command must be gone.
     assert "python -m scripts.gen_cli_reference" not in notice
 
 
 def test_real_review_reject_reference_documents_validation_exit() -> None:
     """Retired review commands document their generic validation failure."""
-    from super_harness.cli import main as real_main
+    from keepsail.cli import main as real_main
 
-    rendered = gen_cli_reference.render_markdown(real_main, root_name="super-harness")
-    section = rendered.split("## super-harness review reject", 1)[1].split(
-        "## super-harness review skip", 1
+    rendered = gen_cli_reference.render_markdown(real_main, root_name="keepsail")
+    section = rendered.split("## keepsail review reject", 1)[1].split(
+        "## keepsail review skip", 1
     )[0]
 
     assert "Retired; external evidence must be imported instead." in section
@@ -267,13 +267,13 @@ def test_real_review_reject_reference_documents_validation_exit() -> None:
 
 def test_emit_mode_prints_rendered_markdown(capsys) -> None:
     """`main(["--emit"])` prints the real CLI reference to stdout and returns 0."""
-    from super_harness.cli import main as real_main
+    from keepsail.cli import main as real_main
 
     code = gen_cli_reference.main(["--emit"])
     assert code == 0
 
     captured = capsys.readouterr()
-    expected = gen_cli_reference.render_markdown(real_main, root_name="super-harness")
+    expected = gen_cli_reference.render_markdown(real_main, root_name="keepsail")
     assert captured.out == expected
     # No extra trailing newline beyond what render_markdown already emits.
     assert captured.out.startswith(gen_cli_reference._HEADER_NOTICE)
@@ -289,6 +289,6 @@ def test_emit_subprocess_is_utf8_and_contains_complete_observe_tree() -> None:
     )
     assert result.returncode == 0
     rendered = result.stdout.decode("utf-8")
-    assert "## super-harness observe start" in rendered
-    assert "## super-harness observe stop" in rendered
-    assert "## super-harness observe status" in rendered
+    assert "## keepsail observe start" in rendered
+    assert "## keepsail observe stop" in rendered
+    assert "## keepsail observe status" in rendered

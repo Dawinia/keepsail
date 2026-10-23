@@ -1,15 +1,15 @@
 """Tests for `post_emit_refresh` helper (Task 1.9 / B-3 fix).
 
-Per super-harness v0.1 Phase 1 plan: every emit site (CLI commands, dispatcher
+Per keepsail v0.1 Phase 1 plan: every emit site (CLI commands, dispatcher
 result handler, adapter observe loop) must call `refresh_state_after_emit`
 synchronously after writing to events.jsonl, so state.yaml never lags the event
 stream. v0.1 = full rebuild per lifecycle-event-model §3.8.2.
 """
 from pathlib import Path
 
-from super_harness.core.post_emit import refresh_state_after_emit
-from super_harness.core.state_yaml import read_state_yaml
-from super_harness.core.writer import EventWriter
+from keepsail.core.post_emit import refresh_state_after_emit
+from keepsail.core.state_yaml import read_state_yaml
+from keepsail.core.writer import EventWriter
 from tests.unit.core.test_writer import _make_event
 
 

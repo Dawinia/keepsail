@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from super_harness.core.events import Actor, Event
-from super_harness.engineering.review_runs import (
+from keepsail.core.events import Actor, Event
+from keepsail.engineering.review_runs import (
     count_automatic_rounds,
     count_rounds_since_skip_boundary,
     derive_review_execution,
@@ -761,7 +761,7 @@ def test_automatic_rounds_survive_plan_resubmit() -> None:
     """`plan_ready` re-fires on every rejection (transitions.py: PLAN_REJECTED ->
     plan_ready is the revise-and-resubmit path), so the per-epoch fold resets and the
     budget never bites. The per-change count is what the brake must compare against."""
-    from super_harness.engineering.review_runs import count_automatic_rounds
+    from keepsail.engineering.review_runs import count_automatic_rounds
 
     events = []
     for n in (1, 2, 3):
@@ -777,7 +777,7 @@ def test_automatic_rounds_survive_plan_resubmit() -> None:
 def test_count_automatic_rounds_ignores_other_roles_and_non_automatic() -> None:
     """A human-confirmed round emits `automatic: False` (cli/review.py review confirm)
     and is not counted; neither is another role's round."""
-    from super_harness.engineering.review_runs import count_automatic_rounds
+    from keepsail.engineering.review_runs import count_automatic_rounds
 
     events = [
         _event("epoch-plan", "plan_ready", {}),
@@ -792,7 +792,7 @@ def test_count_automatic_rounds_ignores_other_roles_and_non_automatic() -> None:
 
 def test_count_automatic_rounds_treats_missing_automatic_as_automatic() -> None:
     """Historical rounds predate the flag; the budget must not silently forget them."""
-    from super_harness.engineering.review_runs import count_automatic_rounds
+    from keepsail.engineering.review_runs import count_automatic_rounds
 
     legacy = _event(
         "event-legacy", "review_round_started",
@@ -803,7 +803,7 @@ def test_count_automatic_rounds_treats_missing_automatic_as_automatic() -> None:
 
 
 def test_count_automatic_rounds_is_zero_before_any_round() -> None:
-    from super_harness.engineering.review_runs import count_automatic_rounds
+    from keepsail.engineering.review_runs import count_automatic_rounds
 
     assert count_automatic_rounds([], "plan-reviewer") == 0
 

@@ -8,8 +8,8 @@ guarantees the rest of the code relies on.
 
 from __future__ import annotations
 
-from super_harness.core.state import STATES
-from super_harness.gates.decisions import (
+from keepsail.core.state import STATES
+from keepsail.gates.decisions import (
     PLAN_ARTIFACT_ALLOW_STATES,
     PLAN_PATH_ALLOW_STATES,
     PRE_TOOL_USE_DECISIONS,

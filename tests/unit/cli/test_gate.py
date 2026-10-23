@@ -1,4 +1,4 @@
-"""Unit tests for `super-harness gate list` (Phase 3 Task 3.5 — symmetric mirror).
+"""Unit tests for `keepsail gate list` (Phase 3 Task 3.5 — symmetric mirror).
 
 v0.1 is builtin-only. Covers (mirrors sensor list):
   1. No `.harness/` workspace → EXIT_NO_CONFIG
@@ -18,11 +18,11 @@ import pytest
 import yaml
 from click.testing import CliRunner
 
-from super_harness.cli import main
-from super_harness.exit_codes import EXIT_NO_CONFIG, EXIT_OK, EXIT_VALIDATION
-from super_harness.gates import Gate, GateDecision, GateFiresOn, GateResult
-from super_harness.gates import registry as gates_registry
-from super_harness.gates.registry import register_builtin
+from keepsail.cli import main
+from keepsail.exit_codes import EXIT_NO_CONFIG, EXIT_OK, EXIT_VALIDATION
+from keepsail.gates import Gate, GateDecision, GateFiresOn, GateResult
+from keepsail.gates import registry as gates_registry
+from keepsail.gates.registry import register_builtin
 
 
 class _StubGate(Gate):
@@ -151,7 +151,7 @@ def test_list_reports_yaml_validation_errors(
     assert r.exit_code == EXIT_VALIDATION
     combined = r.output + (r.stderr or "")
     assert "must be a list" in combined
-    assert "super-harness gate list" in combined
+    assert "keepsail gate list" in combined
 
 
 def test_list_corrupt_yaml_exits_validation_not_traceback(

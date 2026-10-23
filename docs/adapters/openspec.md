@@ -1,11 +1,11 @@
 # OpenSpec adapter
 
-The OpenSpec adapter teaches super-harness to read changes maintained with the
+The OpenSpec adapter teaches keepsail to read changes maintained with the
 [OpenSpec](https://www.npmjs.com/package/@fission-ai/openspec) Node CLI
-(verified against `openspec@1.3.1`). It is a *framework* adapter: super-harness
+(verified against `openspec@1.3.1`). It is a *framework* adapter: keepsail
 reads OpenSpec's on-disk artifacts and emits the matching lifecycle events
 (`intent_declared`, `plan_ready`) so the rest of the harness — gates,
-verification, state — works without OpenSpec needing to know super-harness
+verification, state — works without OpenSpec needing to know keepsail
 exists. The adapter does not call OpenSpec at runtime except through one
 verification check (`openspec validate`).
 
@@ -25,7 +25,7 @@ OpenSpec is auto-detected when the workspace contains both
 ## Install
 
 ```bash
-super-harness adapter install openspec
+keepsail adapter install openspec
 ```
 
 Mechanics:
@@ -37,8 +37,8 @@ Mechanics:
    in place rather than accumulating duplicates).
 3. Persists `{name: openspec, type: framework, version: 0.1.0, enabled: true}`
    into `.harness/adapters.yaml`.
-4. Injects the `<!-- super-harness framework: openspec -->` subsection into
-   `AGENTS.md` AND evicts the `<!-- super-harness framework: plain -->`
+4. Injects the `<!-- keepsail framework: openspec -->` subsection into
+   `AGENTS.md` AND evicts the `<!-- keepsail framework: plain -->`
    block `init` wrote (so AGENTS.md doesn't advertise two contradictory
    framework workflows). Eviction is idempotent — re-running `adapter
    install openspec` is a no-op for the plain block once gone. Asymmetric:
@@ -60,11 +60,11 @@ to archive after merge. Verbatim from
 `OpenSpecAdapter.agents_md_subsection()`:
 
 ```markdown
-<!-- super-harness framework: openspec -->
+<!-- keepsail framework: openspec -->
 - OpenSpec change lives in `openspec/changes/<slug>/` (proposal.md / tasks.md / specs/ deltas).
 - Validate before push: `openspec validate <slug> --strict`.
 - After merge, fold spec deltas into `openspec/specs/`: `openspec archive <slug>`.
-<!-- /super-harness framework: openspec -->
+<!-- /keepsail framework: openspec -->
 ```
 
 The marker comments are load-bearing — `adapter install` / `adapter uninstall`
@@ -74,7 +74,7 @@ markers manually; re-run `adapter install openspec` if it drifts.
 ## Common issues
 
 - **`openspec: command not found` when running `verify`.** The verification
-  check shells out to the OpenSpec Node CLI; super-harness does not bundle it.
+  check shells out to the OpenSpec Node CLI; keepsail does not bundle it.
   Install it explicitly: `npm install -g @fission-ai/openspec@1.3.1`.
 - **`openspec validate` exits non-zero in CI.** Run it locally first:
   `openspec validate <slug> --strict --json`. Exit `0` is pass; non-zero with
@@ -83,10 +83,10 @@ markers manually; re-run `adapter install openspec` if it drifts.
 - **`adapter scan-once openspec` reports `0 events emitted` after editing
   `proposal.md`.** The adapter only emits each `(change_id, event_type)` pair
   once — re-emits are deduped against `.harness/events.jsonl`. Inspect with
-  `super-harness event log <slug>` to confirm `intent_declared` already
+  `keepsail event log <slug>` to confirm `intent_declared` already
   exists.
 - **`emit failed for change <slug> event 'plan_ready'`.** OpenSpec lets you
-  create `tasks.md` before `proposal.md`, but super-harness's lifecycle
+  create `tasks.md` before `proposal.md`, but keepsail's lifecycle
   requires `intent_declared` to precede `plan_ready`. Add the missing
   `proposal.md` and re-run `adapter scan-once openspec`.
 - **Worried that archived changes will re-emit events?** They will not —
@@ -96,7 +96,7 @@ markers manually; re-run `adapter install openspec` if it drifts.
 ## Uninstall
 
 ```bash
-super-harness adapter uninstall openspec
+keepsail adapter uninstall openspec
 ```
 
 Mechanics (reverse of install):
@@ -106,17 +106,17 @@ Mechanics (reverse of install):
 2. Removes the `openspec` row from `.harness/adapters.yaml`.
 3. Prunes the `openspec-validate` row from
    `.harness/verification.yaml.adapter_provided` by `(provided_by, id)` match.
-4. Removes the `<!-- super-harness framework: openspec -->` subsection from
+4. Removes the `<!-- keepsail framework: openspec -->` subsection from
    `AGENTS.md`, restoring the framework slot to the `plain` block.
 
 Your `openspec/` directory is left untouched — uninstall removes only the
-super-harness wiring, not OpenSpec's own artifacts.
+keepsail wiring, not OpenSpec's own artifacts.
 
 ## See also
 
 - [`docs/getting-started.md`](../getting-started.md) — the end-to-end
   walkthrough that installs this adapter alongside `claude-code`.
 - [`docs/cli-reference.md`](../cli-reference.md) — the full
-  `super-harness adapter` command surface.
+  `keepsail adapter` command surface.
 - [`examples/demo-openspec-claude/`](../../examples/demo-openspec-claude/) —
   a runnable demo wiring OpenSpec + Claude Code through the full lifecycle.

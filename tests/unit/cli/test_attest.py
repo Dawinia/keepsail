@@ -1,12 +1,12 @@
-"""CLI tests for `super-harness attest write` / `attest verify`."""
+"""CLI tests for `keepsail attest write` / `attest verify`."""
 from __future__ import annotations
 
 from pathlib import Path
 
 from click.testing import CliRunner
 
-import super_harness.cli.attest as attest_mod
-from super_harness.cli import main
+import keepsail.cli.attest as attest_mod
+from keepsail.cli import main
 
 
 def _init(root: Path) -> None:
@@ -98,10 +98,10 @@ def test_attest_verify_passes_on_empty_diff(tmp_path, monkeypatch):
 # --------------------------------------------------------------------------- #
 import json  # noqa: E402
 
-from super_harness.core.clock import utc_now_iso  # noqa: E402
-from super_harness.core.events import Actor, Event  # noqa: E402
-from super_harness.core.ulid import new_event_id  # noqa: E402
-from super_harness.core.writer import EventWriter  # noqa: E402
+from keepsail.core.clock import utc_now_iso  # noqa: E402
+from keepsail.core.events import Actor, Event  # noqa: E402
+from keepsail.core.ulid import new_event_id  # noqa: E402
+from keepsail.core.writer import EventWriter  # noqa: E402
 
 _DIFF = "A\t.harness/attestations/feat-x.jsonl\nM\tsrc/x.py\n"
 
@@ -200,7 +200,7 @@ def test_verify_quiet_suppresses_disclosure(tmp_path, monkeypatch):
 # --------------------------------------------------------------------------- #
 # Part C.3: gate-bypass disclosure (merge blocker + write-side clear)
 # --------------------------------------------------------------------------- #
-from super_harness.core.paths import events_path  # noqa: E402
+from keepsail.core.paths import events_path  # noqa: E402
 
 
 def _seed_lifecycle(root: Path, slug: str, author: str, reviewer: str) -> EventWriter:
@@ -253,7 +253,7 @@ def test_attest_write_disclose_gate_bypass_clears_blocker(tmp_path, monkeypatch)
 
 
 def test_independence_line_override_skip():
-    from super_harness.cli.attest import _independence_line
+    from keepsail.cli.attest import _independence_line
     line = _independence_line(
         "code_review",
         {"classification": "skipped", "reviewer": "t", "skipped": True,
@@ -265,7 +265,7 @@ def test_independence_line_override_skip():
 def test_independence_line_names_its_role():
     """A bare `review independence:` beside a labelled plan row would read as "the
     review" and quietly claim the plan row's meaning."""
-    from super_harness.cli.attest import _independence_line
+    from keepsail.cli.attest import _independence_line
     item = {"classification": "independent", "reviewer": "bob@x", "skipped": False,
             "override": False, "reason": None}
     assert _independence_line("code_review", item).startswith("code review independence:")

@@ -3,7 +3,7 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from super_harness.cli import main
+from keepsail.cli import main
 
 
 def _init(tmp_path: Path):
@@ -451,7 +451,7 @@ def test_change_start_records_as_identity(tmp_path: Path):
 def test_change_start_defaults_via_resolver(tmp_path: Path, monkeypatch):
     _init(tmp_path)
     monkeypatch.setattr(
-        "super_harness.cli.change.resolve_identity", lambda ws, override=None: "git@x"
+        "keepsail.cli.change.resolve_identity", lambda ws, override=None: "git@x"
     )
     r = CliRunner().invoke(
         main, ["--workspace", str(tmp_path), "change", "start", "feat-y"]

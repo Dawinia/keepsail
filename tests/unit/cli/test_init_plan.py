@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from super_harness.cli.init_plan import (
+from keepsail.cli.init_plan import (
     ExistingFileDecision,
     FileAction,
     GitHubDecision,
@@ -22,7 +22,7 @@ from super_harness.cli.init_plan import (
 
 
 def _lookup(*available: str):
-    installed = frozenset((*available, "super-harness-hook", "super-harness"))
+    installed = frozenset((*available, "keepsail-hook", "keepsail"))
     return lambda executable: f"/bin/{executable}" if executable in installed else None
 
 
@@ -307,7 +307,7 @@ def test_file_actions_are_ordered_before_any_apply_boundary(tmp_path: Path) -> N
         ".claude/settings.local.json",
         "AGENTS.md",
         ".gitignore",
-        ".github/workflows/super-harness.yml",
+        ".github/workflows/keepsail.yml",
         ".github/pull_request_template.md",
     ]
     by_path = {action.path.as_posix(): action for action in plan.file_actions}
@@ -323,7 +323,7 @@ def test_file_actions_are_ordered_before_any_apply_boundary(tmp_path: Path) -> N
     assert by_path[".claude/settings.local.json"].action is FileAction.SKIP
     assert by_path["AGENTS.md"].action is FileAction.UPDATE
     assert by_path[".gitignore"].action is FileAction.UPDATE
-    assert by_path[".github/workflows/super-harness.yml"].action is FileAction.CREATE
+    assert by_path[".github/workflows/keepsail.yml"].action is FileAction.CREATE
 
 
 def test_plan_marks_derived_and_optional_runtime_files_truthfully(tmp_path: Path) -> None:
@@ -363,7 +363,7 @@ def test_plan_freezes_selected_integration_transactions_and_truthful_backups(
     current = tmp_path / ".claude" / "settings.local.json"
     current.parent.mkdir()
     current.write_text("{}\n")
-    lookup = _lookup("super-harness-hook", "super-harness")
+    lookup = _lookup("keepsail-hook", "keepsail")
     current.write_bytes(
         inspect_workspace(
             _request(tmp_path, integrations=("claude-code",)),
@@ -391,7 +391,7 @@ def test_integration_preflight_needs_management_binaries_not_agent_binaries(
 ) -> None:
     preflight = inspect_workspace(
         _request(tmp_path, mode=InteractionMode.GUIDED),
-        executable_lookup=_lookup("super-harness-hook", "super-harness"),
+        executable_lookup=_lookup("keepsail-hook", "keepsail"),
     )
     assert preflight.available_integrations == frozenset({"codex", "claude-code"})
 
@@ -566,7 +566,7 @@ def test_closed_state_enums_and_forbidden_ui_lifecycle_imports() -> None:
     }
     assert set(GitHubDecision) == {GitHubDecision.SKIP, GitHubDecision.CREATE}
 
-    module_path = Path(__file__).parents[3] / "src/super_harness/cli/init_plan.py"
+    module_path = Path(__file__).parents[3] / "src/keepsail/cli/init_plan.py"
     imports = {
         alias.name.split(".", 1)[0]
         for node in ast.walk(ast.parse(module_path.read_text()))
@@ -584,7 +584,7 @@ def test_closed_state_enums_and_forbidden_ui_lifecycle_imports() -> None:
 def test_github_file_decisions_are_closed_and_choices_are_immutable() -> None:
     mutable = {
         ".github/pull_request_template.md": GithubFileDecision.APPEND,
-        ".github/workflows/super-harness.yml": GithubFileDecision.OVERWRITE,
+        ".github/workflows/keepsail.yml": GithubFileDecision.OVERWRITE,
     }
     choices = InitChoices(github_file_decisions=mutable)
     mutable[".github/pull_request_template.md"] = GithubFileDecision.KEEP
@@ -615,11 +615,11 @@ def test_resolved_github_file_decisions_drive_truthful_file_actions(
             github_decision=GitHubDecision.CREATE,
             github_file_decisions={
                 ".github/pull_request_template.md": GithubFileDecision.KEEP,
-                ".github/workflows/super-harness.yml": GithubFileDecision.OVERWRITE,
+                ".github/workflows/keepsail.yml": GithubFileDecision.OVERWRITE,
             },
         ),
     )
     actions = {action.path.as_posix(): action.action for action in plan.file_actions}
 
     assert actions[".github/pull_request_template.md"] is FileAction.PRESERVE
-    assert actions[".github/workflows/super-harness.yml"] is FileAction.UPDATE
+    assert actions[".github/workflows/keepsail.yml"] is FileAction.UPDATE

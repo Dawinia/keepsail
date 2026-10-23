@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-from super_harness.engineering.agents_md import (
+from keepsail.engineering.agents_md import (
     AgentsMdInjectionError,
     inject_agent_subsection,
     inject_framework_subsection,
@@ -27,35 +27,35 @@ from super_harness.engineering.agents_md import (
 )
 
 # A minimal init-style outer section seed, with both placeholders present, as
-# `super-harness init` would first write it (before consuming the placeholders).
+# `keepsail init` would first write it (before consuming the placeholders).
 _SEED_WITH_PLACEHOLDERS = (
-    "<!-- super-harness section begin · v0.1.0 · DO NOT EDIT MANUALLY -->\n"
-    "## Super-harness conventions\n\n"
+    "<!-- keepsail section begin · v0.1.0 · DO NOT EDIT MANUALLY -->\n"
+    "## Keepsail conventions\n\n"
     "### PR creation\n\n"
     "[FRAMEWORK_SECTION_AUTO_INSERTED]\n\n"
     "### Agent-specific guidance\n\n"
     "[AGENT_SECTION_AUTO_INSERTED]\n\n"
-    "<!-- super-harness section end -->\n"
+    "<!-- keepsail section end -->\n"
 )
 
 
 def _fw_block(name: str, body: str = "fw body") -> str:
     return (
-        f"<!-- super-harness framework: {name} -->\n"
+        f"<!-- keepsail framework: {name} -->\n"
         f"{body}\n"
-        f"<!-- /super-harness framework: {name} -->\n"
+        f"<!-- /keepsail framework: {name} -->\n"
     )
 
 
 def _agent_block(name: str, body: str = "agent body") -> str:
     return (
-        f"<!-- super-harness agent: {name} -->\n"
+        f"<!-- keepsail agent: {name} -->\n"
         f"{body}\n"
-        f"<!-- /super-harness agent: {name} -->\n"
+        f"<!-- /keepsail agent: {name} -->\n"
     )
 
 
-_NO_AGENT = "<!-- super-harness no-agent-adapter-installed -->"
+_NO_AGENT = "<!-- keepsail no-agent-adapter-installed -->"
 
 
 # --------------------------------------------------------------------------- #
@@ -81,15 +81,15 @@ def test_inject_section_no_existing_block_appends(tmp_path: Path) -> None:
 def test_inject_section_single_block_is_replaced(tmp_path: Path) -> None:
     path = tmp_path / "AGENTS.md"
     old = (
-        "<!-- super-harness section begin · v0.0.1 -->\n"
+        "<!-- keepsail section begin · v0.0.1 -->\n"
         "old body\n"
-        "<!-- super-harness section end -->"
+        "<!-- keepsail section end -->"
     )
     path.write_text(f"# Top\n\n{old}\n\nUser tail.\n")
     new = (
-        "<!-- super-harness section begin · v0.1.0 -->\n"
+        "<!-- keepsail section begin · v0.1.0 -->\n"
         "new body\n"
-        "<!-- super-harness section end -->"
+        "<!-- keepsail section end -->"
     )
     inject_section(path, new)
     text = path.read_text()
@@ -103,15 +103,15 @@ def test_inject_section_single_block_is_replaced(tmp_path: Path) -> None:
 def test_inject_section_multiple_blocks_raises(tmp_path: Path) -> None:
     path = tmp_path / "AGENTS.md"
     block = (
-        "<!-- super-harness section begin · v0.1.0 -->\n"
+        "<!-- keepsail section begin · v0.1.0 -->\n"
         "body\n"
-        "<!-- super-harness section end -->"
+        "<!-- keepsail section end -->"
     )
     path.write_text(f"{block}\n\n{block}\n")
     with pytest.raises(AgentsMdInjectionError):
         inject_section(path, "whatever")
     # File left untouched on raise (still 2 blocks).
-    assert path.read_text().count("super-harness section begin") == 2
+    assert path.read_text().count("keepsail section begin") == 2
 
 
 # --------------------------------------------------------------------------- #
@@ -139,7 +139,7 @@ def test_inject_framework_replace_by_name(tmp_path: Path) -> None:
     assert "v1" not in text
     assert "v2" in text
     # Exactly one plain block (replaced, not duplicated).
-    assert text.count("<!-- super-harness framework: plain -->") == 1
+    assert text.count("<!-- keepsail framework: plain -->") == 1
 
 
 def test_inject_framework_append_after_last(tmp_path: Path) -> None:
@@ -149,8 +149,8 @@ def test_inject_framework_append_after_last(tmp_path: Path) -> None:
     # Placeholder gone; a *different* framework must append after the last block.
     inject_framework_subsection(path, "openspec", _fw_block("openspec"))
     text = path.read_text()
-    assert text.count("<!-- super-harness framework: plain -->") == 1
-    assert text.count("<!-- super-harness framework: openspec -->") == 1
+    assert text.count("<!-- keepsail framework: plain -->") == 1
+    assert text.count("<!-- keepsail framework: openspec -->") == 1
     # openspec appended AFTER plain.
     assert text.index("framework: plain") < text.index("framework: openspec")
 
@@ -192,7 +192,7 @@ def test_inject_agent_replace_by_name(tmp_path: Path) -> None:
     text = path.read_text()
     assert "v1" not in text
     assert "v2" in text
-    assert text.count("<!-- super-harness agent: claude-code -->") == 1
+    assert text.count("<!-- keepsail agent: claude-code -->") == 1
 
 
 def test_inject_agent_append_after_last(tmp_path: Path) -> None:
@@ -202,8 +202,8 @@ def test_inject_agent_append_after_last(tmp_path: Path) -> None:
     inject_agent_subsection(path, "claude-code", _agent_block("claude-code"))
     inject_agent_subsection(path, "cursor", _agent_block("cursor"))
     text = path.read_text()
-    assert text.count("<!-- super-harness agent: claude-code -->") == 1
-    assert text.count("<!-- super-harness agent: cursor -->") == 1
+    assert text.count("<!-- keepsail agent: claude-code -->") == 1
+    assert text.count("<!-- keepsail agent: cursor -->") == 1
     assert text.index("agent: claude-code") < text.index("agent: cursor")
 
 
@@ -305,7 +305,7 @@ def test_crlf_file_injection_preserves_user_line_endings(tmp_path: Path) -> None
 
     raw = path.read_bytes()
     # (a) injection worked.
-    assert b"super-harness agent: claude-code" in raw
+    assert b"keepsail agent: claude-code" in raw
     assert b"no-agent-adapter-installed" not in raw
     # (b) untouched user lines keep CRLF; no bare LF leaked in.
     assert b"\r\n" in raw
@@ -338,7 +338,7 @@ def test_mixed_line_endings_normalize_to_dominant_crlf(tmp_path: Path) -> None:
 
     raw = path.read_bytes()
     # (a) injection worked.
-    assert b"super-harness framework: plain" in raw
+    assert b"keepsail framework: plain" in raw
     # (b) normalized to the dominant CRLF: every LF is now part of a CRLF pair.
     assert b"\r\n" in raw
     assert raw.replace(b"\r\n", b"").count(b"\n") == 0
@@ -351,7 +351,7 @@ def test_lf_file_stays_lf(tmp_path: Path) -> None:
     inject_agent_subsection(path, "claude-code", _agent_block("claude-code"))
     raw = path.read_bytes()
     assert b"\r\n" not in raw
-    assert b"super-harness agent: claude-code" in raw
+    assert b"keepsail agent: claude-code" in raw
 
 
 # --------------------------------------------------------------------------- #
@@ -365,14 +365,14 @@ def test_section_present_absent_file_is_false(tmp_path: Path) -> None:
 
 
 def test_section_present_file_with_section_is_true(tmp_path: Path) -> None:
-    """A file carrying an outer super-harness section block → True."""
+    """A file carrying an outer keepsail section block → True."""
     path = tmp_path / "AGENTS.md"
     path.write_text(_SEED_WITH_PLACEHOLDERS)
     assert section_present(path) is True
 
 
 def test_section_present_file_without_section_is_false(tmp_path: Path) -> None:
-    """A file with only user content (no super-harness markers) → False."""
+    """A file with only user content (no keepsail markers) → False."""
     path = tmp_path / "AGENTS.md"
     path.write_text("# My project\n\nJust user prose, no markers.\n")
     assert section_present(path) is False
@@ -389,7 +389,7 @@ def test_inject_section_orphan_begin_marker_raises(tmp_path: Path) -> None:
     path = tmp_path / "AGENTS.md"
     original = (
         "# My project\n\n"
-        "<!-- super-harness section begin · v0.0.1 · DO NOT EDIT MANUALLY -->\n"
+        "<!-- keepsail section begin · v0.0.1 · DO NOT EDIT MANUALLY -->\n"
         "user notes that must survive\n"
     )
     path.write_text(original)
@@ -401,7 +401,7 @@ def test_inject_section_orphan_begin_marker_raises(tmp_path: Path) -> None:
 def test_inject_section_orphan_end_marker_raises(tmp_path: Path) -> None:
     """A lone `section end` with no matching begin is equally ambiguous → raise."""
     path = tmp_path / "AGENTS.md"
-    original = "# My project\n\n<!-- super-harness section end -->\nstuff\n"
+    original = "# My project\n\n<!-- keepsail section end -->\nstuff\n"
     path.write_text(original)
     with pytest.raises(AgentsMdInjectionError, match="unbalanced"):
         inject_section(path, "whatever")
@@ -450,5 +450,5 @@ def test_roundtrip_inject_remove_reinject_agent(tmp_path: Path) -> None:
     # Re-install must succeed (branch (2) anchors on the restored placeholder).
     inject_agent_subsection(path, "claude-code", _agent_block("claude-code"))
     final = path.read_text()
-    assert final.count("<!-- super-harness agent: claude-code -->") == 1
+    assert final.count("<!-- keepsail agent: claude-code -->") == 1
     assert _NO_AGENT not in final

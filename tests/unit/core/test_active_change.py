@@ -5,7 +5,7 @@ malformed cache must resolve to None, never raise)."""
 from datetime import datetime, timezone
 from pathlib import Path
 
-from super_harness.core.active_change import pick_active_change, read_active_change_id
+from keepsail.core.active_change import pick_active_change, read_active_change_id
 
 
 def test_most_recent_wins():

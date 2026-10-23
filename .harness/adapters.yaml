@@ -1,5 +1,5 @@
 # .harness/adapters.yaml
-# AUTO-MANAGED by super-harness adapter install/uninstall. Do not edit.
+# AUTO-MANAGED by keepsail adapter install/uninstall. Do not edit.
 adapters:
 - name: superpowers
   type: framework

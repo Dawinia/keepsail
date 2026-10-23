@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from super_harness.adapters.install import (
+from keepsail.adapters.install import (
     _ADAPTERS_YAML_HEADER,
     _persist_install_entry,
     _read_adapter_entries,
@@ -111,12 +111,12 @@ def test_corrupt_yaml_error_propagates(tmp_path: Path) -> None:
         (
             "claude-code",
             ".claude/settings.local.json",
-            "/opt/super-harness-hook --agent claude-code",
+            "/opt/keepsail-hook --agent claude-code",
         ),
         (
             "codex",
             ".codex/hooks.json",
-            "/opt/super-harness-hook --agent codex",
+            "/opt/keepsail-hook --agent codex",
         ),
     ],
 )
@@ -169,7 +169,7 @@ def test_frozen_integration_plan_rejects_executable_drift_before_settings_write(
         install_agent_integration(tmp_path, "codex", plan=plan)
 
     assert settings.read_bytes() == original
-    assert list(settings.parent.glob("*.super-harness-backup.*")) == []
+    assert list(settings.parent.glob("*.keepsail-backup.*")) == []
     assert not _adapters_yaml(tmp_path).exists()
 
 

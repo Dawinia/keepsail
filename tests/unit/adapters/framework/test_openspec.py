@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from super_harness.adapters.framework.openspec import OpenSpecAdapter, scan_changes
-from super_harness.core.events import Event, serialize_event
+from keepsail.adapters.framework.openspec import OpenSpecAdapter, scan_changes
+from keepsail.core.events import Event, serialize_event
 
 
 def _make_change(
@@ -231,7 +231,7 @@ def test_observe_dedups_against_events_file(tmp_path: Path) -> None:
     # Pre-seed events.jsonl with the intent_declared so only plan_ready is new.
     harness = tmp_path / ".harness"
     harness.mkdir()
-    from super_harness.core.events import Actor
+    from keepsail.core.events import Actor
 
     prior = Event(
         event_id="ev_x",
@@ -270,7 +270,7 @@ def test_observe_emitted_events_are_schema_valid(tmp_path: Path) -> None:
     _make_change(
         tmp_path, "add-widget", proposal="# Add widget\n", tasks="- [ ] step\n"
     )
-    from super_harness.core.events import parse_event_line
+    from keepsail.core.events import parse_event_line
 
     for ev in OpenSpecAdapter().observe(tmp_path):
         # Round-trips through serialize -> parse without EventSchemaError.
@@ -370,18 +370,18 @@ def test_verification_checks_provided_by() -> None:
 
 def test_agents_md_subsection_contains_opening_marker() -> None:
     section = OpenSpecAdapter().agents_md_subsection()
-    assert "<!-- super-harness framework: openspec -->" in section
+    assert "<!-- keepsail framework: openspec -->" in section
 
 
 def test_agents_md_subsection_contains_closing_marker() -> None:
     section = OpenSpecAdapter().agents_md_subsection()
-    assert "<!-- /super-harness framework: openspec -->" in section
+    assert "<!-- /keepsail framework: openspec -->" in section
 
 
 def test_agents_md_subsection_opening_before_closing() -> None:
     section = OpenSpecAdapter().agents_md_subsection()
-    open_pos = section.index("<!-- super-harness framework: openspec -->")
-    close_pos = section.index("<!-- /super-harness framework: openspec -->")
+    open_pos = section.index("<!-- keepsail framework: openspec -->")
+    close_pos = section.index("<!-- /keepsail framework: openspec -->")
     assert open_pos < close_pos
 
 

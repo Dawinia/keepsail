@@ -1,6 +1,6 @@
 """Tests for the .gitignore marker-bounded injector (S2 fix).
 
-`super-harness init` writes a marker-bounded block listing the canonical
+`keepsail init` writes a marker-bounded block listing the canonical
 `.harness/` auto-generated paths into the repo-root `.gitignore`. The injector
 follows the same marker-discipline contract as the AGENTS.md injector
 (Phase 7/9/12 lesson): exactly one block expected; multiple blocks → fail loud
@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from super_harness.engineering.gitignore_injector import (
+from keepsail.engineering.gitignore_injector import (
     GITIGNORE_BEGIN_MARKER,
     GITIGNORE_END_MARKER,
     GitignoreInjectionError,
@@ -42,9 +42,9 @@ _CANONICAL_PATHS = (
     ".harness/daemon.log",
     ".harness/.*.lock",
     ".claude/settings.local.json",
-    ".claude/*.super-harness-backup.*",
+    ".claude/*.keepsail-backup.*",
     ".codex/hooks.json",
-    ".codex/*.super-harness-backup.*",
+    ".codex/*.keepsail-backup.*",
 )
 
 
@@ -56,9 +56,9 @@ _CANONICAL_PATHS = (
 def test_marker_strings_are_exact() -> None:
     """Lock in the exact marker text so a regression renaming them is caught."""
     assert GITIGNORE_BEGIN_MARKER == (
-        "# >>> super-harness gitignore (do not edit between markers)"
+        "# >>> keepsail gitignore (do not edit between markers)"
     )
-    assert GITIGNORE_END_MARKER == "# <<< super-harness gitignore"
+    assert GITIGNORE_END_MARKER == "# <<< keepsail gitignore"
 
 
 # --------------------------------------------------------------------------- #
@@ -86,7 +86,7 @@ def test_absent_gitignore_writes_marker_block_only(tmp_path: Path) -> None:
 
 
 def test_existing_gitignore_zero_blocks_appends_block(tmp_path: Path) -> None:
-    """When .gitignore has user content but no super-harness block, the
+    """When .gitignore has user content but no keepsail block, the
     injector appends a marker block while preserving user content verbatim."""
     path = tmp_path / ".gitignore"
     user_content = "# User-written gitignore\n*.pyc\nnode_modules/\n.env\n"
@@ -98,7 +98,7 @@ def test_existing_gitignore_zero_blocks_appends_block(tmp_path: Path) -> None:
     assert "*.pyc" in text
     assert "node_modules/" in text
     assert ".env" in text
-    # Super-harness block appended after user content.
+    # Keepsail block appended after user content.
     user_idx = text.index("node_modules/")
     block_idx = text.index(GITIGNORE_BEGIN_MARKER)
     assert user_idx < block_idx
@@ -225,7 +225,7 @@ def test_existing_gitignore_two_blocks_fails_loud(tmp_path: Path) -> None:
 def test_existing_gitignore_unbalanced_markers_fails_loud(
     tmp_path: Path, content: str, expected_begin: int, expected_end: int
 ) -> None:
-    """Unbalanced super-harness markers (orphan begin xor orphan end) →
+    """Unbalanced keepsail markers (orphan begin xor orphan end) →
     raise GitignoreInjectionError. Locks in the data-loss guard: without it,
     a subsequent run would splice over user content trapped between an
     orphan marker and the newly written block."""
@@ -305,7 +305,7 @@ def test_block_covers_gate_blocks_log(tmp_path: Path) -> None:
     """Stage 2: the best-effort BLOCK telemetry log `.harness/gate-blocks.jsonl`
     is a regular append-only runtime file (like events.jsonl) that a `git add -A`
     during a lifecycle would otherwise sweep into a commit. It must be ignored."""
-    from super_harness.engineering.gitignore_injector import _CANONICAL_PATHS
+    from keepsail.engineering.gitignore_injector import _CANONICAL_PATHS
 
     assert ".harness/gate-blocks.jsonl" in _CANONICAL_PATHS
     path = tmp_path / ".gitignore"
@@ -316,7 +316,7 @@ def test_block_covers_gate_blocks_log(tmp_path: Path) -> None:
 def test_block_covers_flock_lock_sentinels(tmp_path: Path) -> None:
     """F4: the managed block ignores transient flock sentinels via the
     `.harness/.*.lock` glob (product behavior, not a per-repo hand-edit), so
-    downstream `super-harness init` repos never commit `.state.lock` /
+    downstream `keepsail init` repos never commit `.state.lock` /
     `.events.lock`. Assert the glob is emitted and matches both sentinels.
     """
     import fnmatch
@@ -350,12 +350,12 @@ def test_committed_gitignore_has_no_standalone_state_lock() -> None:
 
 
 def test_block_covers_claude_settings_backup_filenames(tmp_path: Path) -> None:
-    """Regression for S13: the `.claude/*.super-harness-backup.*` pattern is
+    """Regression for S13: the `.claude/*.keepsail-backup.*` pattern is
     present in the canonical list so users do not accidentally commit the
     timestamped backup files created by `adapter install claude-code`.
 
     `_settings_merge.py` writes backups as
-    ``.claude/settings.json.super-harness-backup.<time_ns>`` — assert that
+    ``.claude/settings.json.keepsail-backup.<time_ns>`` — assert that
     pattern (and a couple of realistic example filenames it must match) is
     inside the emitted block. Smoke walkthrough v3 caught this regression
     when the backup file landed in `git add -A` and was pushed to a PR.
@@ -366,26 +366,26 @@ def test_block_covers_claude_settings_backup_filenames(tmp_path: Path) -> None:
     inject_gitignore_block(path)
     text = path.read_text()
     # The literal pattern is present in the written block.
-    assert ".claude/*.super-harness-backup.*" in text, text
+    assert ".claude/*.keepsail-backup.*" in text, text
     # The pattern matches realistic backup filenames produced by Phase 5
     # `_settings_merge.write_with_backup`.
-    pattern = ".claude/*.super-harness-backup.*"
+    pattern = ".claude/*.keepsail-backup.*"
     for sample in (
-        ".claude/settings.json.super-harness-backup.1780305201614632000",
-        ".claude/settings.json.super-harness-backup.0",
+        ".claude/settings.json.keepsail-backup.1780305201614632000",
+        ".claude/settings.json.keepsail-backup.0",
     ):
         assert fnmatch.fnmatch(sample, pattern), sample
 
 
 def test_committed_repo_gitignore_block_matches_injector() -> None:
-    """Dogfood drift-guard: this repo's committed root `.gitignore` super-harness
+    """Dogfood drift-guard: this repo's committed root `.gitignore` keepsail
     block is byte-identical to what `inject_gitignore_block` would render today.
 
     Guards against `_CANONICAL_PATHS` drifting from the committed block (the gap
     that masked PR #34 review I-1). If this fails, run
-    `super-harness sync --gitignore` and commit the updated `.gitignore`.
+    `keepsail sync --gitignore` and commit the updated `.gitignore`.
     """
-    from super_harness.engineering.gitignore_injector import _render_block
+    from keepsail.engineering.gitignore_injector import _render_block
 
     repo_root = Path(__file__).resolve().parents[3]
     gitignore = repo_root / ".gitignore"
@@ -402,16 +402,16 @@ def test_committed_repo_gitignore_block_matches_injector() -> None:
     # `_render_block()` ends with a trailing LF; the in-file block does not carry
     # its own trailing LF inside the [begin, end] slice — strip for comparison.
     assert committed_block == _render_block().rstrip("\n"), (
-        "Committed .gitignore super-harness block has drifted from "
-        "_CANONICAL_PATHS. Run `super-harness sync --gitignore` and commit."
+        "Committed .gitignore keepsail block has drifted from "
+        "_CANONICAL_PATHS. Run `keepsail sync --gitignore` and commit."
     )
 
 
 def test_canonical_block_covers_codex_hook_config():
-    from super_harness.engineering.gitignore_injector import _render_block
+    from keepsail.engineering.gitignore_injector import _render_block
     body = _render_block()
     assert ".codex/hooks.json" in body
-    assert ".codex/*.super-harness-backup.*" in body
+    assert ".codex/*.keepsail-backup.*" in body
 
 
 def test_gitignore_covers_scratch() -> None:
@@ -420,6 +420,6 @@ def test_gitignore_covers_scratch() -> None:
     must be gitignored from this same change — otherwise a scratch file is an
     ordinary untracked-but-not-ignored file that `git add -A` and review
     tooling sweep in."""
-    from super_harness.engineering.gitignore_injector import _CANONICAL_PATHS
+    from keepsail.engineering.gitignore_injector import _CANONICAL_PATHS
 
     assert ".harness/scratch/" in _CANONICAL_PATHS

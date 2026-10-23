@@ -6,20 +6,20 @@ from pathlib import Path
 
 import pytest
 
-from super_harness.core.events import Actor, Event
-from super_harness.engineering.review_contract import (
+from keepsail.core.events import Actor, Event
+from keepsail.engineering.review_contract import (
     ReviewContractError,
     _render_checklist,
     _review_prompt,
     compile_review_contract,
     resolve_source_baseline,
 )
-from super_harness.engineering.review_governance import (
+from keepsail.engineering.review_governance import (
     ReviewerRoleGovernance,
     ReviewerSourceGovernance,
     ReviewGovernance,
 )
-from super_harness.engineering.review_profiles import ReviewProducerProfile
+from keepsail.engineering.review_profiles import ReviewProducerProfile
 
 
 def _event(event_type: str, payload: dict[str, object]) -> Event:

@@ -1,4 +1,4 @@
-"""Unit tests for `super-harness sensor list` (Phase 3 Task 3.5).
+"""Unit tests for `keepsail sensor list` (Phase 3 Task 3.5).
 
 v0.1 is builtin-only. Covers:
   1. No `.harness/` workspace → EXIT_NO_CONFIG
@@ -18,11 +18,11 @@ import pytest
 import yaml
 from click.testing import CliRunner
 
-from super_harness.cli import main
-from super_harness.exit_codes import EXIT_NO_CONFIG, EXIT_OK, EXIT_VALIDATION
-from super_harness.sensors import ActivityType, Determinism, Sensor, SensorResult
-from super_harness.sensors import registry as sensors_registry
-from super_harness.sensors.registry import register_builtin
+from keepsail.cli import main
+from keepsail.exit_codes import EXIT_NO_CONFIG, EXIT_OK, EXIT_VALIDATION
+from keepsail.sensors import ActivityType, Determinism, Sensor, SensorResult
+from keepsail.sensors import registry as sensors_registry
+from keepsail.sensors.registry import register_builtin
 
 
 class _Stub(Sensor):
@@ -153,10 +153,10 @@ def test_list_reports_yaml_validation_errors(
     )
     assert r.exit_code == EXIT_VALIDATION
     # `core/_registry.py` raises `ValueError("... 'sensors' must be a list ...")`
-    # which is then prefixed by `super-harness sensor list: ` on stderr.
+    # which is then prefixed by `keepsail sensor list: ` on stderr.
     combined = r.output + (r.stderr or "")
     assert "must be a list" in combined
-    assert "super-harness sensor list" in combined
+    assert "keepsail sensor list" in combined
 
 
 def test_list_corrupt_yaml_exits_validation_not_traceback(

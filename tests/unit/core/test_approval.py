@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from super_harness.core.approval import (
+from keepsail.core.approval import (
     ApprovalError,
     approval_record,
     artifact_digest,

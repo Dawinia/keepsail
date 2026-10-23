@@ -5,14 +5,16 @@ ratified_by: dawinialo@163.com
 ratified_at: '2026-06-26T09:45:08.963090Z'
 ratified_text_hash: sha256:8db7275f6ea859c6e8ada8b4e77ec8a954024d45bffcc6a822ede1d62f69254b
 last_reconciled_by: dawinialo@163.com
-last_reconciled_at: '2026-09-13T15:51:05.609826Z'
+last_reconciled_at: '2026-10-23T14:04:05.839854Z'
 last_reconcile_kind: self
-last_reconcile_justification: 'Re-reviewed EventWriter and Event: writes remain append-only
-  serialized lines under the exclusive lock with fsync; historical replay is explicit
-  and does not mutate or reorder existing events.'
+last_reconcile_justification: Compared the complete anchored modules with 9442ba0
+  after normalizing only namespace, environment and product names. No behavior changed;
+  decision_check only repoints its sentinel to the ratified successor. Event append-only/frozen
+  semantics, pure fold, transition matrix, integrity verdicts, record lifecycle and
+  canonical hard-coded gate allowances remain intact. Re-stamp anchors at src/keepsail.
 reconciled_anchors:
-  src/super_harness/core/events.py: sha256:84a7262fe7689cd2d3f0be78e110eb2699140b74cdc1345748bc6bec5b5eb585
-  src/super_harness/core/writer.py: sha256:2ced0979ac6cefdf3c4ff9071532e5fba8149c986048a54f4474cd3c7385c11c
+  src/keepsail/core/events.py: sha256:361edf7ea91989f875c3fd3162cb044ff39332c565c0013a9000e05f84d66ec4
+  src/keepsail/core/writer.py: sha256:eb72a1f4776295fef635cdd8e1ec074009d3ea8e1cb4ffea15f11775ea51aa96
 ---
 Events are append-only; the log is the source of truth, state is derived.
 

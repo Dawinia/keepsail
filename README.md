@@ -1,17 +1,20 @@
-# super-harness
+# Keepsail
 
-> The missing CI layer for spec-driven AI coding workflows.
+> A product-work control layer across agent harnesses.
 
 **English** | [简体中文](README.zh-CN.md)
 
-## What is super-harness?
+## What is Keepsail?
 
-An open-source, CI-first, framework-agnostic, agent-agnostic harness that makes
-AI coding deterministic and reliable. Spec-driven tools describe rules in
-markdown that agents read and (probabilistically) comply with; a harness embeds
-those constraints in the environment itself — hooks, CI, git, processes — so
-violations are blocked deterministically, not just discouraged. It sits on top of
-your existing spec framework and agent; it is not a replacement for either.
+Keepsail keeps effective human commitments and long-lived product knowledge
+consequential across continuous agent work. It supports autonomy within approved
+bounds, knowledge evolution, continuity and traceability across agent harnesses.
+Read the normative [product architecture](docs/product-architecture.md) and the
+separate dated [implementation coverage](docs/product-architecture-coverage.md):
+existing CLI, hooks and CI implement parts of these responsibilities.
+
+Keepsail was named super-harness. The [migration guide](docs/keepsail-migration.md)
+explains the direct runtime cutover, local consumers and delivery boundaries.
 
 See the [Overview](docs/overview.md) for the problem it solves, what v0.1 ships,
 and how it relates to neighboring tools like Spec Kit, OpenSpec, and Superpowers.
@@ -19,26 +22,27 @@ and how it relates to neighboring tools like Spec Kit, OpenSpec, and Superpowers
 ## Install
 
 ```bash
-pipx install super-harness
+# From a checkout containing this migration (registry publication is pending):
+pipx install .
 brew install gh && gh auth login   # gh is a prerequisite for init --setup-github
 ```
 
 ## Quickstart
 
-Bootstrap a repo and watch the gate block an out-of-lifecycle edit — the whole
-point of the tool:
+Bootstrap a repo and observe one implemented control surface: the gate blocks
+an out-of-lifecycle edit.
 
 ```bash
-pipx install super-harness
-cd your-repo && super-harness init            # create the .harness/ data plane
-super-harness adapter install claude-code     # wire your agent (auto-done by init if .claude/ exists)
-#   or, for Codex:  super-harness adapter install codex   → then run /hooks in Codex to trust it
-super-harness change start "my-change"        # → INTENT_DECLARED
+# Install from the Keepsail checkout first: pipx install .
+cd your-repo && keepsail init            # create the .harness/ data plane
+keepsail adapter install claude-code     # wire your agent (auto-done by init if .claude/ exists)
+#   or, for Codex:  keepsail adapter install codex   → then run /hooks in Codex to trust it
+keepsail change start "my-change"        # → INTENT_DECLARED
 # now have your agent (or you) try to edit code → the gate blocks it,
-# because no plan review has happened yet. That block is the product.
+# because no plan review has happened yet. This demonstrates one control surface.
 ```
 
-That is the shortest path to *seeing* super-harness work. The full arc — install
+That is the shortest path to *seeing* keepsail work. The full arc — install
 a framework adapter, get the plan reviewed, implement, verify, review, merge — is
 the 10-minute [Getting started](docs/getting-started.md) walkthrough. To inspect a
 pre-seeded non-trivial `.harness/` state without running anything, see the in-tree
@@ -46,7 +50,7 @@ demo [`examples/demo-openspec-claude/`](examples/demo-openspec-claude/). The
 walkthrough shows the active review contract: the owner recognizes an external
 process in `.harness/review-recognition.yaml`; the process supplies an explicit
 plan/code conclusion, original evidence and provenance for the exact subject.
-Import it with `super-harness review import`. Approved commitments authorize
+Import it with `keepsail review import`. Approved commitments authorize
 implementation adjustments, with assessments and actual file coverage recorded
 before completion. Review execution and retries belong to the external process.
 Historical configuration and event records remain readable; the demo is historical

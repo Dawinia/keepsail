@@ -23,7 +23,7 @@ deliberately deferred to a later version; one is blocked by an upstream bug
 
 **Process / orchestration:**
 - Reviewer execution and supervision. The owner-recognized external process runs
-  reviews and retains original conclusions. super-harness validates subject,
+  reviews and retains original conclusions. keepsail validates subject,
   explicit decision and recognition/provenance; it does not invoke reviewers,
   select models, organize rounds or authorize retries. This boundary is intentional.
 - Host-native subagents are an external workflow choice, not a universal core
@@ -31,11 +31,11 @@ deliberately deferred to a later version; one is blocked by an upstream bug
   is organized. It does not prove substantive review quality or cryptographic
   identity in the owner-controlled local trust environment.
 - Daemon-autonomous event-driven dispatch — v0.1 uses CLI one-shot dispatchers
-  (e.g., `super-harness on-merge` dispatches the merged-event sensors).
+  (e.g., `keepsail on-merge` dispatches the merged-event sensors).
 
 **Plan-authoring gate carve-out (reject-loop revision):**
 - Recording a change's plan artifacts (so PLAN_REJECTED allows editing them) happens
-  only for the **manual `super-harness plan ready`** verb; framework-adapter
+  only for the **manual `keepsail plan ready`** verb; framework-adapter
   auto-recording is deferred (openspec identifies changes by directory, not a
   `change:` marker, and needs its own sound design).
 - A plan document is only recorded if it is a **marked `.md`** (frontmatter
@@ -85,7 +85,7 @@ deliberately deferred to a later version; one is blocked by an upstream bug
   via `pr validate`, but the `gate check` wiring is deferred.
 
 **Blocked by upstream:**
-- JSON `permissionDecision: deny` for Edit / Write — super-harness currently uses
+- JSON `permissionDecision: deny` for Edit / Write — keepsail currently uses
   exit-2 block instead, because of an upstream Claude Code fail-open bug on
   Edit/deny.
 
@@ -96,7 +96,7 @@ deliberately deferred to a later version; one is blocked by an upstream bug
 
 ## FAQ
 
-**Does super-harness run the review or write the verdict?**
+**Does keepsail run the review or write the verdict?**
 No. The recognized external process writes the conclusion. The core checks and
 imports its retained evidence against the exact plan/code subject. See
 [Concepts](concepts.md).
@@ -113,11 +113,11 @@ No. Your agent calls the harness; the harness gates the agent. See
 [Concepts](concepts.md).
 
 **How does a plain-mode change advance past INTENT_DECLARED?**
-Plain mode advances with the manual verb `super-harness plan ready`
+Plain mode advances with the manual verb `keepsail plan ready`
 (INTENT_DECLARED → AWAITING_PLAN_REVIEW); framework adapters emit `plan_ready`
 automatically from their artifacts (OpenSpec from `tasks.md`).
 
 **Does the drift gate check my prose docs?**
-No. `super-harness doc check` only regenerates docs that have a generator (the CLI
+No. `keepsail doc check` only regenerates docs that have a generator (the CLI
 reference, the state-machine diagram). Prose has no ground truth to diff against
 and is out of scope by design.

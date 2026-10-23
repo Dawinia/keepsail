@@ -1,13 +1,13 @@
 # Architecture
 
-How super-harness is put together, and why. This is the orienting map for
+How keepsail is put together, and why. This is the orienting map for
 contributors; for command-level detail see [`cli-reference.md`](./cli-reference.md),
 for the lifecycle states see [`state-machine.md`](./state-machine.md), and for the
 reasoning behind individual subsystems see the design docs under [`plans/`](./plans/).
 
 ## 1. What it is, and where it sits
 
-super-harness is a **harness**: the layer around an AI coding agent that turns a
+keepsail is a **harness**: the layer around an AI coding agent that turns a
 human's decisions into constraints the environment enforces, rather than rules an
 agent is merely asked to follow. In control-systems terms it is a *cybernetic
 governor* — its regulated target is "what the human ratified," and its job is to
@@ -20,10 +20,10 @@ framework:
 - The **agent** (Claude Code) and its **process skills** (e.g. superpowers:
   brainstorming → writing-plans → TDD → code review) provide *feedforward guidance*
   — how to do a piece of work well, in-session. These are advisory and ephemeral.
-- super-harness adds what those lack: **persistent, mechanical, cross-actor binding**
+- keepsail adds what those lack: **persistent, mechanical, cross-actor binding**
   — a target state that survives sessions, sensors that hold code to ratified
   decisions, and gates that hold even when an agent skips the soft rails. Agent =
-  Model + Harness; the skills and super-harness are different organs of the same
+  Model + Harness; the skills and keepsail are different organs of the same
   harness, not competitors.
 
 Everything below is in service of three properties: **(1) required steps can't be
@@ -38,7 +38,7 @@ PR merged — is an immutable event. Nothing mutates events; new facts are appen
 
 Current state is **derived, never authoritative**: `state.yaml` is a cache produced
 by a **pure fold** over the event log (`compute_target_state`). Any state can be
-reproduced by replaying the log (`super-harness state rebuild`), which is also how
+reproduced by replaying the log (`keepsail state rebuild`), which is also how
 correctness is checked (`state verify`). This is the backbone that makes the gates
 trustworthy — there is no hidden mutable state for an agent to corrupt; the trail is
 the truth.
@@ -63,7 +63,7 @@ state × event transition table is generated into
 The lifecycle is **plain-mode complete via the CLI** (`change start`, `plan ready`,
 `review import`, `implementation start|record`, `done`, `attest write`, and
 `on-merge`). Review execution is outside the core: an owner-recognized external
-process produces a structured conclusion, and super-harness imports the exact
+process produces a structured conclusion, and keepsail imports the exact
 subject, conclusion, provenance, and original evidence. There is no active
 producer, model profile, round, retry, or TTY reviewer executor. A skipped
 review is disclosure only; it is not a plan authority or review approval.
@@ -74,15 +74,15 @@ Two enforcement paths, sorted by how hard they are:
 
 - **Hot-path (local, fast feedback — in-process):** the Claude Code adapter (and
   the experimental Codex adapter) installs a **PreToolUse** hook
-  (`super-harness-hook`) that makes the gate decision
+  (`keepsail-hook`) that makes the gate decision
   **in-process** (`core.state_snapshot` → `gates.pre_tool_use.PreToolUseGate`) before
   every `Edit`/`Write`. No background daemon is required; the gate always enforces by
   reading `state.yaml` directly (one parse, never-raises, fail-open only on a missing
-  or corrupt workspace). The **optional observer host** (`super-harness observe start`)
+  or corrupt workspace). The **optional observer host** (`keepsail observe start`)
   runs watchdog observers that emit lifecycle events, but the gate does not depend on
   it. A file-based kill switch (`.harness/gate-disabled`) disables enforcement;
   `Bash` is never gated, so the switch is always reachable.
-- **Cold-path (CI, un-bypassable):** the bundled `super-harness.yml` workflow runs
+- **Cold-path (CI, un-bypassable):** the bundled `keepsail.yml` workflow runs
   the gates that actually guard `main` — `pr-validate`, `verification`,
   `attest-verify`, `decision-check`, `doc-check`, plus `pr-decorate` and `on-merge`.
   Because branch protection makes these required, the hard guarantees live here. The
@@ -125,7 +125,7 @@ scope-vs-plan), **adapter-provided** checks (e.g. OpenSpec strict validate), and
 
 ## 7. Decision conformance — the core "decisions bind code" subsystem
 
-This is super-harness's distinctive niche: holding code to the decisions a human
+This is keepsail's distinctive niche: holding code to the decisions a human
 ratified. It is built as a stack of increasingly strong rungs, all surfaced through
 one command, `decision check` (run locally as a sensor + in CI as the gate):
 
@@ -151,7 +151,7 @@ one command, `decision check` (run locally as a sensor + in CI as the gate):
 knowledge work splits into two arms — a **conformance** arm (feedback / sensors:
 freeze a decision, detect drift, with a strength ladder *executable check > derivable
 regen-diff > prose rationale*) and a **sedimentation** arm (feedforward: capturing
-decaying knowledge). super-harness builds the conformance arm; the sedimentation arm
+decaying knowledge). keepsail builds the conformance arm; the sedimentation arm
 is a future subsystem, not yet implemented. The **checkability tiers** flow from
 this: tier-1 (runnable check → hard anchor, can block); tier-2 (acceptance criterion,
 independent re-review — deferred); tier-3 (nothing checkable → recorded as *context*,
@@ -161,7 +161,7 @@ quietly decay into all-advisory.
 The craft of *writing* a check that bites without false positives (brittle
 one-token signatures, scoping the grep to source paths, when to leave a decision
 context-only) is taught in the **"Arming a decision"** recipe in the rendered
-`AGENTS.md` super-harness section — not duplicated here.
+`AGENTS.md` keepsail section — not duplicated here.
 
 ## 8. Derivable-doc drift
 
@@ -201,18 +201,18 @@ cryptographic proof of the external process; see §11.
 
 | Area | Where |
 |---|---|
-| Pure core (records, fold, checks) | `src/super_harness/core/` (`decisions.py`, `decision_check.py`, `check_runner.py`, `doc_check.py`, `anchor_scanner.py`, `frontmatter.py`, `source_scope.py`) |
-| CLI verbs | `src/super_harness/cli/` |
-| Lifecycle state / events | `src/super_harness/core/` (state fold) + `.harness/events.jsonl` |
-| Observer host (optional framework-event watcher) | `src/super_harness/daemon/` |
-| Adapters | `src/super_harness/adapters/` |
-| Sensors / verification | `src/super_harness/sensors/` |
-| Attestation / gh | `src/super_harness/engineering/` |
+| Pure core (records, fold, checks) | `src/keepsail/core/` (`decisions.py`, `decision_check.py`, `check_runner.py`, `doc_check.py`, `anchor_scanner.py`, `frontmatter.py`, `source_scope.py`) |
+| CLI verbs | `src/keepsail/cli/` |
+| Lifecycle state / events | `src/keepsail/core/` (state fold) + `.harness/events.jsonl` |
+| Observer host (optional framework-event watcher) | `src/keepsail/daemon/` |
+| Adapters | `src/keepsail/adapters/` |
+| Sensors / verification | `src/keepsail/sensors/` |
+| Attestation / gh | `src/keepsail/engineering/` |
 | Generators for derivable docs | `scripts/gen_*.py` |
 
 ## 11. Honest limits
 
-super-harness deliberately does not claim more than it can guarantee
+keepsail deliberately does not claim more than it can guarantee
 (`plans/2026-06-12-...` §6, and the bedrock note in the design docs):
 
 - **Solo-owner ceiling.** Anyone who controls the repo controls its CI and can
