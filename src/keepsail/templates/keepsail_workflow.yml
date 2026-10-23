@@ -123,7 +123,7 @@ jobs:
           "$verifier/python" -m pip install --disable-pip-version-check \
             "$GITHUB_WORKSPACE/.harness-trusted-base[dev]"
           env -u PYTHONPATH TRUSTED_ROOT="$GITHUB_WORKSPACE/.harness-trusted-base" \
-            BASE_SHA="$BASE_SHA" "$verifier/python" -c \
+            BASE_SHA="$BASE_SHA" "$verifier/python" -I -c \
             'import hashlib, importlib, os, pathlib, subprocess, tomllib; trusted = pathlib.Path(os.environ["TRUSTED_ROOT"]); project = tomllib.loads((trusted / "pyproject.toml").read_text())["project"]; namespace = project["scripts"][project["name"]].split(".", 1)[0]; attest = importlib.import_module(namespace + ".cli.attest"); events = importlib.import_module(namespace + ".core.events"); verifier = pathlib.Path(attest.__file__).resolve(); installed = pathlib.Path(events.__file__).resolve(); expected = trusted / "src" / namespace / "core" / "events.py"; assert subprocess.check_output(["git", "-C", str(trusted), "rev-parse", "HEAD"], text=True).strip() == os.environ["BASE_SHA"]; assert "site-packages" in str(verifier); assert "site-packages" in str(installed); assert ".harness-trusted-base" not in str(verifier); assert ".harness-trusted-base" not in str(installed); assert hashlib.sha256(installed.read_bytes()).hexdigest() == hashlib.sha256(expected.read_bytes()).hexdigest(); print("A17 verifier loaded from {} and matches trusted BASE_SHA={}".format(verifier, os.environ["BASE_SHA"]))'
       - name: Verify lifecycle attestations cover the diff
         shell: bash
@@ -131,7 +131,7 @@ jobs:
           cd "$GITHUB_WORKSPACE"
           # The trusted base may predate Keepsail; select only its installed CLI.
           verifier="$RUNNER_TEMP/keepsail-verifier/bin"
-          base_cli="$("$verifier/python" -c 'import pathlib, tomllib; print(tomllib.loads(pathlib.Path(".harness-trusted-base/pyproject.toml").read_text())["project"]["name"])')"
+          base_cli="$(env -u PYTHONPATH "$verifier/python" -I -c 'import pathlib, tomllib; print(tomllib.loads(pathlib.Path(".harness-trusted-base/pyproject.toml").read_text())["project"]["name"])')"
           cli="$verifier/$base_cli"
           env -u PYTHONPATH "$cli" \
             attest verify --base "$BASE_SHA" --head "$HEAD_SHA"

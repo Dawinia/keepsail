@@ -237,3 +237,4 @@ subjects and exact retained review conclusions. Recognition identity is unchange
 | tests/unit/engineering/test_agents_md_render.py | 1 | existing-repository-link=1 |
 | tests/unit/engineering/test_verification_config.py | 11 | system-shell=11 |
 | tests/unit/sensors/test_verification_runner.py | 4 | system-shell=4 |
+| tests/unit/templates/test_keepsail_workflow.py | 3 | system-shell=3 |

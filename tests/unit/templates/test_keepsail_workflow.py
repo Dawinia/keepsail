@@ -5,6 +5,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import venv
 from importlib.resources import files
 from pathlib import Path
 
@@ -240,12 +241,24 @@ def test_trusted_baseline_command_is_executed_from_its_own_metadata(
         newline="\n",
     )
     cli.chmod(0o755)
+    candidate = tmp_path / "candidate-source"
+    candidate.mkdir()
+    sentinel = tmp_path / "candidate-code-executed"
+    poison = (
+        "from builtins import open\n"
+        f"open({str(sentinel)!r}, 'w').close()\n"
+        "raise RuntimeError('candidate module imported by trusted resolver')\n"
+    )
+    for directory in (tmp_path, candidate):
+        for module in ("pathlib", "tomllib"):
+            (directory / (module + ".py")).write_text(poison, encoding="utf-8")
     env = {**os.environ, "GITHUB_WORKSPACE": tmp_path.as_posix(),
            "RUNNER_TEMP": tmp_path.as_posix(), "BASE_SHA": "base-subject",
-           "HEAD_SHA": "head-subject", "PYTHONPATH": "untrusted-candidate"}
+           "HEAD_SHA": "head-subject", "PYTHONPATH": candidate.as_posix()}
     result = subprocess.run([bash, "-e", "-c", command], env=env,
                             capture_output=True, text=True, check=False)
     assert result.returncode == 0, result.stderr
+    assert not sentinel.exists()
     assert result.stdout.splitlines() == [
         "attest", "verify", "--base", "base-subject", "--head", "head-subject",
     ]
@@ -259,6 +272,81 @@ def test_template_has_doc_check_job() -> None:
     job = parsed["jobs"]["doc-check"]
     runs = [s.get("run", "") for s in job["steps"]]
     assert any("keepsail doc check" in r for r in runs)
+
+
+@pytest.mark.skipif(sys.version_info < (3, 11), reason="CI verifier runs Python 3.12")
+@pytest.mark.parametrize("source", ["template", "self-host"])
+def test_bootstrap_uses_installed_baseline_with_hostile_candidate_imports(
+    tmp_path: Path, source: str,
+) -> None:
+    bash = shutil.which("bash")
+    if os.name == "nt":
+        git = shutil.which("git")
+        git_bash = Path(git).resolve().parents[1] / "bin/bash.exe" if git else None
+        bash = str(git_bash) if git_bash and git_bash.is_file() else None
+    if bash is None:
+        pytest.skip("workflow execution requires bash")
+    text = (_load_template() if source == "template" else
+            (Path(__file__).resolve().parents[3] / ".github/workflows/merge-gate.yml")
+            .read_text(encoding="utf-8"))
+    steps = yaml.safe_load(text)["jobs"]["attest-verify"]["steps"]
+    build = next(step["run"] for step in steps
+                 if step.get("name") == "Build isolated verifier from trusted BASE_SHA")
+    bootstrap = build[build.index("env -u PYTHONPATH"):]
+    environment = tmp_path / "installed-verifier"
+    venv.EnvBuilder(with_pip=False).create(environment)
+    python = environment / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    site = Path(subprocess.check_output(
+        [str(python), "-I", "-c", "import sysconfig; print(sysconfig.get_path('purelib'))"],
+        text=True,
+    ).strip())
+    trusted = tmp_path / ".harness-trusted-base"
+    events = "BASELINE = True\n"
+    for root in (trusted / "src", site):
+        package = root / "baseline_module"
+        for directory in (package, package / "cli", package / "core"):
+            directory.mkdir(parents=True)
+            (directory / "__init__.py").write_text("", encoding="utf-8")
+        (package / "cli/attest.py").write_text("# baseline verifier\n", encoding="utf-8")
+        (package / "core/events.py").write_text(events, encoding="utf-8")
+    (trusted / "pyproject.toml").write_text(
+        '[project]\nname = "baseline-tool"\n'
+        '[project.scripts]\nbaseline-tool = "baseline_module.cli:main"\n',
+        encoding="utf-8",
+    )
+    for arguments in (["init", "-q"], ["add", "."],
+                      ["-c", "user.name=Test", "-c", "user.email=test@example.com",
+                       "commit", "-qm", "trusted baseline"]):
+        subprocess.run(["git", *arguments], cwd=trusted, check=True)
+    sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=trusted, text=True).strip()
+    commands = tmp_path / "commands"
+    commands.mkdir()
+    wrapper = commands / "python"
+    wrapper.write_text(
+        "#!/bin/sh\nexec " + shlex.quote(python.as_posix()) + ' "$@"\n',
+        encoding="utf-8", newline="\n",
+    )
+    wrapper.chmod(0o755)
+    candidate = tmp_path / "candidate-source"
+    candidate.mkdir()
+    sentinel = tmp_path / "candidate-code-executed"
+    poison = (
+        "from builtins import open\n"
+        f"open({str(sentinel)!r}, 'w').close()\n"
+        "raise RuntimeError('candidate module imported by bootstrap')\n"
+    )
+    for directory in (tmp_path, candidate):
+        for module in ("hashlib", "pathlib", "tomllib"):
+            (directory / (module + ".py")).write_text(poison, encoding="utf-8")
+    env = {**os.environ, "GITHUB_WORKSPACE": tmp_path.as_posix(),
+           "BASE_SHA": sha, "PYTHONPATH": candidate.as_posix()}
+    command = "verifier=" + shlex.quote(commands.as_posix()) + "\n" + bootstrap
+    result = subprocess.run([bash, "-e", "-c", command], cwd=tmp_path, env=env,
+                            capture_output=True, text=True, check=False)
+    assert result.returncode == 0, result.stderr
+    assert not sentinel.exists()
+    assert "site-packages" in result.stdout
+    assert sha in result.stdout
 
 
 def test_workflow_template_guard_does_not_false_fire_on_env_indirection() -> None:
