@@ -127,7 +127,14 @@ Never publish a package to test name availability.
 
 Scan covers all 568 tracked baseline files, including hidden files; matches include
 old hyphen/underscore/space/case variants, superharness and product/shell sh.
-Counts below are conservative scanner counts, not a claim every occurrence is branding.
+Counts below are exact content-match counts, not a claim every occurrence is branding.
+The 503 matching paths are selected from git ls-tree -r --name-only at baseline
+60e2ecd, by a content OR path match. Paths containing the import namespace may have
+zero content matches. Decode UTF-8 and apply Python re.IGNORECASE to the literal
+pattern super[-_ ]harness|superharness|(?<![A-Za-z0-9_])sh(?![A-Za-z0-9_]).
+The new plan is excluded from the baseline inventory and separately retained as
+historical migration evidence. Shell-only matches are unrelated system-shell syntax;
+product-architecture shorthand is current brand prose to migrate.
 H records remain byte-preserved except authorized native decision reconciliation
 frontmatter. M+C requires occurrence-level inspection during implementation.
 This plan is itself historical naming evidence and will be retained after approval.
@@ -191,7 +198,7 @@ This plan is itself historical naming evidence and will be retained after approv
 | .harness/attestations/2026-08-09-authorization-channel.jsonl | 263 | H: preserve historical or locked record |
 | .harness/attestations/2026-08-20-windows-file-locks.jsonl | 71 | H: preserve historical or locked record |
 | .harness/attestations/2026-09-04-product-baseline.jsonl | 37 | H: preserve historical or locked record |
-| .harness/attestations/2026-09-04-windows-verification.jsonl | 246 | H: preserve historical or locked record |
+| .harness/attestations/2026-09-04-windows-verification.jsonl | 247 | H: preserve historical or locked record |
 | .harness/attestations/2026-09-11-plan-authority.jsonl | 397 | H: preserve historical or locked record |
 | .harness/attestations/2026-09-15-plan-authority-alignment.jsonl | 225 | H: preserve historical or locked record |
 | .harness/attestations/2026-10-22-attestation-contract-recovery.jsonl | 32 | H: preserve historical or locked record |
@@ -209,7 +216,7 @@ This plan is itself historical naming evidence and will be retained after approv
 | .harness/attestations/verification-env-scrub.jsonl | 2 | H: preserve historical or locked record |
 | .harness/review-recognition.yaml | 1 | M+C: inspect packaging, automation, example or configuration; preserve compatibility identifiers |
 | .importlinter | 6 | M+C: inspect packaging, automation, example or configuration; preserve compatibility identifiers |
-| AGENTS.md | 38 | G: regenerate managed content; retain protocol markers |
+| AGENTS.md | 39 | G: regenerate managed content; retain protocol markers |
 | LICENSE | 1 | M+C: inspect packaging, automation, example or configuration; preserve compatibility identifiers |
 | README.md | 10 | M+C: migrate current guidance; explain compatibility and dated evidence |
 | README.zh-CN.md | 10 | M+C: migrate current guidance; explain compatibility and dated evidence |
@@ -220,7 +227,7 @@ This plan is itself historical naming evidence and will be retained after approv
 | docs/adapters/openspec.md | 15 | M+C: migrate current guidance; explain compatibility and dated evidence |
 | docs/adapters/plain.md | 18 | M+C: migrate current guidance; explain compatibility and dated evidence |
 | docs/adopting.md | 5 | M+C: migrate current guidance; explain compatibility and dated evidence |
-| docs/architecture-fitness.md | 5 | M+C: migrate current guidance; explain compatibility and dated evidence |
+| docs/architecture-fitness.md | 6 | M+C: migrate current guidance; explain compatibility and dated evidence |
 | docs/cli-reference.md | 170 | M+C: migrate current guidance; explain compatibility and dated evidence |
 | docs/concepts.md | 3 | M+C: migrate current guidance; explain compatibility and dated evidence |
 | docs/decisions/d-core-is-base.md | 7 | H: preserve historical or locked record |
@@ -254,11 +261,12 @@ This plan is itself historical naming evidence and will be retained after approv
 | docs/plans/2026-06-08-decision-records-anchors-design.md | 5 | H: preserve historical or locked record |
 | docs/plans/2026-06-08-decision-records-anchors-plan.md | 92 | H: preserve historical or locked record |
 | docs/plans/2026-06-09-capability-retirement-design.md | 3 | H: preserve historical or locked record |
-| docs/plans/2026-06-10-capability-retirement-plan.md | 15 | H: preserve historical or locked record |
+| docs/plans/2026-06-10-capability-retirement-plan.md | 16 | H: preserve historical or locked record |
 | docs/plans/2026-06-11-doc-leg-derivable-docs-design.md | 13 | H: preserve historical or locked record |
 | docs/plans/2026-06-11-doc-leg-derivable-docs.md | 63 | H: preserve historical or locked record |
+| docs/plans/2026-06-12-decision-text-lock-design.md | 2 | H: preserve historical or locked record |
 | docs/plans/2026-06-15-decision-text-lock-implementation.md | 27 | H: preserve historical or locked record |
-| docs/plans/2026-06-16-decision-executable-checks-implementation.md | 36 | H: preserve historical or locked record |
+| docs/plans/2026-06-16-decision-executable-checks-implementation.md | 48 | H: preserve historical or locked record |
 | docs/plans/2026-06-17-agents-md-decision-conformance-design.md | 19 | H: preserve historical or locked record |
 | docs/plans/2026-06-17-agents-md-decision-conformance-implementation.md | 75 | H: preserve historical or locked record |
 | docs/plans/2026-06-20-tier-2-reviewable-anchors-implementation.md | 41 | H: preserve historical or locked record |
@@ -267,8 +275,8 @@ This plan is itself historical naming evidence and will be retained after approv
 | docs/plans/2026-06-23-auto-review-hardening-slice1-implementation.md | 86 | H: preserve historical or locked record |
 | docs/plans/2026-06-23-auto-review-hardening-slice2-design.md | 2 | H: preserve historical or locked record |
 | docs/plans/2026-06-23-auto-review-hardening-slice2-implementation.md | 64 | H: preserve historical or locked record |
-| docs/plans/2026-06-23-check-drafting-assist-design.md | 4 | H: preserve historical or locked record |
-| docs/plans/2026-06-23-check-drafting-assist.md | 21 | H: preserve historical or locked record |
+| docs/plans/2026-06-23-check-drafting-assist-design.md | 5 | H: preserve historical or locked record |
+| docs/plans/2026-06-23-check-drafting-assist.md | 22 | H: preserve historical or locked record |
 | docs/plans/2026-06-25-codex-agent-adapter-design.md | 23 | H: preserve historical or locked record |
 | docs/plans/2026-06-25-codex-agent-adapter-implementation.md | 97 | H: preserve historical or locked record |
 | docs/plans/2026-06-25-doc-deadref-gate-impl.md | 56 | H: preserve historical or locked record |
@@ -288,7 +296,7 @@ This plan is itself historical naming evidence and will be retained after approv
 | docs/plans/2026-07-01-verification-env-scrub.md | 37 | H: preserve historical or locked record |
 | docs/plans/2026-07-02-active-change-recency-plan.md | 5 | H: preserve historical or locked record |
 | docs/plans/2026-07-02-authoring-parallel-checks-design.md | 1 | H: preserve historical or locked record |
-| docs/plans/2026-07-02-authoring-parallel-checks-plan.md | 3 | H: preserve historical or locked record |
+| docs/plans/2026-07-02-authoring-parallel-checks-plan.md | 4 | H: preserve historical or locked record |
 | docs/plans/2026-07-02-gitignore-daemon-runtime-plan.md | 8 | H: preserve historical or locked record |
 | docs/plans/2026-07-02-p0-gate-soundness-plan.md | 10 | H: preserve historical or locked record |
 | docs/plans/2026-07-02-sync-check-engineering-move-design.md | 11 | H: preserve historical or locked record |
@@ -299,11 +307,11 @@ This plan is itself historical naming evidence and will be retained after approv
 | docs/plans/2026-07-03-parse-ts-and-encoding-debt.md | 22 | H: preserve historical or locked record |
 | docs/plans/2026-07-03-writer-flock-toctou-plan.md | 9 | H: preserve historical or locked record |
 | docs/plans/2026-07-04-architecture-fitness-doc-design.md | 8 | H: preserve historical or locked record |
-| docs/plans/2026-07-04-architecture-fitness-doc-plan.md | 24 | H: preserve historical or locked record |
+| docs/plans/2026-07-04-architecture-fitness-doc-plan.md | 25 | H: preserve historical or locked record |
 | docs/plans/2026-07-04-architecture-norm-discovery-skill-design.md | 14 | H: preserve historical or locked record |
 | docs/plans/2026-07-04-architecture-norm-discovery-skill-plan.md | 38 | H: preserve historical or locked record |
 | docs/plans/2026-07-06-codex-coverage-caveat-wording-plan.md | 11 | H: preserve historical or locked record |
-| docs/plans/2026-07-06-docs-ia-narrative-layer-design.md | 7 | H: preserve historical or locked record |
+| docs/plans/2026-07-06-docs-ia-narrative-layer-design.md | 8 | H: preserve historical or locked record |
 | docs/plans/2026-07-06-docs-ia-narrative-layer-plan.md | 53 | H: preserve historical or locked record |
 | docs/plans/2026-07-06-plan-redeclare-cli-verb.md | 14 | H: preserve historical or locked record |
 | docs/plans/2026-07-06-plugin-loading-removal-design.md | 13 | H: preserve historical or locked record |
@@ -338,13 +346,13 @@ This plan is itself historical naming evidence and will be retained after approv
 | docs/plans/2026-08-09-authorization-channel-design.md | 4 | H: preserve historical or locked record |
 | docs/plans/2026-08-11-code-only-recovery.md | 11 | H: preserve historical or locked record |
 | docs/plans/2026-08-20-windows-file-locks.md | 9 | H: preserve historical or locked record |
-| docs/plans/2026-09-04-windows-verification.md | 28 | H: preserve historical or locked record |
+| docs/plans/2026-09-04-windows-verification.md | 36 | H: preserve historical or locked record |
 | docs/plans/2026-09-11-plan-authority-implementation.md | 60 | H: preserve historical or locked record |
 | docs/plans/2026-09-11-plan-authority-spec.md | 8 | H: preserve historical or locked record |
 | docs/plans/2026-09-15-plan-authority-alignment-implementation.md | 19 | H: preserve historical or locked record |
 | docs/plans/2026-10-22-attestation-contract-recovery.md | 1 | H: preserve historical or locked record |
 | docs/product-architecture-coverage.md | 21 | M+C: migrate current guidance; explain compatibility and dated evidence |
-| docs/product-architecture.md | 2 | M+C: migrate current guidance; explain compatibility and dated evidence |
+| docs/product-architecture.md | 10 | M+C: migrate current guidance; explain compatibility and dated evidence |
 | docs/product-foundations.md | 6 | H: preserve historical or locked record |
 | docs/reporting.md | 1 | M+C: migrate current guidance; explain compatibility and dated evidence |
 | docs/state-machine.md | 2 | M+C: migrate current guidance; explain compatibility and dated evidence |
@@ -362,14 +370,14 @@ This plan is itself historical naming evidence and will be retained after approv
 | scripts/gen_cli_reference.py | 11 | M+C: inspect packaging, automation, example or configuration; preserve compatibility identifiers |
 | scripts/gen_state_machine.py | 7 | M+C: inspect packaging, automation, example or configuration; preserve compatibility identifiers |
 | scripts/run_project_check.py | 1 | M+C: inspect packaging, automation, example or configuration; preserve compatibility identifiers |
-| scripts/smoke-gate.sh | 18 | M+C: inspect packaging, automation, example or configuration; preserve compatibility identifiers |
+| scripts/smoke-gate.sh | 20 | M+C: inspect packaging, automation, example or configuration; preserve compatibility identifiers |
 | skills/discovering-architecture-norms/SKILL.md | 5 | M+C: migrate current guidance; explain compatibility and dated evidence |
 | src/super_harness/__init__.py | 1 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
 | src/super_harness/adapters/__init__.py | 12 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
 | src/super_harness/adapters/agent/__init__.py | 0 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
 | src/super_harness/adapters/agent/_settings_merge.py | 25 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
 | src/super_harness/adapters/agent/_stop_protocol.py | 2 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
-| src/super_harness/adapters/agent/claude_code.py | 32 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
+| src/super_harness/adapters/agent/claude_code.py | 35 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
 | src/super_harness/adapters/agent/codex.py | 24 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
 | src/super_harness/adapters/framework/__init__.py | 1 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
 | src/super_harness/adapters/framework/openspec.py | 7 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
@@ -421,7 +429,7 @@ This plan is itself historical naming evidence and will be retained after approv
 | src/super_harness/core/anchor_scanner.py | 0 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
 | src/super_harness/core/approval.py | 1 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
 | src/super_harness/core/authoring_check.py | 3 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
-| src/super_harness/core/check_runner.py | 5 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
+| src/super_harness/core/check_runner.py | 7 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
 | src/super_harness/core/clock.py | 0 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
 | src/super_harness/core/decision_check.py | 4 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
 | src/super_harness/core/decisions.py | 1 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
@@ -443,7 +451,7 @@ This plan is itself historical naming evidence and will be retained after approv
 | src/super_harness/core/review_checklist.py | 1 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
 | src/super_harness/core/review_verdict.py | 2 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
 | src/super_harness/core/scope_match.py | 1 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
-| src/super_harness/core/shell_runner.py | 2 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
+| src/super_harness/core/shell_runner.py | 15 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
 | src/super_harness/core/slug.py | 0 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
 | src/super_harness/core/source_scope.py | 0 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
 | src/super_harness/core/state.py | 1 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
@@ -460,7 +468,7 @@ This plan is itself historical naming evidence and will be retained after approv
 | src/super_harness/daemon/supervisor.py | 7 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
 | src/super_harness/engineering/__init__.py | 2 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
 | src/super_harness/engineering/agents_md.py | 33 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
-| src/super_harness/engineering/agents_md_render.py | 37 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
+| src/super_harness/engineering/agents_md_render.py | 38 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
 | src/super_harness/engineering/attestation.py | 5 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
 | src/super_harness/engineering/gh.py | 0 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
 | src/super_harness/engineering/gitignore_injector.py | 14 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
@@ -473,7 +481,7 @@ This plan is itself historical naming evidence and will be retained after approv
 | src/super_harness/engineering/review_runs.py | 2 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
 | src/super_harness/engineering/sync_check.py | 5 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
 | src/super_harness/engineering/value_report.py | 5 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
-| src/super_harness/engineering/verification_config.py | 2 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
+| src/super_harness/engineering/verification_config.py | 7 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
 | src/super_harness/exit_codes.py | 1 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
 | src/super_harness/gates/__init__.py | 3 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
 | src/super_harness/gates/decisions.py | 3 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
@@ -488,7 +496,7 @@ This plan is itself historical naming evidence and will be retained after approv
 | src/super_harness/templates/derived_docs_defaults.yaml | 1 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
 | src/super_harness/templates/pull_request_template.md | 3 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
 | src/super_harness/templates/super_harness_workflow.yml | 31 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
-| src/super_harness/templates/verification_defaults.yaml | 0 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
+| src/super_harness/templates/verification_defaults.yaml | 3 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
 | src/super_harness/version.py | 0 | M+C: migrate presentation/commands; preserve internal imports and wire identifiers |
 | tests/e2e/__init__.py | 3 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/e2e/conftest.py | 11 | T: update current expectations; preserve legacy fixtures explicitly |
@@ -509,7 +517,7 @@ This plan is itself historical naming evidence and will be retained after approv
 | tests/integration/cli/test_pr_validate.py | 23 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/integration/cli/test_status.py | 36 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/integration/cli/test_sync.py | 28 | T: update current expectations; preserve legacy fixtures explicitly |
-| tests/integration/cli/test_verification.py | 8 | T: update current expectations; preserve legacy fixtures explicitly |
+| tests/integration/cli/test_verification.py | 9 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/integration/cli/test_windows_lifecycle_entrypoint.py | 1 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/integration/core/test_writer_concurrency.py | 10 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/integration/daemon/test_daemonize.py | 3 | T: update current expectations; preserve legacy fixtures explicitly |
@@ -518,7 +526,7 @@ This plan is itself historical naming evidence and will be retained after approv
 | tests/integration/daemon/test_hook_entry_plan_paths.py | 2 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/integration/daemon/test_hook_entry_stop.py | 4 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/integration/daemon/test_observer_host.py | 6 | T: update current expectations; preserve legacy fixtures explicitly |
-| tests/integration/lifecycle/test_plan_authority.py | 24 | T: update current expectations; preserve legacy fixtures explicitly |
+| tests/integration/lifecycle/test_plan_authority.py | 25 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/integration/lifecycle/test_state_commands.py | 5 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/integration/test_authoring_parallel.py | 3 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/unit/adapters/framework/test_openspec.py | 8 | T: update current expectations; preserve legacy fixtures explicitly |
@@ -527,18 +535,18 @@ This plan is itself historical naming evidence and will be retained after approv
 | tests/unit/adapters/reviewer/test_claude_cli.py | 2 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/unit/adapters/reviewer/test_codex_cli.py | 1 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/unit/adapters/reviewer/test_registry.py | 3 | T: update current expectations; preserve legacy fixtures explicitly |
-| tests/unit/adapters/test_claude_code.py | 47 | T: update current expectations; preserve legacy fixtures explicitly |
+| tests/unit/adapters/test_claude_code.py | 50 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/unit/adapters/test_codex.py | 9 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/unit/adapters/test_install.py | 4 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/unit/adapters/test_protocol.py | 6 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/unit/adapters/test_registry.py | 14 | T: update current expectations; preserve legacy fixtures explicitly |
-| tests/unit/adapters/test_settings_merge.py | 57 | T: update current expectations; preserve legacy fixtures explicitly |
+| tests/unit/adapters/test_settings_merge.py | 61 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/unit/adapters/test_stop_protocol.py | 2 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/unit/cli/test_attest.py | 10 | T: update current expectations; preserve legacy fixtures explicitly |
-| tests/unit/cli/test_decision.py | 7 | T: update current expectations; preserve legacy fixtures explicitly |
+| tests/unit/cli/test_decision.py | 15 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/unit/cli/test_doc.py | 1 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/unit/cli/test_doc_refs_cli.py | 3 | T: update current expectations; preserve legacy fixtures explicitly |
-| tests/unit/cli/test_done.py | 21 | T: update current expectations; preserve legacy fixtures explicitly |
+| tests/unit/cli/test_done.py | 26 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/unit/cli/test_entrypoint.py | 12 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/unit/cli/test_errors.py | 7 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/unit/cli/test_gate.py | 7 | T: update current expectations; preserve legacy fixtures explicitly |
@@ -562,13 +570,13 @@ This plan is itself historical naming evidence and will be retained after approv
 | tests/unit/cli/test_review_verdict_gate.py | 2 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/unit/cli/test_sensor.py | 8 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/unit/cli/test_sync.py | 11 | T: update current expectations; preserve legacy fixtures explicitly |
-| tests/unit/cli/test_verify.py | 21 | T: update current expectations; preserve legacy fixtures explicitly |
+| tests/unit/cli/test_verify.py | 29 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/unit/cli/test_verify_render.py | 1 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/unit/core/test_active_change.py | 1 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/unit/core/test_anchor_scanner.py | 1 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/unit/core/test_approval.py | 1 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/unit/core/test_authoring_check.py | 5 | T: update current expectations; preserve legacy fixtures explicitly |
-| tests/unit/core/test_check_runner.py | 8 | T: update current expectations; preserve legacy fixtures explicitly |
+| tests/unit/core/test_check_runner.py | 20 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/unit/core/test_decision_check.py | 3 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/unit/core/test_decisions.py | 11 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/unit/core/test_doc_check_engine.py | 2 | T: update current expectations; preserve legacy fixtures explicitly |
@@ -593,7 +601,7 @@ This plan is itself historical naming evidence and will be retained after approv
 | tests/unit/core/test_review_checklist.py | 1 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/unit/core/test_review_verdict.py | 18 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/unit/core/test_scope_match.py | 2 | T: update current expectations; preserve legacy fixtures explicitly |
-| tests/unit/core/test_shell_runner.py | 5 | T: update current expectations; preserve legacy fixtures explicitly |
+| tests/unit/core/test_shell_runner.py | 6 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/unit/core/test_slug.py | 1 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/unit/core/test_source_scope.py | 1 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/unit/core/test_state.py | 1 | T: update current expectations; preserve legacy fixtures explicitly |
@@ -621,7 +629,7 @@ This plan is itself historical naming evidence and will be retained after approv
 | tests/unit/engineering/test_review_runs.py | 6 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/unit/engineering/test_sync_check.py | 10 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/unit/engineering/test_value_report.py | 6 | T: update current expectations; preserve legacy fixtures explicitly |
-| tests/unit/engineering/test_verification_config.py | 2 | T: update current expectations; preserve legacy fixtures explicitly |
+| tests/unit/engineering/test_verification_config.py | 13 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/unit/gates/test_decisions.py | 2 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/unit/gates/test_pre_tool_use.py | 5 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/unit/gates/test_protocol.py | 1 | T: update current expectations; preserve legacy fixtures explicitly |
@@ -632,7 +640,7 @@ This plan is itself historical naming evidence and will be retained after approv
 | tests/unit/sensors/test_pr_decorator.py | 24 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/unit/sensors/test_protocol.py | 1 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/unit/sensors/test_registry.py | 3 | T: update current expectations; preserve legacy fixtures explicitly |
-| tests/unit/sensors/test_verification_runner.py | 18 | T: update current expectations; preserve legacy fixtures explicitly |
+| tests/unit/sensors/test_verification_runner.py | 22 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/unit/templates/test_super_harness_workflow.py | 8 | T: update current expectations; preserve legacy fixtures explicitly |
 | tests/unit/test_smoke.py | 2 | T: update current expectations; preserve legacy fixtures explicitly |
 | uv.lock | 1 | M+C: inspect packaging, automation, example or configuration; preserve compatibility identifiers |
