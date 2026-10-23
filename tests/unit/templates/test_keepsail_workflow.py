@@ -1,6 +1,12 @@
 from __future__ import annotations
 
+import os
+import shlex
+import shutil
+import subprocess
+import sys
 from importlib.resources import files
+from pathlib import Path
 
 import pytest
 import yaml
@@ -190,6 +196,59 @@ def test_template_has_attest_verify_job() -> None:
     assert "Checkout trusted baseline verifier source" in template
     assert "env -u PYTHONPATH" in template
     assert "candidate-acceptance" in parsed["jobs"]
+
+
+@pytest.mark.skipif(sys.version_info < (3, 11), reason="CI verifier runs Python 3.12")
+@pytest.mark.parametrize("source", ["template", "self-host"])
+def test_trusted_baseline_command_is_executed_from_its_own_metadata(
+    tmp_path: Path, source: str,
+) -> None:
+    bash = shutil.which("bash")
+    if os.name == "nt":
+        git = shutil.which("git")
+        git_bash = Path(git).resolve().parents[1] / "bin/bash.exe" if git else None
+        bash = str(git_bash) if git_bash and git_bash.is_file() else None
+    if bash is None:
+        pytest.skip("workflow execution requires bash")
+    text = (_load_template() if source == "template" else
+            (Path(__file__).resolve().parents[3] / ".github/workflows/merge-gate.yml")
+            .read_text(encoding="utf-8"))
+    steps = yaml.safe_load(text)["jobs"]["attest-verify"]["steps"]
+    command = next(step["run"] for step in steps
+                   if step.get("name") == "Verify lifecycle attestations cover the diff")
+    trusted = tmp_path / ".harness-trusted-base"
+    trusted.mkdir()
+    (trusted / "pyproject.toml").write_text(
+        '[project]\nname = "baseline-tool"\n'
+        '[project.scripts]\nbaseline-tool = "baseline_module.cli:main"\n',
+        encoding="utf-8",
+    )
+    verifier = tmp_path / "keepsail-verifier/bin"
+    verifier.mkdir(parents=True)
+    python = verifier / "python"
+    python.write_text(
+        "#!/bin/sh\nexec " + shlex.quote(Path(sys.executable).as_posix()) + ' "$@"\n',
+        encoding="utf-8",
+        newline="\n",
+    )
+    python.chmod(0o755)
+    cli = verifier / "baseline-tool"
+    cli.write_text(
+        '#!/bin/sh\ntest -z "${PYTHONPATH+x}" || exit 99\n'
+        'printf "%s\\n" "$@"\n',
+        encoding="utf-8",
+        newline="\n",
+    )
+    cli.chmod(0o755)
+    env = {**os.environ, "GITHUB_WORKSPACE": tmp_path.as_posix(),
+           "RUNNER_TEMP": tmp_path.as_posix(), "BASE_SHA": "base-subject",
+           "HEAD_SHA": "head-subject", "PYTHONPATH": "untrusted-candidate"}
+    result = subprocess.run([bash, "-e", "-c", command], env=env,
+                            capture_output=True, text=True, check=False)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.splitlines() == [
+        "attest", "verify", "--base", "base-subject", "--head", "head-subject",
+    ]
 
 
 def test_template_has_doc_check_job() -> None:

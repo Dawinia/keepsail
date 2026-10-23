@@ -131,8 +131,8 @@ jobs:
           cd "$GITHUB_WORKSPACE"
           # The trusted base may predate Keepsail; select only its installed CLI.
           verifier="$RUNNER_TEMP/keepsail-verifier/bin"
-          cli="$verifier/keepsail"
-          if [ ! -x "$cli" ]; then cli="$verifier/keepsail"; fi
+          base_cli="$("$verifier/python" -c 'import pathlib, tomllib; print(tomllib.loads(pathlib.Path(".harness-trusted-base/pyproject.toml").read_text())["project"]["name"])')"
+          cli="$verifier/$base_cli"
           env -u PYTHONPATH "$cli" \
             attest verify --base "$BASE_SHA" --head "$HEAD_SHA"
 
