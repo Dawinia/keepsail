@@ -5,7 +5,7 @@ Each occurrence has a line and category in the scanner JSON output.
 The report excludes itself to avoid recursion; stage new paths before scanning.
 
 Current runtime names are canonical only. Remaining old names identify historical
-authority, original evidence, real repository URLs, attribution, explicit migration
+authority, original evidence, attribution, explicit migration
 instructions or tests asserting old interfaces are absent. Shell syntax is unrelated.
 The [direct plan](plans/2026-10-23-keepsail-brand-migration-direct.md) and
 [migration guide](keepsail-migration.md) define the cutover.
@@ -70,7 +70,7 @@ subjects and exact retained review conclusions. Recognition identity is unchange
 | .harness/attestations/2026-09-11-plan-authority.jsonl | 397 | historical=397 |
 | .harness/attestations/2026-09-15-plan-authority-alignment.jsonl | 225 | historical=225 |
 | .harness/attestations/2026-10-22-attestation-contract-recovery.jsonl | 32 | historical=32 |
-| .harness/attestations/2026-10-23-keepsail-brand-migration.jsonl | 872 | historical=872 |
+| .harness/attestations/2026-10-23-keepsail-brand-migration.jsonl | 2330 | historical=2330 |
 | .harness/attestations/code-only-recovery.jsonl | 129 | historical=129 |
 | .harness/attestations/codex-agent-adapter.jsonl | 18 | historical=18 |
 | .harness/attestations/init-interactive-wizard.jsonl | 352 | historical=352 |
@@ -84,11 +84,10 @@ subjects and exact retained review conclusions. Recognition identity is unchange
 | .harness/attestations/value-report-stage1.jsonl | 270 | historical=270 |
 | .harness/attestations/verification-env-scrub.jsonl | 2 | historical=2 |
 | .harness/review-recognition.yaml | 1 | recognized-policy-digest-preserved=1 |
-| AGENTS.md | 2 | existing-repository-link=1; system-shell=1 |
+| AGENTS.md | 1 | system-shell=1 |
 | LICENSE | 1 | copyright-attribution=1 |
 | README.md | 1 | migration-explanation=1 |
 | README.zh-CN.md | 1 | migration-explanation=1 |
-| docs/adopting.md | 1 | existing-repository-link=1 |
 | docs/architecture-fitness.md | 1 | system-shell=1 |
 | docs/decisions/d-core-is-base.md | 7 | historical=7 |
 | docs/decisions/d-gh-cli-not-rest.md | 1 | historical=1 |
@@ -98,7 +97,6 @@ subjects and exact retained review conclusions. Recognition identity is unchange
 | docs/decisions/d-no-recovery-from-awaiting-code-review.md | 6 | historical=6 |
 | docs/decisions/d-pitfall-is-proposed-decision.md | 2 | historical=2 |
 | docs/decisions/d-single-gate-policy.md | 2 | historical=2 |
-| docs/getting-started.md | 1 | existing-repository-link=1 |
 | docs/keepsail-migration.md | 2 | migration-explanation=2 |
 | docs/plans/2026-06-02-superpowers-framework-adapter-design.md | 5 | historical=5 |
 | docs/plans/2026-06-02-superpowers-framework-adapter.md | 11 | historical=11 |
@@ -211,16 +209,13 @@ subjects and exact retained review conclusions. Recognition identity is unchange
 | examples/demo-openspec-claude/.harness/events.jsonl | 1 | historical=1 |
 | examples/demo-openspec-claude/.harness/policy.yaml | 1 | historical=1 |
 | examples/demo-openspec-claude/.harness/state.yaml | 2 | historical=2 |
-| examples/demo-openspec-claude/AGENTS.md | 2 | existing-repository-link=1; system-shell=1 |
-| pyproject.toml | 3 | existing-repository-link=3 |
-| scripts/audit_brand_names.py | 4 | inventory-scanner-pattern=4 |
+| examples/demo-openspec-claude/AGENTS.md | 1 | system-shell=1 |
+| scripts/audit_brand_names.py | 3 | inventory-scanner-pattern=3 |
 | scripts/smoke-gate.sh | 2 | system-shell=2 |
-| skills/discovering-architecture-norms/SKILL.md | 2 | existing-repository-link=2 |
 | src/keepsail/adapters/agent/claude_code.py | 3 | system-shell=3 |
-| src/keepsail/cli/errors.py | 1 | existing-repository-link=1 |
 | src/keepsail/core/check_runner.py | 2 | system-shell=2 |
 | src/keepsail/core/shell_runner.py | 13 | system-shell=13 |
-| src/keepsail/engineering/agents_md_render.py | 2 | existing-repository-link=1; system-shell=1 |
+| src/keepsail/engineering/agents_md_render.py | 1 | system-shell=1 |
 | src/keepsail/engineering/verification_config.py | 5 | system-shell=5 |
 | src/keepsail/templates/verification_defaults.yaml | 3 | system-shell=3 |
 | tests/integration/cli/test_keepsail_installation.py | 4 | assert-legacy-runtime-absent=4 |
@@ -230,11 +225,9 @@ subjects and exact retained review conclusions. Recognition identity is unchange
 | tests/unit/adapters/test_settings_merge.py | 4 | system-shell=4 |
 | tests/unit/cli/test_decision.py | 8 | system-shell=8 |
 | tests/unit/cli/test_done.py | 5 | system-shell=5 |
-| tests/unit/cli/test_errors.py | 2 | existing-repository-link=2 |
 | tests/unit/cli/test_verify.py | 8 | system-shell=8 |
 | tests/unit/core/test_check_runner.py | 12 | system-shell=12 |
 | tests/unit/core/test_shell_runner.py | 1 | system-shell=1 |
-| tests/unit/engineering/test_agents_md_render.py | 1 | existing-repository-link=1 |
 | tests/unit/engineering/test_verification_config.py | 11 | system-shell=11 |
 | tests/unit/sensors/test_verification_runner.py | 4 | system-shell=4 |
 | tests/unit/templates/test_keepsail_workflow.py | 3 | system-shell=3 |

@@ -158,7 +158,7 @@ def test_section_points_to_norm_discovery_skill(tmp_path: Path) -> None:
     render_keepsail_section(tmp_path, agents, "0.1.0")
     text = agents.read_text(encoding="utf-8")
     assert (
-        "https://github.com/Dawinia/super-harness/blob/main/"
+        "https://github.com/Dawinia/keepsail/blob/main/"
         "skills/discovering-architecture-norms/SKILL.md" in text
     )
     assert "repo access" in text

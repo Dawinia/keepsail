@@ -61,11 +61,27 @@ legacy runtime interface in the candidate.
 
 ## Boundaries and rollback
 
-Existing GitHub URLs still address the actual repository. Physical checkout and
-environment folder names may remain: they are addresses, not runtime APIs.
-No running checkout is relocated. This change does not rename the remote
-repository, publish a package or merge the PR. Local consumer edits stay local
-and preserve unrelated work and records. POSIX daemon platform support is unchanged.
+The canonical repository is [Dawinia/keepsail](https://github.com/Dawinia/keepsail).
+The runtime migration merged in PR127; the subsequent repository cutover updates
+current package, documentation and skill links to that address. Historical plans,
+locked records and original evidence retain their contemporaneous URLs.
+
+The local main checkout moved to `E:/Work/keepsail`. Reinstall editable packages
+after a directory move and rebuild virtual environments whose launchers contain
+absolute paths. Use native `git worktree repair` to repair linked worktree pointers
+after moving the main checkout; older Git versions may not provide that command.
+Back up and verify ignored authority/private data and untracked user files too.
+
+Close or update applications that hold the old directory open. Saved project
+configuration and the current application's cached workspace are separate:
+update the project's name and primary folder through its supported UI, rather
+than racing a live settings file or rewriting historical chat records. An empty
+old directory held open by an application is not a runtime compatibility alias.
+
+Local consumer workflow URLs use the canonical repository and immutable source
+commits. Consumer edits remain local and preserve unrelated work and records.
+Package publication, source-PR merge and POSIX daemon platform support are unchanged
+by the repository-name operation.
 
 Uninstall adapters through Keepsail before removing its distribution. To roll
 back, restore backed-up generated settings and install the recorded old source;

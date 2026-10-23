@@ -14,7 +14,7 @@ The **discovering-architecture-norms** skill mines your codebase for candidate
 norms (dependency-direction / layering rules) and hands you a ranked list of
 hypotheses to ratify. Your own agent runs it — keepsail does not spawn it.
 
-- Skill: [`skills/discovering-architecture-norms/SKILL.md`](https://github.com/Dawinia/super-harness/blob/main/skills/discovering-architecture-norms/SKILL.md)
+- Skill: [`skills/discovering-architecture-norms/SKILL.md`](https://github.com/Dawinia/keepsail/blob/main/skills/discovering-architecture-norms/SKILL.md)
   (private repo during v0.1; needs repo access until the public release).
 
 ## 2. Lock a rule so the agent can't break it
