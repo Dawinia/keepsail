@@ -43,9 +43,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Dawinia/super-harness"
-Repository = "https://github.com/Dawinia/super-harness"
-Issues = "https://github.com/Dawinia/super-harness/issues"
+Homepage = "https://github.com/Dawinia/keepsail"
+Repository = "https://github.com/Dawinia/keepsail"
+Issues = "https://github.com/Dawinia/keepsail/issues"
 
 [project.optional-dependencies]
 dev = [

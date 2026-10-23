@@ -10,7 +10,7 @@ description: Use when a team adopting keepsail needs to figure out which archite
 keepsail ships the mechanism to *lock* an architecture norm (`decision new` →
 write a check → `ratify` → `decision check`) and the guide that teaches *how* to
 write one check:
-https://github.com/Dawinia/super-harness/blob/main/docs/architecture-fitness.md
+https://github.com/Dawinia/keepsail/blob/main/docs/architecture-fitness.md
 
 This skill covers the prior step: **which rules should we lock?** In a mature
 codebase the architecture already exists implicitly; the maintainer's mental model
@@ -132,7 +132,7 @@ Close by pointing the human at the mechanism — do not restate it:
 
 > For each candidate you choose to lock: `decision new` → write the check +
 > counterexample per
-> https://github.com/Dawinia/super-harness/blob/main/docs/architecture-fitness.md
+> https://github.com/Dawinia/keepsail/blob/main/docs/architecture-fitness.md
 > → `ratify` (bite-test) → `decision check`.
 
 You surface and rank; the human decides which hypotheses become rules.

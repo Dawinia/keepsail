@@ -12,7 +12,7 @@ def test_error_format_has_hint_and_docs():
     assert "Hint:" in msg
     assert "Docs:" in msg
     assert (
-        "https://github.com/Dawinia/super-harness/blob/main/docs/cli-reference.md#keepsail-verify"
+        "https://github.com/Dawinia/keepsail/blob/main/docs/cli-reference.md#keepsail-verify"
         in msg
     )
 
@@ -31,7 +31,7 @@ def test_error_format_with_hint_only():
 def test_error_format_with_docs_only():
     msg = format_error(subcommand="status", message="x", docs_anchor="status")
     assert (
-        "https://github.com/Dawinia/super-harness/blob/main/docs/cli-reference.md#keepsail-status"
+        "https://github.com/Dawinia/keepsail/blob/main/docs/cli-reference.md#keepsail-status"
         in msg
     )
     assert "Hint:" not in msg

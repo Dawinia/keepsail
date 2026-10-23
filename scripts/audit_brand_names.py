@@ -26,8 +26,6 @@ def category(path: str, line: str, token: str) -> str:
         return "inventory-scanner-pattern"
     if token.lower() == "sh":
         return "system-shell"
-    if "github.com/Dawinia/super-harness" in line:
-        return "existing-repository-link"
     if path in {"README.md", "README.zh-CN.md", "docs/keepsail-migration.md", REPORT}:
         return "migration-explanation"
     if path == "tests/integration/cli/test_keepsail_installation.py":

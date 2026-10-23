@@ -25,7 +25,7 @@ Examples (all current call sites follow this shape):
 - ``"See cli-command-surface §3.2 for slug rules."``
 """
 
-DOCS_BASE = "https://github.com/Dawinia/super-harness/blob/main/docs/cli-reference.md"
+DOCS_BASE = "https://github.com/Dawinia/keepsail/blob/main/docs/cli-reference.md"
 
 
 def format_error(
