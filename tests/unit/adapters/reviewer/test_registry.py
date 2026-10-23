@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from super_harness.adapters.reviewer.claude_cli import ClaudeCliReviewerProtocol
-from super_harness.adapters.reviewer.codex_cli import CodexCliReviewerProtocol
-from super_harness.adapters.reviewer.registry import (
+from keepsail.adapters.reviewer.claude_cli import ClaudeCliReviewerProtocol
+from keepsail.adapters.reviewer.codex_cli import CodexCliReviewerProtocol
+from keepsail.adapters.reviewer.registry import (
     get_reviewer_protocol,
     list_reviewer_protocols,
 )

@@ -3,7 +3,7 @@ import threading
 import time
 from pathlib import Path
 
-from super_harness.core.authoring_check import (
+from keepsail.core.authoring_check import (
     _CLEANUP_MARGIN,
     _MIN_SLICE,
     Verdict,
@@ -13,8 +13,8 @@ from super_harness.core.authoring_check import (
     _to_verdict,
     run_authoring_check,
 )
-from super_harness.core.check_runner import CheckRun
-from super_harness.core.decisions import Decision
+from keepsail.core.check_runner import CheckRun
+from keepsail.core.decisions import Decision
 
 
 def _write_decision(root: Path, id: str, check: str, authoring: bool):
@@ -79,7 +79,7 @@ def test_integrity_violated_decision_is_skipped(tmp_path: Path):
 
 
 def test_core_module_is_adapter_free():
-    import super_harness.core.authoring_check as m
+    import keepsail.core.authoring_check as m
 
     src = Path(m.__file__).read_text()
     assert "adapters" not in src  # core must not import the adapter layer (core-is-base)
@@ -176,7 +176,7 @@ def test_startup_stops_when_already_expired(tmp_path: Path):
 def test_setup_failure_degrades_observably(tmp_path: Path, monkeypatch, capsys):
     # An unexpected orchestration error must fail open to an all-unavailable verdict
     # (never crash the agent's Stop) AND emit a stderr diagnostic (observable in logs).
-    import super_harness.core.authoring_check as m
+    import keepsail.core.authoring_check as m
 
     _write_decision(tmp_path, "d-armed", check="true", authoring=True)
 

@@ -2,11 +2,11 @@ from pathlib import Path
 
 import pytest
 
-from super_harness.core.emit_validation import (
+from keepsail.core.emit_validation import (
     OrderingViolation,
     find_ordering_violations,
 )
-from super_harness.core.writer import EmitPreconditionError, EventWriter
+from keepsail.core.writer import EmitPreconditionError, EventWriter
 from tests.unit.core.test_writer import _make_event
 
 

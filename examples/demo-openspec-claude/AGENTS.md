@@ -1,4 +1,4 @@
-<!-- super-harness section begin · v0.1.0 · DO NOT EDIT MANUALLY -->
+<!-- keepsail section begin · v0.1.0 · DO NOT EDIT MANUALLY -->
 ## Keepsail conventions
 
 This project uses Keepsail, a product-work control layer across agent harnesses.
@@ -16,23 +16,23 @@ the change with zero config, but it is optional, not required.
 
 Use your framework's native PR command:
 
-<!-- super-harness framework: plain -->
+<!-- keepsail framework: plain -->
 - No framework: drive lifecycle via `keepsail change start <slug>` / `keepsail plan ready <slug>` / `keepsail done <slug>`.
-<!-- /super-harness framework: plain -->
+<!-- /keepsail framework: plain -->
 
-<!-- super-harness framework: openspec -->
+<!-- keepsail framework: openspec -->
 - OpenSpec change lives in `openspec/changes/<slug>/` (proposal.md / tasks.md / specs/ deltas).
 - Validate before push: `openspec validate <slug> --strict`.
 - After merge, fold spec deltas into `openspec/specs/`: `openspec archive <slug>`.
-<!-- /super-harness framework: openspec -->
+<!-- /keepsail framework: openspec -->
 
 keepsail will automatically append a metadata block to your PR description
-between `<!-- super-harness:metadata -->` markers.
+between `<!-- keepsail:metadata -->` markers.
 **Do not modify content between those markers manually.**
 
 ### Agent-specific guidance
 
-<!-- super-harness agent: claude-code -->
+<!-- keepsail agent: claude-code -->
 ### keepsail (Claude Code)
 
 A **PreToolUse** hook is enabled for this workspace. `Edit` / `Write` /
@@ -93,7 +93,7 @@ For each review epoch:
 The imported evidence must cover the exact frozen subject. A reviewer may read
 unchanged repository material as supporting context, but a finding never widens
 the target implicitly. Do not edit while an external review is pending.
-<!-- /super-harness agent: claude-code -->
+<!-- /keepsail agent: claude-code -->
 
 ### Before opening PR
 
@@ -189,4 +189,4 @@ yours, not the tool's — and the recipe is:
   skill: https://github.com/Dawinia/super-harness/blob/main/skills/discovering-architecture-norms/SKILL.md
   (private repo during v0.1 — the link needs repo access until the public release).
 
-<!-- super-harness section end -->
+<!-- keepsail section end -->

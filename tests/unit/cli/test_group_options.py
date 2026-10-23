@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from click.testing import CliRunner
 
-from super_harness.cli import main
+from keepsail.cli import main
 
 
 def _invoke(args: list[str]):

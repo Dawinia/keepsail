@@ -26,7 +26,7 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
-from super_harness.cli import main
+from keepsail.cli import main
 
 _FAKE_HOOK = "/usr/local/bin/keepsail-hook"
 _EXPECTED_COMMAND = f"{_FAKE_HOOK} --agent claude-code"

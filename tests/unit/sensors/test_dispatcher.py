@@ -15,9 +15,9 @@ from typing import ClassVar
 
 import pytest
 
-from super_harness.core.events import Actor, Event
-from super_harness.core.writer import EventWriter
-from super_harness.sensors import (
+from keepsail.core.events import Actor, Event
+from keepsail.core.writer import EventWriter
+from keepsail.sensors import (
     Activity,
     ActivityType,
     Determinism,
@@ -25,7 +25,7 @@ from super_harness.sensors import (
     SensorResult,
     WorkspaceContext,
 )
-from super_harness.sensors.dispatcher import SensorDispatcher
+from keepsail.sensors.dispatcher import SensorDispatcher
 
 # --- helpers ---------------------------------------------------------------
 
@@ -440,7 +440,7 @@ def test_dispatcher_refreshes_state_after_emit(tmp_path: Path) -> None:
     state_file = tmp_path / ".harness" / "state.yaml"
     assert state_file.exists(), "refresh_state_after_emit was not called"
     # After plan_approved, state must be PLAN_APPROVED.
-    from super_harness.core.state_yaml import read_state_yaml
+    from keepsail.core.state_yaml import read_state_yaml
 
     data = read_state_yaml(state_file)
     assert data["changes"]["c1"]["current_state"] == "PLAN_APPROVED"

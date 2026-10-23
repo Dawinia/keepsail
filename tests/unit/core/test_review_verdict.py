@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from super_harness.core.review_verdict import (
+from keepsail.core.review_verdict import (
     VerdictError,
     check_coverage,
     parse_verdict_file,
@@ -84,7 +84,7 @@ def test_check_coverage_complete(tmp_path: Path) -> None:
 
 
 def test_json_schema_is_strict_with_nullable_optional_fields() -> None:
-    from super_harness.core.review_verdict import review_verdict_json_schema
+    from keepsail.core.review_verdict import review_verdict_json_schema
 
     schema = review_verdict_json_schema(["spec-compliance"])
 
@@ -108,7 +108,7 @@ def test_json_schema_is_strict_with_nullable_optional_fields() -> None:
 
 
 def test_read_change_events_filters_and_tolerates(tmp_path: Path) -> None:
-    from super_harness.core.review_verdict import read_change_events
+    from keepsail.core.review_verdict import read_change_events
 
     f = tmp_path / "events.jsonl"
     f.write_text(
@@ -128,7 +128,7 @@ def test_read_change_events_filters_and_tolerates(tmp_path: Path) -> None:
 
 
 def test_read_change_events_missing_file_returns_empty(tmp_path: Path) -> None:
-    from super_harness.core.review_verdict import read_change_events
+    from keepsail.core.review_verdict import read_change_events
 
     assert read_change_events(tmp_path / "nope.jsonl", "c") == []
 
@@ -171,8 +171,8 @@ def test_prior_findings_shape_validated(tmp_path: Path) -> None:
 
 
 def _failed(slug: str, findings: list[str], prior: list[tuple[str, str]] | None = None):
-    from super_harness.core.events import Actor, Event
-    from super_harness.core.ulid import new_event_id
+    from keepsail.core.events import Actor, Event
+    from keepsail.core.ulid import new_event_id
 
     verdict = {
         "findings": [{"id": i, "severity": "major", "file": "x", "summary": "s"} for i in findings],
@@ -187,20 +187,20 @@ def _failed(slug: str, findings: list[str], prior: list[tuple[str, str]] | None 
 
 
 def test_open_findings_single_reject() -> None:
-    from super_harness.core.review_verdict import derive_open_findings
+    from keepsail.core.review_verdict import derive_open_findings
     assert derive_open_findings([_failed("c", ["f1", "f2"])], "c") == ["f1", "f2"]
 
 
 def test_open_findings_resolved_in_later_reject() -> None:
-    from super_harness.core.review_verdict import derive_open_findings
+    from keepsail.core.review_verdict import derive_open_findings
     evs = [_failed("c", ["f1", "f2"]), _failed("c", ["f3"], prior=[("f1", "resolved")])]
     assert derive_open_findings(evs, "c") == ["f2", "f3"]
 
 
 def test_open_findings_resolved_by_later_approved_result() -> None:
-    from super_harness.core.events import Actor, Event
-    from super_harness.core.review_verdict import derive_open_findings
-    from super_harness.core.ulid import new_event_id
+    from keepsail.core.events import Actor, Event
+    from keepsail.core.review_verdict import derive_open_findings
+    from keepsail.core.ulid import new_event_id
 
     approved = Event(
         event_id=new_event_id(),
@@ -229,9 +229,9 @@ def test_open_findings_ignores_legacy_verdict_recorded() -> None:
     approvals carried non-blocking findings; folding them retroactively reopened
     already-accepted findings and wedged an in-flight change. The new protocol
     derives open findings only from `review_result_imported` + `code_review_failed`."""
-    from super_harness.core.events import Actor, Event
-    from super_harness.core.review_verdict import derive_open_findings
-    from super_harness.core.ulid import new_event_id
+    from keepsail.core.events import Actor, Event
+    from keepsail.core.review_verdict import derive_open_findings
+    from keepsail.core.ulid import new_event_id
 
     legacy_approval = Event(
         event_id=new_event_id(),
@@ -256,25 +256,25 @@ def test_open_findings_ignores_legacy_verdict_recorded() -> None:
 
 
 def test_open_findings_resolved_then_reopened() -> None:
-    from super_harness.core.review_verdict import derive_open_findings
+    from keepsail.core.review_verdict import derive_open_findings
     # reject2 disposes f1 AND re-lists it → reopened, stays open
     evs = [_failed("c", ["f1"]), _failed("c", ["f1"], prior=[("f1", "resolved")])]
     assert derive_open_findings(evs, "c") == ["f1"]
 
 
 def test_open_findings_dispose_unknown_id_is_noop() -> None:
-    from super_harness.core.review_verdict import derive_open_findings
+    from keepsail.core.review_verdict import derive_open_findings
     evs = [_failed("c", ["f1"], prior=[("ghost", "resolved")])]
     assert derive_open_findings(evs, "c") == ["f1"]
 
 
 def test_open_findings_ignores_other_change_and_non_failed() -> None:
-    from super_harness.core.review_verdict import derive_open_findings
+    from keepsail.core.review_verdict import derive_open_findings
     assert derive_open_findings([_failed("other", ["f1"])], "c") == []
 
 
 def test_check_disposed() -> None:
-    from super_harness.core.review_verdict import check_disposed
+    from keepsail.core.review_verdict import check_disposed
 
     verdict = {"prior_findings": [{"id": "f1", "disposition": "resolved"}]}
     assert check_disposed(verdict, ["f1"]) == []

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from super_harness.cli.init_models import discover_reviewer_models
+from keepsail.cli.init_models import discover_reviewer_models
 
 
 def _write_provider_configs(home: Path) -> None:

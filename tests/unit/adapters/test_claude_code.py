@@ -26,7 +26,7 @@ from pathlib import Path
 
 import pytest
 
-from super_harness.adapters.agent.claude_code import ClaudeCodeAdapter
+from keepsail.adapters.agent.claude_code import ClaudeCodeAdapter
 
 _RESOLVED = "/abs/bin/keepsail-hook"
 _EXPECTED_COMMAND = f"{_RESOLVED} --agent claude-code"
@@ -118,7 +118,7 @@ def test_install_hooks_writes_settings_entry(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(
-        "super_harness.adapters.agent.claude_code.shutil.which",
+        "keepsail.adapters.agent.claude_code.shutil.which",
         _which_both,
     )
     ClaudeCodeAdapter().install_hooks(tmp_path)
@@ -142,7 +142,7 @@ def test_install_hooks_missing_hook_binary_raises(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(
-        "super_harness.adapters.agent.claude_code.shutil.which",
+        "keepsail.adapters.agent.claude_code.shutil.which",
         lambda _name: None,
     )
     with pytest.raises(RuntimeError, match="keepsail-hook"):
@@ -157,7 +157,7 @@ def test_install_hooks_missing_cli_binary_raises_before_write(
     """`keepsail-hook` resolves but `keepsail` (CLI) does not → abort
     BEFORE writing either hook (both binaries resolved up front)."""
     monkeypatch.setattr(
-        "super_harness.adapters.agent.claude_code.shutil.which",
+        "keepsail.adapters.agent.claude_code.shutil.which",
         lambda name: _RESOLVED if name == "keepsail-hook" else None,
     )
     with pytest.raises(RuntimeError, match="keepsail"):
@@ -167,7 +167,7 @@ def test_install_hooks_missing_cli_binary_raises_before_write(
 
 def test_install_hooks_idempotent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "super_harness.adapters.agent.claude_code.shutil.which",
+        "keepsail.adapters.agent.claude_code.shutil.which",
         _which_both,
     )
     adapter = ClaudeCodeAdapter()
@@ -195,7 +195,7 @@ def test_install_hooks_preserves_existing_file_when_atomic_apply_fails(
     settings_path.write_text(pristine)
 
     monkeypatch.setattr(
-        "super_harness.adapters.agent.claude_code.shutil.which",
+        "keepsail.adapters.agent.claude_code.shutil.which",
         _which_both,
     )
 
@@ -203,7 +203,7 @@ def test_install_hooks_preserves_existing_file_when_atomic_apply_fails(
         raise RuntimeError("simulated atomic apply failure")
 
     monkeypatch.setattr(
-        "super_harness.adapters.agent.claude_code.apply_settings_merge_plan",
+        "keepsail.adapters.agent.claude_code.apply_settings_merge_plan",
         boom,
     )
 
@@ -223,7 +223,7 @@ def test_install_hooks_preserves_absence_when_atomic_apply_fails(
     assert not settings_path.exists()
 
     monkeypatch.setattr(
-        "super_harness.adapters.agent.claude_code.shutil.which",
+        "keepsail.adapters.agent.claude_code.shutil.which",
         _which_both,
     )
 
@@ -231,7 +231,7 @@ def test_install_hooks_preserves_absence_when_atomic_apply_fails(
         raise RuntimeError("simulated atomic apply failure")
 
     monkeypatch.setattr(
-        "super_harness.adapters.agent.claude_code.apply_settings_merge_plan",
+        "keepsail.adapters.agent.claude_code.apply_settings_merge_plan",
         boom,
     )
 
@@ -248,7 +248,7 @@ def test_inject_context_returns_stdout(monkeypatch: pytest.MonkeyPatch) -> None:
         captured["cmd"] = cmd
         return subprocess.CompletedProcess(cmd, 0, stdout="# change my-slug\n", stderr="")
 
-    monkeypatch.setattr("super_harness.adapters.agent.claude_code.subprocess.run", fake_run)
+    monkeypatch.setattr("keepsail.adapters.agent.claude_code.subprocess.run", fake_run)
     out = ClaudeCodeAdapter().inject_context("my-slug")
     assert out == "# change my-slug\n"
     assert captured["cmd"] == [
@@ -266,15 +266,15 @@ def test_inject_context_empty_result_returns_empty_string(
         # Non-zero exit + empty stdout (e.g. unknown slug) must not crash.
         return subprocess.CompletedProcess(cmd, 2, stdout="", stderr="boom")
 
-    monkeypatch.setattr("super_harness.adapters.agent.claude_code.subprocess.run", fake_run)
+    monkeypatch.setattr("keepsail.adapters.agent.claude_code.subprocess.run", fake_run)
     assert ClaudeCodeAdapter().inject_context("nope") == ""
 
 
 def test_agents_md_subsection_has_markers() -> None:
     block = ClaudeCodeAdapter().agents_md_subsection()
     assert isinstance(block, str)
-    assert "<!-- super-harness agent: claude-code -->" in block
-    assert "<!-- /super-harness agent: claude-code -->" in block
+    assert "<!-- keepsail agent: claude-code -->" in block
+    assert "<!-- /keepsail agent: claude-code -->" in block
     # Mentions the gate behaviour + recovery path per spec §3.5.
     assert "PreToolUse" in block
     assert "keepsail status" in block
@@ -325,10 +325,10 @@ def test_on_uninstall_restores_earliest_pristine_backup(tmp_path: Path) -> None:
     pristine = {"model": "claude-opus", "hooks": {}}
     # ts=100: pristine (1st merge's backup). ts=200: pristine + our PreToolUse
     # (2nd merge's backup). The earliest (100) must win.
-    settings_path.with_name("settings.local.json.super-harness-backup.100").write_text(
+    settings_path.with_name("settings.local.json.keepsail-backup.100").write_text(
         json.dumps(pristine)
     )
-    settings_path.with_name("settings.local.json.super-harness-backup.200").write_text(
+    settings_path.with_name("settings.local.json.keepsail-backup.200").write_text(
         json.dumps(
             {
                 "model": "claude-opus",
@@ -348,7 +348,7 @@ def test_install_then_uninstall_round_trip_restores_pristine(
     """End-to-end: install BOTH hooks on a pre-existing file, then uninstall —
     the file is restored to its exact pristine pre-install content."""
     monkeypatch.setattr(
-        "super_harness.adapters.agent.claude_code.shutil.which",
+        "keepsail.adapters.agent.claude_code.shutil.which",
         _which_both,
     )
     settings_path = tmp_path / ".claude" / "settings.local.json"
@@ -380,7 +380,7 @@ def test_on_uninstall_no_backup_is_noop(tmp_path: Path) -> None:
 
 
 def test_claude_adapter_install_detail_strings():
-    from super_harness.adapters.agent.claude_code import ClaudeCodeAdapter
+    from keepsail.adapters.agent.claude_code import ClaudeCodeAdapter
 
     a = ClaudeCodeAdapter()
     assert a.local_config_relpath() == ".claude/settings.local.json"
@@ -406,13 +406,13 @@ def test_agents_md_subsection_does_not_teach_kill_switch():
 
 
 def _stop_verdict():
-    from super_harness.core.authoring_check import Verdict, Violation
+    from keepsail.core.authoring_check import Verdict, Violation
 
     return Verdict(
         violations=[
             Violation(
                 "d-core-is-base",
-                "core is not allowed to import super_harness.sensors",
+                "core is not allowed to import keepsail.sensors",
                 "docs/decisions/d-core-is-base.md",
             )
         ]
@@ -422,19 +422,19 @@ def _stop_verdict():
 def test_claude_format_stop_feedback_blocks_with_reason():
     import json
 
-    from super_harness.adapters.agent.claude_code import ClaudeCodeAdapter
+    from keepsail.adapters.agent.claude_code import ClaudeCodeAdapter
 
     out = ClaudeCodeAdapter().format_stop_feedback(_stop_verdict())
     obj = json.loads(out)
     assert obj["decision"] == "block"
     assert "d-core-is-base" in obj["reason"]
-    assert "super_harness.sensors" in obj["reason"]
+    assert "keepsail.sensors" in obj["reason"]
     assert "docs/decisions/d-core-is-base.md" in obj["reason"]
 
 
 def test_claude_format_stop_feedback_clean_is_empty():
-    from super_harness.adapters.agent.claude_code import ClaudeCodeAdapter
-    from super_harness.core.authoring_check import Verdict
+    from keepsail.adapters.agent.claude_code import ClaudeCodeAdapter
+    from keepsail.core.authoring_check import Verdict
 
     assert ClaudeCodeAdapter().format_stop_feedback(Verdict(violations=[])) == ""
 
@@ -449,8 +449,8 @@ def test_claude_stop_should_check_skips_continuation():
 def _install_into(tmp_path, monkeypatch, pre_existing):
     import json
 
-    import super_harness.adapters.agent.claude_code as cc
-    from super_harness.adapters.agent.claude_code import ClaudeCodeAdapter
+    import keepsail.adapters.agent.claude_code as cc
+    from keepsail.adapters.agent.claude_code import ClaudeCodeAdapter
 
     monkeypatch.setattr(cc.shutil, "which", lambda n: f"/abs/{n}")
     (tmp_path / ".claude").mkdir()
@@ -473,7 +473,7 @@ def test_install_registers_stop(tmp_path, monkeypatch):
 def test_uninstall_round_trip_removes_stop(tmp_path, monkeypatch):
     import json
 
-    from super_harness.adapters.agent.claude_code import ClaudeCodeAdapter
+    from keepsail.adapters.agent.claude_code import ClaudeCodeAdapter
 
     pristine = {"model": "x", "permissions": {}}
     f = _install_into(tmp_path, monkeypatch, pre_existing=pristine)
@@ -487,7 +487,7 @@ def test_stop_advisory_has_no_self_authorized_bypass():
     # self-authorized bypass; it directs legitimate exceptions to the human.
     import json
 
-    from super_harness.adapters.agent.claude_code import ClaudeCodeAdapter
+    from keepsail.adapters.agent.claude_code import ClaudeCodeAdapter
 
     reason = json.loads(ClaudeCodeAdapter().format_stop_feedback(_stop_verdict()))["reason"]
     low = reason.lower()

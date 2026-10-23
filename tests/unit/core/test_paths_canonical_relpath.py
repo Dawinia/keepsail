@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from super_harness.core.paths import canonical_relpath
+from keepsail.core.paths import canonical_relpath
 
 
 def test_absolute_under_root(tmp_path: Path) -> None:

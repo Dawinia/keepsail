@@ -14,8 +14,8 @@ from pathlib import Path
 
 import pytest
 
-from super_harness.core.state import ChangeState
-from super_harness.core.state_snapshot import StateSnapshot, load_state_snapshot
+from keepsail.core.state import ChangeState
+from keepsail.core.state_snapshot import StateSnapshot, load_state_snapshot
 
 
 def _write_state(root: Path, body: str) -> Path:
@@ -153,8 +153,8 @@ def test_malformed_current_state_never_raises(
     # (override=None) AND the override path (which SKIPS pick_active_change, so the
     # guard is the isinstance(current_state, str) check, not the frozenset test).
     # The downstream pure gate must not raise on the result either.
-    from super_harness.gates import ProposedAction
-    from super_harness.gates.pre_tool_use import PreToolUseGate
+    from keepsail.gates import ProposedAction
+    from keepsail.gates.pre_tool_use import PreToolUseGate
 
     _write_state(
         tmp_path,

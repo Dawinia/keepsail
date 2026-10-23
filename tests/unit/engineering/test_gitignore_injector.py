@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from super_harness.engineering.gitignore_injector import (
+from keepsail.engineering.gitignore_injector import (
     GITIGNORE_BEGIN_MARKER,
     GITIGNORE_END_MARKER,
     GitignoreInjectionError,
@@ -42,9 +42,9 @@ _CANONICAL_PATHS = (
     ".harness/daemon.log",
     ".harness/.*.lock",
     ".claude/settings.local.json",
-    ".claude/*.super-harness-backup.*",
+    ".claude/*.keepsail-backup.*",
     ".codex/hooks.json",
-    ".codex/*.super-harness-backup.*",
+    ".codex/*.keepsail-backup.*",
 )
 
 
@@ -56,9 +56,9 @@ _CANONICAL_PATHS = (
 def test_marker_strings_are_exact() -> None:
     """Lock in the exact marker text so a regression renaming them is caught."""
     assert GITIGNORE_BEGIN_MARKER == (
-        "# >>> super-harness gitignore (do not edit between markers)"
+        "# >>> keepsail gitignore (do not edit between markers)"
     )
-    assert GITIGNORE_END_MARKER == "# <<< super-harness gitignore"
+    assert GITIGNORE_END_MARKER == "# <<< keepsail gitignore"
 
 
 # --------------------------------------------------------------------------- #
@@ -305,7 +305,7 @@ def test_block_covers_gate_blocks_log(tmp_path: Path) -> None:
     """Stage 2: the best-effort BLOCK telemetry log `.harness/gate-blocks.jsonl`
     is a regular append-only runtime file (like events.jsonl) that a `git add -A`
     during a lifecycle would otherwise sweep into a commit. It must be ignored."""
-    from super_harness.engineering.gitignore_injector import _CANONICAL_PATHS
+    from keepsail.engineering.gitignore_injector import _CANONICAL_PATHS
 
     assert ".harness/gate-blocks.jsonl" in _CANONICAL_PATHS
     path = tmp_path / ".gitignore"
@@ -350,12 +350,12 @@ def test_committed_gitignore_has_no_standalone_state_lock() -> None:
 
 
 def test_block_covers_claude_settings_backup_filenames(tmp_path: Path) -> None:
-    """Regression for S13: the `.claude/*.super-harness-backup.*` pattern is
+    """Regression for S13: the `.claude/*.keepsail-backup.*` pattern is
     present in the canonical list so users do not accidentally commit the
     timestamped backup files created by `adapter install claude-code`.
 
     `_settings_merge.py` writes backups as
-    ``.claude/settings.json.super-harness-backup.<time_ns>`` — assert that
+    ``.claude/settings.json.keepsail-backup.<time_ns>`` — assert that
     pattern (and a couple of realistic example filenames it must match) is
     inside the emitted block. Smoke walkthrough v3 caught this regression
     when the backup file landed in `git add -A` and was pushed to a PR.
@@ -366,13 +366,13 @@ def test_block_covers_claude_settings_backup_filenames(tmp_path: Path) -> None:
     inject_gitignore_block(path)
     text = path.read_text()
     # The literal pattern is present in the written block.
-    assert ".claude/*.super-harness-backup.*" in text, text
+    assert ".claude/*.keepsail-backup.*" in text, text
     # The pattern matches realistic backup filenames produced by Phase 5
     # `_settings_merge.write_with_backup`.
-    pattern = ".claude/*.super-harness-backup.*"
+    pattern = ".claude/*.keepsail-backup.*"
     for sample in (
-        ".claude/settings.json.super-harness-backup.1780305201614632000",
-        ".claude/settings.json.super-harness-backup.0",
+        ".claude/settings.json.keepsail-backup.1780305201614632000",
+        ".claude/settings.json.keepsail-backup.0",
     ):
         assert fnmatch.fnmatch(sample, pattern), sample
 
@@ -385,7 +385,7 @@ def test_committed_repo_gitignore_block_matches_injector() -> None:
     that masked PR #34 review I-1). If this fails, run
     `keepsail sync --gitignore` and commit the updated `.gitignore`.
     """
-    from super_harness.engineering.gitignore_injector import _render_block
+    from keepsail.engineering.gitignore_injector import _render_block
 
     repo_root = Path(__file__).resolve().parents[3]
     gitignore = repo_root / ".gitignore"
@@ -408,10 +408,10 @@ def test_committed_repo_gitignore_block_matches_injector() -> None:
 
 
 def test_canonical_block_covers_codex_hook_config():
-    from super_harness.engineering.gitignore_injector import _render_block
+    from keepsail.engineering.gitignore_injector import _render_block
     body = _render_block()
     assert ".codex/hooks.json" in body
-    assert ".codex/*.super-harness-backup.*" in body
+    assert ".codex/*.keepsail-backup.*" in body
 
 
 def test_gitignore_covers_scratch() -> None:
@@ -420,6 +420,6 @@ def test_gitignore_covers_scratch() -> None:
     must be gitignored from this same change — otherwise a scratch file is an
     ordinary untracked-but-not-ignored file that `git add -A` and review
     tooling sweep in."""
-    from super_harness.engineering.gitignore_injector import _CANONICAL_PATHS
+    from keepsail.engineering.gitignore_injector import _CANONICAL_PATHS
 
     assert ".harness/scratch/" in _CANONICAL_PATHS

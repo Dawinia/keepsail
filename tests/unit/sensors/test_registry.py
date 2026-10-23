@@ -7,14 +7,14 @@ from typing import ClassVar
 import pytest
 import yaml
 
-from super_harness.sensors import (
+from keepsail.sensors import (
     ActivityType,
     Determinism,
     Sensor,
     SensorResult,
 )
-from super_harness.sensors import registry as sensors_registry
-from super_harness.sensors.registry import (
+from keepsail.sensors import registry as sensors_registry
+from keepsail.sensors.registry import (
     get_builtin,
     list_builtins,
     load_sensors,

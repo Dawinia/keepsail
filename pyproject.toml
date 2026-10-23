@@ -58,17 +58,14 @@ dev = [
   "types-PyYAML>=6.0",
   # Architecture-fitness engine for tier-1 architecture decisions (G-FITNESS).
   # Runs `decision check`'s import-graph contracts locally + in CI; not a
-  # runtime dependency of the shipped product. See docs/decisions/d-core-is-base.md.
+  # runtime dependency of the shipped product. See docs/decisions/d-keepsail-core-is-base.md.
   "import-linter>=2.0",
 ]
 
 [project.scripts]
-super-harness = "super_harness.cli:main"
-super-harness-daemon = "super_harness.daemon.server:main"
-super-harness-hook = "super_harness.daemon.hook_entry:main"
-keepsail = "super_harness.cli:main"
-keepsail-daemon = "super_harness.daemon.server:main"
-keepsail-hook = "super_harness.daemon.hook_entry:main"
+keepsail = "keepsail.cli:main"
+keepsail-daemon = "keepsail.daemon.server:main"
+keepsail-hook = "keepsail.daemon.hook_entry:main"
 
 [tool.hatch.build]
 # Hatchling default sdist includes ALL non-gitignored files. Smoke walk v4
@@ -91,7 +88,7 @@ exclude = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/super_harness"]
+packages = ["src/keepsail"]
 
 [tool.hatch.build.targets.sdist]
 # sdist includes the project tree minus the global excludes above. We
@@ -125,8 +122,8 @@ select = ["E", "F", "I", "B", "UP", "RUF"]
 
 [tool.mypy]
 python_version = "3.10"
-files = ["src/super_harness"]
+files = ["src/keepsail"]
 
 [[tool.mypy.overrides]]
-module = "super_harness.core.*"
+module = "keepsail.core.*"
 strict = true

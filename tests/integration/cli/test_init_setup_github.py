@@ -22,8 +22,8 @@ import click
 import pytest
 from click.testing import CliRunner
 
-from super_harness.cli import main
-from super_harness.engineering.gh import GhError, GhNotInstalled
+from keepsail.cli import main
+from keepsail.engineering.gh import GhError, GhNotInstalled
 
 
 def _template_path(root: Path) -> Path:
@@ -43,10 +43,10 @@ def _op_logs(root: Path) -> list[Path]:
 def test_setup_github_gh_not_installed_exits_4_no_github_written(tmp_path: Path):
     with (
         patch(
-            "super_harness.cli.init.check_gh",
+            "keepsail.cli.init.check_gh",
             side_effect=GhNotInstalled("gh CLI not found. Install: brew install gh"),
         ) as mock_check,
-        patch("super_harness.cli.init.enable_repo_merge_settings") as mock_settings,
+        patch("keepsail.cli.init.enable_repo_merge_settings") as mock_settings,
     ):
         r = CliRunner().invoke(main, ["--workspace", str(tmp_path), "init", "--setup-github"])
 
@@ -69,8 +69,8 @@ def test_setup_github_gh_not_installed_exits_4_no_github_written(tmp_path: Path)
 
 def test_setup_github_success_writes_template_and_calls_settings(tmp_path: Path):
     with (
-        patch("super_harness.cli.init.check_gh") as mock_check,
-        patch("super_harness.cli.init.enable_repo_merge_settings") as mock_settings,
+        patch("keepsail.cli.init.check_gh") as mock_check,
+        patch("keepsail.cli.init.enable_repo_merge_settings") as mock_settings,
     ):
         r = CliRunner().invoke(main, ["--workspace", str(tmp_path), "init", "--setup-github"])
 
@@ -89,9 +89,9 @@ def test_setup_github_success_writes_template_and_calls_settings(tmp_path: Path)
     assert "## Related issues" in text
     assert "<!-- closes #123, refs #456 -->" in text
     assert "\n---\n" in text
-    assert "<!-- super-harness:metadata -->" in text
+    assert "<!-- keepsail:metadata -->" in text
     assert "<!-- auto-filled by Keepsail PR-decorator sensor; do not edit manually -->" in text
-    assert "<!-- /super-harness:metadata -->" in text
+    assert "<!-- /keepsail:metadata -->" in text
     # no operation-log on the happy path
     assert _op_logs(tmp_path) == []
 
@@ -100,11 +100,11 @@ def test_setup_github_template_matches_bundled_verbatim(tmp_path: Path):
     """The written template is byte-for-byte the bundled §2.6 template."""
     from importlib.resources import files
 
-    bundled = files("super_harness.templates").joinpath("pull_request_template.md").read_text()
+    bundled = files("keepsail.templates").joinpath("pull_request_template.md").read_text()
 
     with (
-        patch("super_harness.cli.init.check_gh"),
-        patch("super_harness.cli.init.enable_repo_merge_settings"),
+        patch("keepsail.cli.init.check_gh"),
+        patch("keepsail.cli.init.enable_repo_merge_settings"),
     ):
         r = CliRunner().invoke(main, ["--workspace", str(tmp_path), "init", "--setup-github"])
     assert r.exit_code == 0, r.output
@@ -118,9 +118,9 @@ def test_setup_github_template_matches_bundled_verbatim(tmp_path: Path):
 
 def test_setup_github_settings_failure_is_nonfatal_logs_and_advises(tmp_path: Path):
     with (
-        patch("super_harness.cli.init.check_gh"),
+        patch("keepsail.cli.init.check_gh"),
         patch(
-            "super_harness.cli.init.enable_repo_merge_settings",
+            "keepsail.cli.init.enable_repo_merge_settings",
             side_effect=GhError("gh api -X PATCH /repos/{owner}/{repo} failed (exit 1)"),
         ),
     ):
@@ -143,9 +143,9 @@ def test_setup_github_settings_failure_is_nonfatal_logs_and_advises(tmp_path: Pa
 def test_setup_github_settings_failure_log_filename_has_no_colon(tmp_path: Path):
     """Operation-log filename must not contain ':' (portable across filesystems)."""
     with (
-        patch("super_harness.cli.init.check_gh"),
+        patch("keepsail.cli.init.check_gh"),
         patch(
-            "super_harness.cli.init.enable_repo_merge_settings",
+            "keepsail.cli.init.enable_repo_merge_settings",
             side_effect=GhError("non-admin"),
         ),
     ):
@@ -164,8 +164,8 @@ def test_setup_github_settings_failure_log_filename_has_no_colon(tmp_path: Path)
 def test_setup_github_rerun_does_not_duplicate_metadata_block(tmp_path: Path):
     runner = CliRunner()
     with (
-        patch("super_harness.cli.init.check_gh"),
-        patch("super_harness.cli.init.enable_repo_merge_settings"),
+        patch("keepsail.cli.init.check_gh"),
+        patch("keepsail.cli.init.enable_repo_merge_settings"),
     ):
         r1 = runner.invoke(main, ["--workspace", str(tmp_path), "init", "--setup-github"])
         # second run requires --force (.harness/ now exists) + auto-confirm the
@@ -178,8 +178,8 @@ def test_setup_github_rerun_does_not_duplicate_metadata_block(tmp_path: Path):
     assert r1.exit_code == 0, r1.output
     assert r2.exit_code == 0, r2.output
     text = _template_path(tmp_path).read_text()
-    assert text.count("<!-- super-harness:metadata -->") == 1, text
-    assert text.count("<!-- /super-harness:metadata -->") == 1, text
+    assert text.count("<!-- keepsail:metadata -->") == 1, text
+    assert text.count("<!-- /keepsail:metadata -->") == 1, text
 
 
 def test_setup_github_existing_file_without_block_gets_placeholder_appended(tmp_path: Path):
@@ -191,8 +191,8 @@ def test_setup_github_existing_file_without_block_gets_placeholder_appended(tmp_
     user_tpl.write_text("## My custom template\n\nPlease describe.\n")
 
     with (
-        patch("super_harness.cli.init.check_gh"),
-        patch("super_harness.cli.init.enable_repo_merge_settings"),
+        patch("keepsail.cli.init.check_gh"),
+        patch("keepsail.cli.init.enable_repo_merge_settings"),
     ):
         r = CliRunner().invoke(
             main,
@@ -204,8 +204,8 @@ def test_setup_github_existing_file_without_block_gets_placeholder_appended(tmp_
     assert "## My custom template" in text
     assert "Please describe." in text
     # exactly one placeholder block appended
-    assert text.count("<!-- super-harness:metadata -->") == 1, text
-    assert text.count("<!-- /super-harness:metadata -->") == 1, text
+    assert text.count("<!-- keepsail:metadata -->") == 1, text
+    assert text.count("<!-- /keepsail:metadata -->") == 1, text
 
 
 def test_setup_github_existing_file_with_one_block_is_noop(tmp_path: Path):
@@ -213,15 +213,15 @@ def test_setup_github_existing_file_with_one_block_is_noop(tmp_path: Path):
     left untouched (idempotent no-op)."""
     from importlib.resources import files
 
-    bundled = files("super_harness.templates").joinpath("pull_request_template.md").read_text()
+    bundled = files("keepsail.templates").joinpath("pull_request_template.md").read_text()
     gh_dir = tmp_path / ".github"
     gh_dir.mkdir()
     user_tpl = gh_dir / "pull_request_template.md"
     user_tpl.write_text(bundled)
 
     with (
-        patch("super_harness.cli.init.check_gh"),
-        patch("super_harness.cli.init.enable_repo_merge_settings"),
+        patch("keepsail.cli.init.check_gh"),
+        patch("keepsail.cli.init.enable_repo_merge_settings"),
     ):
         r = CliRunner().invoke(
             main,
@@ -238,16 +238,16 @@ def test_setup_github_existing_file_two_blocks_fails_loud(tmp_path: Path):
     user_tpl = gh_dir / "pull_request_template.md"
     user_tpl.write_text(
         "## Summary\n\n"
-        "<!-- super-harness:metadata -->\n"
-        "<!-- /super-harness:metadata -->\n\n"
-        "<!-- super-harness:metadata -->\n"
-        "<!-- /super-harness:metadata -->\n"
+        "<!-- keepsail:metadata -->\n"
+        "<!-- /keepsail:metadata -->\n\n"
+        "<!-- keepsail:metadata -->\n"
+        "<!-- /keepsail:metadata -->\n"
     )
     before = user_tpl.read_text()
 
     with (
-        patch("super_harness.cli.init.check_gh"),
-        patch("super_harness.cli.init.enable_repo_merge_settings"),
+        patch("keepsail.cli.init.check_gh"),
+        patch("keepsail.cli.init.enable_repo_merge_settings"),
     ):
         r = CliRunner().invoke(
             main,
@@ -270,8 +270,8 @@ def test_setup_github_existing_file_decline_overwrite_leaves_untouched(tmp_path:
     before = user_tpl.read_text()
 
     with (
-        patch("super_harness.cli.init.check_gh"),
-        patch("super_harness.cli.init.enable_repo_merge_settings"),
+        patch("keepsail.cli.init.check_gh"),
+        patch("keepsail.cli.init.enable_repo_merge_settings"),
     ):
         r = CliRunner().invoke(
             main,
@@ -296,9 +296,9 @@ def test_setup_github_resolves_existing_file_decision_before_any_write(
         return False
 
     with (
-        patch("super_harness.cli.init.check_gh"),
-        patch("super_harness.cli.init.enable_repo_merge_settings"),
-        patch("super_harness.cli.init.click.confirm", side_effect=decline_before_apply),
+        patch("keepsail.cli.init.check_gh"),
+        patch("keepsail.cli.init.enable_repo_merge_settings"),
+        patch("keepsail.cli.init.click.confirm", side_effect=decline_before_apply),
     ):
         result = CliRunner().invoke(main, ["--workspace", str(tmp_path), "init", "--setup-github"])
 
@@ -314,8 +314,8 @@ def test_setup_github_resolves_existing_file_decision_before_any_write(
 
 def test_init_without_setup_github_never_calls_gh(tmp_path: Path):
     with (
-        patch("super_harness.cli.init.check_gh") as mock_check,
-        patch("super_harness.cli.init.enable_repo_merge_settings") as mock_settings,
+        patch("keepsail.cli.init.check_gh") as mock_check,
+        patch("keepsail.cli.init.enable_repo_merge_settings") as mock_settings,
     ):
         r = CliRunner().invoke(main, ["--workspace", str(tmp_path), "init"])
 
@@ -339,8 +339,8 @@ def test_setup_github_non_utf8_existing_template_friendly_error(tmp_path: Path):
     gh_dir.mkdir()
     (gh_dir / "pull_request_template.md").write_bytes(b"\xff\xfe not utf-8 \x80\x81")
     with (
-        patch("super_harness.cli.init.check_gh"),
-        patch("super_harness.cli.init.enable_repo_merge_settings"),
+        patch("keepsail.cli.init.check_gh"),
+        patch("keepsail.cli.init.enable_repo_merge_settings"),
     ):
         r = CliRunner().invoke(main, ["--workspace", str(tmp_path), "-q", "init", "--setup-github"])
     assert r.exit_code == 1, r.output
@@ -358,8 +358,8 @@ def test_setup_github_existing_no_block_noninteractive_no_quiet_is_nonfatal(tmp_
     user_tpl.write_text("## My custom template\n\nPlease describe.\n")
     before = user_tpl.read_text()
     with (
-        patch("super_harness.cli.init.check_gh"),
-        patch("super_harness.cli.init.enable_repo_merge_settings"),
+        patch("keepsail.cli.init.check_gh"),
+        patch("keepsail.cli.init.enable_repo_merge_settings"),
     ):
         # No `input=` → empty/non-interactive stdin → click.confirm raises Abort;
         # the fix catches it and degrades to "leave untouched, non-fatal".
@@ -372,7 +372,7 @@ def test_setup_github_existing_no_block_noninteractive_no_quiet_is_nonfatal(tmp_
 
 
 def _workflow_path(root: Path) -> Path:
-    return root / ".github" / "workflows" / "super-harness.yml"
+    return root / ".github" / "workflows" / "keepsail.yml"
 
 
 def test_setup_github_log_write_failure_is_nonfatal(tmp_path: Path):
@@ -380,8 +380,8 @@ def test_setup_github_log_write_failure_is_nonfatal(tmp_path: Path):
     repo-settings degradation STILL exits 0 — never a hard crash (AC-7)."""
     runner = CliRunner()
     with (
-        patch("super_harness.cli.init.check_gh"),
-        patch("super_harness.cli.init.enable_repo_merge_settings"),
+        patch("keepsail.cli.init.check_gh"),
+        patch("keepsail.cli.init.enable_repo_merge_settings"),
     ):
         r1 = runner.invoke(main, ["--workspace", str(tmp_path), "init"])
     assert r1.exit_code == 0
@@ -389,9 +389,9 @@ def test_setup_github_log_write_failure_is_nonfatal(tmp_path: Path):
     blocker = tmp_path / ".harness" / "operation-logs" / "setup-github"
     blocker.write_text("i am a file, not a dir")
     with (
-        patch("super_harness.cli.init.check_gh"),
+        patch("keepsail.cli.init.check_gh"),
         patch(
-            "super_harness.cli.init.enable_repo_merge_settings",
+            "keepsail.cli.init.enable_repo_merge_settings",
             side_effect=GhError("non-admin"),
         ),
     ):
@@ -412,8 +412,8 @@ def test_setup_github_log_write_failure_is_nonfatal(tmp_path: Path):
 def test_setup_github_writes_workflow_file(tmp_path: Path):
     """--setup-github writes BOTH .github/ files (PR template + workflow)."""
     with (
-        patch("super_harness.cli.init.check_gh"),
-        patch("super_harness.cli.init.enable_repo_merge_settings"),
+        patch("keepsail.cli.init.check_gh"),
+        patch("keepsail.cli.init.enable_repo_merge_settings"),
     ):
         r = CliRunner().invoke(main, ["--workspace", str(tmp_path), "init", "--setup-github"])
 
@@ -425,14 +425,14 @@ def test_setup_github_writes_workflow_file(tmp_path: Path):
 
 
 def test_setup_github_workflow_matches_bundled_verbatim(tmp_path: Path):
-    """Written workflow file is byte-for-byte the bundled super_harness_workflow.yml."""
+    """Written workflow file is byte-for-byte the bundled keepsail_workflow.yml."""
     from importlib.resources import files
 
-    bundled = files("super_harness.templates").joinpath("super_harness_workflow.yml").read_text()
+    bundled = files("keepsail.templates").joinpath("keepsail_workflow.yml").read_text()
 
     with (
-        patch("super_harness.cli.init.check_gh"),
-        patch("super_harness.cli.init.enable_repo_merge_settings"),
+        patch("keepsail.cli.init.check_gh"),
+        patch("keepsail.cli.init.enable_repo_merge_settings"),
     ):
         r = CliRunner().invoke(main, ["--workspace", str(tmp_path), "init", "--setup-github"])
     assert r.exit_code == 0, r.output
@@ -447,8 +447,8 @@ def test_setup_github_existing_workflow_with_quiet_overwrites(tmp_path: Path):
     wf.write_text("old workflow content\n")
 
     with (
-        patch("super_harness.cli.init.check_gh"),
-        patch("super_harness.cli.init.enable_repo_merge_settings"),
+        patch("keepsail.cli.init.check_gh"),
+        patch("keepsail.cli.init.enable_repo_merge_settings"),
     ):
         r = CliRunner().invoke(
             main,
@@ -469,8 +469,8 @@ def test_setup_github_existing_workflow_decline_overwrite_leaves_untouched(tmp_p
     before = wf.read_text()
 
     with (
-        patch("super_harness.cli.init.check_gh"),
-        patch("super_harness.cli.init.enable_repo_merge_settings") as mock_settings,
+        patch("keepsail.cli.init.check_gh"),
+        patch("keepsail.cli.init.enable_repo_merge_settings") as mock_settings,
     ):  # ← name it
         r = CliRunner().invoke(
             main,
@@ -487,7 +487,7 @@ def test_setup_github_existing_workflow_decline_overwrite_leaves_untouched(tmp_p
     # Non-vacuity guard: the overwrite prompt from _write_workflow_file must appear
     # in output. If _write_workflow_file were removed, this prompt would be absent
     # and this assertion would fail — proving the test is not vacuous.
-    assert "Overwrite existing" in r.output and "super-harness.yml" in r.output, (
+    assert "Overwrite existing" in r.output and "keepsail.yml" in r.output, (
         "_write_workflow_file must have fired the overwrite prompt; if absent, the test is vacuous"
     )
 
@@ -501,8 +501,8 @@ def test_setup_github_existing_workflow_noninteractive_no_quiet_is_nonfatal(tmp_
     before = wf.read_text()
 
     with (
-        patch("super_harness.cli.init.check_gh"),
-        patch("super_harness.cli.init.enable_repo_merge_settings"),
+        patch("keepsail.cli.init.check_gh"),
+        patch("keepsail.cli.init.enable_repo_merge_settings"),
     ):
         # No `input=` → empty/non-interactive stdin → click.confirm raises Abort;
         # the fix catches it and degrades to "leave untouched, non-fatal".
@@ -521,8 +521,8 @@ def test_setup_github_non_utf8_existing_workflow_friendly_error(tmp_path: Path):
     _workflow_path(tmp_path).write_bytes(b"\xff\xfe not utf-8 \x80\x81")
 
     with (
-        patch("super_harness.cli.init.check_gh"),
-        patch("super_harness.cli.init.enable_repo_merge_settings"),
+        patch("keepsail.cli.init.check_gh"),
+        patch("keepsail.cli.init.enable_repo_merge_settings"),
     ):
         r = CliRunner().invoke(main, ["--workspace", str(tmp_path), "-q", "init", "--setup-github"])
     assert r.exit_code == 1, r.output
@@ -535,19 +535,19 @@ def test_setup_github_existing_workflow_identical_is_noop(tmp_path: Path):
     """Existing workflow that's byte-identical to bundled → no prompt, no-op exit 0."""
     from importlib.resources import files
 
-    import super_harness.cli.init as _init_mod
+    import keepsail.cli.init as _init_mod
 
-    bundled = files("super_harness.templates").joinpath("super_harness_workflow.yml").read_text()
+    bundled = files("keepsail.templates").joinpath("keepsail_workflow.yml").read_text()
     workflows_dir = tmp_path / ".github" / "workflows"
     workflows_dir.mkdir(parents=True)
     wf = _workflow_path(tmp_path)
     wf.write_text(bundled)
 
     with (
-        patch("super_harness.cli.init.check_gh"),
-        patch("super_harness.cli.init.enable_repo_merge_settings") as mock_settings,
+        patch("keepsail.cli.init.check_gh"),
+        patch("keepsail.cli.init.enable_repo_merge_settings") as mock_settings,
         patch(  # ← spy: wraps= keeps real behavior
-            "super_harness.cli.init._write_workflow_file",
+            "keepsail.cli.init._write_workflow_file",
             wraps=_init_mod._write_workflow_file,
         ) as mock_write_wf,
     ):
@@ -578,15 +578,15 @@ def test_setup_github_advisories_appear_on_fresh_success(tmp_path: Path):
     (gh CLI ok / wrote PR template / wrote workflow / enabled merge settings)
     plus the final 'keepsail initialized at ...' line."""
     with (
-        patch("super_harness.cli.init.check_gh"),
-        patch("super_harness.cli.init.enable_repo_merge_settings"),
+        patch("keepsail.cli.init.check_gh"),
+        patch("keepsail.cli.init.enable_repo_merge_settings"),
     ):
         r = CliRunner().invoke(main, ["--workspace", str(tmp_path), "init", "--setup-github"])
     assert r.exit_code == 0, r.output
     out = r.output
     assert "gh CLI: ok" in out, out
     assert "wrote .github/pull_request_template.md" in out, out
-    assert "wrote .github/workflows/super-harness.yml" in out, out
+    assert "wrote .github/workflows/keepsail.yml" in out, out
     assert "repo merge settings: enabled" in out, out
     # Final line still present.
     assert "keepsail initialized at" in out
@@ -595,8 +595,8 @@ def test_setup_github_advisories_appear_on_fresh_success(tmp_path: Path):
 def test_setup_github_advisories_suppressed_under_quiet(tmp_path: Path):
     """--quiet suppresses all advisory prints (errors / format_error still go to stderr)."""
     with (
-        patch("super_harness.cli.init.check_gh"),
-        patch("super_harness.cli.init.enable_repo_merge_settings"),
+        patch("keepsail.cli.init.check_gh"),
+        patch("keepsail.cli.init.enable_repo_merge_settings"),
     ):
         r = CliRunner().invoke(
             main,
@@ -606,7 +606,7 @@ def test_setup_github_advisories_suppressed_under_quiet(tmp_path: Path):
     out = r.output
     assert "gh CLI: ok" not in out
     assert "wrote .github/pull_request_template.md" not in out
-    assert "wrote .github/workflows/super-harness.yml" not in out
+    assert "wrote .github/workflows/keepsail.yml" not in out
     assert "repo merge settings:" not in out
     # Final 'initialized at' line ALSO suppressed under --quiet? — the existing
     # contract keeps it (no test changes here). We only need to assert
@@ -617,8 +617,8 @@ def test_setup_github_advisories_suppressed_under_json(tmp_path: Path):
     """--json suppresses advisories (init emits no JSON envelope, but advisories
     shouldn't pollute stdout when JSON mode was requested)."""
     with (
-        patch("super_harness.cli.init.check_gh"),
-        patch("super_harness.cli.init.enable_repo_merge_settings"),
+        patch("keepsail.cli.init.check_gh"),
+        patch("keepsail.cli.init.enable_repo_merge_settings"),
     ):
         r = CliRunner().invoke(
             main,
@@ -628,7 +628,7 @@ def test_setup_github_advisories_suppressed_under_json(tmp_path: Path):
     out = r.output
     assert "gh CLI: ok" not in out
     assert "wrote .github/pull_request_template.md" not in out
-    assert "wrote .github/workflows/super-harness.yml" not in out
+    assert "wrote .github/workflows/keepsail.yml" not in out
     assert "repo merge settings:" not in out
 
 
@@ -640,14 +640,14 @@ def test_setup_github_advisory_says_kept_existing_when_pr_template_is_noop(
     'kept existing' — NOT 'wrote' — because reality is "left untouched"."""
     from importlib.resources import files
 
-    bundled = files("super_harness.templates").joinpath("pull_request_template.md").read_text()
+    bundled = files("keepsail.templates").joinpath("pull_request_template.md").read_text()
     gh_dir = tmp_path / ".github"
     gh_dir.mkdir()
     (gh_dir / "pull_request_template.md").write_text(bundled)
 
     with (
-        patch("super_harness.cli.init.check_gh"),
-        patch("super_harness.cli.init.enable_repo_merge_settings"),
+        patch("keepsail.cli.init.check_gh"),
+        patch("keepsail.cli.init.enable_repo_merge_settings"),
     ):
         r = CliRunner().invoke(main, ["--workspace", str(tmp_path), "init", "--setup-github"])
     assert r.exit_code == 0, r.output
@@ -662,32 +662,32 @@ def test_setup_github_advisory_says_kept_existing_when_workflow_noop(tmp_path: P
     'kept existing' for the workflow."""
     from importlib.resources import files
 
-    bundled = files("super_harness.templates").joinpath("super_harness_workflow.yml").read_text()
+    bundled = files("keepsail.templates").joinpath("keepsail_workflow.yml").read_text()
     workflows_dir = tmp_path / ".github" / "workflows"
     workflows_dir.mkdir(parents=True)
-    (workflows_dir / "super-harness.yml").write_text(bundled)
+    (workflows_dir / "keepsail.yml").write_text(bundled)
 
     with (
-        patch("super_harness.cli.init.check_gh"),
-        patch("super_harness.cli.init.enable_repo_merge_settings"),
+        patch("keepsail.cli.init.check_gh"),
+        patch("keepsail.cli.init.enable_repo_merge_settings"),
     ):
         r = CliRunner().invoke(main, ["--workspace", str(tmp_path), "init", "--setup-github"])
     assert r.exit_code == 0, r.output
     out = r.output
-    assert "kept existing .github/workflows/super-harness.yml" in out, out
-    assert "wrote .github/workflows/super-harness.yml" not in out
+    assert "kept existing .github/workflows/keepsail.yml" in out, out
+    assert "wrote .github/workflows/keepsail.yml" not in out
 
 
 def test_setup_github_advisory_says_declined_when_user_declines_workflow(tmp_path: Path):
     """User declines the workflow overwrite confirm → advisory says
-    'kept existing .github/workflows/super-harness.yml (declined overwrite)'."""
+    'kept existing .github/workflows/keepsail.yml (declined overwrite)'."""
     workflows_dir = tmp_path / ".github" / "workflows"
     workflows_dir.mkdir(parents=True)
-    (workflows_dir / "super-harness.yml").write_text("old workflow content\n")
+    (workflows_dir / "keepsail.yml").write_text("old workflow content\n")
 
     with (
-        patch("super_harness.cli.init.check_gh"),
-        patch("super_harness.cli.init.enable_repo_merge_settings"),
+        patch("keepsail.cli.init.check_gh"),
+        patch("keepsail.cli.init.enable_repo_merge_settings"),
     ):
         r = CliRunner().invoke(
             main,
@@ -704,9 +704,9 @@ def test_setup_github_advisory_absent_when_settings_fails(tmp_path: Path):
     SUCCESS advisory 'repo merge settings: enabled ...' must NOT fire — the
     existing advisory on stderr (from the non-fatal degrade) is enough."""
     with (
-        patch("super_harness.cli.init.check_gh"),
+        patch("keepsail.cli.init.check_gh"),
         patch(
-            "super_harness.cli.init.enable_repo_merge_settings",
+            "keepsail.cli.init.enable_repo_merge_settings",
             side_effect=GhError("non-admin"),
         ),
     ):
@@ -717,7 +717,7 @@ def test_setup_github_advisory_absent_when_settings_fails(tmp_path: Path):
     assert "repo merge settings: enabled" not in out
     # But the other substep advisories DID fire (they succeeded).
     assert "wrote .github/pull_request_template.md" in out
-    assert "wrote .github/workflows/super-harness.yml" in out
+    assert "wrote .github/workflows/keepsail.yml" in out
 
 
 def test_setup_github_existing_workflow_tty_ctrl_c_exits_1(tmp_path: Path):
@@ -755,9 +755,9 @@ def test_setup_github_existing_workflow_tty_ctrl_c_exits_1(tmp_path: Path):
         raise click.Abort()
 
     with (
-        patch("super_harness.cli.init.check_gh"),
-        patch("super_harness.cli.init.enable_repo_merge_settings"),
-        patch("super_harness.cli.init.click.confirm", side_effect=_abort_as_tty),
+        patch("keepsail.cli.init.check_gh"),
+        patch("keepsail.cli.init.enable_repo_merge_settings"),
+        patch("keepsail.cli.init.click.confirm", side_effect=_abort_as_tty),
     ):
         r = CliRunner().invoke(
             main,
@@ -778,21 +778,21 @@ def test_setup_github_existing_workflow_tty_ctrl_c_exits_1(tmp_path: Path):
 def _github_bundles() -> tuple[bytes, bytes]:
     from importlib.resources import files
 
-    templates = files("super_harness.templates")
+    templates = files("keepsail.templates")
     return (
         templates.joinpath("pull_request_template.md").read_bytes(),
-        templates.joinpath("super_harness_workflow.yml").read_bytes(),
+        templates.joinpath("keepsail_workflow.yml").read_bytes(),
     )
 
 
 def test_inspect_github_files_is_read_only_and_resolves_stable_states(
     tmp_path: Path,
 ) -> None:
-    from super_harness.cli.init_github import (
+    from keepsail.cli.init_github import (
         GithubExistingState,
         inspect_github_files,
     )
-    from super_harness.cli.init_plan import GithubFileDecision
+    from keepsail.cli.init_plan import GithubFileDecision
 
     bundled_pr, bundled_workflow = _github_bundles()
 
@@ -814,7 +814,7 @@ def test_inspect_github_files_is_read_only_and_resolves_stable_states(
     assert identical.workflow.decision is GithubFileDecision.KEEP
 
     custom_one_block = (
-        b"custom\n<!-- super-harness:metadata -->\n<!-- /super-harness:metadata -->\n"
+        b"custom\n<!-- keepsail:metadata -->\n<!-- /keepsail:metadata -->\n"
     )
     _template_path(tmp_path).write_bytes(custom_one_block)
     configured = inspect_github_files(tmp_path, bundled_pr, bundled_workflow)
@@ -825,13 +825,13 @@ def test_inspect_github_files_is_read_only_and_resolves_stable_states(
 def test_inspect_github_files_rejects_duplicate_blocks_before_apply(
     tmp_path: Path,
 ) -> None:
-    from super_harness.cli.init_github import GithubFileError, inspect_github_files
+    from keepsail.cli.init_github import GithubFileError, inspect_github_files
 
     bundled_pr, bundled_workflow = _github_bundles()
     _template_path(tmp_path).parent.mkdir(parents=True)
     _template_path(tmp_path).write_text(
-        "<!-- super-harness:metadata -->\n<!-- /super-harness:metadata -->\n"
-        "<!-- super-harness:metadata -->\n<!-- /super-harness:metadata -->\n"
+        "<!-- keepsail:metadata -->\n<!-- /keepsail:metadata -->\n"
+        "<!-- keepsail:metadata -->\n<!-- /keepsail:metadata -->\n"
     )
 
     with pytest.raises(GithubFileError, match="2 keepsail metadata blocks"):
@@ -842,7 +842,7 @@ def test_inspect_github_files_rejects_duplicate_blocks_before_apply(
 def test_inspect_github_files_rejects_non_utf8_existing_files(
     tmp_path: Path, relative: str
 ) -> None:
-    from super_harness.cli.init_github import GithubFileError, inspect_github_files
+    from keepsail.cli.init_github import GithubFileError, inspect_github_files
 
     bundled_pr, bundled_workflow = _github_bundles()
     path = _template_path(tmp_path) if relative == "template" else _workflow_path(tmp_path)
@@ -858,7 +858,7 @@ def test_inspect_github_files_rejects_non_utf8_existing_files(
     [
         (
             "append",
-            b"custom\n\n<!-- super-harness:metadata -->\n<!-- /super-harness:metadata -->\n",
+            b"custom\n\n<!-- keepsail:metadata -->\n<!-- /keepsail:metadata -->\n",
         ),
         ("overwrite", None),
         ("keep", b"custom\n"),
@@ -869,12 +869,12 @@ def test_apply_github_plan_consumes_resolved_template_decisions(
     template_decision: str,
     expected_template: bytes | None,
 ) -> None:
-    from super_harness.cli.init_github import (
+    from keepsail.cli.init_github import (
         apply_github_plan,
         inspect_github_files,
         resolve_github_plan,
     )
-    from super_harness.cli.init_plan import GithubFileDecision
+    from keepsail.cli.init_plan import GithubFileDecision
 
     bundled_pr, bundled_workflow = _github_bundles()
     _template_path(tmp_path).parent.mkdir(parents=True)
@@ -897,13 +897,13 @@ def test_apply_github_plan_consumes_resolved_template_decisions(
 
 
 def test_append_rejects_pr_template_changed_after_inspection(tmp_path: Path) -> None:
-    from super_harness.cli.init_github import (
+    from keepsail.cli.init_github import (
         GithubFileError,
         apply_github_file,
         inspect_github_files,
         resolve_github_plan,
     )
-    from super_harness.cli.init_plan import GithubFileDecision
+    from keepsail.cli.init_plan import GithubFileDecision
 
     bundled_pr, bundled_workflow = _github_bundles()
     template = _template_path(tmp_path)
@@ -927,7 +927,7 @@ def test_apply_github_plan_never_calls_any_prompt_seam(
 ) -> None:
     import questionary
 
-    from super_harness.cli.init_github import (
+    from keepsail.cli.init_github import (
         apply_github_plan,
         inspect_github_files,
         resolve_github_plan,

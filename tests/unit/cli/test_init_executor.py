@@ -6,7 +6,7 @@ from dataclasses import FrozenInstanceError, fields, replace
 
 import pytest
 
-from super_harness.cli.init_executor import (
+from keepsail.cli.init_executor import (
     InitExecutionResult,
     InitExecutor,
     InitOperationError,
@@ -15,13 +15,13 @@ from super_harness.cli.init_executor import (
     InitStepEvent,
     StepState,
 )
-from super_harness.cli.init_plan import (
+from keepsail.cli.init_plan import (
     GitHubDecision,
     HarnessState,
     InitPlan,
     ReviewWrite,
 )
-from super_harness.cli.init_ui import NonInteractiveInitUI
+from keepsail.cli.init_ui import NonInteractiveInitUI
 
 EXPECTED_STEPS = (
     "scaffold",
@@ -277,7 +277,7 @@ def test_result_and_ledger_are_deeply_immutable() -> None:
 
 
 def test_executor_has_no_prompt_render_or_rollback_boundary() -> None:
-    import super_harness.cli.init_executor as executor_module
+    import keepsail.cli.init_executor as executor_module
 
     source = inspect.getsource(executor_module).lower()
     forbidden = ("input(", "click.", "questionary", "render_", "events.jsonl", "rollback")

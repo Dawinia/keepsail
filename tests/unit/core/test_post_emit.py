@@ -7,9 +7,9 @@ stream. v0.1 = full rebuild per lifecycle-event-model §3.8.2.
 """
 from pathlib import Path
 
-from super_harness.core.post_emit import refresh_state_after_emit
-from super_harness.core.state_yaml import read_state_yaml
-from super_harness.core.writer import EventWriter
+from keepsail.core.post_emit import refresh_state_after_emit
+from keepsail.core.state_yaml import read_state_yaml
+from keepsail.core.writer import EventWriter
 from tests.unit.core.test_writer import _make_event
 
 

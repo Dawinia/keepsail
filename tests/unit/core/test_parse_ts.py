@@ -1,7 +1,7 @@
 """parse_ts — the single ISO-8601 timestamp primitive. Never raises."""
 from datetime import datetime, timedelta, timezone
 
-from super_harness.core.parse_ts import parse_ts
+from keepsail.core.parse_ts import parse_ts
 
 
 def test_aware_iso_z_form():

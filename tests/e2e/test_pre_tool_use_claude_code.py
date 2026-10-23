@@ -35,8 +35,8 @@ import shlex
 import subprocess
 from pathlib import Path
 
-from super_harness.core.state import ChangeState
-from super_harness.core.state_yaml import write_state_yaml
+from keepsail.core.state import ChangeState
+from keepsail.core.state_yaml import write_state_yaml
 from tests.e2e.conftest import _wait_for_returncode
 
 # Claude-Code-shaped PreToolUse payload for an Edit on a source file. The shim

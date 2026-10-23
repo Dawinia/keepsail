@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from super_harness.core.decisions import (
+from keepsail.core.decisions import (
     Decision,
     compute_body_hash,
     decision_tier,
@@ -99,7 +99,7 @@ def test_serialize_roundtrip(tmp_path):
 
 
 def test_is_valid_id():
-    from super_harness.core.decisions import is_valid_id
+    from keepsail.core.decisions import is_valid_id
 
     assert is_valid_id("d-auth-stateless")
     assert not is_valid_id("d-Auth")
@@ -158,50 +158,50 @@ BODY = (
 
 
 def test_parse_check_extracts_command():
-    from super_harness.core.decisions import parse_check
+    from keepsail.core.decisions import parse_check
     assert parse_check(BODY) == '! grep -rIn "md5(.*password" src/'
 
 
 def test_parse_counterexample_extracts_path_and_content():
-    from super_harness.core.decisions import Counterexample, parse_counterexample
+    from keepsail.core.decisions import Counterexample, parse_counterexample
     ce = parse_counterexample(BODY)
     assert ce == Counterexample(path="src/auth/legacy.py", content="pw = md5(user.password)")
 
 
 def test_no_blocks_returns_none():
-    from super_harness.core.decisions import parse_check, parse_counterexample
+    from keepsail.core.decisions import parse_check, parse_counterexample
     assert parse_check("just prose, tier-3 context.") is None
     assert parse_counterexample("just prose.") is None
 
 
 def test_more_than_one_check_block_raises():
-    from super_harness.core.decisions import parse_check
+    from keepsail.core.decisions import parse_check
     two = "```check\na\n```\n```check\nb\n```\n"
     with pytest.raises(ValueError, match="at most one"):
         parse_check(two)
 
 
 def test_counterexample_requires_path():
-    from super_harness.core.decisions import parse_counterexample
+    from keepsail.core.decisions import parse_counterexample
     with pytest.raises(ValueError, match="path="):
         parse_counterexample("```counterexample\npw = bad\n```\n")
 
 
 def test_counterexample_rejects_absolute_path():
-    from super_harness.core.decisions import parse_counterexample
+    from keepsail.core.decisions import parse_counterexample
     with pytest.raises(ValueError, match="inside the repo"):
         parse_counterexample("```counterexample path=/etc/passwd\nx\n```\n")
 
 
 def test_counterexample_rejects_dotdot_escape():
-    from super_harness.core.decisions import parse_counterexample
+    from keepsail.core.decisions import parse_counterexample
     with pytest.raises(ValueError, match="inside the repo"):
         parse_counterexample("```counterexample path=../escape.py\nx\n```\n")
 
 
 def test_indented_fence_is_not_a_check():
     # CommonMark allows indented fences; this parser intentionally does not -> tier-3.
-    from super_harness.core.decisions import parse_check
+    from keepsail.core.decisions import parse_check
     assert parse_check("   ```check\n! grep x\n   ```\n") is None
 
 
@@ -299,7 +299,7 @@ def test_malformed_reconciled_anchors_rejected(tmp_path):
 
 
 def test_reconcile_justification_roundtrip(tmp_path):
-    from super_harness.core.decisions import decisions_dir
+    from keepsail.core.decisions import decisions_dir
     (tmp_path / "docs" / "decisions").mkdir(parents=True, exist_ok=True)
     p = decisions_dir(tmp_path) / "d-j.md"
     d = Decision(id="d-j", status="ratified", body="b", path=p,

@@ -16,7 +16,7 @@ from pathlib import Path
 import yaml
 from click.testing import CliRunner
 
-from super_harness.cli import main
+from keepsail.cli import main
 
 
 def _verification_yaml(ws: Path) -> Path:

@@ -34,7 +34,7 @@ Backup behavior reflects the final transaction, not each hook:
 
 - A fresh `.codex/hooks.json` creates no backup.
 - A changed existing file creates exactly one sibling
-  `hooks.json.super-harness-backup.<time_ns>` containing the exact original
+  `hooks.json.keepsail-backup.<time_ns>` containing the exact original
   bytes.
 - An already-current file is not rewritten and creates no backup.
 

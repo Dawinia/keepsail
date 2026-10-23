@@ -29,15 +29,15 @@ from unittest.mock import patch
 
 import pytest
 
-from super_harness.core.events import Actor, Event
-from super_harness.core.ulid import new_event_id
-from super_harness.engineering.pr_metadata import (
+from keepsail.core.events import Actor, Event
+from keepsail.core.ulid import new_event_id
+from keepsail.engineering.pr_metadata import (
     METADATA_BEGIN,
     METADATA_END,
     parse_metadata_block,
 )
-from super_harness.sensors import WorkspaceContext
-from super_harness.sensors.pr_decorator import PRDecorator, PRDecoratorError, _merge_metadata_block
+from keepsail.sensors import WorkspaceContext
+from keepsail.sensors.pr_decorator import PRDecorator, PRDecoratorError, _merge_metadata_block
 
 # --------------------------------------------------------------------------- #
 # Helpers
@@ -51,7 +51,7 @@ def _make_block(change_id: str) -> str:
         f"Change: {change_id}",
         "Tier: unknown",
         "Verification: pending",
-        "super-harness version: v0.0.0-test",
+        "keepsail version: v0.0.0-test",
         METADATA_END,
     ]
     return "\n".join(lines)
@@ -210,9 +210,9 @@ def test_check_appends_when_no_existing_block(tmp_path: Path) -> None:
     trigger = _pr_event(pr_number=42, change_id="ch-append")
 
     with (
-        patch("super_harness.sensors.pr_decorator.view_pr") as mock_view,
-        patch("super_harness.sensors.pr_decorator.edit_pr_body") as mock_edit,
-        patch("super_harness.sensors.pr_decorator.build_metadata") as mock_build,
+        patch("keepsail.sensors.pr_decorator.view_pr") as mock_view,
+        patch("keepsail.sensors.pr_decorator.edit_pr_body") as mock_edit,
+        patch("keepsail.sensors.pr_decorator.build_metadata") as mock_build,
     ):
         mock_view.return_value = {"body": "Hello PR"}
         mock_build.return_value = _make_block("ch-append")
@@ -243,9 +243,9 @@ def test_check_replaces_when_block_already_present(tmp_path: Path) -> None:
     new_block = _make_block("ch-replace")
 
     with (
-        patch("super_harness.sensors.pr_decorator.view_pr") as mock_view,
-        patch("super_harness.sensors.pr_decorator.edit_pr_body") as mock_edit,
-        patch("super_harness.sensors.pr_decorator.build_metadata") as mock_build,
+        patch("keepsail.sensors.pr_decorator.view_pr") as mock_view,
+        patch("keepsail.sensors.pr_decorator.edit_pr_body") as mock_edit,
+        patch("keepsail.sensors.pr_decorator.build_metadata") as mock_build,
     ):
         mock_view.return_value = {"body": existing_body}
         mock_build.return_value = new_block
@@ -274,9 +274,9 @@ def test_check_propagates_typed_exception_on_two_blocks(tmp_path: Path) -> None:
     new_block = _make_block("ch-double")
 
     with (
-        patch("super_harness.sensors.pr_decorator.view_pr") as mock_view,
-        patch("super_harness.sensors.pr_decorator.edit_pr_body"),
-        patch("super_harness.sensors.pr_decorator.build_metadata") as mock_build,
+        patch("keepsail.sensors.pr_decorator.view_pr") as mock_view,
+        patch("keepsail.sensors.pr_decorator.edit_pr_body"),
+        patch("keepsail.sensors.pr_decorator.build_metadata") as mock_build,
     ):
         mock_view.return_value = {"body": two_block_body}
         mock_build.return_value = new_block
@@ -297,9 +297,9 @@ def test_check_handles_null_body(tmp_path: Path) -> None:
     new_block = _make_block("ch-null")
 
     with (
-        patch("super_harness.sensors.pr_decorator.view_pr") as mock_view,
-        patch("super_harness.sensors.pr_decorator.edit_pr_body") as mock_edit,
-        patch("super_harness.sensors.pr_decorator.build_metadata") as mock_build,
+        patch("keepsail.sensors.pr_decorator.view_pr") as mock_view,
+        patch("keepsail.sensors.pr_decorator.edit_pr_body") as mock_edit,
+        patch("keepsail.sensors.pr_decorator.build_metadata") as mock_build,
     ):
         mock_view.return_value = {"body": None}
         mock_build.return_value = new_block
@@ -341,9 +341,9 @@ def test_check_idempotent_on_rerun(tmp_path: Path) -> None:
         return new_block
 
     with (
-        patch("super_harness.sensors.pr_decorator.view_pr", side_effect=fake_view),
-        patch("super_harness.sensors.pr_decorator.edit_pr_body", side_effect=fake_edit),
-        patch("super_harness.sensors.pr_decorator.build_metadata", side_effect=fake_build),
+        patch("keepsail.sensors.pr_decorator.view_pr", side_effect=fake_view),
+        patch("keepsail.sensors.pr_decorator.edit_pr_body", side_effect=fake_edit),
+        patch("keepsail.sensors.pr_decorator.build_metadata", side_effect=fake_build),
     ):
         # First call (append path)
         r1 = sensor.check(trigger, ctx)
@@ -367,7 +367,7 @@ def test_check_idempotent_on_rerun(tmp_path: Path) -> None:
 
 
 def test_pr_decorator_registered_as_builtin() -> None:
-    from super_harness.sensors.registry import get_builtin
+    from keepsail.sensors.registry import get_builtin
 
     assert get_builtin("PR-decorator") is PRDecorator
 
@@ -387,12 +387,12 @@ def test_merge_replace_treats_block_as_literal_not_backref() -> None:
     literally. Defensive guard for any future field value that contains
     backslashes (e.g. a future Windows-style path in a payload).
     """
-    from super_harness.engineering.pr_metadata import (
+    from keepsail.engineering.pr_metadata import (
         METADATA_BEGIN,
         METADATA_END,
         parse_metadata_block,
     )
-    from super_harness.sensors.pr_decorator import _merge_metadata_block
+    from keepsail.sensors.pr_decorator import _merge_metadata_block
 
     body = (
         "Some PR text\n\n"

@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from super_harness.core.paths import (
+from keepsail.core.paths import (
     HarnessNotInitialized,
     events_path,
     find_harness_root,
@@ -68,6 +68,6 @@ def test_verification_path_helpers(tmp_path: Path):
 
 
 def test_pending_reviews_dir(tmp_path):
-    from super_harness.core.paths import pending_reviews_dir
+    from keepsail.core.paths import pending_reviews_dir
     p = pending_reviews_dir(tmp_path, "2026-06-23-foo")
     assert p == tmp_path / ".harness" / "pending-reviews" / "2026-06-23-foo"

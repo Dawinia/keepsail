@@ -5,13 +5,15 @@ ratified_by: dawinialo@163.com
 ratified_at: '2026-06-26T09:45:29.090702Z'
 ratified_text_hash: sha256:b2ee29066411206363cb90de2251e44e17d4f53bca0c4d4018fc9dd538f4badd
 last_reconciled_by: dawinialo@163.com
-last_reconciled_at: '2026-07-01T07:50:10.176791Z'
+last_reconciled_at: '2026-10-23T14:04:07.906580Z'
 last_reconcile_kind: self
-last_reconcile_justification: "decisions.py further changed (STRICT authoring_time\
-  \ parse: is True). Still one-file-per-record + four-state lifecycle \u2014 no multi-record\
-  \ file, no fifth state; the change is orthogonal parse strictness."
+last_reconcile_justification: Compared the complete anchored modules with 9442ba0
+  after normalizing only namespace, environment and product names. No behavior changed;
+  decision_check only repoints its sentinel to the ratified successor. Event append-only/frozen
+  semantics, pure fold, transition matrix, integrity verdicts, record lifecycle and
+  canonical hard-coded gate allowances remain intact. Re-stamp anchors at src/keepsail.
 reconciled_anchors:
-  src/super_harness/core/decisions.py: sha256:46d4cec0cb2293dffde7364fc73cd22714eed9680ea492302c91e77c10af7e4e
+  src/keepsail/core/decisions.py: sha256:72f807061b65b67e7cf3d67d6048c950667915d08e91364592a0c68567ba694a
 ---
 Decisions are one-file-per-record under docs/decisions/, four-state lifecycle.
 

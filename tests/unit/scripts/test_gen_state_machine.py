@@ -45,7 +45,7 @@ def test_render_is_deterministic_and_has_header():
 
 
 def test_noop_events_match_informational_set():
-    from super_harness.core.transitions import _INFORMATIONAL
+    from keepsail.core.transitions import _INFORMATIONAL
 
     assert set(NOOP_EVENTS) == _INFORMATIONAL
 

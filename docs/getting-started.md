@@ -192,7 +192,7 @@ immediately when stdin is not a TTY):
    an existing file creates exactly one sibling backup containing its original
    bytes; an unchanged reinstall neither writes nor backs up. Pass `--no-agent`
    to skip integration configuration.
-3. Writes `.github/workflows/super-harness.yml` — the 7-job CI workflow
+3. Writes `.github/workflows/keepsail.yml` — the 7-job CI workflow
    (pr-decorate / pr-validate / verification / attest-verify / decision-check /
    doc-check / on-merge).
 4. Writes `.github/pull_request_template.md` with the required metadata
@@ -207,7 +207,7 @@ Verify:
 
 ```bash
 ls -la .harness/
-cat .github/workflows/super-harness.yml | head -10
+cat .github/workflows/keepsail.yml | head -10
 keepsail status
 ```
 
@@ -449,7 +449,7 @@ keepsail metadata block:
 > "remote has no branches".
 
 ```markdown
-<!-- super-harness:metadata
+<!-- keepsail:metadata
 Change: 2026-06-01-add-greeting
 -->
 ```

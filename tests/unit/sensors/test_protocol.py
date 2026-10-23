@@ -6,7 +6,7 @@ from typing import ClassVar
 
 import pytest
 
-from super_harness.sensors import (
+from keepsail.sensors import (
     Activity,
     ActivityType,
     Determinism,

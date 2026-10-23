@@ -1,6 +1,6 @@
 import pytest
 
-from super_harness.core.slug import SlugError, validate_slug
+from keepsail.core.slug import SlugError, validate_slug
 
 
 @pytest.mark.parametrize(

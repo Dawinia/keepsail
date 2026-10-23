@@ -10,7 +10,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-from super_harness.core.anchor_scanner import scan_sentinel_locations, scan_sentinels
+from keepsail.core.anchor_scanner import scan_sentinel_locations, scan_sentinels
 
 
 def test_scan_finds_capability_sentinels(tmp_path: Path) -> None:

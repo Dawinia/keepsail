@@ -1,4 +1,4 @@
-from super_harness.core.frontmatter import split_frontmatter
+from keepsail.core.frontmatter import split_frontmatter
 
 
 def test_splits_mapping_and_body():

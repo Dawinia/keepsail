@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from super_harness.engineering.verification_config import (
+from keepsail.engineering.verification_config import (
     INTERPOLATION_ALLOWLIST,
     CheckSpec,
     Defaults,
@@ -34,7 +34,7 @@ from super_harness.engineering.verification_config import (
 _SHIPPED_TEMPLATE = (
     Path(__file__).parents[3]
     / "src"
-    / "super_harness"
+    / "keepsail"
     / "templates"
     / "verification_defaults.yaml"
 )

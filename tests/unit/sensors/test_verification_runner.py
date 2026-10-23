@@ -11,21 +11,21 @@ from typing import Any
 
 import pytest
 
-from super_harness.core.events import Actor, Event
-from super_harness.core.paths import events_path
-from super_harness.core.scope_match import covered_by_scope as _covered_by_scope
-from super_harness.core.ulid import new_event_id
-from super_harness.core.writer import EventWriter
-from super_harness.engineering.verification_config import (
+from keepsail.core.events import Actor, Event
+from keepsail.core.paths import events_path
+from keepsail.core.scope_match import covered_by_scope as _covered_by_scope
+from keepsail.core.ulid import new_event_id
+from keepsail.core.writer import EventWriter
+from keepsail.engineering.verification_config import (
     CheckSpec,
     Defaults,
     Execution,
     Layers,
     VerificationConfig,
 )
-from super_harness.sensors import Activity, WorkspaceContext
-from super_harness.sensors.registry import get_builtin, list_builtins
-from super_harness.sensors.verification_runner import (
+from keepsail.sensors import Activity, WorkspaceContext
+from keepsail.sensors.registry import get_builtin, list_builtins
+from keepsail.sensors.verification_runner import (
     BASELINE_CHECK_IDS,
     CheckResult,
     CheckTask,
@@ -320,11 +320,11 @@ def test_run_check_env_replaces_not_layers(tmp_path: Path) -> None:
     # lives in os.environ but is ABSENT from the passed `env` must be invisible
     # to the child. (We keep PATH in `env` so `echo` still resolves.)
     archive = tmp_path / "arch"
-    sentinel = "SUPER_HARNESS_ENV_REPLACE_SENTINEL"
+    sentinel = "KEEPSAIL_ENV_REPLACE_SENTINEL"
     os.environ[sentinel] = "leaked"
     try:
         # The f-string `${sentinel}` is a PYTHON field → expands to a bare,
-        # UNBRACED `$SUPER_HARNESS_...` shell var. interpolate() only touches
+        # UNBRACED `$KEEPSAIL_...` shell var. interpolate() only touches
         # BRACED `${NAME}` placeholders, so it leaves this untouched and the
         # SHELL expands it — which is exactly what we want to probe. printf %s
         # emits the value verbatim with no trailing newline (and, unlike
@@ -605,22 +605,22 @@ def test_collect_checks_merges_env_with_os_environ(tmp_path: Path) -> None:
 def test_collect_checks_scrubs_ambient_harness_env_but_keeps_declared(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # Ambient SUPER_HARNESS_CHANGE_ID must NOT reach the check subprocess (it
-    # would poison e2e hooks). A SUPER_HARNESS_* var DECLARED in defaults.env is
+    # Ambient KEEPSAIL_CHANGE_ID must NOT reach the check subprocess (it
+    # would poison e2e hooks). A KEEPSAIL_* var DECLARED in defaults.env is
     # a deliberate config layer and MUST survive. Baseline disabled so tasks[0]
     # is the check under test.
-    monkeypatch.setenv("SUPER_HARNESS_CHANGE_ID", "leaked")
+    monkeypatch.setenv("KEEPSAIL_CHANGE_ID", "leaked")
     archive = tmp_path / "arch"
     cfg = _config(
         layers=Layers(baseline=False),
         checks=[
             _spec(
                 check_id="envc",
-                command="echo [$SUPER_HARNESS_CHANGE_ID][$SUPER_HARNESS_KEEP]",
+                command="echo [$KEEPSAIL_CHANGE_ID][$KEEPSAIL_KEEP]",
                 capture="stdout",
             )
         ],
-        defaults=Defaults(env={"SUPER_HARNESS_KEEP": "declared"}),
+        defaults=Defaults(env={"KEEPSAIL_KEEP": "declared"}),
     )
     tasks = collect_checks(cfg, context=_ctx(tmp_path), archive=archive, variables={})
     tasks[0].run()
@@ -888,7 +888,7 @@ def test_runner_archive_timestamp_is_portable(
 ) -> None:
     root = _write_workspace(tmp_path, failing_must_pass="false")
     monkeypatch.setattr(
-        "super_harness.sensors.verification_runner.utc_now_iso",
+        "keepsail.sensors.verification_runner.utc_now_iso",
         lambda: "2026-08-20T18:12:20.247060Z",
     )
 

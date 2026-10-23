@@ -22,28 +22,16 @@ def category(path: str, line: str, token: str) -> str:
         return "copyright-attribution"
     if path == ".harness/review-recognition.yaml":
         return "recognized-policy-digest-preserved"
-    if path == ".gitignore":
-        return "stable-managed-identity-and-explanation"
     if path == "scripts/audit_brand_names.py":
         return "inventory-scanner-pattern"
     if token.lower() == "sh":
         return "system-shell"
-    if token.lower() == "super_harness":
-        return "import-or-environment-compatibility"
     if "github.com/Dawinia/super-harness" in line:
         return "existing-repository-link"
     if path in {"README.md", "README.zh-CN.md", "docs/keepsail-migration.md", REPORT}:
         return "migration-explanation"
-    if ("<!--" in line or "super-harness version" in line
-            or "super-harness.yml" in line or "super-harness-backup" in line
-            or "super-harness.lock" in line or "super-harness gitignore" in line
-            or "super-harness:metadata" in line
-            or re.search(r"super-harness (section|outer|agent:|framework:)", line)):
-        return "stable-protocol-or-managed-identity"
-    if path == "tests/integration/cli/test_keepsail_compatibility.py":
-        return "legacy-console-upgrade-regression"
-    if path == "pyproject.toml" or 'cli="$verifier/super-harness"' in line:
-        return "legacy-console-or-trusted-base"
+    if path == "tests/integration/cli/test_keepsail_installation.py":
+        return "assert-legacy-runtime-absent"
     return "UNCLASSIFIED"
 
 
@@ -53,7 +41,12 @@ def scan(root: Path) -> list[dict[str, object]]:
     for path in paths:
         if not path or path == REPORT:
             continue  # The derived report is excluded to avoid recursive counts.
-        text = (root / path).read_text(encoding="utf-8")
+        if not (root / path).is_file():
+            continue
+        try:
+            text = (root / path).read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            continue
         counts: Counter[str] = Counter()
         findings = []
         for number, line in enumerate(text.splitlines(), 1):

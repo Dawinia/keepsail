@@ -3,8 +3,8 @@
 import json
 from pathlib import Path
 
-from super_harness.cli.report import _render_brief, _render_human
-from super_harness.engineering.value_report import build_value_report
+from keepsail.cli.report import _render_brief, _render_human
+from keepsail.engineering.value_report import build_value_report
 
 
 def event(eid, kind, payload, *, day="15", change="c"):

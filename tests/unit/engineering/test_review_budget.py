@@ -129,7 +129,7 @@ def test_corpus_replays_the_budget_rule() -> None:
     transcribed from the plan or from the design — the design's tables are measured in
     imported rounds while the counter counts started ones, so copying them across would
     assert against the wrong quantity."""
-    from super_harness.engineering.review_runs import count_automatic_rounds
+    from keepsail.engineering.review_runs import count_automatic_rounds
 
     prompts = _authorizations_at(6)
     started = _started_automatic_plan_rounds()
@@ -137,7 +137,7 @@ def test_corpus_replays_the_budget_rule() -> None:
         assert prompts[change] == max(0, n - 6)
 
     # The rule and the shipped counter agree on the same event stream.
-    from super_harness.core.events import Actor, Event
+    from keepsail.core.events import Actor, Event
 
     for change in started:
         events = [
@@ -181,7 +181,7 @@ def test_corpus_a_failed_round_still_consumes_budget() -> None:
 # --- Task 4: the evidence derivation -------------------------------------------------
 
 def _corpus_events_for(change: str):
-    from super_harness.core.events import Actor, Event
+    from keepsail.core.events import Actor, Event
 
     return [
         Event(
@@ -200,8 +200,8 @@ def _flat_change() -> str:
 
 def test_evidence_round_number_is_the_budgets_own_counter() -> None:
     """The block and the counter must never disagree about which round this is."""
-    from super_harness.engineering.review_budget import derive_round_budget_evidence
-    from super_harness.engineering.review_runs import count_automatic_rounds
+    from keepsail.engineering.review_budget import derive_round_budget_evidence
+    from keepsail.engineering.review_runs import count_automatic_rounds
 
     for change, started in _started_automatic_plan_rounds().items():
         events = _corpus_events_for(change)
@@ -213,7 +213,7 @@ def test_evidence_round_number_is_the_budgets_own_counter() -> None:
 def test_evidence_reports_both_round_counts_rather_than_reconciling_them() -> None:
     """A round counted by the budget but absent from the curve is the case the human
     needs to see, so the evidence states both numbers side by side."""
-    from super_harness.engineering.review_budget import derive_round_budget_evidence
+    from keepsail.engineering.review_budget import derive_round_budget_evidence
 
     change = next(
         c for c, n in _started_automatic_plan_rounds().items()
@@ -227,7 +227,7 @@ def test_evidence_reports_both_round_counts_rather_than_reconciling_them() -> No
 
 
 def test_evidence_curves_are_in_round_order() -> None:
-    from super_harness.engineering.review_budget import derive_round_budget_evidence
+    from keepsail.engineering.review_budget import derive_round_budget_evidence
 
     for change, curve in _plan_curves().items():
         evidence = derive_round_budget_evidence(
@@ -243,8 +243,8 @@ def test_evidence_curves_are_in_round_order() -> None:
 
 def test_evidence_counts_cumulative_tokens_including_cache() -> None:
     """Reuses the shared token counter — no second implementation."""
-    from super_harness.engineering.review_budget import derive_round_budget_evidence
-    from super_harness.engineering.value_report import usage_tokens
+    from keepsail.engineering.review_budget import derive_round_budget_evidence
+    from keepsail.engineering.value_report import usage_tokens
 
     change = _flat_change()
     expected = 0
@@ -266,7 +266,7 @@ def test_evidence_counts_cumulative_tokens_including_cache() -> None:
 def test_evidence_counts_consecutive_missing_source_rounds() -> None:
     """One source dead from round 1 and eleven single-source rounds passed unremarked;
     the streak is the number that makes that visible."""
-    from super_harness.engineering.review_budget import derive_round_budget_evidence
+    from keepsail.engineering.review_budget import derive_round_budget_evidence
 
     evidence = derive_round_budget_evidence(
         _corpus_events_for(_flat_change()), reviewer="plan-reviewer"
@@ -276,7 +276,7 @@ def test_evidence_counts_consecutive_missing_source_rounds() -> None:
 
 
 def test_evidence_last_round_improvement_is_measured_on_the_blocker_major_curve() -> None:
-    from super_harness.engineering.review_budget import derive_round_budget_evidence
+    from keepsail.engineering.review_budget import derive_round_budget_evidence
 
     for change, curve in _plan_curves().items():
         evidence = derive_round_budget_evidence(
@@ -315,7 +315,7 @@ def test_evidence_headline_case_is_derived_from_the_corpus() -> None:
     This is the case that defeats any automatic rule and needs a human to look: the
     most recent step down is exactly what would talk someone into funding one more
     round."""
-    from super_harness.engineering.review_budget import derive_round_budget_evidence
+    from keepsail.engineering.review_budget import derive_round_budget_evidence
 
     at_block = _events_through_started_round(_flat_change(), 7)
     evidence = derive_round_budget_evidence(at_block, reviewer="plan-reviewer")
@@ -340,8 +340,8 @@ def test_evidence_headline_case_is_derived_from_the_corpus() -> None:
 
 def test_evidence_never_raises_on_a_malformed_stream() -> None:
     """Same discipline as value_report: a pure fold that cannot crash a CLI."""
-    from super_harness.core.events import Actor, Event
-    from super_harness.engineering.review_budget import derive_round_budget_evidence
+    from keepsail.core.events import Actor, Event
+    from keepsail.engineering.review_budget import derive_round_budget_evidence
 
     junk = [
         Event(event_id="e1", type="review_round_started", change_id="c",
@@ -365,8 +365,8 @@ def test_missing_source_reason_from_fixture_not_corpus() -> None:
     """The corpus strips `reason` free text (see its README), so this one datum cannot
     be corpus-replayed and is pinned by a hand-written fixture instead. Do not weaken
     the redaction to make this test easier."""
-    from super_harness.core.events import Actor, Event
-    from super_harness.engineering.review_budget import derive_round_budget_evidence
+    from keepsail.core.events import Actor, Event
+    from keepsail.engineering.review_budget import derive_round_budget_evidence
 
     def ev(eid, etype, payload):
         return Event(event_id=eid, type=etype, change_id="c",
@@ -392,7 +392,7 @@ def test_missing_source_reason_from_fixture_not_corpus() -> None:
 # --- code review rb/f-01, rb/f-02: shapes the corpus cannot exercise ----------------
 
 def _ev(eid, etype, payload):
-    from super_harness.core.events import Actor, Event
+    from keepsail.core.events import Actor, Event
 
     return Event(event_id=eid, type=etype, change_id="c",
                  timestamp="2026-08-07T00:00:00Z",
@@ -405,7 +405,7 @@ def test_a_recovered_source_is_not_reported_as_missing() -> None:
     missing puts a false claim in the budget block and in the post-import warning, which
     is worse than saying nothing: the whole point of the datum is that a dead reviewer
     should be believed."""
-    from super_harness.engineering.review_budget import derive_round_budget_evidence
+    from keepsail.engineering.review_budget import derive_round_budget_evidence
 
     events = [
         _ev("c1", "review_round_closed", {"reviewer": "plan-reviewer",
@@ -420,7 +420,7 @@ def test_a_recovered_source_is_not_reported_as_missing() -> None:
 def test_streak_counts_only_back_from_the_latest_round() -> None:
     """A streak is consecutive-and-current, not a total: 'missing in 3 of 9 rounds, none
     of them recent' is a different situation from 'missing in the last 3'."""
-    from super_harness.engineering.review_budget import derive_round_budget_evidence
+    from keepsail.engineering.review_budget import derive_round_budget_evidence
 
     def closed(n, missing):
         return _ev(f"c{n}", "review_round_closed",
@@ -442,7 +442,7 @@ def test_curves_count_rounds_not_imports_under_two_sources() -> None:
     The recorded corpus cannot catch this: all 71 of its plan rounds imported exactly
     once, because its second source was dead from the first round.
     """
-    from super_harness.engineering.review_budget import derive_round_budget_evidence
+    from keepsail.engineering.review_budget import derive_round_budget_evidence
 
     events = []
     for n in (1, 2):
@@ -464,7 +464,7 @@ def test_curves_count_rounds_not_imports_under_two_sources() -> None:
 
 def test_imports_without_a_round_id_each_count_once() -> None:
     """Legacy or malformed imports must not silently merge into one round."""
-    from super_harness.engineering.review_budget import derive_round_budget_evidence
+    from keepsail.engineering.review_budget import derive_round_budget_evidence
 
     events = [
         _ev("i1", "review_result_imported", {"reviewer": "plan-reviewer",

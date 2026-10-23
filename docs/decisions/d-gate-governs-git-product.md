@@ -5,15 +5,15 @@ ratified_by: dawinialo@163.com
 ratified_at: '2026-07-29T13:14:27.000496Z'
 ratified_text_hash: sha256:5614ab4fe81201905d53b409478e0e56c63af05ff01b2d5c7b0b3a0ca8f7692b
 last_reconciled_by: dawinialo@163.com
-last_reconciled_at: '2026-07-29T13:14:27.282860Z'
+last_reconciled_at: '2026-10-23T14:04:08.436116Z'
 last_reconcile_kind: self
-last_reconcile_justification: All four allowances are literal constants in gates.decisions;
-  nothing in the gate path consults gitignore status. Verified .harness/gate-disabled,
-  .claude/settings.local.json, .codex/hooks.json and .harness/state.yaml are named
-  by no allowance and block in every state (regression tests cover gate-disabled directly).
-  Comparison happens on the canonical_relpath output, proven by test_traversal_out_of_scratch_resolves_and_blocks.
+last_reconcile_justification: Compared the complete anchored modules with 9442ba0
+  after normalizing only namespace, environment and product names. No behavior changed;
+  decision_check only repoints its sentinel to the ratified successor. Event append-only/frozen
+  semantics, pure fold, transition matrix, integrity verdicts, record lifecycle and
+  canonical hard-coded gate allowances remain intact. Re-stamp anchors at src/keepsail.
 reconciled_anchors:
-  src/super_harness/gates/pre_tool_use.py: sha256:03e1c86b1247fb83c82d4c6399bd2eeb7272cee7b7f4e68c70e2872fdb77d31e
+  src/keepsail/gates/pre_tool_use.py: sha256:f7db7262e268611dcacfb1897a8ff516e4bd4913e97b724e4e8181b7fdf08b33
 ---
 The pre-tool-use gate governs files that will enter git as product; its allowances are hard-coded path whitelists, never derived from gitignore status.
 

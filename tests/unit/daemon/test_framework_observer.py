@@ -25,11 +25,11 @@ from typing import Any
 
 import yaml
 
-from super_harness.adapters import FrameworkAdapter
-from super_harness.adapters.framework.openspec import OpenSpecAdapter
-from super_harness.core.events import Actor, Event
-from super_harness.core.ulid import new_event_id
-from super_harness.daemon.framework_observer import (
+from keepsail.adapters import FrameworkAdapter
+from keepsail.adapters.framework.openspec import OpenSpecAdapter
+from keepsail.core.events import Actor, Event
+from keepsail.core.ulid import new_event_id
+from keepsail.daemon.framework_observer import (
     FrameworkObserverManager,
     _observe_and_emit,
     build_manager_failsafe,
@@ -127,7 +127,7 @@ def test_observe_and_emit_swallows_and_logs_emit_precondition_error(
     (tmp_path / ".harness").mkdir(parents=True)
     adapter = _LonePlanReadyAdapter()
 
-    with caplog.at_level(logging.WARNING, logger="super_harness.daemon"):
+    with caplog.at_level(logging.WARNING, logger="keepsail.daemon"):
         # Must not raise — the EmitPreconditionError is contained.
         _observe_and_emit(adapter, tmp_path)
 
@@ -253,7 +253,7 @@ def test_manager_start_noop_when_no_adapters(tmp_path: Path) -> None:
 
 def test_manager_start_noop_when_no_watch_paths(tmp_path: Path) -> None:
     """An adapter with an empty watch_paths() (plain fallback) → no Observers."""
-    from super_harness.adapters.framework.plain import PlainAdapter
+    from keepsail.adapters.framework.plain import PlainAdapter
 
     manager = FrameworkObserverManager(tmp_path, [PlainAdapter()])
     manager.start()
@@ -290,7 +290,7 @@ def test_build_manager_failsafe_on_corrupt_adapters_yaml(
     # Syntactically broken YAML → load_adapters raises yaml.YAMLError.
     (harness / "adapters.yaml").write_text("adapters: [unbalanced\n", encoding="utf-8")
 
-    with caplog.at_level(logging.WARNING, logger="super_harness.daemon"):
+    with caplog.at_level(logging.WARNING, logger="keepsail.daemon"):
         manager = build_manager_failsafe(tmp_path)
 
     assert manager is None

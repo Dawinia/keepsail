@@ -1,4 +1,4 @@
-from super_harness.core.source_scope import (
+from keepsail.core.source_scope import (
     DEFAULT_EXCLUDE,
     DEFAULT_INCLUDE,
     load_source_scope,

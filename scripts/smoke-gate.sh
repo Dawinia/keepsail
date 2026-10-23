@@ -67,8 +67,8 @@ check "hook shim " 2 $?
 python - "$WS" <<'PY'
 import sys
 from pathlib import Path
-from super_harness.core.state import ChangeState
-from super_harness.core.state_yaml import read_state_yaml, write_state_yaml
+from keepsail.core.state import ChangeState
+from keepsail.core.state_yaml import read_state_yaml, write_state_yaml
 
 p = Path(sys.argv[1]) / ".harness" / "state.yaml"
 data = read_state_yaml(p)

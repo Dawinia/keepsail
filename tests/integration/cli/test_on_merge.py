@@ -35,13 +35,13 @@ from typing import Any
 import yaml
 from click.testing import CliRunner
 
-from super_harness.cli import main
-from super_harness.core.events import Actor, Event
-from super_harness.core.paths import events_path, state_path
-from super_harness.core.post_emit import refresh_state_after_emit
-from super_harness.core.ulid import new_event_id
-from super_harness.core.writer import EventWriter
-from super_harness.exit_codes import (
+from keepsail.cli import main
+from keepsail.core.events import Actor, Event
+from keepsail.core.paths import events_path, state_path
+from keepsail.core.post_emit import refresh_state_after_emit
+from keepsail.core.ulid import new_event_id
+from keepsail.core.writer import EventWriter
+from keepsail.exit_codes import (
     EXIT_GENERIC,
     EXIT_NO_CONFIG,
     EXIT_OK,

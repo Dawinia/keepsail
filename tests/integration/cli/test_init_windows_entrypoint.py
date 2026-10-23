@@ -1,7 +1,7 @@
 """Installed-entrypoint contracts for the portable ``init`` command path.
 
 These tests deliberately enter through the root lazy Click group or the generated
-console script.  They do not import ``super_harness.cli.init`` directly: native
+console script.  They do not import ``keepsail.cli.init`` directly: native
 Windows reachability depends on selecting ``init`` before any POSIX-only lifecycle
 module is imported.
 """
@@ -17,12 +17,12 @@ from pathlib import Path
 
 import pytest
 
-from super_harness.cli.init_models import discover_reviewer_models
+from keepsail.cli.init_models import discover_reviewer_models
 
-_AGENTS_BEGIN = b"<!-- super-harness section begin "
-_AGENTS_END = b"<!-- super-harness section end -->"
-_GITIGNORE_BEGIN = b"# >>> super-harness gitignore (do not edit between markers)"
-_GITIGNORE_END = b"# <<< super-harness gitignore"
+_AGENTS_BEGIN = b"<!-- keepsail section begin "
+_AGENTS_END = b"<!-- keepsail section end -->"
+_GITIGNORE_BEGIN = b"# >>> keepsail gitignore (do not edit between markers)"
+_GITIGNORE_END = b"# <<< keepsail gitignore"
 
 
 def _console_script() -> str:
@@ -68,31 +68,31 @@ def test_root_lazy_init_rejects_posix_and_unrelated_eager_imports(tmp_path: Path
         sys.modules.pop("fcntl", None)
         forbidden = {
             "fcntl",
-            "super_harness.core.writer",
-            "super_harness.core.post_emit",
-            "super_harness.daemon.server",
-            "super_harness.daemon.supervisor",
-            "super_harness.cli.adapter",
-            "super_harness.cli.attest",
-            "super_harness.cli.change",
-            "super_harness.cli.decision",
-            "super_harness.cli.doc",
-            "super_harness.cli.done",
-            "super_harness.cli.event",
-            "super_harness.cli.gate",
-            "super_harness.cli.implementation",
-            "super_harness.cli.observe",
-            "super_harness.cli.on_merge",
-            "super_harness.cli.plan",
-            "super_harness.cli.pr",
-            "super_harness.cli.report",
-            "super_harness.cli.review",
-            "super_harness.cli.sensor",
-            "super_harness.cli.state",
-            "super_harness.cli.status",
-            "super_harness.cli.sync",
-            "super_harness.cli.verify",
-            "super_harness.cli.verification",
+            "keepsail.core.writer",
+            "keepsail.core.post_emit",
+            "keepsail.daemon.server",
+            "keepsail.daemon.supervisor",
+            "keepsail.cli.adapter",
+            "keepsail.cli.attest",
+            "keepsail.cli.change",
+            "keepsail.cli.decision",
+            "keepsail.cli.doc",
+            "keepsail.cli.done",
+            "keepsail.cli.event",
+            "keepsail.cli.gate",
+            "keepsail.cli.implementation",
+            "keepsail.cli.observe",
+            "keepsail.cli.on_merge",
+            "keepsail.cli.plan",
+            "keepsail.cli.pr",
+            "keepsail.cli.report",
+            "keepsail.cli.review",
+            "keepsail.cli.sensor",
+            "keepsail.cli.state",
+            "keepsail.cli.status",
+            "keepsail.cli.sync",
+            "keepsail.cli.verify",
+            "keepsail.cli.verification",
         }
 
         class RejectForbiddenImports(importlib.abc.MetaPathFinder):
@@ -105,7 +105,7 @@ def test_root_lazy_init_rejects_posix_and_unrelated_eager_imports(tmp_path: Path
         sys.meta_path.insert(0, RejectForbiddenImports())
 
         from click.testing import CliRunner
-        from super_harness.cli import main
+        from keepsail.cli import main
 
         result = CliRunner().invoke(
             main,
@@ -113,7 +113,7 @@ def test_root_lazy_init_rejects_posix_and_unrelated_eager_imports(tmp_path: Path
         )
         if result.exit_code != 0:
             raise AssertionError(result.output) from result.exception
-        if "super_harness.cli.init" not in sys.modules:
+        if "keepsail.cli.init" not in sys.modules:
             raise AssertionError("the real lazy init command was not resolved")
         loaded = sorted(forbidden.intersection(sys.modules))
         if loaded:
@@ -205,12 +205,12 @@ def test_windows_uses_the_installed_console_launcher(tmp_path: Path) -> None:
 
 
 def test_ci_wheel_import_does_not_resolve_from_checkout_src() -> None:
-    if os.environ.get("SUPER_HARNESS_EXPECT_INSTALLED_WHEEL") != "1":
+    if os.environ.get("KEEPSAIL_EXPECT_INSTALLED_WHEEL") != "1":
         return
 
-    import super_harness
+    import keepsail
 
-    package_path = Path(super_harness.__file__).resolve()
+    package_path = Path(keepsail.__file__).resolve()
     checkout_src = Path(os.environ["GITHUB_WORKSPACE"]).resolve() / "src"
     assert not package_path.is_relative_to(checkout_src)
     assert "site-packages" in {part.lower() for part in package_path.parts}

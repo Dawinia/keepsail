@@ -3,8 +3,8 @@ from pathlib import Path
 
 import yaml
 
-from super_harness.core import doc_check
-from super_harness.core.doc_check import run_doc_check, truncate_diff
+from keepsail.core import doc_check
+from keepsail.core.doc_check import run_doc_check, truncate_diff
 
 
 def _w(p: Path, text: str) -> None:

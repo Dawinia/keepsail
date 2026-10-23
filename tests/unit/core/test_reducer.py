@@ -10,10 +10,10 @@ Pins the 5 invariants from §3.8.5:
 import logging
 from pathlib import Path
 
-from super_harness.core.events import Actor, Event
-from super_harness.core.reducer import derive_state
-from super_harness.core.ulid import new_event_id
-from super_harness.core.writer import EventWriter
+from keepsail.core.events import Actor, Event
+from keepsail.core.reducer import derive_state
+from keepsail.core.ulid import new_event_id
+from keepsail.core.writer import EventWriter
 from tests.unit.core.test_writer import _make_event
 
 
@@ -91,7 +91,7 @@ def test_reducer_illegal_transition_preserves_state(tmp_path: Path, caplog):
     # `merged` from INTENT_DECLARED is illegal (per transition table)
     # bypass emit-time validation to put it on disk
     w.emit(_make_event("c1", "merged"), skip_validation=True, historical_replay=True)
-    with caplog.at_level(logging.WARNING, logger="super_harness.reducer"):
+    with caplog.at_level(logging.WARNING, logger="keepsail.reducer"):
         state = derive_state(f)
     # state preserved at INTENT_DECLARED
     assert state["c1"].current_state == "INTENT_DECLARED"
@@ -120,7 +120,7 @@ def test_reducer_clock_drift_warning_fires(tmp_path: Path, caplog):
     )
     w.emit(ev1)
     w.emit(ev2)
-    with caplog.at_level(logging.WARNING, logger="super_harness.reducer"):
+    with caplog.at_level(logging.WARNING, logger="keepsail.reducer"):
         state = derive_state(f)
     # append order respected — plan_ready still moves state forward
     assert state["c1"].current_state == "AWAITING_PLAN_REVIEW"

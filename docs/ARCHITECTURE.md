@@ -82,7 +82,7 @@ Two enforcement paths, sorted by how hard they are:
   runs watchdog observers that emit lifecycle events, but the gate does not depend on
   it. A file-based kill switch (`.harness/gate-disabled`) disables enforcement;
   `Bash` is never gated, so the switch is always reachable.
-- **Cold-path (CI, un-bypassable):** the bundled `super-harness.yml` workflow runs
+- **Cold-path (CI, un-bypassable):** the bundled `keepsail.yml` workflow runs
   the gates that actually guard `main` — `pr-validate`, `verification`,
   `attest-verify`, `decision-check`, `doc-check`, plus `pr-decorate` and `on-merge`.
   Because branch protection makes these required, the hard guarantees live here. The
@@ -201,13 +201,13 @@ cryptographic proof of the external process; see §11.
 
 | Area | Where |
 |---|---|
-| Pure core (records, fold, checks) | `src/super_harness/core/` (`decisions.py`, `decision_check.py`, `check_runner.py`, `doc_check.py`, `anchor_scanner.py`, `frontmatter.py`, `source_scope.py`) |
-| CLI verbs | `src/super_harness/cli/` |
-| Lifecycle state / events | `src/super_harness/core/` (state fold) + `.harness/events.jsonl` |
-| Observer host (optional framework-event watcher) | `src/super_harness/daemon/` |
-| Adapters | `src/super_harness/adapters/` |
-| Sensors / verification | `src/super_harness/sensors/` |
-| Attestation / gh | `src/super_harness/engineering/` |
+| Pure core (records, fold, checks) | `src/keepsail/core/` (`decisions.py`, `decision_check.py`, `check_runner.py`, `doc_check.py`, `anchor_scanner.py`, `frontmatter.py`, `source_scope.py`) |
+| CLI verbs | `src/keepsail/cli/` |
+| Lifecycle state / events | `src/keepsail/core/` (state fold) + `.harness/events.jsonl` |
+| Observer host (optional framework-event watcher) | `src/keepsail/daemon/` |
+| Adapters | `src/keepsail/adapters/` |
+| Sensors / verification | `src/keepsail/sensors/` |
+| Attestation / gh | `src/keepsail/engineering/` |
 | Generators for derivable docs | `scripts/gen_*.py` |
 
 ## 11. Honest limits

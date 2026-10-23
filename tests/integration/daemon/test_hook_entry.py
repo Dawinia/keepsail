@@ -8,7 +8,7 @@ import json
 import subprocess
 from pathlib import Path
 
-from super_harness.gates.decisions import SUGGESTIONS
+from keepsail.gates.decisions import SUGGESTIONS
 
 
 def _init(root: Path, change_id: str | None = None, state: str | None = None) -> None:
@@ -74,8 +74,8 @@ def test_kill_switch_allows(tmp_path: Path) -> None:
 def test_block_records_a_gate_block_line(tmp_path: Path) -> None:
     """Stage 2: a real BLOCK writes one telemetry record with the tool + file +
     lifecycle state that triggered it."""
-    from super_harness.core.gate_blocks import read_blocks
-    from super_harness.core.paths import gate_blocks_path
+    from keepsail.core.gate_blocks import read_blocks
+    from keepsail.core.paths import gate_blocks_path
 
     _init(tmp_path, "c1", "INTENT_DECLARED")
     payload = json.dumps({"tool_name": "Write", "tool_input": {"file_path": "src/x.py"}})
@@ -91,7 +91,7 @@ def test_block_records_a_gate_block_line(tmp_path: Path) -> None:
 
 def test_allow_records_nothing(tmp_path: Path) -> None:
     """An ALLOW (edit-permitted state) writes no telemetry — only BLOCKs count."""
-    from super_harness.core.paths import gate_blocks_path
+    from keepsail.core.paths import gate_blocks_path
 
     _init(tmp_path, "c1", "IMPLEMENTATION_IN_PROGRESS")
     assert _run(tmp_path, "Edit", "f.py").returncode == 0
@@ -103,7 +103,7 @@ def test_block_still_blocks_when_recording_fails(tmp_path: Path, monkeypatch) ->
     BLOCK into a fail-open ALLOW (an uncaught hook exception is exit 1 =
     non-blocking for the Claude shim). Recording raises → verdict stays 'block',
     no exception escapes `_decide`."""
-    from super_harness.daemon import hook_entry
+    from keepsail.daemon import hook_entry
 
     _init(tmp_path, "c1", "INTENT_DECLARED")
     monkeypatch.chdir(tmp_path)
@@ -111,7 +111,7 @@ def test_block_still_blocks_when_recording_fails(tmp_path: Path, monkeypatch) ->
     def boom(*_a, **_k):
         raise OSError("disk full")
 
-    monkeypatch.setattr("super_harness.core.gate_blocks.record_block", boom)
+    monkeypatch.setattr("keepsail.core.gate_blocks.record_block", boom)
     decision, _reason, _suggested = hook_entry._decide("Write", "src/x.py")
     assert decision == "block"
 
@@ -133,7 +133,7 @@ def test_decide_allows_recorded_plan_artifact_in_rejected(tmp_path: Path, monkey
     """HG-PLAN-AUTHORING: in PLAN_REJECTED, an edit to the change's recorded plan
     artifact is ALLOWED (reject-loop revision needs no shell bypass); a source edit
     is still BLOCKED."""
-    from super_harness.daemon import hook_entry
+    from keepsail.daemon import hook_entry
 
     _init_with_artifacts(tmp_path, "c1", "PLAN_REJECTED", ["docs/plans/c.md"])
     (tmp_path / "docs/plans").mkdir(parents=True)
@@ -151,7 +151,7 @@ def test_decide_allows_recorded_plan_artifact_in_rejected(tmp_path: Path, monkey
 def test_decide_blocks_forged_non_list_plan_artifacts(tmp_path: Path, monkeypatch) -> None:
     """A hand-forged state.yaml with a non-list plan_artifacts must not crash the
     gate into fail-open; the edit is BLOCKED."""
-    from super_harness.daemon import hook_entry
+    from keepsail.daemon import hook_entry
 
     harness = tmp_path / ".harness"
     harness.mkdir(parents=True)

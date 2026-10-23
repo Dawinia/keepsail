@@ -6,11 +6,11 @@ from pathlib import Path
 
 import pytest
 
-from super_harness.core.clock import utc_now_iso
-from super_harness.core.events import Actor, Event
-from super_harness.core.ulid import new_event_id
-from super_harness.core.writer import EventWriter
-from super_harness.engineering.attestation import (
+from keepsail.core.clock import utc_now_iso
+from keepsail.core.events import Actor, Event
+from keepsail.core.ulid import new_event_id
+from keepsail.core.writer import EventWriter
+from keepsail.engineering.attestation import (
     DiffEntry,
     canonical_path,
     check_attestation,
@@ -420,7 +420,7 @@ def test_independence_self_signed_when_same_identity() -> None:
     None, "missing", "wrong_subject", "wrong_digest", "rejected", "historical", "skipped",
 ])
 def test_external_disclosure_uses_exact_referenced_evidence(kind, milestone, role, defect):
-    from super_harness.core.approval import evidence_digest
+    from keepsail.core.approval import evidence_digest
 
     evidence = {
         "version": "review-evidence/v1", "evidence_id": "external-1", "kind": kind,
@@ -656,7 +656,7 @@ def test_verify_names_the_role_that_was_skipped(tmp_path):
 # Task 6: gate-bypass disclosure helper + undisclosed-bypass merge blocker
 # --------------------------------------------------------------------------- #
 def test_gate_bypass_disclosure_counts_append_order():
-    from super_harness.engineering.attestation import gate_bypass_disclosure
+    from keepsail.engineering.attestation import gate_bypass_disclosure
 
     def ev(t):
         return Event(event_id="x", type=t, change_id="c1", timestamp="2026-01-01T00:00:00Z",
@@ -704,8 +704,8 @@ def test_verify_disclosed_bypass_passes(tmp_path):
 def test_attestation_discloses_budget_hits(tmp_path) -> None:
     """Informational, like review-independence — not a merge blocker. Hitting the
     budget is a legitimate, human-authorized act: it must be visible, not forbidden."""
-    from super_harness.core.events import Actor, Event
-    from super_harness.engineering.attestation import derive_independence
+    from keepsail.core.events import Actor, Event
+    from keepsail.engineering.attestation import derive_independence
 
     def ev(eid, etype, payload=None):
         return Event(event_id=eid, type=etype, change_id="c",

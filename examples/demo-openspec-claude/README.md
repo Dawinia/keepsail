@@ -101,7 +101,7 @@ demo-add-greeter: IMPLEMENTATION_IN_PROGRESS
 
 4. Edit `src/greeter.py` to implement the proposal — the PreToolUse gate
    allows `Edit` because the seeded state is `IMPLEMENTATION_IN_PROGRESS`
-   (per the gate matrix in `super_harness/gates/decisions.py`, mutations are
+   (per the gate matrix in `keepsail/gates/decisions.py`, mutations are
    only allowed at `PLAN_APPROVED`, `IMPLEMENTATION_IN_PROGRESS`, and
    `CODE_REVIEW_REJECTED`). Replace the placeholder
    `tests/test_greeter.py` body with real coverage of `greet()`.
@@ -124,7 +124,7 @@ demo-add-greeter: IMPLEMENTATION_IN_PROGRESS
 
 - **PreToolUse hook blocks an `Edit` you expected to work**: run
   `keepsail --workspace . status`. v0.1's gate matrix
-  (`super_harness/gates/decisions.py`) only allows `Edit` / `Write` at
+  (`keepsail/gates/decisions.py`) only allows `Edit` / `Write` at
   `PLAN_APPROVED`, `IMPLEMENTATION_IN_PROGRESS`, and `CODE_REVIEW_REJECTED`;
   every other state blocks mutations. If the state has regressed (for example
   an `intent_abandoned` event landed) or you're on a fresh clone where the

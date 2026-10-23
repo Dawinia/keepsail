@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from super_harness.core.review_bundle import (
+from keepsail.core.review_bundle import (
     BundleError,
     assemble_bundle,
     load_base_branch,
@@ -20,11 +20,11 @@ def _git(ws: Path, *a: str) -> None:
 
 def _change(ws: Path, declared: list[str], framework: str = "plain") -> str:
     """Seed a change in AWAITING_CODE_REVIEW with declared scope.files."""
-    from super_harness.core.events import Actor, Event
-    from super_harness.core.paths import events_path
-    from super_harness.core.post_emit import refresh_state_after_emit
-    from super_harness.core.ulid import new_event_id
-    from super_harness.core.writer import EventWriter
+    from keepsail.core.events import Actor, Event
+    from keepsail.core.paths import events_path
+    from keepsail.core.post_emit import refresh_state_after_emit
+    from keepsail.core.ulid import new_event_id
+    from keepsail.core.writer import EventWriter
 
     (ws / ".harness").mkdir(parents=True, exist_ok=True)
     seq = [
@@ -159,14 +159,14 @@ def test_superpowers_change_gets_a_real_inspection_target(tmp_path: Path) -> Non
     yields an empty argv for a legitimate, different reason — the split-out
     defect — and this test would pass while proving nothing.
     """
-    from super_harness.adapters.registry import resolve_spec_plan_paths
-    from super_harness.engineering.review_contract import compile_review_contract
-    from super_harness.engineering.review_governance import (
+    from keepsail.adapters.registry import resolve_spec_plan_paths
+    from keepsail.engineering.review_contract import compile_review_contract
+    from keepsail.engineering.review_governance import (
         ReviewerRoleGovernance,
         ReviewerSourceGovernance,
         ReviewGovernance,
     )
-    from super_harness.engineering.review_profiles import ReviewProducerProfile
+    from keepsail.engineering.review_profiles import ReviewProducerProfile
 
     ws = _repo_with_change(tmp_path)
     plans = ws / "docs" / "plans"

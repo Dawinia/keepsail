@@ -16,8 +16,8 @@ from pathlib import Path
 
 import pytest
 
-from super_harness.adapters.agent import _settings_merge as settings_merge_module
-from super_harness.adapters.agent._settings_merge import (
+from keepsail.adapters.agent import _settings_merge as settings_merge_module
+from keepsail.adapters.agent._settings_merge import (
     StaleSettingsPlanError,
     apply_settings_merge_plan,
     merge_pre_tool_use_hook,
@@ -64,7 +64,7 @@ def test_absent_file_creates_settings_with_entry_and_no_backup(tmp_path: Path) -
     assert _COMMAND in _commands(entries)
 
     # Nothing pre-existed, so no backup should have been written.
-    backups = glob.glob(str(settings_path) + ".super-harness-backup.*")
+    backups = glob.glob(str(settings_path) + ".keepsail-backup.*")
     assert backups == []
 
 
@@ -101,7 +101,7 @@ def test_pre_existing_file_merges_and_backs_up(tmp_path: Path) -> None:
     assert "user-bash-guard" in cmds
     assert _COMMAND in cmds
 
-    backups = glob.glob(str(settings_path) + ".super-harness-backup.*")
+    backups = glob.glob(str(settings_path) + ".keepsail-backup.*")
     assert len(backups) == 1
     backed = json.loads(Path(backups[0]).read_text())
     assert backed == original
@@ -188,17 +188,17 @@ def test_idempotent_reinstall_writes_no_new_backup(
 
     clock = iter([1000, 2000, 3000, 4000])
     monkeypatch.setattr(
-        "super_harness.adapters.agent._settings_merge.time.time",
+        "keepsail.adapters.agent._settings_merge.time.time",
         lambda: next(clock),
     )
     monkeypatch.setattr(
-        "super_harness.adapters.agent._settings_merge.time.time_ns",
+        "keepsail.adapters.agent._settings_merge.time.time_ns",
         lambda: next(clock),
     )
 
     merge_pre_tool_use_hook(settings_path, command=_COMMAND)
 
-    pattern = str(settings_path) + ".super-harness-backup.*"
+    pattern = str(settings_path) + ".keepsail-backup.*"
     backups_before = sorted(glob.glob(pattern))
     bytes_before = settings_path.read_bytes()
 
@@ -229,7 +229,7 @@ def test_pristine_backup_preserved_across_changes(tmp_path: Path) -> None:
 
     merge_pre_tool_use_hook(settings_path, command=_COMMAND)
 
-    backups = glob.glob(str(settings_path) + ".super-harness-backup.*")
+    backups = glob.glob(str(settings_path) + ".keepsail-backup.*")
     assert len(backups) == 1
     backed = json.loads(Path(backups[0]).read_text())
     # The backup is the pristine file — no keepsail entry leaked into it.
@@ -269,7 +269,7 @@ def test_session_start_absent_file_creates_entry_no_matcher(tmp_path: Path) -> N
     assert "matcher" not in entries[0]
     assert _SS_COMMAND in _commands(entries)
 
-    backups = glob.glob(str(settings_path) + ".super-harness-backup.*")
+    backups = glob.glob(str(settings_path) + ".keepsail-backup.*")
     assert backups == []
 
 
@@ -306,7 +306,7 @@ def test_session_start_preserves_unrelated_hooks(tmp_path: Path) -> None:
     assert "user-greet.sh" in cmds
     assert _SS_COMMAND in cmds
 
-    backups = glob.glob(str(settings_path) + ".super-harness-backup.*")
+    backups = glob.glob(str(settings_path) + ".keepsail-backup.*")
     assert len(backups) == 1
     assert json.loads(Path(backups[0]).read_text()) == original
 
@@ -370,13 +370,13 @@ def test_session_start_idempotent_reinstall_writes_no_new_backup(
 
     clock = iter([1000, 2000, 3000, 4000])
     monkeypatch.setattr(
-        "super_harness.adapters.agent._settings_merge.time.time_ns",
+        "keepsail.adapters.agent._settings_merge.time.time_ns",
         lambda: next(clock),
     )
 
     merge_session_start_hook(settings_path, command=_SS_COMMAND)
 
-    pattern = str(settings_path) + ".super-harness-backup.*"
+    pattern = str(settings_path) + ".keepsail-backup.*"
     backups_before = sorted(glob.glob(pattern))
     bytes_before = settings_path.read_bytes()
 
@@ -389,7 +389,7 @@ def test_session_start_idempotent_reinstall_writes_no_new_backup(
 def test_merge_pre_tool_use_respects_custom_matcher_and_marker(tmp_path):
     import json
 
-    from super_harness.adapters.agent._settings_merge import merge_pre_tool_use_hook
+    from keepsail.adapters.agent._settings_merge import merge_pre_tool_use_hook
 
     p = tmp_path / "hooks.json"
     merge_pre_tool_use_hook(
@@ -408,7 +408,7 @@ def test_codex_marker_does_not_strip_claude_pre_tool_use(tmp_path):
     """A codex re-merge must not remove a co-resident claude-code entry."""
     import json
 
-    from super_harness.adapters.agent._settings_merge import merge_pre_tool_use_hook
+    from keepsail.adapters.agent._settings_merge import merge_pre_tool_use_hook
 
     p = tmp_path / "hooks.json"
     # Pre-seed a claude-code entry (foreign marker).
@@ -510,17 +510,17 @@ def test_batch_merge_has_one_backup_only_for_changed_existing_file(tmp_path: Pat
         "stop_command": "/bin/hook --agent claude-code --event stop",
     }
     apply_settings_merge_plan(plan_settings_merge(path, **kwargs))
-    assert list(path.parent.glob("*.super-harness-backup.*")) == []
+    assert list(path.parent.glob("*.keepsail-backup.*")) == []
 
     path.write_bytes(b'{"theme":"dark"}\n')
     original = path.read_bytes()
     apply_settings_merge_plan(plan_settings_merge(path, **kwargs))
-    backups = list(path.parent.glob("*.super-harness-backup.*"))
+    backups = list(path.parent.glob("*.keepsail-backup.*"))
     assert len(backups) == 1
     assert backups[0].read_bytes() == original
 
     apply_settings_merge_plan(plan_settings_merge(path, **kwargs))
-    assert list(path.parent.glob("*.super-harness-backup.*")) == backups
+    assert list(path.parent.glob("*.keepsail-backup.*")) == backups
 
 
 def test_settings_plan_rejects_byte_drift_before_backup_or_write(tmp_path: Path) -> None:
@@ -539,7 +539,7 @@ def test_settings_plan_rejects_byte_drift_before_backup_or_write(tmp_path: Path)
         apply_settings_merge_plan(plan)
 
     assert path.read_bytes() == drifted
-    assert list(tmp_path.glob("*.super-harness-backup.*")) == []
+    assert list(tmp_path.glob("*.keepsail-backup.*")) == []
 
 
 @pytest.mark.parametrize("original", [b'{"theme":"dark"}\n', None])
@@ -583,13 +583,13 @@ def test_settings_plan_atomic_failure_leaves_target_exact(
 
     if original is None:
         assert not path.exists()
-        assert list(tmp_path.glob("*.super-harness-backup.*")) == []
+        assert list(tmp_path.glob("*.keepsail-backup.*")) == []
     else:
         assert path.read_bytes() == original
-        backups = list(tmp_path.glob("*.super-harness-backup.*"))
+        backups = list(tmp_path.glob("*.keepsail-backup.*"))
         assert len(backups) == 1
         assert backups[0].read_bytes() == original
-    assert not path.with_name(f"{path.name}.super-harness.lock").exists()
+    assert not path.with_name(f"{path.name}.keepsail.lock").exists()
     assert list(tmp_path.glob(f".{path.name}.keepsail.*.tmp")) == []
 
 
@@ -620,10 +620,10 @@ def test_concurrent_settings_apply_fails_clearly_without_overwrite(
 
     assert concurrent_error
     assert path.read_bytes() == plan.desired_bytes
-    backups = list(tmp_path.glob("*.super-harness-backup.*"))
+    backups = list(tmp_path.glob("*.keepsail-backup.*"))
     assert len(backups) == 1
     assert backups[0].read_bytes() == original
-    assert not path.with_name(f"{path.name}.super-harness.lock").exists()
+    assert not path.with_name(f"{path.name}.keepsail.lock").exists()
 
 
 def test_concurrent_uninstall_cannot_race_install_replace(
@@ -668,7 +668,7 @@ def test_dead_owner_lock_is_reclaimed(tmp_path: Path, monkeypatch: pytest.Monkey
         session_start_command="/bin/keepsail change resume",
         stop_command="/bin/hook --agent claude-code --event stop",
     )
-    lock = path.with_name(f"{path.name}.super-harness.lock")
+    lock = path.with_name(f"{path.name}.keepsail.lock")
     lock.write_text('{"pid":424242}\n')
     monkeypatch.setattr(
         settings_merge_module, "_process_is_alive", lambda _pid: False, raising=False
@@ -692,7 +692,7 @@ def test_live_owner_lock_is_refused_and_preserved(
         session_start_command="/bin/keepsail change resume",
         stop_command="/bin/hook --agent claude-code --event stop",
     )
-    lock = path.with_name(f"{path.name}.super-harness.lock")
+    lock = path.with_name(f"{path.name}.keepsail.lock")
     lock_bytes = b'{"pid":12345}\n'
     lock.write_bytes(lock_bytes)
     monkeypatch.setattr(
@@ -704,7 +704,7 @@ def test_live_owner_lock_is_refused_and_preserved(
 
     assert path.read_bytes() == original
     assert lock.read_bytes() == lock_bytes
-    assert list(tmp_path.glob("*.super-harness-backup.*")) == []
+    assert list(tmp_path.glob("*.keepsail-backup.*")) == []
 
 
 def test_corrupt_lock_is_refused_conservatively(tmp_path: Path) -> None:
@@ -717,7 +717,7 @@ def test_corrupt_lock_is_refused_conservatively(tmp_path: Path) -> None:
         session_start_command="/bin/keepsail change resume",
         stop_command="/bin/hook --agent claude-code --event stop",
     )
-    lock = path.with_name(f"{path.name}.super-harness.lock")
+    lock = path.with_name(f"{path.name}.keepsail.lock")
     lock.write_text("not-owner-json")
 
     with pytest.raises(RuntimeError, match="cannot verify its owner"):
@@ -748,7 +748,7 @@ def test_old_corrupt_lock_is_reclaimed_without_settings_mutation(
     )
     assert current_plan.changed is False
     original = path.read_bytes()
-    lock = path.with_name(f"{path.name}.super-harness.lock")
+    lock = path.with_name(f"{path.name}.keepsail.lock")
     lock.write_bytes(lock_bytes)
     old = time.time() - settings_merge_module._CORRUPT_LOCK_STALE_SECONDS - 1
     os.utime(lock, (old, old))
@@ -757,7 +757,7 @@ def test_old_corrupt_lock_is_reclaimed_without_settings_mutation(
 
     assert path.read_bytes() == original
     assert not lock.exists()
-    assert list(tmp_path.glob("*.super-harness-backup.*")) == []
+    assert list(tmp_path.glob("*.keepsail-backup.*")) == []
 
 
 def test_symlink_settings_are_rejected_for_plan_and_uninstall(tmp_path: Path) -> None:

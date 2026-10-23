@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from super_harness.core.doc_check import DerivedDoc, load_derived_docs
+from keepsail.core.doc_check import DerivedDoc, load_derived_docs
 
 
 def _w(p: Path, text: str) -> None:

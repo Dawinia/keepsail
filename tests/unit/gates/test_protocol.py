@@ -5,7 +5,7 @@ from typing import ClassVar
 
 import pytest
 
-from super_harness.gates import (
+from keepsail.gates import (
     Gate,
     GateDecision,
     GateFiresOn,

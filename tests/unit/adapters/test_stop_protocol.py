@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json
 
-from super_harness.adapters.agent import _stop_protocol as sp
-from super_harness.core.authoring_check import Verdict, Violation
+from keepsail.adapters.agent import _stop_protocol as sp
+from keepsail.core.authoring_check import Verdict, Violation
 
 
 def test_is_continuation_true_only_when_flag_is_true():

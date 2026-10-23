@@ -18,11 +18,11 @@ import pytest
 import yaml
 from click.testing import CliRunner
 
-from super_harness.cli import main
-from super_harness.exit_codes import EXIT_NO_CONFIG, EXIT_OK, EXIT_VALIDATION
-from super_harness.gates import Gate, GateDecision, GateFiresOn, GateResult
-from super_harness.gates import registry as gates_registry
-from super_harness.gates.registry import register_builtin
+from keepsail.cli import main
+from keepsail.exit_codes import EXIT_NO_CONFIG, EXIT_OK, EXIT_VALIDATION
+from keepsail.gates import Gate, GateDecision, GateFiresOn, GateResult
+from keepsail.gates import registry as gates_registry
+from keepsail.gates.registry import register_builtin
 
 
 class _StubGate(Gate):

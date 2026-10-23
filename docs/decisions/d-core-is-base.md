@@ -1,8 +1,9 @@
 ---
 id: d-core-is-base
-status: ratified
+status: superseded
 ratified_by: dawinialo@163.com
 ratified_at: '2026-07-02T15:10:35.092419Z'
+superseded_by: d-keepsail-core-is-base
 ratified_text_hash: sha256:8cca65a1116077f0b7f665772370f41d252d02295e26fddc6d8818c65a4a6372
 authoring_time: true
 ---

@@ -8,7 +8,7 @@ from __future__ import annotations
 import importlib
 from pathlib import Path
 
-import super_harness
+import keepsail
 
 # Import-from-path / dynamic-exec primitives that would reopen the RCE surface.
 _FORBIDDEN = (
@@ -21,14 +21,14 @@ _FORBIDDEN = (
 
 def test_plugin_loader_module_is_gone() -> None:
     try:
-        importlib.import_module("super_harness.core._plugin_loader")
+        importlib.import_module("keepsail.core._plugin_loader")
     except ModuleNotFoundError:
         return
     raise AssertionError("core._plugin_loader was reintroduced without review")
 
 
 def test_no_load_from_path_primitive_in_package() -> None:
-    pkg_root = Path(super_harness.__file__).parent
+    pkg_root = Path(keepsail.__file__).parent
     offenders: list[str] = []
     for py in pkg_root.rglob("*.py"):
         text = py.read_text(encoding="utf-8")

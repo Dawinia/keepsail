@@ -37,8 +37,8 @@ Mechanics:
    in place rather than accumulating duplicates).
 3. Persists `{name: openspec, type: framework, version: 0.1.0, enabled: true}`
    into `.harness/adapters.yaml`.
-4. Injects the `<!-- super-harness framework: openspec -->` subsection into
-   `AGENTS.md` AND evicts the `<!-- super-harness framework: plain -->`
+4. Injects the `<!-- keepsail framework: openspec -->` subsection into
+   `AGENTS.md` AND evicts the `<!-- keepsail framework: plain -->`
    block `init` wrote (so AGENTS.md doesn't advertise two contradictory
    framework workflows). Eviction is idempotent — re-running `adapter
    install openspec` is a no-op for the plain block once gone. Asymmetric:
@@ -60,11 +60,11 @@ to archive after merge. Verbatim from
 `OpenSpecAdapter.agents_md_subsection()`:
 
 ```markdown
-<!-- super-harness framework: openspec -->
+<!-- keepsail framework: openspec -->
 - OpenSpec change lives in `openspec/changes/<slug>/` (proposal.md / tasks.md / specs/ deltas).
 - Validate before push: `openspec validate <slug> --strict`.
 - After merge, fold spec deltas into `openspec/specs/`: `openspec archive <slug>`.
-<!-- /super-harness framework: openspec -->
+<!-- /keepsail framework: openspec -->
 ```
 
 The marker comments are load-bearing — `adapter install` / `adapter uninstall`
@@ -106,7 +106,7 @@ Mechanics (reverse of install):
 2. Removes the `openspec` row from `.harness/adapters.yaml`.
 3. Prunes the `openspec-validate` row from
    `.harness/verification.yaml.adapter_provided` by `(provided_by, id)` match.
-4. Removes the `<!-- super-harness framework: openspec -->` subsection from
+4. Removes the `<!-- keepsail framework: openspec -->` subsection from
    `AGENTS.md`, restoring the framework slot to the `plain` block.
 
 Your `openspec/` directory is left untouched — uninstall removes only the

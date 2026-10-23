@@ -11,8 +11,8 @@ Keepsail 让有效人类承诺与长期产品知识在连续工作中持续生�
 [产品架构](docs/product-architecture.md)为准，现有 CLI、hooks 与 CI 的覆盖情况见
 单独的[实现覆盖报告](docs/product-architecture-coverage.md)。
 
-Keepsail 原名 super-harness。[迁移说明](docs/keepsail-migration.md)列出安装、
-兼容标识和仍需完成的外部动作。
+Keepsail 原名 super-harness。[迁移说明](docs/keepsail-migration.md)列出直接迁移、
+本地使用项目的更新方式和交付边界。
 
 关于它解决的问题、v0.1 交付了什么、以及跟邻近工具的关系,见
 [Overview](docs/overview.md)。

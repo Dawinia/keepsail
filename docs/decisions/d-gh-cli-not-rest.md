@@ -1,8 +1,9 @@
 ---
 id: d-gh-cli-not-rest
-status: ratified
+status: superseded
 ratified_by: dawinialo@163.com
 ratified_at: '2026-07-02T03:54:40.718739Z'
+superseded_by: d-keepsail-gh-cli-not-rest
 ratified_text_hash: sha256:8ee413d6344eef54aeeac4cb18772d060d63e0f28e397f7d7b3d9a859199736c
 authoring_time: true
 ---

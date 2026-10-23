@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from super_harness.engineering.gh import (
+from keepsail.engineering.gh import (
     MIN_VERSION,
     GhError,
     GhNotAuthenticated,
@@ -82,7 +82,7 @@ class TestParseVersion:
 
 class TestCheckGh:
     def test_not_installed_raises_gh_not_installed(self) -> None:
-        with patch("super_harness.engineering.gh.subprocess.run") as mock_run:
+        with patch("keepsail.engineering.gh.subprocess.run") as mock_run:
             mock_run.side_effect = FileNotFoundError("no such file")
             with pytest.raises(GhNotInstalled) as exc_info:
                 check_gh()
@@ -96,28 +96,28 @@ class TestCheckGh:
     def test_version_probe_called_process_error_raises_gh_not_installed(self) -> None:
         # gh present but `gh --version` exits non-zero (broken install) → no raw
         # CalledProcessError escapes; mapped to GhNotInstalled.
-        with patch("super_harness.engineering.gh.subprocess.run") as mock_run:
+        with patch("keepsail.engineering.gh.subprocess.run") as mock_run:
             mock_run.side_effect = _cpe(returncode=1)
             with pytest.raises(GhNotInstalled):
                 check_gh()
 
     def test_version_too_old_raises_gh_version_too_old(self) -> None:
         old_version_output = "gh version 2.39.0 (2024-01-01)\n"
-        with patch("super_harness.engineering.gh.subprocess.run") as mock_run:
+        with patch("keepsail.engineering.gh.subprocess.run") as mock_run:
             mock_run.return_value = _completed(stdout=old_version_output)
             with pytest.raises(GhVersionTooOld) as exc_info:
                 check_gh()
             assert "2.40" in str(exc_info.value) or "2, 40" in str(exc_info.value)
 
     def test_malformed_version_output_raises_gh_version_too_old(self) -> None:
-        with patch("super_harness.engineering.gh.subprocess.run") as mock_run:
+        with patch("keepsail.engineering.gh.subprocess.run") as mock_run:
             mock_run.return_value = _completed(stdout="garbage output\n")
             with pytest.raises(GhVersionTooOld):
                 check_gh()
 
     def test_not_authenticated_raises_gh_not_authenticated(self) -> None:
         good_version = "gh version 2.45.0 (2026-04-01)\n"
-        with patch("super_harness.engineering.gh.subprocess.run") as mock_run:
+        with patch("keepsail.engineering.gh.subprocess.run") as mock_run:
             # First call (--version) succeeds; second call (auth status) fails.
             mock_run.side_effect = [
                 _completed(stdout=good_version),
@@ -130,7 +130,7 @@ class TestCheckGh:
 
     def test_happy_path_no_raise(self) -> None:
         good_version = "gh version 2.45.0 (2026-04-01)\n"
-        with patch("super_harness.engineering.gh.subprocess.run") as mock_run:
+        with patch("keepsail.engineering.gh.subprocess.run") as mock_run:
             mock_run.side_effect = [
                 _completed(stdout=good_version),
                 _completed(),  # auth status success
@@ -143,20 +143,20 @@ class TestCheckGh:
         assert calls[1][0][0] == ["gh", "auth", "status"]
 
     def test_gh_not_installed_is_gh_error_subclass(self) -> None:
-        with patch("super_harness.engineering.gh.subprocess.run") as mock_run:
+        with patch("keepsail.engineering.gh.subprocess.run") as mock_run:
             mock_run.side_effect = FileNotFoundError()
             with pytest.raises(GhError):
                 check_gh()
 
     def test_gh_version_too_old_is_gh_error_subclass(self) -> None:
-        with patch("super_harness.engineering.gh.subprocess.run") as mock_run:
+        with patch("keepsail.engineering.gh.subprocess.run") as mock_run:
             mock_run.return_value = _completed(stdout="gh version 1.0.0 (date)\n")
             with pytest.raises(GhError):
                 check_gh()
 
     def test_gh_not_authenticated_is_gh_error_subclass(self) -> None:
         good_version = "gh version 2.45.0 (2026-04-01)\n"
-        with patch("super_harness.engineering.gh.subprocess.run") as mock_run:
+        with patch("keepsail.engineering.gh.subprocess.run") as mock_run:
             mock_run.side_effect = [_completed(stdout=good_version), _cpe()]
             with pytest.raises(GhError):
                 check_gh()
@@ -170,7 +170,7 @@ class TestCheckGh:
 class TestViewPr:
     def test_correct_argv_and_json_parse(self) -> None:
         payload = {"number": 42, "title": "My PR", "state": "OPEN"}
-        with patch("super_harness.engineering.gh.subprocess.run") as mock_run:
+        with patch("keepsail.engineering.gh.subprocess.run") as mock_run:
             mock_run.return_value = _completed(stdout=json.dumps(payload))
             result = view_pr(42, fields=["number", "title", "state"])
         assert result == payload
@@ -179,19 +179,19 @@ class TestViewPr:
         assert argv == ["gh", "pr", "view", "42", "--json", "number,title,state"]
 
     def test_not_found_called_process_error_raises_gh_error(self) -> None:
-        with patch("super_harness.engineering.gh.subprocess.run") as mock_run:
+        with patch("keepsail.engineering.gh.subprocess.run") as mock_run:
             mock_run.side_effect = _cpe(returncode=1)
             with pytest.raises(GhError):
                 view_pr(999, fields=["number"])
 
     def test_file_not_found_raises_gh_error(self) -> None:
-        with patch("super_harness.engineering.gh.subprocess.run") as mock_run:
+        with patch("keepsail.engineering.gh.subprocess.run") as mock_run:
             mock_run.side_effect = FileNotFoundError()
             with pytest.raises(GhError):
                 view_pr(1, fields=["number"])
 
     def test_bad_json_raises_gh_error(self) -> None:
-        with patch("super_harness.engineering.gh.subprocess.run") as mock_run:
+        with patch("keepsail.engineering.gh.subprocess.run") as mock_run:
             mock_run.return_value = _completed(stdout="not-json-at-all")
             with pytest.raises(GhError):
                 view_pr(1, fields=["number"])
@@ -205,7 +205,7 @@ class TestViewPr:
         a ``ValueError`` subclass (NOT an ``OSError`` / not a
         ``CalledProcessError``); the catch must list it explicitly.
         """
-        with patch("super_harness.engineering.gh.subprocess.run") as mock_run:
+        with patch("keepsail.engineering.gh.subprocess.run") as mock_run:
             mock_run.side_effect = UnicodeDecodeError(
                 "utf-8", b"\xff", 0, 1, "invalid start byte"
             )
@@ -213,7 +213,7 @@ class TestViewPr:
                 view_pr(1, fields=["number"])
 
     def test_single_field_argv(self) -> None:
-        with patch("super_harness.engineering.gh.subprocess.run") as mock_run:
+        with patch("keepsail.engineering.gh.subprocess.run") as mock_run:
             mock_run.return_value = _completed(stdout='{"number": 1}')
             view_pr(1, fields=["number"])
         argv = mock_run.call_args[0][0]
@@ -234,7 +234,7 @@ class TestEditPrBody:
             captured_argv.append(args)
             return _completed()
 
-        with patch("super_harness.engineering.gh.subprocess.run", side_effect=fake_run):
+        with patch("keepsail.engineering.gh.subprocess.run", side_effect=fake_run):
             edit_pr_body(7, body="## Test\n\nHello world")
 
         assert len(captured_argv) == 1
@@ -260,7 +260,7 @@ class TestEditPrBody:
                 written_content.append(f.read())
             return _completed()
 
-        with patch("super_harness.engineering.gh.subprocess.run", side_effect=fake_run):
+        with patch("keepsail.engineering.gh.subprocess.run", side_effect=fake_run):
             edit_pr_body(7, body=body_content)
 
         assert written_content == [body_content]
@@ -273,7 +273,7 @@ class TestEditPrBody:
             captured_path.append(args[body_file_idx + 1])
             raise subprocess.CalledProcessError(1, args)
 
-        with patch("super_harness.engineering.gh.subprocess.run", side_effect=fake_run):
+        with patch("keepsail.engineering.gh.subprocess.run", side_effect=fake_run):
             with pytest.raises(GhError):
                 edit_pr_body(7, body="body")
 
@@ -283,13 +283,13 @@ class TestEditPrBody:
         assert not os.path.exists(captured_path[0]), "temp file was not cleaned up"
 
     def test_called_process_error_raises_gh_error(self) -> None:
-        with patch("super_harness.engineering.gh.subprocess.run") as mock_run:
+        with patch("keepsail.engineering.gh.subprocess.run") as mock_run:
             mock_run.side_effect = _cpe()
             with pytest.raises(GhError):
                 edit_pr_body(7, body="body")
 
     def test_file_not_found_raises_gh_error(self) -> None:
-        with patch("super_harness.engineering.gh.subprocess.run") as mock_run:
+        with patch("keepsail.engineering.gh.subprocess.run") as mock_run:
             mock_run.side_effect = FileNotFoundError()
             with pytest.raises(GhError):
                 edit_pr_body(7, body="body")
@@ -303,7 +303,7 @@ class TestEditPrBody:
 class TestCreatePr:
     def test_minimal_argv_no_labels_no_draft(self) -> None:
         url = "https://github.com/owner/repo/pull/1"
-        with patch("super_harness.engineering.gh.subprocess.run") as mock_run:
+        with patch("keepsail.engineering.gh.subprocess.run") as mock_run:
             mock_run.return_value = _completed(stdout=url + "\n")
             result = create_pr(base="main", head="feature-branch", title="My PR", body="body")
         assert result == url
@@ -326,7 +326,7 @@ class TestCreatePr:
 
     def test_with_labels_and_draft(self) -> None:
         url = "https://github.com/owner/repo/pull/2"
-        with patch("super_harness.engineering.gh.subprocess.run") as mock_run:
+        with patch("keepsail.engineering.gh.subprocess.run") as mock_run:
             mock_run.return_value = _completed(stdout=url + "\n")
             result = create_pr(
                 base="main",
@@ -347,7 +347,7 @@ class TestCreatePr:
 
     def test_with_single_label_no_draft(self) -> None:
         url = "https://github.com/owner/repo/pull/3"
-        with patch("super_harness.engineering.gh.subprocess.run") as mock_run:
+        with patch("keepsail.engineering.gh.subprocess.run") as mock_run:
             mock_run.return_value = _completed(stdout=url + "\n")
             result = create_pr(
                 base="main",
@@ -366,19 +366,19 @@ class TestCreatePr:
 
     def test_returns_stripped_url(self) -> None:
         url = "https://github.com/owner/repo/pull/42"
-        with patch("super_harness.engineering.gh.subprocess.run") as mock_run:
+        with patch("keepsail.engineering.gh.subprocess.run") as mock_run:
             mock_run.return_value = _completed(stdout="  " + url + "  \n")
             result = create_pr(base="main", head="h", title="t", body="b")
         assert result == url
 
     def test_called_process_error_raises_gh_error(self) -> None:
-        with patch("super_harness.engineering.gh.subprocess.run") as mock_run:
+        with patch("keepsail.engineering.gh.subprocess.run") as mock_run:
             mock_run.side_effect = _cpe()
             with pytest.raises(GhError):
                 create_pr(base="main", head="h", title="t", body="b")
 
     def test_file_not_found_raises_gh_error(self) -> None:
-        with patch("super_harness.engineering.gh.subprocess.run") as mock_run:
+        with patch("keepsail.engineering.gh.subprocess.run") as mock_run:
             mock_run.side_effect = FileNotFoundError()
             with pytest.raises(GhError):
                 create_pr(base="main", head="h", title="t", body="b")
@@ -391,14 +391,14 @@ class TestCreatePr:
 
 class TestMergePrAutoSquash:
     def test_argv_with_delete_branch(self) -> None:
-        with patch("super_harness.engineering.gh.subprocess.run") as mock_run:
+        with patch("keepsail.engineering.gh.subprocess.run") as mock_run:
             mock_run.return_value = _completed()
             merge_pr_auto_squash(10, delete_branch=True)
         argv = mock_run.call_args[0][0]
         assert argv == ["gh", "pr", "merge", "10", "--auto", "--squash", "--delete-branch"]
 
     def test_argv_without_delete_branch(self) -> None:
-        with patch("super_harness.engineering.gh.subprocess.run") as mock_run:
+        with patch("keepsail.engineering.gh.subprocess.run") as mock_run:
             mock_run.return_value = _completed()
             merge_pr_auto_squash(10, delete_branch=False)
         argv = mock_run.call_args[0][0]
@@ -406,20 +406,20 @@ class TestMergePrAutoSquash:
         assert "--delete-branch" not in argv
 
     def test_default_delete_branch_is_true(self) -> None:
-        with patch("super_harness.engineering.gh.subprocess.run") as mock_run:
+        with patch("keepsail.engineering.gh.subprocess.run") as mock_run:
             mock_run.return_value = _completed()
             merge_pr_auto_squash(5)
         argv = mock_run.call_args[0][0]
         assert "--delete-branch" in argv
 
     def test_called_process_error_raises_gh_error(self) -> None:
-        with patch("super_harness.engineering.gh.subprocess.run") as mock_run:
+        with patch("keepsail.engineering.gh.subprocess.run") as mock_run:
             mock_run.side_effect = _cpe()
             with pytest.raises(GhError):
                 merge_pr_auto_squash(1)
 
     def test_file_not_found_raises_gh_error(self) -> None:
-        with patch("super_harness.engineering.gh.subprocess.run") as mock_run:
+        with patch("keepsail.engineering.gh.subprocess.run") as mock_run:
             mock_run.side_effect = FileNotFoundError()
             with pytest.raises(GhError):
                 merge_pr_auto_squash(1)
@@ -443,7 +443,7 @@ class TestEnableRepoMergeSettings:
         return [_completed(), _completed(), _completed(stdout=verify_stdout)]
 
     def test_runs_both_patch_calls_then_verify_get(self) -> None:
-        with patch("super_harness.engineering.gh.subprocess.run") as mock_run:
+        with patch("keepsail.engineering.gh.subprocess.run") as mock_run:
             mock_run.side_effect = self._side_effects_patch_then_verify()
             enable_repo_merge_settings()
         # two PATCH calls — auto-merge then squash — with gh's own {owner}/{repo}
@@ -462,19 +462,19 @@ class TestEnableRepoMergeSettings:
         assert argvs[2] == ["gh", "api", "/repos/{owner}/{repo}"]
 
     def test_patch_called_process_error_raises_gh_error(self) -> None:
-        with patch("super_harness.engineering.gh.subprocess.run") as mock_run:
+        with patch("keepsail.engineering.gh.subprocess.run") as mock_run:
             mock_run.side_effect = _cpe()
             with pytest.raises(GhError):
                 enable_repo_merge_settings()
 
     def test_file_not_found_raises_gh_error(self) -> None:
-        with patch("super_harness.engineering.gh.subprocess.run") as mock_run:
+        with patch("keepsail.engineering.gh.subprocess.run") as mock_run:
             mock_run.side_effect = FileNotFoundError()
             with pytest.raises(GhError):
                 enable_repo_merge_settings()
 
     def test_captures_output_so_caller_can_log_stderr(self) -> None:
-        with patch("super_harness.engineering.gh.subprocess.run") as mock_run:
+        with patch("keepsail.engineering.gh.subprocess.run") as mock_run:
             mock_run.side_effect = self._side_effects_patch_then_verify()
             enable_repo_merge_settings()
         # capture_output so a best-effort caller can write stderr to an op-log.
@@ -484,7 +484,7 @@ class TestEnableRepoMergeSettings:
 
     def test_verify_get_called_process_error_raises_gh_error(self) -> None:
         # Both PATCH calls succeed; the post-PATCH verify GET errors out.
-        with patch("super_harness.engineering.gh.subprocess.run") as mock_run:
+        with patch("keepsail.engineering.gh.subprocess.run") as mock_run:
             mock_run.side_effect = [_completed(), _completed(), _cpe()]
             with pytest.raises(GhError, match="post-PATCH verify"):
                 enable_repo_merge_settings()
@@ -492,7 +492,7 @@ class TestEnableRepoMergeSettings:
     def test_verify_get_non_json_raises_gh_error(self) -> None:
         # GET returns garbage instead of JSON — surface as GhError (not raw
         # JSONDecodeError) so the caller's catch tuple stays simple.
-        with patch("super_harness.engineering.gh.subprocess.run") as mock_run:
+        with patch("keepsail.engineering.gh.subprocess.run") as mock_run:
             mock_run.side_effect = self._side_effects_patch_then_verify(
                 verify_stdout="<html>not json</html>"
             )
@@ -502,7 +502,7 @@ class TestEnableRepoMergeSettings:
     def test_verify_get_non_object_raises_gh_error(self) -> None:
         # GET returns a JSON array (or other non-object) — surface as GhError
         # because we cannot extract the booleans.
-        with patch("super_harness.engineering.gh.subprocess.run") as mock_run:
+        with patch("keepsail.engineering.gh.subprocess.run") as mock_run:
             mock_run.side_effect = self._side_effects_patch_then_verify(
                 verify_stdout="[]"
             )
@@ -513,7 +513,7 @@ class TestEnableRepoMergeSettings:
         # The S8 case: PATCH returns 200 but GitHub silently no-ops auto-merge
         # on brand-new private repos. squash flipped, auto-merge didn't.
         # Must raise so the caller's stderr advisory + operation-log fire.
-        with patch("super_harness.engineering.gh.subprocess.run") as mock_run:
+        with patch("keepsail.engineering.gh.subprocess.run") as mock_run:
             mock_run.side_effect = self._side_effects_patch_then_verify(
                 verify_stdout='{"allow_auto_merge": false, "allow_squash_merge": true}'
             )
@@ -521,7 +521,7 @@ class TestEnableRepoMergeSettings:
                 enable_repo_merge_settings()
 
     def test_verify_get_both_false_raises_gh_error_listing_both(self) -> None:
-        with patch("super_harness.engineering.gh.subprocess.run") as mock_run:
+        with patch("keepsail.engineering.gh.subprocess.run") as mock_run:
             mock_run.side_effect = self._side_effects_patch_then_verify(
                 verify_stdout='{"allow_auto_merge": false, "allow_squash_merge": false}'
             )
@@ -532,7 +532,7 @@ class TestEnableRepoMergeSettings:
         assert "allow_squash_merge" in msg
 
     def test_verify_get_squash_still_false_raises_gh_error(self) -> None:
-        with patch("super_harness.engineering.gh.subprocess.run") as mock_run:
+        with patch("keepsail.engineering.gh.subprocess.run") as mock_run:
             mock_run.side_effect = self._side_effects_patch_then_verify(
                 verify_stdout='{"allow_auto_merge": true, "allow_squash_merge": false}'
             )

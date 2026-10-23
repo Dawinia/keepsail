@@ -9,15 +9,15 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from super_harness.engineering.agents_md_render import render_super_harness_section
-from super_harness.engineering.gitignore_injector import inject_gitignore_block
-from super_harness.engineering.sync_check import run_sync_check
+from keepsail.engineering.agents_md_render import render_keepsail_section
+from keepsail.engineering.gitignore_injector import inject_gitignore_block
+from keepsail.engineering.sync_check import run_sync_check
 
 
 def test_freshly_rendered_agents_md_is_in_sync(tmp_path: Path) -> None:
     """A repo whose AGENTS.md was just rendered shows NO AGENTS.md drift."""
     agents = tmp_path / "AGENTS.md"
-    render_super_harness_section(tmp_path, agents, "0.1.0")
+    render_keepsail_section(tmp_path, agents, "0.1.0")
 
     result = run_sync_check(
         tmp_path, "0.1.0", check_agents=True, check_gitignore=False
@@ -31,7 +31,7 @@ def test_hand_mutated_agents_md_section_is_drift(tmp_path: Path) -> None:
     """Editing inside the managed section (the DO NOT EDIT block) is reported as
     drift, with a diff, and the file on disk is NOT modified by the check."""
     agents = tmp_path / "AGENTS.md"
-    render_super_harness_section(tmp_path, agents, "0.1.0")
+    render_keepsail_section(tmp_path, agents, "0.1.0")
     original = agents.read_text()
     agents.write_text(original.replace("### Branch naming", "### Branch naming EDITED"))
     mutated = agents.read_text()
@@ -52,7 +52,7 @@ def test_stale_version_stamp_is_drift(tmp_path: Path) -> None:
     """If AGENTS.md was rendered at an OLD version, checking at a NEW version
     reports drift (the begin-marker version stamp differs)."""
     agents = tmp_path / "AGENTS.md"
-    render_super_harness_section(tmp_path, agents, "0.0.9")
+    render_keepsail_section(tmp_path, agents, "0.0.9")
 
     result = run_sync_check(
         tmp_path, "0.1.0", check_agents=True, check_gitignore=False
@@ -66,7 +66,7 @@ def test_content_outside_markers_is_not_drift(tmp_path: Path) -> None:
     """The managed-only guarantee: user content OUTSIDE the keepsail markers
     is never inspected, so adding it does not register as drift."""
     agents = tmp_path / "AGENTS.md"
-    render_super_harness_section(tmp_path, agents, "0.1.0")
+    render_keepsail_section(tmp_path, agents, "0.1.0")
     agents.write_text("# My project notes\n\n" + agents.read_text() + "\nFooter.\n")
 
     result = run_sync_check(
@@ -124,7 +124,7 @@ def test_mutated_gitignore_block_is_drift(tmp_path: Path) -> None:
 
 def test_both_artifacts_checked_together(tmp_path: Path) -> None:
     """With both legs enabled and both freshly rendered, the repo is in sync."""
-    render_super_harness_section(tmp_path, tmp_path / "AGENTS.md", "0.1.0")
+    render_keepsail_section(tmp_path, tmp_path / "AGENTS.md", "0.1.0")
     inject_gitignore_block(tmp_path / ".gitignore")
 
     result = run_sync_check(

@@ -7,7 +7,7 @@ metadata block, and runs three blocker checks:
   3. the change is in READY_TO_MERGE
 
 gh is ALWAYS mocked here — never the real binary, never the network. We patch
-`super_harness.cli.pr.gh.view_pr` directly.
+`keepsail.cli.pr.gh.view_pr` directly.
 
 Exit codes (cli-command-surface §`pr validate`):
 - 0 — no blockers
@@ -41,17 +41,17 @@ from unittest import mock
 
 from click.testing import CliRunner
 
-from super_harness.cli import main
-from super_harness.core.events import Actor, Event
-from super_harness.core.paths import events_path
-from super_harness.core.ulid import new_event_id
-from super_harness.core.writer import EventWriter
+from keepsail.cli import main
+from keepsail.core.events import Actor, Event
+from keepsail.core.paths import events_path
+from keepsail.core.ulid import new_event_id
+from keepsail.core.writer import EventWriter
 
 # A change_id used across the seeding helpers / mocked metadata bodies.
 CHANGE_ID = "2026-05-30-add-foo"
 
 # Path of the gh wrapper as imported into cli/pr.py — patch THIS, never real gh.
-VIEW_PR = "super_harness.cli.pr.gh.view_pr"
+VIEW_PR = "keepsail.cli.pr.gh.view_pr"
 
 
 # --------------------------------------------------------------------------- #
@@ -106,12 +106,12 @@ def _complete_metadata_body(change_id: str = CHANGE_ID) -> str:
     """A PR body carrying ONE complete keepsail metadata block."""
     return (
         "Some PR description.\n\n"
-        "<!-- super-harness:metadata -->\n"
+        "<!-- keepsail:metadata -->\n"
         f"Change: {change_id}\n"
         "Tier: Normal\n"
         "Verification: passed\n"
-        "super-harness version: 0.1.0\n"
-        "<!-- /super-harness:metadata -->\n"
+        "keepsail version: 0.1.0\n"
+        "<!-- /keepsail:metadata -->\n"
     )
 
 
@@ -147,7 +147,7 @@ def test_pr_validate_no_harness_exits_3(tmp_path: Path) -> None:
 def test_pr_validate_gh_error_exits_4(tmp_path: Path) -> None:
     """gh.GhError from view_pr → exit 4 (EXIT_EXTERNAL_TOOL), no envelope."""
     _init(tmp_path)
-    from super_harness.engineering import gh
+    from keepsail.engineering import gh
 
     with mock.patch(VIEW_PR, side_effect=gh.GhError("gh pr view 7 failed (exit 1)")):
         r = CliRunner().invoke(
@@ -212,10 +212,10 @@ def test_pr_validate_missing_required_keys_exits_2(tmp_path: Path) -> None:
     """A present block missing required keys → incomplete-fields blocker → exit 2."""
     _init(tmp_path)
     body = (
-        "<!-- super-harness:metadata -->\n"
+        "<!-- keepsail:metadata -->\n"
         f"Change: {CHANGE_ID}\n"
         "Tier: Normal\n"
-        "<!-- /super-harness:metadata -->\n"
+        "<!-- /keepsail:metadata -->\n"
     )
     with mock.patch(VIEW_PR, return_value={"body": body}):
         r = CliRunner().invoke(
@@ -225,7 +225,7 @@ def test_pr_validate_missing_required_keys_exits_2(tmp_path: Path) -> None:
     assert "missing required keys" in r.stderr
     # The two missing required keys are named in the blocker text.
     assert "Verification" in r.stderr
-    assert "super-harness version" in r.stderr
+    assert "keepsail version" in r.stderr
 
 
 # --------------------------------------------------------------------------- #

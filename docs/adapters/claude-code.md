@@ -73,12 +73,12 @@ Mechanics:
    still match the reviewed transaction, then writes the complete settings file
    once with an atomic replace.
 6. Persists the row in `.harness/adapters.yaml` and injects the
-   `<!-- super-harness agent: claude-code -->` subsection into `AGENTS.md`
+   `<!-- keepsail agent: claude-code -->` subsection into `AGENTS.md`
    (replacing the no-agent anchor written by `init`).
 
 An absent settings file creates no backup. Changing an existing file creates
 exactly one sibling
-`settings.local.json.super-harness-backup.<time_ns>` containing its exact
+`settings.local.json.keepsail-backup.<time_ns>` containing its exact
 original bytes. Reinstalls are idempotent: an unchanged file is not rewritten
 and creates no backup.
 
@@ -97,7 +97,7 @@ enforced and how to recover when an edit is blocked. Excerpt from
 subsection also carries a review-protocol section):
 
 ```markdown
-<!-- super-harness agent: claude-code -->
+<!-- keepsail agent: claude-code -->
 ### keepsail (Claude Code)
 
 A **PreToolUse** hook is enabled for this workspace. `Edit` / `Write` /
@@ -119,7 +119,7 @@ When a tool call is blocked by the gate:
   next valid step (`keepsail status`) to the human. Do **not** try to disable
   or work around the gate yourself — overriding it is a human-only decision, and any
   bypass is recorded and disclosed at the merge gate.
-<!-- /super-harness agent: claude-code -->
+<!-- /keepsail agent: claude-code -->
 ```
 
 The marker comments are load-bearing — install / uninstall locate the block
@@ -141,7 +141,7 @@ by exact marker match. Re-run `adapter install claude-code` if it drifts.
   active change / change is still in `INTENT_DECLARED` or
   `AWAITING_PLAN_REVIEW` / etc.). The gate only allows mutations at
   `PLAN_APPROVED`, `IMPLEMENTATION_IN_PROGRESS`, or `CODE_REVIEW_REJECTED`
-  (see `src/super_harness/gates/decisions.py`). `AWAITING_PLAN_REVIEW →
+  (see `src/keepsail/gates/decisions.py`). `AWAITING_PLAN_REVIEW →
   PLAN_APPROVED` advances through imported recognized plan approval. Follow
   `.harness/review-recognition.yaml` and obtain an explicit external conclusion
   for the frozen subject, retaining original evidence and provenance. Import with
@@ -178,7 +178,7 @@ keepsail adapter uninstall claude-code
 Mechanics (reverse of install):
 
 1. Under the same settings lock used by install, `on_uninstall()` restores the
-   *earliest* `settings.local.json.super-harness-backup.<ts>` backup (the truly
+   *earliest* `settings.local.json.keepsail-backup.<ts>` backup (the truly
    pristine pre-install copy). If no backup exists, it removes only the
    marker-owned PreToolUse, SessionStart, and Stop hooks, preserves unrelated
    settings, and prunes empty hook scaffolding. It removes the settings file
@@ -186,7 +186,7 @@ Mechanics (reverse of install):
    install.
 2. Removes the `claude-code` row from `.harness/adapters.yaml`
    (verification.yaml prune is a no-op — Claude Code adds no checks).
-3. Removes the `<!-- super-harness agent: claude-code -->` subsection from
+3. Removes the `<!-- keepsail agent: claude-code -->` subsection from
    `AGENTS.md`, restoring the no-agent anchor so a future re-install has
    somewhere to land.
 

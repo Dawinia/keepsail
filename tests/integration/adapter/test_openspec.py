@@ -16,7 +16,7 @@ Asserts:
 - a real ``openspec/changes/foo/proposal.md`` yields an ``intent_declared`` event
   for ``foo`` in ``events.jsonl``;
 - the repo-root ``AGENTS.md`` gained the
-  ``<!-- super-harness framework: openspec -->`` subsection;
+  ``<!-- keepsail framework: openspec -->`` subsection;
 - a change under ``openspec/changes/archive/<x>/`` emits NOTHING (archived
   changes are skipped by ``scan_changes``).
 
@@ -31,10 +31,10 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from super_harness.cli import main
+from keepsail.cli import main
 
-_OPENSPEC_BEGIN = "<!-- super-harness framework: openspec -->"
-_OPENSPEC_END = "<!-- /super-harness framework: openspec -->"
+_OPENSPEC_BEGIN = "<!-- keepsail framework: openspec -->"
+_OPENSPEC_END = "<!-- /keepsail framework: openspec -->"
 
 
 def _init(ws: Path):

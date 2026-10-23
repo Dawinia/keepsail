@@ -1,6 +1,6 @@
 import pytest
 
-from super_harness.core.transitions import INVALID, compute_target_state
+from keepsail.core.transitions import INVALID, compute_target_state
 
 
 @pytest.mark.parametrize(
@@ -78,13 +78,13 @@ def test_transition(current: str | None, event_type: str, expected: str) -> None
 
 def test_invalid_is_distinct_string() -> None:
     """INVALID sentinel must not collide with any real state name."""
-    from super_harness.core.state import STATES
+    from keepsail.core.state import STATES
     assert INVALID not in STATES
 
 
 def test_gate_bypass_events_are_informational_and_known():
-    from super_harness.core.events import KNOWN_EVENT_TYPES
-    from super_harness.core.transitions import _INFORMATIONAL, compute_target_state
+    from keepsail.core.events import KNOWN_EVENT_TYPES
+    from keepsail.core.transitions import _INFORMATIONAL, compute_target_state
     for t in ("gate_bypassed", "gate_bypass_disclosed"):
         assert t in KNOWN_EVENT_TYPES
         assert t in _INFORMATIONAL
@@ -92,8 +92,8 @@ def test_gate_bypass_events_are_informational_and_known():
 
 
 def test_review_execution_events_are_informational_and_known() -> None:
-    from super_harness.core.events import KNOWN_EVENT_TYPES
-    from super_harness.core.transitions import _INFORMATIONAL
+    from keepsail.core.events import KNOWN_EVENT_TYPES
+    from keepsail.core.transitions import _INFORMATIONAL
 
     review_events = {
         "review_round_started",

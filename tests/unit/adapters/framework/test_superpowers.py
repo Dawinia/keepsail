@@ -10,12 +10,12 @@ from pathlib import Path
 
 import pytest
 
-from super_harness.adapters.framework.superpowers import (
+from keepsail.adapters.framework.superpowers import (
     SuperpowersAdapter,
     _parse_frontmatter,
 )
-from super_harness.core.events import Actor, Event, serialize_event
-from super_harness.core.paths import events_path
+from keepsail.core.events import Actor, Event, serialize_event
+from keepsail.core.paths import events_path
 
 
 def _seed_event(workspace: Path, change: str, event_type: str) -> None:

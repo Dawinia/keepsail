@@ -14,7 +14,7 @@ separate dated [implementation coverage](docs/product-architecture-coverage.md):
 existing CLI, hooks and CI implement parts of these responsibilities.
 
 Keepsail was named super-harness. The [migration guide](docs/keepsail-migration.md)
-explains installation, compatibility identifiers and pending external actions.
+explains the direct runtime cutover, local consumers and delivery boundaries.
 
 See the [Overview](docs/overview.md) for the problem it solves, what v0.1 ships,
 and how it relates to neighboring tools like Spec Kit, OpenSpec, and Superpowers.

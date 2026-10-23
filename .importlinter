@@ -4,19 +4,19 @@
 # decision. The decision record's tier-1 `check` block runs the matching contract
 # via `lint-imports --contract <id>`; that decision is the human-ratified anchor.
 #
-# - core-is-base  -> docs/decisions/d-core-is-base.md
+# - core-is-base  -> docs/decisions/d-keepsail-core-is-base.md
 #
 # Run locally: PYTHONPATH=src lint-imports --config .importlinter --no-cache
 [importlinter]
-root_package = super_harness
+root_package = keepsail
 
 [importlinter:contract:core-is-base]
 name = core is the base layer (must not import cli/gates/sensors/engineering)
 type = forbidden
 source_modules =
-    super_harness.core
+    keepsail.core
 forbidden_modules =
-    super_harness.cli
-    super_harness.gates
-    super_harness.sensors
-    super_harness.engineering
+    keepsail.cli
+    keepsail.gates
+    keepsail.sensors
+    keepsail.engineering

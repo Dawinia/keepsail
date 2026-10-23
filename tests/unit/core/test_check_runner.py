@@ -4,8 +4,8 @@ import time
 
 import pytest
 
-from super_harness.core import check_runner, shell_runner
-from super_harness.core.check_runner import (
+from keepsail.core import check_runner, shell_runner
+from keepsail.core.check_runner import (
     CheckFailure,
     CheckRun,
     bite_test,
@@ -15,7 +15,7 @@ from super_harness.core.check_runner import (
     run_one_check,
     select_changed,
 )
-from super_harness.core.decisions import Counterexample, Decision
+from keepsail.core.decisions import Counterexample, Decision
 
 
 def _ratified(did, check):
@@ -62,7 +62,7 @@ def test_only_ratified_tier1_run(tmp_path):
 
 
 def test_changed_files_none_on_non_git(tmp_path):
-    from super_harness.core.check_runner import changed_files
+    from keepsail.core.check_runner import changed_files
     assert changed_files(tmp_path) is None
 
 
@@ -154,10 +154,10 @@ def test_bad_cwd_message_text(tmp_path):
 
 def test_check_env_is_scrubbed_of_harness_knobs(tmp_path, monkeypatch):
     # A check runs against scrubbed_environ() on every path (authoring hook,
-    # CI decision check, ratify bite_test), so an exported SUPER_HARNESS_* knob
+    # CI decision check, ratify bite_test), so an exported KEEPSAIL_* knob
     # never leaks in and the authoring-time verdict matches the merge gate.
-    monkeypatch.setenv("SUPER_HARNESS_CHECK_PROBE", "1")
-    run = run_one_check('test -z "$SUPER_HARNESS_CHECK_PROBE"', cwd=tmp_path)
+    monkeypatch.setenv("KEEPSAIL_CHECK_PROBE", "1")
+    run = run_one_check('test -z "$KEEPSAIL_CHECK_PROBE"', cwd=tmp_path)
     assert run.satisfied
 
 
@@ -194,7 +194,7 @@ def test_project_toolchain_prefers_native_directory(tmp_path, monkeypatch, platf
 
 
 def test_missing_check_tool_fails_nonzero(tmp_path):
-    run = run_one_check("super_harness_missing_tool_9f5d", cwd=tmp_path)
+    run = run_one_check("keepsail_missing_tool_9f5d", cwd=tmp_path)
     assert run.satisfied is False
     assert run.exit_code != 0
 

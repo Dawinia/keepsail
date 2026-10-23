@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from super_harness.adapters.reviewer.codex_cli import CodexCliReviewerProtocol
+from keepsail.adapters.reviewer.codex_cli import CodexCliReviewerProtocol
 
 
 def test_compiles_fresh_codex_invocation_without_executing(tmp_path: Path) -> None:

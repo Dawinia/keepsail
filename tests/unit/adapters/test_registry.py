@@ -15,10 +15,10 @@ from typing import ClassVar
 import pytest
 import yaml
 
-from super_harness.adapters import FrameworkAdapter
-from super_harness.adapters.agent.claude_code import ClaudeCodeAdapter
-from super_harness.adapters.framework.plain import PlainAdapter
-from super_harness.adapters.registry import (
+from keepsail.adapters import FrameworkAdapter
+from keepsail.adapters.agent.claude_code import ClaudeCodeAdapter
+from keepsail.adapters.framework.plain import PlainAdapter
+from keepsail.adapters.registry import (
     activate_with_fallback,
     get_builtin,
     list_builtins,
@@ -257,8 +257,8 @@ def test_fallback_excluded_when_a_framework_detects(tmp_path: Path) -> None:
 
 
 def test_codex_is_registered():
-    from super_harness.adapters.agent.codex import CodexAdapter
-    from super_harness.adapters.registry import get_builtin
+    from keepsail.adapters.agent.codex import CodexAdapter
+    from keepsail.adapters.registry import get_builtin
     assert get_builtin("codex") is CodexAdapter
 
 
@@ -269,7 +269,7 @@ def test_resolve_spec_plan_paths_openspec_is_repo_relative(tmp_path: Path) -> No
     repo-relative, so an absolute entry can never match and the inspection target
     silently collapses to empty.
     """
-    from super_harness.adapters.registry import resolve_spec_plan_paths
+    from keepsail.adapters.registry import resolve_spec_plan_paths
 
     spec, plan = resolve_spec_plan_paths("openspec", tmp_path, "c")
     assert spec == "openspec/changes/c/proposal.md"
@@ -277,7 +277,7 @@ def test_resolve_spec_plan_paths_openspec_is_repo_relative(tmp_path: Path) -> No
 
 
 def test_resolve_spec_plan_paths_superpowers_is_repo_relative(tmp_path: Path) -> None:
-    from super_harness.adapters.registry import resolve_spec_plan_paths
+    from keepsail.adapters.registry import resolve_spec_plan_paths
 
     plans = tmp_path / "docs" / "plans"
     plans.mkdir(parents=True)
@@ -295,38 +295,38 @@ def test_repo_relative_drops_paths_outside_root(tmp_path: Path) -> None:
     Dropped rather than raised: this feeds a pure path-derivation helper that
     several callers assume never raises.
     """
-    from super_harness.adapters.registry import _repo_relative
+    from keepsail.adapters.registry import _repo_relative
 
     assert _repo_relative(tmp_path, "/elsewhere/spec.md") == ""
 
 
 def test_repo_relative_passes_through_relative(tmp_path: Path) -> None:
     """Idempotent: an already-relative path is returned unchanged."""
-    from super_harness.adapters.registry import _repo_relative
+    from keepsail.adapters.registry import _repo_relative
 
     assert _repo_relative(tmp_path, "docs/plan.md") == "docs/plan.md"
 
 
 def test_repo_relative_empty_stays_empty(tmp_path: Path) -> None:
-    from super_harness.adapters.registry import _repo_relative
+    from keepsail.adapters.registry import _repo_relative
 
     assert _repo_relative(tmp_path, "") == ""
 
 
 def test_resolve_spec_plan_paths_plain_is_empty(tmp_path: Path) -> None:
-    from super_harness.adapters.registry import resolve_spec_plan_paths
+    from keepsail.adapters.registry import resolve_spec_plan_paths
 
     assert resolve_spec_plan_paths("plain", tmp_path, "c") == ("", "")
 
 
 def test_resolve_spec_plan_paths_no_framework(tmp_path: Path) -> None:
-    from super_harness.adapters.registry import resolve_spec_plan_paths
+    from keepsail.adapters.registry import resolve_spec_plan_paths
 
     assert resolve_spec_plan_paths(None, tmp_path, "c") == ("", "")
     assert resolve_spec_plan_paths("", tmp_path, "c") == ("", "")
 
 
 def test_resolve_spec_plan_paths_unknown_framework(tmp_path: Path) -> None:
-    from super_harness.adapters.registry import resolve_spec_plan_paths
+    from keepsail.adapters.registry import resolve_spec_plan_paths
 
     assert resolve_spec_plan_paths("no-such-fw", tmp_path, "c") == ("", "")

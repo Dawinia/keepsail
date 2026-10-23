@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
-from super_harness.cli import main
+from keepsail.cli import main
 
 
 @pytest.fixture()
@@ -19,7 +19,7 @@ def ws(tmp_path: Path) -> Path:
 
 def _posix_supervisor():
     pytest.importorskip("fcntl", reason="observer implementation is POSIX-only")
-    from super_harness.daemon import supervisor
+    from keepsail.daemon import supervisor
 
     return supervisor
 

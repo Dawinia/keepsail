@@ -1,4 +1,4 @@
-from super_harness.core.state import STATES, TERMINAL_STATES, ChangeState
+from keepsail.core.state import STATES, TERMINAL_STATES, ChangeState
 
 
 def test_ten_states_in_correct_order():

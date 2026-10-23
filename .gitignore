@@ -1,13 +1,13 @@
 # Private strategy / discussion notes (not for public release)
 private/
 
-# super-harness self-hosts (HG-D, 2026-06-02): this repo is itself driven by
-# super-harness, so its OWN top-level .harness/ is no longer blanket-ignored.
+# Keepsail self-hosts (HG-D, 2026-06-02): this repo is itself driven by
+# Keepsail, so its OWN top-level .harness/ is no longer blanket-ignored.
 # Following the tool's own convention, the CONFIG files (verification.yaml,
 # gates.yaml, policy.yaml, sensors.yaml, source-paths.yaml, conventions.md) ARE
 # committed, while the volatile/derived state (events.jsonl, state.yaml, run
-# artifacts) stays ignored via the `super-harness gitignore` managed block that
-# `super-harness init` appends below — do not hand-edit that block.
+# artifacts) stays ignored via the `keepsail gitignore` managed block that
+# `keepsail init` appends below — do not hand-edit that block.
 # (The in-tree demo under examples/demo-openspec-claude/.harness/ remains
 # committed too, including its seeded events.jsonl/state.yaml, so visitors see a
 # realistic post-init tree.)
@@ -44,7 +44,7 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 
-# >>> super-harness gitignore (do not edit between markers)
+# >>> keepsail gitignore (do not edit between markers)
 .harness/state.yaml
 .harness/events.jsonl
 .harness/gate-blocks.jsonl
@@ -59,7 +59,7 @@ __pycache__/
 .harness/daemon.log
 .harness/.*.lock
 .claude/settings.local.json
-.claude/*.super-harness-backup.*
+.claude/*.keepsail-backup.*
 .codex/hooks.json
-.codex/*.super-harness-backup.*
-# <<< super-harness gitignore
+.codex/*.keepsail-backup.*
+# <<< keepsail gitignore

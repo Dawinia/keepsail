@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from super_harness.core.language_profile import (
+from keepsail.core.language_profile import (
     IDENTIFIER_PATTERN_DEFAULT,
     load_identifier_pattern,
 )

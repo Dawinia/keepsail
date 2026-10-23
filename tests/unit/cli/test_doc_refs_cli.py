@@ -6,7 +6,7 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from super_harness.cli import main  # root click group lives in cli/__init__.py
+from keepsail.cli import main  # root click group lives in cli/__init__.py
 
 
 def _repo_with_dead_ref(tmp_path: Path) -> Path:
@@ -51,7 +51,7 @@ def test_doc_refs_gate_clean_exit_0(tmp_path: Path) -> None:
 
 
 def test_done_warn_helper_prints_findings(tmp_path: Path, capsys) -> None:  # type: ignore[no-untyped-def]
-    from super_harness.cli.done import _warn_dead_refs
+    from keepsail.cli.done import _warn_dead_refs
 
     root = _repo_with_dead_ref(tmp_path)
     _warn_dead_refs(root)  # must not raise, must not sys.exit

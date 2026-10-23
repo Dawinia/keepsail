@@ -15,14 +15,14 @@ from typing import ClassVar
 import pytest
 import yaml
 
-from super_harness.gates import (
+from keepsail.gates import (
     Gate,
     GateDecision,
     GateFiresOn,
     GateResult,
 )
-from super_harness.gates import registry as gates_registry
-from super_harness.gates.registry import (
+from keepsail.gates import registry as gates_registry
+from keepsail.gates.registry import (
     get_builtin,
     list_builtins,
     load_gates,

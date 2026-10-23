@@ -39,7 +39,7 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from super_harness.cli import main
+from keepsail.cli import main
 
 
 def _expected_pre_tool_use() -> str:
@@ -68,9 +68,9 @@ def _expected_session_start() -> str:
 
 
 # AGENTS.md markers (must match engineering/agents_md + the adapter block).
-_NO_AGENT_ANCHOR = "<!-- super-harness no-agent-adapter-installed -->"
-_CLAUDE_BEGIN = "<!-- super-harness agent: claude-code -->"
-_CLAUDE_END = "<!-- /super-harness agent: claude-code -->"
+_NO_AGENT_ANCHOR = "<!-- keepsail no-agent-adapter-installed -->"
+_CLAUDE_BEGIN = "<!-- keepsail agent: claude-code -->"
+_CLAUDE_END = "<!-- /keepsail agent: claude-code -->"
 _AGENT_LITERAL = "[AGENT_SECTION_AUTO_INSERTED]"
 _FRAMEWORK_LITERAL = "[FRAMEWORK_SECTION_AUTO_INSERTED]"
 
@@ -109,7 +109,7 @@ def _hook_commands(ws: Path, event: str) -> list[str]:
 
 def _backups(ws: Path) -> list[Path]:
     parent = _settings_path(ws).parent
-    return sorted(parent.glob("settings.local.json.super-harness-backup.*"))
+    return sorted(parent.glob("settings.local.json.keepsail-backup.*"))
 
 
 def _prepopulate_settings(ws: Path) -> None:
@@ -155,8 +155,8 @@ def test_init_then_install_lands_hooks_backup_and_agents_md(tmp_path: Path) -> N
     assert init_result.exit_code == 0, init_result.output
     agents_after_init = _agents_md(tmp_path).read_text()
     assert _NO_AGENT_ANCHOR in agents_after_init
-    assert "super-harness section begin" in agents_after_init
-    assert "super-harness framework: plain" in agents_after_init
+    assert "keepsail section begin" in agents_after_init
+    assert "keepsail framework: plain" in agents_after_init
     # init consumes both *_SECTION_AUTO_INSERTED literals — none must remain.
     assert _AGENT_LITERAL not in agents_after_init
     assert _FRAMEWORK_LITERAL not in agents_after_init
@@ -183,7 +183,7 @@ def test_init_then_install_lands_hooks_backup_and_agents_md(tmp_path: Path) -> N
     # 4b. A backup was written because settings.local.json pre-existed (NET-NEW at the
     #     integration layer) — and it captures the pristine user file.
     backups = _backups(tmp_path)
-    assert backups, "expected a settings.local.json.super-harness-backup.* on prepopulated install"
+    assert backups, "expected a settings.local.json.keepsail-backup.* on prepopulated install"
     earliest = json.loads(backups[0].read_text())
     assert earliest == _USER_SETTINGS, "earliest backup must be the pristine user settings"
 
@@ -194,8 +194,8 @@ def test_init_then_install_lands_hooks_backup_and_agents_md(tmp_path: Path) -> N
     assert _CLAUDE_END in agents
     assert _NO_AGENT_ANCHOR not in agents
     assert _AGENT_LITERAL not in agents
-    assert "super-harness section begin" in agents
-    assert "super-harness framework: plain" in agents
+    assert "keepsail section begin" in agents
+    assert "keepsail framework: plain" in agents
 
     # 4d. Idempotency: a SECOND install leaves exactly one of each.
     second = _install(tmp_path)
@@ -240,4 +240,4 @@ def test_init_install_uninstall_restores_pristine_settings_and_anchor(
     assert _CLAUDE_BEGIN not in agents
     assert _CLAUDE_END not in agents
     assert _NO_AGENT_ANCHOR in agents
-    assert "super-harness framework: plain" in agents
+    assert "keepsail framework: plain" in agents

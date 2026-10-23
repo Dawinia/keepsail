@@ -1,29 +1,20 @@
 # Keepsail legacy-name residual matrix
 
-Generated on 2026-10-23 from the staged/tracked working tree using
-python -m scripts.audit_brand_names. The scanner emits every occurrence with its
-line, matched token and classification; this document aggregates those results.
-The report itself is excluded to prevent recursive counts. New files must be
-staged before scanning. Initial coverage and migration commitments are in the
-[approved plan](plans/2026-10-23-keepsail-brand-migration.md); rationale and external
-cutover boundaries are in the [migration guide](keepsail-migration.md).
+Generated from the staged/tracked tree by `scripts.audit_brand_names`.
+Each occurrence has a line and category in the scanner JSON output.
+The report excludes itself to avoid recursion; stage new paths before scanning.
 
-Every residual is classified. Import/environment names, wire/managed ownership,
-historical evidence, real repository links, copyright attribution, old-version
-tests and system-shell syntax have distinct reasons. A zero-count row matches the
-path only. Test residuals are classified by their concrete stable protocol/managed identity
-or explicit old-console upgrade regression; generic path fixtures use the new name. Recognition policy remains hash-identical.
-Decision frontmatter reconciliation is native; locked bodies retain their hashes.
+Current runtime names are canonical only. Remaining old names identify historical
+authority, original evidence, real repository URLs, attribution, explicit migration
+instructions or tests asserting old interfaces are absent. Shell syntax is unrelated.
+The [direct plan](plans/2026-10-23-keepsail-brand-migration-direct.md) and
+[migration guide](keepsail-migration.md) define the cutover.
 
-The native attestation for this Change is generated after implementation freeze;
-its retained original subjects and review conclusions are classified as historical
-delivery evidence separately from this source-snapshot matrix.
+The final native attestation is generated after freeze and contains historical
+subjects and exact retained review conclusions. Recognition identity is unchanged.
 
 | File | Residual count | Reasons |
 |---|---:|---|
-| .github/workflows/merge-gate.yml | 4 | import-or-environment-compatibility=3; legacy-console-or-trusted-base=1 |
-| .github/workflows/test.yml | 6 | import-or-environment-compatibility=6 |
-| .gitignore | 8 | stable-managed-identity-and-explanation=8 |
 | .harness/attestations/2026-06-04-layer2-merge-gate.jsonl | 6 | historical=6 |
 | .harness/attestations/2026-06-04-review-identity-substrate.jsonl | 5 | historical=5 |
 | .harness/attestations/2026-06-08-decision-records-anchors.jsonl | 43 | historical=43 |
@@ -79,6 +70,7 @@ delivery evidence separately from this source-snapshot matrix.
 | .harness/attestations/2026-09-11-plan-authority.jsonl | 397 | historical=397 |
 | .harness/attestations/2026-09-15-plan-authority-alignment.jsonl | 225 | historical=225 |
 | .harness/attestations/2026-10-22-attestation-contract-recovery.jsonl | 32 | historical=32 |
+| .harness/attestations/2026-10-23-keepsail-brand-migration.jsonl | 872 | historical=872 |
 | .harness/attestations/code-only-recovery.jsonl | 129 | historical=129 |
 | .harness/attestations/codex-agent-adapter.jsonl | 18 | historical=18 |
 | .harness/attestations/init-interactive-wizard.jsonl | 352 | historical=352 |
@@ -92,25 +84,13 @@ delivery evidence separately from this source-snapshot matrix.
 | .harness/attestations/value-report-stage1.jsonl | 270 | historical=270 |
 | .harness/attestations/verification-env-scrub.jsonl | 2 | historical=2 |
 | .harness/review-recognition.yaml | 1 | recognized-policy-digest-preserved=1 |
-| .importlinter | 6 | import-or-environment-compatibility=6 |
-| AGENTS.md | 11 | existing-repository-link=1; stable-protocol-or-managed-identity=9; system-shell=1 |
+| AGENTS.md | 2 | existing-repository-link=1; system-shell=1 |
 | LICENSE | 1 | copyright-attribution=1 |
 | README.md | 1 | migration-explanation=1 |
 | README.zh-CN.md | 1 | migration-explanation=1 |
-| docs/ARCHITECTURE.md | 8 | import-or-environment-compatibility=7; stable-protocol-or-managed-identity=1 |
-| docs/adapters/claude-code.md | 7 | import-or-environment-compatibility=1; stable-protocol-or-managed-identity=6 |
-| docs/adapters/codex.md | 1 | stable-protocol-or-managed-identity=1 |
-| docs/adapters/openspec.md | 5 | stable-protocol-or-managed-identity=5 |
-| docs/adapters/plain.md | 4 | stable-protocol-or-managed-identity=4 |
 | docs/adopting.md | 1 | existing-repository-link=1 |
 | docs/architecture-fitness.md | 1 | system-shell=1 |
-| docs/cli-reference.md | 2 | import-or-environment-compatibility=1; stable-protocol-or-managed-identity=1 |
 | docs/decisions/d-core-is-base.md | 7 | historical=7 |
-| docs/decisions/d-dangling-check.md | 1 | historical=1 |
-| docs/decisions/d-decision-records.md | 1 | historical=1 |
-| docs/decisions/d-events-append-only.md | 2 | historical=2 |
-| docs/decisions/d-fixed-transition-matrix.md | 1 | historical=1 |
-| docs/decisions/d-gate-governs-git-product.md | 1 | historical=1 |
 | docs/decisions/d-gh-cli-not-rest.md | 1 | historical=1 |
 | docs/decisions/d-identity-resolution-order.md | 2 | historical=2 |
 | docs/decisions/d-merge-gate-pure-git.md | 3 | historical=3 |
@@ -118,9 +98,8 @@ delivery evidence separately from this source-snapshot matrix.
 | docs/decisions/d-no-recovery-from-awaiting-code-review.md | 6 | historical=6 |
 | docs/decisions/d-pitfall-is-proposed-decision.md | 2 | historical=2 |
 | docs/decisions/d-single-gate-policy.md | 2 | historical=2 |
-| docs/decisions/d-state-pure-fold.md | 1 | historical=1 |
-| docs/getting-started.md | 4 | existing-repository-link=1; stable-protocol-or-managed-identity=3 |
-| docs/keepsail-migration.md | 26 | import-or-environment-compatibility=6; migration-explanation=18; system-shell=2 |
+| docs/getting-started.md | 1 | existing-repository-link=1 |
+| docs/keepsail-migration.md | 2 | migration-explanation=2 |
 | docs/plans/2026-06-02-superpowers-framework-adapter-design.md | 5 | historical=5 |
 | docs/plans/2026-06-02-superpowers-framework-adapter.md | 11 | historical=11 |
 | docs/plans/2026-06-03-layer2-merge-gate-design.md | 7 | historical=7 |
@@ -225,286 +204,36 @@ delivery evidence separately from this source-snapshot matrix.
 | docs/plans/2026-09-11-plan-authority-spec.md | 8 | historical=8 |
 | docs/plans/2026-09-15-plan-authority-alignment-implementation.md | 19 | historical=19 |
 | docs/plans/2026-10-22-attestation-contract-recovery.md | 1 | historical=1 |
+| docs/plans/2026-10-23-keepsail-brand-migration-direct.md | 3 | historical=3 |
 | docs/plans/2026-10-23-keepsail-brand-migration.md | 141 | historical=141 |
-| docs/product-architecture-coverage.md | 21 | import-or-environment-compatibility=21 |
 | docs/product-foundations.md | 6 | historical=6 |
-| docs/state-machine.md | 1 | import-or-environment-compatibility=1 |
 | examples/demo-openspec-claude/.harness/adapters.yaml | 1 | historical=1 |
 | examples/demo-openspec-claude/.harness/events.jsonl | 1 | historical=1 |
 | examples/demo-openspec-claude/.harness/policy.yaml | 1 | historical=1 |
 | examples/demo-openspec-claude/.harness/state.yaml | 2 | historical=2 |
-| examples/demo-openspec-claude/AGENTS.md | 11 | existing-repository-link=1; stable-protocol-or-managed-identity=9; system-shell=1 |
-| examples/demo-openspec-claude/README.md | 2 | import-or-environment-compatibility=2 |
-| pyproject.toml | 15 | existing-repository-link=3; import-or-environment-compatibility=9; legacy-console-or-trusted-base=3 |
-| scripts/audit_brand_names.py | 13 | inventory-scanner-pattern=13 |
-| scripts/gen_cli_reference.py | 1 | import-or-environment-compatibility=1 |
-| scripts/gen_state_machine.py | 5 | import-or-environment-compatibility=5 |
-| scripts/smoke-gate.sh | 4 | import-or-environment-compatibility=2; system-shell=2 |
+| examples/demo-openspec-claude/AGENTS.md | 2 | existing-repository-link=1; system-shell=1 |
+| pyproject.toml | 3 | existing-repository-link=3 |
+| scripts/audit_brand_names.py | 4 | inventory-scanner-pattern=4 |
+| scripts/smoke-gate.sh | 2 | system-shell=2 |
 | skills/discovering-architecture-norms/SKILL.md | 2 | existing-repository-link=2 |
-| src/super_harness/__init__.py | 1 | import-or-environment-compatibility=1 |
-| src/super_harness/adapters/__init__.py | 5 | import-or-environment-compatibility=5 |
-| src/super_harness/adapters/agent/__init__.py | 0 | compatibility import/resource path only |
-| src/super_harness/adapters/agent/_settings_merge.py | 6 | stable-protocol-or-managed-identity=6 |
-| src/super_harness/adapters/agent/_stop_protocol.py | 2 | import-or-environment-compatibility=2 |
-| src/super_harness/adapters/agent/claude_code.py | 9 | import-or-environment-compatibility=4; stable-protocol-or-managed-identity=2; system-shell=3 |
-| src/super_harness/adapters/agent/codex.py | 6 | import-or-environment-compatibility=4; stable-protocol-or-managed-identity=2 |
-| src/super_harness/adapters/framework/__init__.py | 0 | compatibility import/resource path only |
-| src/super_harness/adapters/framework/openspec.py | 7 | import-or-environment-compatibility=5; stable-protocol-or-managed-identity=2 |
-| src/super_harness/adapters/framework/plain.py | 4 | import-or-environment-compatibility=2; stable-protocol-or-managed-identity=2 |
-| src/super_harness/adapters/framework/superpowers.py | 8 | import-or-environment-compatibility=6; stable-protocol-or-managed-identity=2 |
-| src/super_harness/adapters/install.py | 4 | import-or-environment-compatibility=4 |
-| src/super_harness/adapters/registry.py | 6 | import-or-environment-compatibility=6 |
-| src/super_harness/adapters/reviewer/__init__.py | 1 | import-or-environment-compatibility=1 |
-| src/super_harness/adapters/reviewer/base.py | 0 | compatibility import/resource path only |
-| src/super_harness/adapters/reviewer/claude_cli.py | 1 | import-or-environment-compatibility=1 |
-| src/super_harness/adapters/reviewer/codex_cli.py | 1 | import-or-environment-compatibility=1 |
-| src/super_harness/adapters/reviewer/registry.py | 3 | import-or-environment-compatibility=3 |
-| src/super_harness/cli/__init__.py | 25 | import-or-environment-compatibility=25 |
-| src/super_harness/cli/adapter.py | 12 | import-or-environment-compatibility=12 |
-| src/super_harness/cli/attest.py | 10 | import-or-environment-compatibility=10 |
-| src/super_harness/cli/change.py | 15 | import-or-environment-compatibility=15 |
-| src/super_harness/cli/decision.py | 11 | import-or-environment-compatibility=11 |
-| src/super_harness/cli/doc.py | 6 | import-or-environment-compatibility=6 |
-| src/super_harness/cli/done.py | 22 | import-or-environment-compatibility=21; stable-protocol-or-managed-identity=1 |
-| src/super_harness/cli/errors.py | 1 | existing-repository-link=1 |
-| src/super_harness/cli/event.py | 5 | import-or-environment-compatibility=5 |
-| src/super_harness/cli/gate.py | 10 | import-or-environment-compatibility=10 |
-| src/super_harness/cli/group_options.py | 1 | import-or-environment-compatibility=1 |
-| src/super_harness/cli/implementation.py | 13 | import-or-environment-compatibility=13 |
-| src/super_harness/cli/init.py | 26 | import-or-environment-compatibility=23; stable-protocol-or-managed-identity=3 |
-| src/super_harness/cli/init_executor.py | 2 | import-or-environment-compatibility=2 |
-| src/super_harness/cli/init_github.py | 5 | import-or-environment-compatibility=2; stable-protocol-or-managed-identity=3 |
-| src/super_harness/cli/init_models.py | 0 | compatibility import/resource path only |
-| src/super_harness/cli/init_plan.py | 5 | import-or-environment-compatibility=2; stable-protocol-or-managed-identity=3 |
-| src/super_harness/cli/init_ui.py | 3 | import-or-environment-compatibility=3 |
-| src/super_harness/cli/lazy_group.py | 1 | import-or-environment-compatibility=1 |
-| src/super_harness/cli/observe.py | 6 | import-or-environment-compatibility=6 |
-| src/super_harness/cli/on_merge.py | 10 | import-or-environment-compatibility=10 |
-| src/super_harness/cli/output.py | 1 | import-or-environment-compatibility=1 |
-| src/super_harness/cli/plan.py | 14 | import-or-environment-compatibility=14 |
-| src/super_harness/cli/pr.py | 18 | import-or-environment-compatibility=17; stable-protocol-or-managed-identity=1 |
-| src/super_harness/cli/report.py | 7 | import-or-environment-compatibility=7 |
-| src/super_harness/cli/review.py | 15 | import-or-environment-compatibility=15 |
-| src/super_harness/cli/sensor.py | 5 | import-or-environment-compatibility=5 |
-| src/super_harness/cli/state.py | 8 | import-or-environment-compatibility=8 |
-| src/super_harness/cli/status.py | 14 | import-or-environment-compatibility=14 |
-| src/super_harness/cli/sync.py | 14 | import-or-environment-compatibility=14 |
-| src/super_harness/cli/verification.py | 4 | import-or-environment-compatibility=4 |
-| src/super_harness/cli/verify.py | 15 | import-or-environment-compatibility=14; stable-protocol-or-managed-identity=1 |
-| src/super_harness/cli/verify_render.py | 0 | compatibility import/resource path only |
-| src/super_harness/core/__init__.py | 1 | import-or-environment-compatibility=1 |
-| src/super_harness/core/_registry.py | 2 | import-or-environment-compatibility=2 |
-| src/super_harness/core/active_change.py | 2 | import-or-environment-compatibility=2 |
-| src/super_harness/core/anchor_scanner.py | 0 | compatibility import/resource path only |
-| src/super_harness/core/approval.py | 1 | import-or-environment-compatibility=1 |
-| src/super_harness/core/authoring_check.py | 2 | import-or-environment-compatibility=2 |
-| src/super_harness/core/check_runner.py | 7 | import-or-environment-compatibility=5; system-shell=2 |
-| src/super_harness/core/clock.py | 0 | compatibility import/resource path only |
-| src/super_harness/core/decision_check.py | 4 | import-or-environment-compatibility=4 |
-| src/super_harness/core/decisions.py | 1 | import-or-environment-compatibility=1 |
-| src/super_harness/core/doc_check.py | 2 | import-or-environment-compatibility=2 |
-| src/super_harness/core/doc_refs.py | 3 | import-or-environment-compatibility=3 |
-| src/super_harness/core/emit_validation.py | 6 | import-or-environment-compatibility=6 |
-| src/super_harness/core/events.py | 0 | compatibility import/resource path only |
-| src/super_harness/core/file_lock.py | 0 | compatibility import/resource path only |
-| src/super_harness/core/frontmatter.py | 0 | compatibility import/resource path only |
-| src/super_harness/core/gate_blocks.py | 2 | import-or-environment-compatibility=2 |
-| src/super_harness/core/identity.py | 2 | import-or-environment-compatibility=2 |
-| src/super_harness/core/language_profile.py | 0 | compatibility import/resource path only |
-| src/super_harness/core/parse_ts.py | 0 | compatibility import/resource path only |
-| src/super_harness/core/paths.py | 0 | compatibility import/resource path only |
-| src/super_harness/core/plan_paths.py | 2 | import-or-environment-compatibility=2 |
-| src/super_harness/core/post_emit.py | 5 | import-or-environment-compatibility=5 |
-| src/super_harness/core/reducer.py | 6 | import-or-environment-compatibility=6 |
-| src/super_harness/core/review_bundle.py | 6 | import-or-environment-compatibility=6 |
-| src/super_harness/core/review_checklist.py | 1 | import-or-environment-compatibility=1 |
-| src/super_harness/core/review_verdict.py | 2 | import-or-environment-compatibility=2 |
-| src/super_harness/core/scope_match.py | 1 | import-or-environment-compatibility=1 |
-| src/super_harness/core/shell_runner.py | 15 | import-or-environment-compatibility=2; system-shell=13 |
-| src/super_harness/core/slug.py | 0 | compatibility import/resource path only |
-| src/super_harness/core/source_scope.py | 0 | compatibility import/resource path only |
-| src/super_harness/core/state.py | 1 | import-or-environment-compatibility=1 |
-| src/super_harness/core/state_snapshot.py | 3 | import-or-environment-compatibility=3 |
-| src/super_harness/core/state_yaml.py | 2 | import-or-environment-compatibility=2 |
-| src/super_harness/core/transitions.py | 1 | import-or-environment-compatibility=1 |
-| src/super_harness/core/ulid.py | 0 | compatibility import/resource path only |
-| src/super_harness/core/workspace.py | 0 | compatibility import/resource path only |
-| src/super_harness/core/writer.py | 4 | import-or-environment-compatibility=4 |
-| src/super_harness/daemon/__init__.py | 0 | compatibility import/resource path only |
-| src/super_harness/daemon/framework_observer.py | 7 | import-or-environment-compatibility=7 |
-| src/super_harness/daemon/hook_entry.py | 20 | import-or-environment-compatibility=20 |
-| src/super_harness/daemon/server.py | 4 | import-or-environment-compatibility=4 |
-| src/super_harness/daemon/supervisor.py | 0 | compatibility import/resource path only |
-| src/super_harness/engineering/__init__.py | 0 | compatibility import/resource path only |
-| src/super_harness/engineering/agents_md.py | 24 | stable-protocol-or-managed-identity=24 |
-| src/super_harness/engineering/agents_md_render.py | 15 | existing-repository-link=1; import-or-environment-compatibility=9; stable-protocol-or-managed-identity=4; system-shell=1 |
-| src/super_harness/engineering/attestation.py | 5 | import-or-environment-compatibility=5 |
-| src/super_harness/engineering/gh.py | 0 | compatibility import/resource path only |
-| src/super_harness/engineering/gitignore_injector.py | 6 | stable-protocol-or-managed-identity=6 |
-| src/super_harness/engineering/operation_log.py | 1 | import-or-environment-compatibility=1 |
-| src/super_harness/engineering/pr_metadata.py | 10 | import-or-environment-compatibility=5; stable-protocol-or-managed-identity=5 |
-| src/super_harness/engineering/review_budget.py | 3 | import-or-environment-compatibility=3 |
-| src/super_harness/engineering/review_contract.py | 7 | import-or-environment-compatibility=7 |
-| src/super_harness/engineering/review_governance.py | 0 | compatibility import/resource path only |
-| src/super_harness/engineering/review_profiles.py | 1 | import-or-environment-compatibility=1 |
-| src/super_harness/engineering/review_runs.py | 2 | import-or-environment-compatibility=2 |
-| src/super_harness/engineering/sync_check.py | 4 | import-or-environment-compatibility=4 |
-| src/super_harness/engineering/value_report.py | 5 | import-or-environment-compatibility=5 |
-| src/super_harness/engineering/verification_config.py | 6 | import-or-environment-compatibility=1; system-shell=5 |
-| src/super_harness/exit_codes.py | 0 | compatibility import/resource path only |
-| src/super_harness/gates/__init__.py | 2 | import-or-environment-compatibility=2 |
-| src/super_harness/gates/decisions.py | 1 | import-or-environment-compatibility=1 |
-| src/super_harness/gates/pre_tool_use.py | 7 | import-or-environment-compatibility=7 |
-| src/super_harness/gates/registry.py | 4 | import-or-environment-compatibility=4 |
-| src/super_harness/sensors/__init__.py | 8 | import-or-environment-compatibility=8 |
-| src/super_harness/sensors/dispatcher.py | 6 | import-or-environment-compatibility=6 |
-| src/super_harness/sensors/pr_decorator.py | 4 | import-or-environment-compatibility=4 |
-| src/super_harness/sensors/registry.py | 3 | import-or-environment-compatibility=3 |
-| src/super_harness/sensors/verification_runner.py | 17 | import-or-environment-compatibility=17 |
-| src/super_harness/templates/__init__.py | 0 | compatibility import/resource path only |
-| src/super_harness/templates/derived_docs_defaults.yaml | 0 | compatibility import/resource path only |
-| src/super_harness/templates/pull_request_template.md | 2 | stable-protocol-or-managed-identity=2 |
-| src/super_harness/templates/super_harness_workflow.yml | 5 | import-or-environment-compatibility=3; legacy-console-or-trusted-base=1; stable-protocol-or-managed-identity=1 |
-| src/super_harness/templates/verification_defaults.yaml | 3 | system-shell=3 |
-| src/super_harness/version.py | 0 | compatibility import/resource path only |
-| tests/e2e/conftest.py | 8 | import-or-environment-compatibility=8 |
-| tests/e2e/test_pre_tool_use_claude_code.py | 2 | import-or-environment-compatibility=2 |
-| tests/integration/adapter/test_claude_code.py | 11 | import-or-environment-compatibility=1; stable-protocol-or-managed-identity=10 |
-| tests/integration/adapter/test_openspec.py | 4 | import-or-environment-compatibility=1; stable-protocol-or-managed-identity=3 |
-| tests/integration/adapter/test_superpowers_registered.py | 3 | import-or-environment-compatibility=3 |
-| tests/integration/cli/test_adapter.py | 19 | import-or-environment-compatibility=3; stable-protocol-or-managed-identity=16 |
-| tests/integration/cli/test_adapter_install.py | 1 | import-or-environment-compatibility=1 |
-| tests/integration/cli/test_change.py | 2 | import-or-environment-compatibility=2 |
-| tests/integration/cli/test_init.py | 102 | import-or-environment-compatibility=81; stable-protocol-or-managed-identity=21 |
-| tests/integration/cli/test_init_setup_github.py | 118 | import-or-environment-compatibility=89; stable-protocol-or-managed-identity=29 |
-| tests/integration/cli/test_init_windows_entrypoint.py | 36 | import-or-environment-compatibility=32; stable-protocol-or-managed-identity=4 |
-| tests/integration/cli/test_keepsail_compatibility.py | 9 | import-or-environment-compatibility=1; legacy-console-upgrade-regression=6; stable-protocol-or-managed-identity=2 |
-| tests/integration/cli/test_on_merge.py | 7 | import-or-environment-compatibility=7 |
-| tests/integration/cli/test_pr_emit_opened.py | 12 | import-or-environment-compatibility=11; stable-protocol-or-managed-identity=1 |
-| tests/integration/cli/test_pr_validate.py | 14 | import-or-environment-compatibility=8; stable-protocol-or-managed-identity=6 |
-| tests/integration/cli/test_status.py | 33 | import-or-environment-compatibility=33 |
-| tests/integration/cli/test_sync.py | 22 | import-or-environment-compatibility=5; stable-protocol-or-managed-identity=17 |
-| tests/integration/cli/test_verification.py | 2 | import-or-environment-compatibility=1; system-shell=1 |
-| tests/integration/core/test_writer_concurrency.py | 10 | import-or-environment-compatibility=10 |
-| tests/integration/daemon/test_daemonize.py | 2 | import-or-environment-compatibility=2 |
-| tests/integration/daemon/test_framework_observer.py | 3 | import-or-environment-compatibility=3 |
-| tests/integration/daemon/test_hook_entry.py | 8 | import-or-environment-compatibility=8 |
-| tests/integration/daemon/test_observer_host.py | 3 | import-or-environment-compatibility=3 |
-| tests/integration/lifecycle/test_plan_authority.py | 22 | import-or-environment-compatibility=21; system-shell=1 |
-| tests/integration/lifecycle/test_state_commands.py | 3 | import-or-environment-compatibility=3 |
-| tests/integration/test_authoring_parallel.py | 3 | import-or-environment-compatibility=3 |
-| tests/unit/adapters/framework/test_openspec.py | 8 | import-or-environment-compatibility=4; stable-protocol-or-managed-identity=4 |
-| tests/unit/adapters/framework/test_plain.py | 5 | import-or-environment-compatibility=1; stable-protocol-or-managed-identity=4 |
-| tests/unit/adapters/framework/test_superpowers.py | 3 | import-or-environment-compatibility=3 |
-| tests/unit/adapters/reviewer/test_claude_cli.py | 2 | import-or-environment-compatibility=2 |
-| tests/unit/adapters/reviewer/test_codex_cli.py | 1 | import-or-environment-compatibility=1 |
-| tests/unit/adapters/reviewer/test_registry.py | 3 | import-or-environment-compatibility=3 |
-| tests/unit/adapters/test_claude_code.py | 30 | import-or-environment-compatibility=23; stable-protocol-or-managed-identity=4; system-shell=3 |
-| tests/unit/adapters/test_codex.py | 2 | import-or-environment-compatibility=2 |
-| tests/unit/adapters/test_install.py | 2 | import-or-environment-compatibility=1; stable-protocol-or-managed-identity=1 |
-| tests/unit/adapters/test_protocol.py | 6 | import-or-environment-compatibility=6 |
-| tests/unit/adapters/test_registry.py | 14 | import-or-environment-compatibility=14 |
-| tests/unit/adapters/test_settings_merge.py | 33 | import-or-environment-compatibility=7; stable-protocol-or-managed-identity=22; system-shell=4 |
-| tests/unit/adapters/test_stop_protocol.py | 2 | import-or-environment-compatibility=2 |
-| tests/unit/cli/test_attest.py | 9 | import-or-environment-compatibility=9 |
-| tests/unit/cli/test_decision.py | 15 | import-or-environment-compatibility=7; system-shell=8 |
-| tests/unit/cli/test_doc.py | 1 | import-or-environment-compatibility=1 |
-| tests/unit/cli/test_doc_refs_cli.py | 2 | import-or-environment-compatibility=2 |
-| tests/unit/cli/test_done.py | 23 | import-or-environment-compatibility=10; stable-protocol-or-managed-identity=8; system-shell=5 |
-| tests/unit/cli/test_entrypoint.py | 10 | import-or-environment-compatibility=10 |
-| tests/unit/cli/test_errors.py | 3 | existing-repository-link=2; import-or-environment-compatibility=1 |
-| tests/unit/cli/test_gate.py | 5 | import-or-environment-compatibility=5 |
-| tests/unit/cli/test_gate_check.py | 4 | import-or-environment-compatibility=4 |
-| tests/unit/cli/test_group_options.py | 1 | import-or-environment-compatibility=1 |
-| tests/unit/cli/test_implementation.py | 9 | import-or-environment-compatibility=9 |
-| tests/unit/cli/test_init_executor.py | 4 | import-or-environment-compatibility=4 |
-| tests/unit/cli/test_init_models.py | 1 | import-or-environment-compatibility=1 |
-| tests/unit/cli/test_init_plan.py | 7 | import-or-environment-compatibility=2; stable-protocol-or-managed-identity=5 |
-| tests/unit/cli/test_init_ui.py | 12 | import-or-environment-compatibility=7; stable-protocol-or-managed-identity=5 |
-| tests/unit/cli/test_lazy_group.py | 6 | import-or-environment-compatibility=6 |
-| tests/unit/cli/test_observe.py | 2 | import-or-environment-compatibility=2 |
-| tests/unit/cli/test_output.py | 1 | import-or-environment-compatibility=1 |
-| tests/unit/cli/test_plan.py | 8 | import-or-environment-compatibility=8 |
-| tests/unit/cli/test_plan_records_artifacts.py | 6 | import-or-environment-compatibility=6 |
-| tests/unit/cli/test_report.py | 4 | import-or-environment-compatibility=4 |
-| tests/unit/cli/test_review.py | 3 | import-or-environment-compatibility=3 |
-| tests/unit/cli/test_review_human.py | 2 | import-or-environment-compatibility=2 |
-| tests/unit/cli/test_review_prepare.py | 2 | import-or-environment-compatibility=2 |
-| tests/unit/cli/test_review_runs.py | 2 | import-or-environment-compatibility=2 |
-| tests/unit/cli/test_review_verdict_gate.py | 2 | import-or-environment-compatibility=2 |
-| tests/unit/cli/test_sensor.py | 5 | import-or-environment-compatibility=5 |
-| tests/unit/cli/test_sync.py | 8 | import-or-environment-compatibility=8 |
-| tests/unit/cli/test_verify.py | 26 | import-or-environment-compatibility=10; stable-protocol-or-managed-identity=8; system-shell=8 |
-| tests/unit/cli/test_verify_render.py | 1 | import-or-environment-compatibility=1 |
-| tests/unit/core/test_active_change.py | 1 | import-or-environment-compatibility=1 |
-| tests/unit/core/test_anchor_scanner.py | 1 | import-or-environment-compatibility=1 |
-| tests/unit/core/test_approval.py | 1 | import-or-environment-compatibility=1 |
-| tests/unit/core/test_authoring_check.py | 5 | import-or-environment-compatibility=5 |
-| tests/unit/core/test_check_runner.py | 20 | import-or-environment-compatibility=8; system-shell=12 |
-| tests/unit/core/test_decision_check.py | 3 | import-or-environment-compatibility=3 |
-| tests/unit/core/test_decisions.py | 11 | import-or-environment-compatibility=11 |
-| tests/unit/core/test_doc_check_engine.py | 2 | import-or-environment-compatibility=2 |
-| tests/unit/core/test_doc_check_loader.py | 1 | import-or-environment-compatibility=1 |
-| tests/unit/core/test_doc_refs.py | 2 | import-or-environment-compatibility=2 |
-| tests/unit/core/test_emit_validation.py | 2 | import-or-environment-compatibility=2 |
-| tests/unit/core/test_events.py | 1 | import-or-environment-compatibility=1 |
-| tests/unit/core/test_file_lock.py | 2 | import-or-environment-compatibility=2 |
-| tests/unit/core/test_frontmatter.py | 1 | import-or-environment-compatibility=1 |
-| tests/unit/core/test_gate_blocks.py | 2 | import-or-environment-compatibility=2 |
-| tests/unit/core/test_identity.py | 16 | import-or-environment-compatibility=16 |
-| tests/unit/core/test_language_profile.py | 1 | import-or-environment-compatibility=1 |
-| tests/unit/core/test_no_plugin_exec.py | 3 | import-or-environment-compatibility=3 |
-| tests/unit/core/test_parse_ts.py | 1 | import-or-environment-compatibility=1 |
-| tests/unit/core/test_paths.py | 2 | import-or-environment-compatibility=2 |
-| tests/unit/core/test_paths_canonical_relpath.py | 1 | import-or-environment-compatibility=1 |
-| tests/unit/core/test_plan_paths.py | 2 | import-or-environment-compatibility=2 |
-| tests/unit/core/test_post_emit.py | 3 | import-or-environment-compatibility=3 |
-| tests/unit/core/test_reducer.py | 6 | import-or-environment-compatibility=6 |
-| tests/unit/core/test_reducer_plan_artifacts.py | 5 | import-or-environment-compatibility=5 |
-| tests/unit/core/test_review_bundle.py | 10 | import-or-environment-compatibility=10 |
-| tests/unit/core/test_review_checklist.py | 1 | import-or-environment-compatibility=1 |
-| tests/unit/core/test_review_verdict.py | 18 | import-or-environment-compatibility=18 |
-| tests/unit/core/test_scope_match.py | 2 | import-or-environment-compatibility=2 |
-| tests/unit/core/test_shell_runner.py | 6 | import-or-environment-compatibility=5; system-shell=1 |
-| tests/unit/core/test_slug.py | 1 | import-or-environment-compatibility=1 |
-| tests/unit/core/test_source_scope.py | 1 | import-or-environment-compatibility=1 |
-| tests/unit/core/test_state.py | 1 | import-or-environment-compatibility=1 |
-| tests/unit/core/test_state_snapshot.py | 4 | import-or-environment-compatibility=4 |
-| tests/unit/core/test_state_yaml.py | 4 | import-or-environment-compatibility=4 |
-| tests/unit/core/test_transitions.py | 6 | import-or-environment-compatibility=6 |
-| tests/unit/core/test_ulid.py | 1 | import-or-environment-compatibility=1 |
-| tests/unit/core/test_workspace.py | 3 | import-or-environment-compatibility=3 |
-| tests/unit/core/test_writer.py | 8 | import-or-environment-compatibility=8 |
-| tests/unit/daemon/test_framework_observer.py | 8 | import-or-environment-compatibility=8 |
-| tests/unit/daemon/test_hook_entry.py | 4 | import-or-environment-compatibility=4 |
-| tests/unit/daemon/test_hook_entry_decide.py | 5 | import-or-environment-compatibility=5 |
-| tests/unit/engineering/test_agents_md.py | 27 | import-or-environment-compatibility=1; stable-protocol-or-managed-identity=26 |
-| tests/unit/engineering/test_agents_md_render.py | 38 | existing-repository-link=1; import-or-environment-compatibility=18; stable-protocol-or-managed-identity=19 |
-| tests/unit/engineering/test_attestation.py | 9 | import-or-environment-compatibility=9 |
-| tests/unit/engineering/test_gh.py | 42 | import-or-environment-compatibility=42 |
-| tests/unit/engineering/test_gitignore_injector.py | 16 | import-or-environment-compatibility=5; stable-protocol-or-managed-identity=11 |
-| tests/unit/engineering/test_operation_log.py | 3 | import-or-environment-compatibility=3 |
-| tests/unit/engineering/test_pr_metadata.py | 21 | import-or-environment-compatibility=7; stable-protocol-or-managed-identity=14 |
-| tests/unit/engineering/test_review_budget.py | 21 | import-or-environment-compatibility=21 |
-| tests/unit/engineering/test_review_contract.py | 4 | import-or-environment-compatibility=4 |
-| tests/unit/engineering/test_review_governance.py | 1 | import-or-environment-compatibility=1 |
-| tests/unit/engineering/test_review_observations.py | 2 | import-or-environment-compatibility=2 |
-| tests/unit/engineering/test_review_profiles.py | 2 | import-or-environment-compatibility=2 |
-| tests/unit/engineering/test_review_runs.py | 6 | import-or-environment-compatibility=6 |
-| tests/unit/engineering/test_sync_check.py | 9 | import-or-environment-compatibility=9 |
-| tests/unit/engineering/test_value_report.py | 6 | import-or-environment-compatibility=6 |
-| tests/unit/engineering/test_verification_config.py | 13 | import-or-environment-compatibility=2; system-shell=11 |
-| tests/unit/gates/test_decisions.py | 2 | import-or-environment-compatibility=2 |
-| tests/unit/gates/test_pre_tool_use.py | 5 | import-or-environment-compatibility=5 |
-| tests/unit/gates/test_protocol.py | 1 | import-or-environment-compatibility=1 |
-| tests/unit/gates/test_registry.py | 3 | import-or-environment-compatibility=3 |
-| tests/unit/scripts/test_gen_cli_reference.py | 5 | import-or-environment-compatibility=5 |
-| tests/unit/scripts/test_gen_state_machine.py | 1 | import-or-environment-compatibility=1 |
-| tests/unit/sensors/test_dispatcher.py | 5 | import-or-environment-compatibility=5 |
-| tests/unit/sensors/test_pr_decorator.py | 24 | import-or-environment-compatibility=23; stable-protocol-or-managed-identity=1 |
-| tests/unit/sensors/test_protocol.py | 1 | import-or-environment-compatibility=1 |
-| tests/unit/sensors/test_registry.py | 3 | import-or-environment-compatibility=3 |
-| tests/unit/sensors/test_verification_runner.py | 22 | import-or-environment-compatibility=18; system-shell=4 |
-| tests/unit/templates/test_super_harness_workflow.py | 2 | import-or-environment-compatibility=2 |
-| tests/unit/test_smoke.py | 2 | import-or-environment-compatibility=2 |
-
+| src/keepsail/adapters/agent/claude_code.py | 3 | system-shell=3 |
+| src/keepsail/cli/errors.py | 1 | existing-repository-link=1 |
+| src/keepsail/core/check_runner.py | 2 | system-shell=2 |
+| src/keepsail/core/shell_runner.py | 13 | system-shell=13 |
+| src/keepsail/engineering/agents_md_render.py | 2 | existing-repository-link=1; system-shell=1 |
+| src/keepsail/engineering/verification_config.py | 5 | system-shell=5 |
+| src/keepsail/templates/verification_defaults.yaml | 3 | system-shell=3 |
+| tests/integration/cli/test_keepsail_installation.py | 4 | assert-legacy-runtime-absent=4 |
+| tests/integration/cli/test_verification.py | 1 | system-shell=1 |
+| tests/integration/lifecycle/test_plan_authority.py | 1 | system-shell=1 |
+| tests/unit/adapters/test_claude_code.py | 3 | system-shell=3 |
+| tests/unit/adapters/test_settings_merge.py | 4 | system-shell=4 |
+| tests/unit/cli/test_decision.py | 8 | system-shell=8 |
+| tests/unit/cli/test_done.py | 5 | system-shell=5 |
+| tests/unit/cli/test_errors.py | 2 | existing-repository-link=2 |
+| tests/unit/cli/test_verify.py | 8 | system-shell=8 |
+| tests/unit/core/test_check_runner.py | 12 | system-shell=12 |
+| tests/unit/core/test_shell_runner.py | 1 | system-shell=1 |
+| tests/unit/engineering/test_agents_md_render.py | 1 | existing-repository-link=1 |
+| tests/unit/engineering/test_verification_config.py | 11 | system-shell=11 |
+| tests/unit/sensors/test_verification_runner.py | 4 | system-shell=4 |

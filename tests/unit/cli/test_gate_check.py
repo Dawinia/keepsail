@@ -26,10 +26,10 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
-from super_harness.cli import main
-from super_harness.core.state import ChangeState
-from super_harness.core.state_yaml import write_state_yaml
-from super_harness.exit_codes import (
+from keepsail.cli import main
+from keepsail.core.state import ChangeState
+from keepsail.core.state_yaml import write_state_yaml
+from keepsail.exit_codes import (
     EXIT_GENERIC,
     EXIT_NO_CONFIG,
     EXIT_OK,

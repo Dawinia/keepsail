@@ -13,11 +13,11 @@ import pytest
 from rich.console import Console
 from rich.text import Text
 
-import super_harness.cli.init_ui as init_ui_module
-from super_harness.adapters.agent._settings_merge import SettingsMergePlan
-from super_harness.adapters.install import AgentIntegrationPlan
-from super_harness.cli.init_models import ReviewerModelCandidate
-from super_harness.cli.init_plan import (
+import keepsail.cli.init_ui as init_ui_module
+from keepsail.adapters.agent._settings_merge import SettingsMergePlan
+from keepsail.adapters.install import AgentIntegrationPlan
+from keepsail.cli.init_models import ReviewerModelCandidate
+from keepsail.cli.init_plan import (
     FileAction,
     GitHubDecision,
     GithubFileDecision,
@@ -31,7 +31,7 @@ from super_harness.cli.init_plan import (
     ReviewWrite,
     build_init_plan,
 )
-from super_harness.cli.init_ui import (
+from keepsail.cli.init_ui import (
     ChoiceCollectionDecision,
     GuidedPromptOption,
     InteractiveInitUI,
@@ -763,7 +763,7 @@ def test_interactive_ui_passes_color_capability_to_questionary(
             super().__init__()
 
     monkeypatch.setattr(
-        "super_harness.cli.init_ui.QuestionaryPromptAdapter",
+        "keepsail.cli.init_ui.QuestionaryPromptAdapter",
         CapturingPromptAdapter,
     )
 
@@ -1209,7 +1209,7 @@ def test_guided_answer_summary_waits_for_github_resolution(tmp_path: Path) -> No
             ),
             workflow=SimpleNamespace(
                 inspection=SimpleNamespace(
-                    path=tmp_path / ".github" / "workflows" / "super-harness.yml"
+                    path=tmp_path / ".github" / "workflows" / "keepsail.yml"
                 ),
                 decision=GithubFileDecision.CREATE,
             ),
@@ -1651,7 +1651,7 @@ def _guided_review_plan(tmp_path: Path) -> InitPlan:
             PlannedFileAction(tmp_path / "AGENTS.md", FileAction.UPDATE),
             PlannedFileAction(tmp_path / ".codex" / "hooks.json", FileAction.UPDATE),
             PlannedFileAction(
-                tmp_path / ".github" / "workflows" / "super-harness.yml",
+                tmp_path / ".github" / "workflows" / "keepsail.yml",
                 FileAction.CREATE,
             ),
             PlannedFileAction(tmp_path / ".harness" / "events.jsonl", FileAction.PRESERVE),
@@ -1693,7 +1693,7 @@ PRE_PROGRESSIVE_DISCLOSURE_REPRESENTATIVE_TRANSCRIPT = (
 │    Preserve  3 files
 │      /work/my-project/.codex/hooks.json
 │      /work/my-project/.claude/settings.local.json
-│      /work/my-project/.github/workflows/super-harness.yml
+│      /work/my-project/.github/workflows/keepsail.yml
 │    Skip      2 files
 ◆ Apply this plan? Confirm and continue
 ●  review: Plan confirmed
@@ -1737,7 +1737,7 @@ def _representative_progressive_disclosure_plan(tmp_path: Path) -> InitPlan:
             PlannedFileAction(tmp_path / ".codex" / "hooks.json", FileAction.PRESERVE),
             PlannedFileAction(tmp_path / ".claude" / "settings.local.json", FileAction.PRESERVE),
             PlannedFileAction(
-                tmp_path / ".github" / "workflows" / "super-harness.yml",
+                tmp_path / ".github" / "workflows" / "keepsail.yml",
                 FileAction.PRESERVE,
             ),
             PlannedFileAction(
@@ -1929,7 +1929,7 @@ def test_rich_guided_review_hides_unchanged_and_backup_detail_by_default(
         assert line == "│" or line.startswith(("◇  ", "│  ")), repr(line)
     # Flattened: one Plan header, inlined mutation names, one hidden-count line.
     assert "◇  Plan  6 files to write" in text
-    assert "│  .harness ×3 · AGENTS.md · hooks.json · super-harness.yml" in text  # noqa: RUF001
+    assert "│  .harness ×3 · AGENTS.md · hooks.json · keepsail.yml" in text  # noqa: RUF001
     assert "│  2 unchanged hidden — --verbose to see them" in text
     assert text.count("unchanged hidden") == 1
     # No v1 structural labels, per-action tree, or hints in the default review.

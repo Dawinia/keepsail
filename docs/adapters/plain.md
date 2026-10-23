@@ -41,7 +41,7 @@ Mechanics (intentionally minimal):
 2. Skips the `verification.yaml` merge — `verification_checks()` returns `[]`.
 3. Persists `{name: plain, type: framework, version: 0.1.0, enabled: true}`
    into `.harness/adapters.yaml`.
-4. Injects the `<!-- super-harness framework: plain -->` subsection into
+4. Injects the `<!-- keepsail framework: plain -->` subsection into
    `AGENTS.md` (re-injecting it if you previously removed it).
 
 In practice you rarely need to install Plain explicitly: `keepsail init`
@@ -57,9 +57,9 @@ nothing else, because nothing else is installed. Verbatim from
 `PlainAdapter.agents_md_subsection()`:
 
 ```markdown
-<!-- super-harness framework: plain -->
+<!-- keepsail framework: plain -->
 - No framework: drive lifecycle via `keepsail change start <slug>` / `keepsail plan ready <slug>` / `keepsail done <slug>`.
-<!-- /super-harness framework: plain -->
+<!-- /keepsail framework: plain -->
 ```
 
 The marker comments are load-bearing — `adapter install` / `adapter
@@ -105,7 +105,7 @@ Mechanics (reverse of install):
 2. Removes the `plain` row from `.harness/adapters.yaml`.
 3. The `verification.yaml.adapter_provided` prune step is a no-op (Plain
    contributed no rows).
-4. Removes the `<!-- super-harness framework: plain -->` subsection from
+4. Removes the `<!-- keepsail framework: plain -->` subsection from
    `AGENTS.md`. If no other framework adapter is installed the framework slot
    falls back to the `init`-time anchor.
 

@@ -4,7 +4,7 @@ import sys
 import click
 from click.testing import CliRunner
 
-from super_harness.cli import main
+from keepsail.cli import main
 
 COMMAND_NAMES = [
     "adapter",
@@ -31,14 +31,14 @@ COMMAND_NAMES = [
     "verify",
 ]
 
-COMMAND_MODULES = {f"super_harness.cli.{name.replace('-', '_')}" for name in COMMAND_NAMES}
+COMMAND_MODULES = {f"keepsail.cli.{name.replace('-', '_')}" for name in COMMAND_NAMES}
 
 FORBIDDEN_INIT_IMPORTS = {
     "fcntl",
-    "super_harness.core.writer",
-    "super_harness.core.post_emit",
-    "super_harness.daemon.server",
-    "super_harness.daemon.supervisor",
+    "keepsail.core.writer",
+    "keepsail.core.post_emit",
+    "keepsail.daemon.server",
+    "keepsail.daemon.supervisor",
 }
 
 
@@ -88,7 +88,7 @@ class Blocker(importlib.abc.MetaPathFinder):
         return None
 
 sys.meta_path.insert(0, Blocker())
-from super_harness.cli import main
+from keepsail.cli import main
 assert main.get_command(click.Context(main), "init") is not None
 """
 
@@ -102,8 +102,8 @@ import sys
 import click
 
 blocked = {
-    "super_harness.core.writer",
-    "super_harness.core.post_emit",
+    "keepsail.core.writer",
+    "keepsail.core.post_emit",
 }
 
 class Blocker(importlib.abc.MetaPathFinder):
@@ -113,7 +113,7 @@ class Blocker(importlib.abc.MetaPathFinder):
         return None
 
 sys.meta_path.insert(0, Blocker())
-from super_harness.cli import main
+from keepsail.cli import main
 assert main.get_command(click.Context(main), "adapter") is not None
 """
 

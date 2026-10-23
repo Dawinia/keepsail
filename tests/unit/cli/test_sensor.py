@@ -18,11 +18,11 @@ import pytest
 import yaml
 from click.testing import CliRunner
 
-from super_harness.cli import main
-from super_harness.exit_codes import EXIT_NO_CONFIG, EXIT_OK, EXIT_VALIDATION
-from super_harness.sensors import ActivityType, Determinism, Sensor, SensorResult
-from super_harness.sensors import registry as sensors_registry
-from super_harness.sensors.registry import register_builtin
+from keepsail.cli import main
+from keepsail.exit_codes import EXIT_NO_CONFIG, EXIT_OK, EXIT_VALIDATION
+from keepsail.sensors import ActivityType, Determinism, Sensor, SensorResult
+from keepsail.sensors import registry as sensors_registry
+from keepsail.sensors.registry import register_builtin
 
 
 class _Stub(Sensor):

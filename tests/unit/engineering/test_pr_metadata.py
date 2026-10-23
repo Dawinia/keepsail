@@ -11,12 +11,12 @@ from pathlib import Path
 
 import pytest
 
-from super_harness.core.clock import utc_now_iso
-from super_harness.core.events import Actor, Event
-from super_harness.core.paths import events_path
-from super_harness.core.ulid import new_event_id
-from super_harness.core.writer import EventWriter
-from super_harness.engineering.pr_metadata import (
+from keepsail.core.clock import utc_now_iso
+from keepsail.core.events import Actor, Event
+from keepsail.core.paths import events_path
+from keepsail.core.ulid import new_event_id
+from keepsail.core.writer import EventWriter
+from keepsail.engineering.pr_metadata import (
     METADATA_BEGIN,
     METADATA_END,
     REQUIRED_METADATA_KEYS,
@@ -48,7 +48,7 @@ _FULL_BODY = "\n".join(
         "Spec: docs/superpowers/specs/2026-05-26-add-l1-anchors.md",
         "First commit: a3b4c5d",
         "Implementation started: 2026-05-26T14:00:00Z",
-        "super-harness version: v0.1.0",
+        "keepsail version: v0.1.0",
         METADATA_END,
         "",
     ]
@@ -58,7 +58,7 @@ _ALL_REQUIRED = {
     "Change": "2026-05-26-add-l1-anchors",
     "Tier": "Normal",
     "Verification": "passed",
-    "super-harness version": "v0.1.0",
+    "keepsail version": "v0.1.0",
 }
 
 
@@ -69,17 +69,17 @@ _ALL_REQUIRED = {
 
 class TestConstants:
     def test_begin_marker_value(self) -> None:
-        assert METADATA_BEGIN == "<!-- super-harness:metadata -->"
+        assert METADATA_BEGIN == "<!-- keepsail:metadata -->"
 
     def test_end_marker_value(self) -> None:
-        assert METADATA_END == "<!-- /super-harness:metadata -->"
+        assert METADATA_END == "<!-- /keepsail:metadata -->"
 
     def test_required_keys_is_frozenset(self) -> None:
         assert isinstance(REQUIRED_METADATA_KEYS, frozenset)
 
     def test_required_keys_contents(self) -> None:
         assert REQUIRED_METADATA_KEYS == frozenset(
-            {"Change", "Tier", "Verification", "super-harness version"}
+            {"Change", "Tier", "Verification", "keepsail version"}
         )
 
     def test_metadata_block_is_frozen_dataclass(self) -> None:
@@ -133,7 +133,7 @@ class TestOneCompleteBlock:
         assert block.fields["Change"] == "2026-05-26-add-l1-anchors"
         assert block.fields["Tier"] == "Normal"
         assert block.fields["Verification"] == "passed"
-        assert block.fields["super-harness version"] == "v0.1.0"
+        assert block.fields["keepsail version"] == "v0.1.0"
 
     def test_minimal_complete_block(self) -> None:
         body = (
@@ -141,7 +141,7 @@ class TestOneCompleteBlock:
             "Change: my-change\n"
             "Tier: Normal\n"
             "Verification: passed\n"
-            "super-harness version: v0.1.0\n"
+            "keepsail version: v0.1.0\n"
             f"{METADATA_END}\n"
         )
         block = parse_metadata_block(body)
@@ -161,7 +161,7 @@ class TestOneBlockMissingKey:
             f"{METADATA_BEGIN}\n"
             "Change: my-change\n"
             "Verification: passed\n"
-            "super-harness version: v0.1.0\n"
+            "keepsail version: v0.1.0\n"
             f"{METADATA_END}\n"
         )
         block = parse_metadata_block(body)
@@ -175,7 +175,7 @@ class TestOneBlockMissingKey:
             f"{METADATA_BEGIN}\n"
             "Change: my-change\n"
             "Tier: Normal\n"
-            "super-harness version: v0.1.0\n"
+            "keepsail version: v0.1.0\n"
             f"{METADATA_END}\n"
         )
         block = parse_metadata_block(body)
@@ -305,15 +305,15 @@ class TestValueWithColons:
 
 
 class TestSpaceBearingKey:
-    def test_super_harness_version_key(self) -> None:
+    def test_keepsail_version_key(self) -> None:
         body = (
             f"{METADATA_BEGIN}\n"
-            "super-harness version: v0.1.0\n"
+            "keepsail version: v0.1.0\n"
             f"{METADATA_END}\n"
         )
         block = parse_metadata_block(body)
-        assert "super-harness version" in block.fields
-        assert block.fields["super-harness version"] == "v0.1.0"
+        assert "keepsail version" in block.fields
+        assert block.fields["keepsail version"] == "v0.1.0"
 
 
 # ---------------------------------------------------------------------------
@@ -417,7 +417,7 @@ class TestSection26Placeholder:
         "\n"
         "---\n"
         f"{METADATA_BEGIN}\n"
-        "<!-- auto-filled by super-harness PR-decorator sensor; do not edit manually -->\n"
+        "<!-- auto-filled by keepsail PR-decorator sensor; do not edit manually -->\n"
         f"{METADATA_END}\n"
     )
 
@@ -496,7 +496,7 @@ class TestBuildMetadataRequiredKeys:
     def test_round_trip_version_key(self, tmp_path: Path) -> None:
         result = build_metadata("some-change", tmp_path)
         block = parse_metadata_block(result)
-        assert block.fields["super-harness version"] == "v0.1.0"
+        assert block.fields["keepsail version"] == "v0.1.0"
 
     def test_round_trip_tier_key_present(self, tmp_path: Path) -> None:
         result = build_metadata("some-change", tmp_path)

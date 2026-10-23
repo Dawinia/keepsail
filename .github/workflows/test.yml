@@ -113,14 +113,14 @@ jobs:
       - name: Prove the wheel import and exercise the installed init entrypoint
         shell: pwsh
         run: |
-          $modulePath = python -c "from pathlib import Path; import super_harness; print(Path(super_harness.__file__).resolve())"
-          Write-Host "Installed super_harness: $modulePath"
+          $modulePath = python -c "from pathlib import Path; import keepsail; print(Path(keepsail.__file__).resolve())"
+          Write-Host "Installed keepsail: $modulePath"
           $checkoutSrc = [IO.Path]::GetFullPath((Join-Path $env:GITHUB_WORKSPACE "src"))
           if ($modulePath.StartsWith($checkoutSrc, [StringComparison]::OrdinalIgnoreCase)) {
-            throw "super_harness resolved from checkout src instead of the installed wheel: $modulePath"
+            throw "keepsail resolved from checkout src instead of the installed wheel: $modulePath"
           }
           if (-not $modulePath.ToLowerInvariant().Contains("site-packages")) {
-            throw "super_harness did not resolve from site-packages: $modulePath"
+            throw "keepsail did not resolve from site-packages: $modulePath"
           }
 
           keepsail init --help
@@ -137,11 +137,11 @@ jobs:
         env:
           PYTHONPATH: ""
           PYTHONSAFEPATH: "1"
-          SUPER_HARNESS_EXPECT_INSTALLED_WHEEL: "1"
+          KEEPSAIL_EXPECT_INSTALLED_WHEEL: "1"
         run: |
           python -P -m pytest --import-mode=importlib -q `
             tests/integration/cli/test_init_windows_entrypoint.py `
-            tests/integration/cli/test_keepsail_compatibility.py `
+            tests/integration/cli/test_keepsail_installation.py `
             tests/unit/cli/test_init_models.py `
             tests/unit/cli/test_init_plan.py `
             tests/unit/cli/test_init_ui.py `

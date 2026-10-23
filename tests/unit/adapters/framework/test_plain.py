@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from super_harness.adapters.framework.plain import PlainAdapter
+from keepsail.adapters.framework.plain import PlainAdapter
 
 
 def test_detect_always_returns_false(tmp_path: Path) -> None:
@@ -40,18 +40,18 @@ def test_is_fallback_is_true() -> None:
 
 def test_agents_md_subsection_contains_opening_marker() -> None:
     section = PlainAdapter().agents_md_subsection()
-    assert "<!-- super-harness framework: plain -->" in section
+    assert "<!-- keepsail framework: plain -->" in section
 
 
 def test_agents_md_subsection_contains_closing_marker() -> None:
     section = PlainAdapter().agents_md_subsection()
-    assert "<!-- /super-harness framework: plain -->" in section
+    assert "<!-- /keepsail framework: plain -->" in section
 
 
 def test_agents_md_subsection_opening_before_closing() -> None:
     section = PlainAdapter().agents_md_subsection()
-    open_pos = section.index("<!-- super-harness framework: plain -->")
-    close_pos = section.index("<!-- /super-harness framework: plain -->")
+    open_pos = section.index("<!-- keepsail framework: plain -->")
+    close_pos = section.index("<!-- /keepsail framework: plain -->")
     assert open_pos < close_pos
 
 

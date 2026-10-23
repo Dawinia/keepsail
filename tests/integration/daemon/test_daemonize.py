@@ -15,7 +15,7 @@ import pytest
 
 pytest.importorskip("fcntl", reason="POSIX observer integration tests require fcntl")
 
-from super_harness.daemon import server as srv
+from keepsail.daemon import server as srv
 
 
 def test_pre_fork_threading_invariant() -> None:
@@ -44,7 +44,7 @@ def test_pre_fork_threading_invariant() -> None:
     )
 
 
-def test_no_super_harness_directory_exits_3(tmp_path) -> None:
+def test_no_keepsail_directory_exits_3(tmp_path) -> None:
     """No `.harness/` in workspace → exit 3 (EXIT_NO_CONFIG) per cli-command-surface."""
     proc = subprocess.run(
         ["keepsail-daemon", "--workspace", str(tmp_path)],

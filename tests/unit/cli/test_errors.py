@@ -1,4 +1,4 @@
-from super_harness.cli.errors import format_error
+from keepsail.cli.errors import format_error
 
 
 def test_error_format_has_hint_and_docs():

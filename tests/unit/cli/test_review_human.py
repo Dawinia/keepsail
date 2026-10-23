@@ -3,8 +3,8 @@
 import pytest
 from click.testing import CliRunner
 
-from super_harness.cli import main
-from super_harness.exit_codes import EXIT_VALIDATION
+from keepsail.cli import main
+from keepsail.exit_codes import EXIT_VALIDATION
 
 
 @pytest.mark.parametrize("command", ["inspect", "draft", "confirm"])

@@ -2,7 +2,7 @@
 
 # Lifecycle state machine
 
-Generated from `super_harness.core.transitions`. Each row is a legal `(from, event) -> to` transition; `(start)` is the pre-first-event state.
+Generated from `keepsail.core.transitions`. Each row is a legal `(from, event) -> to` transition; `(start)` is the pre-first-event state.
 
 | from | event | to |
 |------|-------|----|

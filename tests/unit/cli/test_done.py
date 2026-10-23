@@ -24,13 +24,13 @@ from unittest import mock
 import pytest
 from click.testing import CliRunner
 
-from super_harness.cli import main
-from super_harness.core.events import Actor, Event
-from super_harness.core.paths import events_path, state_path
-from super_harness.core.post_emit import refresh_state_after_emit
-from super_harness.core.ulid import new_event_id
-from super_harness.core.writer import EventWriter
-from super_harness.exit_codes import (
+from keepsail.cli import main
+from keepsail.core.events import Actor, Event
+from keepsail.core.paths import events_path, state_path
+from keepsail.core.post_emit import refresh_state_after_emit
+from keepsail.core.ulid import new_event_id
+from keepsail.core.writer import EventWriter
+from keepsail.exit_codes import (
     EXIT_EXTERNAL_TOOL,
     EXIT_NO_CONFIG,
     EXIT_OK,
@@ -441,22 +441,22 @@ def test_done_skip_verify_ignores_missing_config(tmp_path: Path) -> None:
 # --pr value is still recorded on the implementation_complete payload as
 # pr_url (the pr value drives BOTH slug resolution AND payload recording).
 #
-# gh is mocked at `super_harness.cli.done.gh.view_pr` (the import site
+# gh is mocked at `keepsail.cli.done.gh.view_pr` (the import site
 # inside done.py — Phase 12 pattern).
 # --------------------------------------------------------------------------- #
 
-VIEW_PR_DONE = "super_harness.cli.done.gh.view_pr"
+VIEW_PR_DONE = "keepsail.cli.done.gh.view_pr"
 
 
 def _metadata_body_done(change: str = "my-change") -> str:
     return (
         "Some PR description.\n\n"
-        "<!-- super-harness:metadata -->\n"
+        "<!-- keepsail:metadata -->\n"
         f"Change: {change}\n"
         "Tier: Normal\n"
         "Verification: passed\n"
-        "super-harness version: 0.1.0\n"
-        "<!-- /super-harness:metadata -->\n"
+        "keepsail version: 0.1.0\n"
+        "<!-- /keepsail:metadata -->\n"
     )
 
 
@@ -522,7 +522,7 @@ def test_done_pr_malformed_block_exits_2(tmp_path: Path) -> None:
     _init_in_progress(tmp_path, yaml_text=_PASS_YAML)
     body = (
         "Some PR description.\n\n"
-        "<!-- super-harness:metadata -->\n"
+        "<!-- keepsail:metadata -->\n"
         "Change: my-change\n"
         # NO end marker.
     )
@@ -539,7 +539,7 @@ def test_done_pr_malformed_block_exits_2(tmp_path: Path) -> None:
 def test_done_pr_gh_error_exits_4(tmp_path: Path) -> None:
     """--pr + gh.GhError → exit 4 (EXIT_EXTERNAL_TOOL)."""
     _init_in_progress(tmp_path, yaml_text=_PASS_YAML)
-    from super_harness.engineering import gh
+    from keepsail.engineering import gh
 
     with mock.patch(
         VIEW_PR_DONE, side_effect=gh.GhError("gh pr view 42 failed (exit 1)")
@@ -569,10 +569,10 @@ def test_done_pr_block_missing_change_field_exits_4(tmp_path: Path) -> None:
     """Block present + single, but missing Change field → exit 4."""
     _init_in_progress(tmp_path, yaml_text=_PASS_YAML)
     body = (
-        "<!-- super-harness:metadata -->\n"
+        "<!-- keepsail:metadata -->\n"
         "Tier: Normal\n"
         "Verification: passed\n"
-        "<!-- /super-harness:metadata -->\n"
+        "<!-- /keepsail:metadata -->\n"
     )
     with mock.patch(VIEW_PR_DONE, return_value={"body": body}):
         r = CliRunner().invoke(
@@ -588,11 +588,11 @@ def test_done_pr_invalid_slug_format_exits_2(tmp_path: Path) -> None:
     """Block + Change with invalid slug (slashes) → A6 gate → exit 2."""
     _init_in_progress(tmp_path, yaml_text=_PASS_YAML)
     body = (
-        "<!-- super-harness:metadata -->\n"
+        "<!-- keepsail:metadata -->\n"
         "Change: feature/foo\n"
         "Tier: Normal\n"
         "Verification: passed\n"
-        "<!-- /super-harness:metadata -->\n"
+        "<!-- /keepsail:metadata -->\n"
     )
     with mock.patch(VIEW_PR_DONE, return_value={"body": body}):
         r = CliRunner().invoke(

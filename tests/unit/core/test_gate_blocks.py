@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from super_harness.core.gate_blocks import GateBlockRecord, read_blocks, record_block
-from super_harness.core.paths import gate_blocks_path
+from keepsail.core.gate_blocks import GateBlockRecord, read_blocks, record_block
+from keepsail.core.paths import gate_blocks_path
 
 
 def test_record_block_appends_one_json_line(tmp_path: Path) -> None:

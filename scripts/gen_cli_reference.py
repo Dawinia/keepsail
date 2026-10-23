@@ -607,7 +607,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # Import here so test fixtures can use _build_fixture_group without
     # pulling in the full keepsail CLI at module import time.
-    from super_harness.cli import main as cli_main
+    from keepsail.cli import main as cli_main
 
     root_name = "keepsail"
     # render_markdown already ends with a single trailing newline; do not add

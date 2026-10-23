@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from super_harness.adapters.agent.codex import CodexAdapter
+from keepsail.adapters.agent.codex import CodexAdapter
 
 
 def test_detect_requires_codex_dir(tmp_path):
@@ -92,7 +92,7 @@ def test_codex_capabilities():
 
 
 def test_codex_stop_should_check_and_feedback_delegate():
-    from super_harness.core.authoring_check import Verdict, Violation
+    from keepsail.core.authoring_check import Verdict, Violation
 
     a = CodexAdapter()
     assert a.stop_should_check({"stop_hook_active": True}) is False

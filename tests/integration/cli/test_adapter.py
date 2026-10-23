@@ -31,7 +31,7 @@ import pytest
 import yaml
 from click.testing import CliRunner
 
-from super_harness.cli import main
+from keepsail.cli import main
 
 _FAKE_HOOK = "/usr/local/bin/keepsail-hook"
 
@@ -453,7 +453,7 @@ def test_uninstall_on_uninstall_oserror_exits_generic_registration_intact(
     assert len(_entries(tmp_path)) == 1
 
     # Monkeypatch on_uninstall to raise OSError deterministically (no chmod needed).
-    from super_harness.adapters.agent.claude_code import ClaudeCodeAdapter
+    from keepsail.adapters.agent.claude_code import ClaudeCodeAdapter
 
     def _raise_oserror(self: ClaudeCodeAdapter, root: object) -> None:
         raise OSError("boom")
@@ -510,9 +510,9 @@ def test_list_no_filter_nothing_installed_shows_not_installed(tmp_path: Path) ->
 
 # --- AGENTS.md injection / removal (AC-4 / F13) -------------------------------
 
-_NO_AGENT_ANCHOR = "<!-- super-harness no-agent-adapter-installed -->"
-_CLAUDE_BEGIN = "<!-- super-harness agent: claude-code -->"
-_CLAUDE_END = "<!-- /super-harness agent: claude-code -->"
+_NO_AGENT_ANCHOR = "<!-- keepsail no-agent-adapter-installed -->"
+_CLAUDE_BEGIN = "<!-- keepsail agent: claude-code -->"
+_CLAUDE_END = "<!-- /keepsail agent: claude-code -->"
 
 
 def _init(ws: Path) -> object:
@@ -582,7 +582,7 @@ def test_uninstall_agent_removes_block_restores_no_agent_anchor(
     before = _agents_md(tmp_path).read_text()
     assert _CLAUDE_BEGIN in before
     # The plain framework block (written by init) is preserved across uninstall.
-    assert "super-harness framework: plain" in before
+    assert "keepsail framework: plain" in before
 
     r = CliRunner().invoke(
         main,
@@ -596,8 +596,8 @@ def test_uninstall_agent_removes_block_restores_no_agent_anchor(
     assert _CLAUDE_END not in text
     assert _NO_AGENT_ANCHOR in text
     # Other content preserved: outer section markers + the plain framework block.
-    assert "super-harness section begin" in text
-    assert "super-harness framework: plain" in text
+    assert "keepsail section begin" in text
+    assert "keepsail framework: plain" in text
 
 
 def test_round_trip_install_uninstall_reinstall_agent(
@@ -676,7 +676,7 @@ def test_uninstall_agents_md_remove_failure_exits_generic_with_format_error(
     assert _init(tmp_path).exit_code == 0
     assert _install_claude(tmp_path, monkeypatch).exit_code == 0
 
-    import super_harness.cli.adapter as adapter_mod
+    import keepsail.cli.adapter as adapter_mod
 
     def _raise_oserror(*_args: object, **_kwargs: object) -> None:
         raise OSError("disk full")
@@ -826,8 +826,8 @@ def test_install_openspec_evicts_plain_framework_subsection_from_agents_md(
     init_result = _init(tmp_path)
     assert init_result.exit_code == 0, init_result.output
     text_before = _agents_md(tmp_path).read_text()
-    assert "<!-- super-harness framework: plain -->" in text_before
-    assert "<!-- /super-harness framework: plain -->" in text_before
+    assert "<!-- keepsail framework: plain -->" in text_before
+    assert "<!-- /keepsail framework: plain -->" in text_before
 
     # Add the openspec layout so detection passes for `install openspec`.
     (tmp_path / "openspec" / "changes").mkdir(parents=True)
@@ -838,11 +838,11 @@ def test_install_openspec_evicts_plain_framework_subsection_from_agents_md(
 
     text_after = _agents_md(tmp_path).read_text()
     # Plain block evicted.
-    assert "<!-- super-harness framework: plain -->" not in text_after
-    assert "<!-- /super-harness framework: plain -->" not in text_after
+    assert "<!-- keepsail framework: plain -->" not in text_after
+    assert "<!-- /keepsail framework: plain -->" not in text_after
     # OpenSpec block injected.
-    assert "<!-- super-harness framework: openspec -->" in text_after
-    assert "<!-- /super-harness framework: openspec -->" in text_after
+    assert "<!-- keepsail framework: openspec -->" in text_after
+    assert "<!-- /keepsail framework: openspec -->" in text_after
 
 
 def test_reinstall_openspec_does_not_resurrect_plain_block(tmp_path: Path) -> None:
@@ -858,8 +858,8 @@ def test_reinstall_openspec_does_not_resurrect_plain_block(tmp_path: Path) -> No
     assert _run(tmp_path, "install", "openspec").exit_code == 0
 
     text = _agents_md(tmp_path).read_text()
-    assert "<!-- super-harness framework: plain -->" not in text
-    assert text.count("<!-- super-harness framework: openspec -->") == 1
+    assert "<!-- keepsail framework: plain -->" not in text
+    assert text.count("<!-- keepsail framework: openspec -->") == 1
 
 
 def test_install_plain_does_not_evict_itself(tmp_path: Path) -> None:
@@ -870,14 +870,14 @@ def test_install_plain_does_not_evict_itself(tmp_path: Path) -> None:
     init_result = _init(tmp_path)
     assert init_result.exit_code == 0
     text_before = _agents_md(tmp_path).read_text()
-    assert "<!-- super-harness framework: plain -->" in text_before
+    assert "<!-- keepsail framework: plain -->" in text_before
 
     r = _run(tmp_path, "install", "plain")
     assert r.exit_code == 0, r.output
 
     text_after = _agents_md(tmp_path).read_text()
     # Plain block still present — install plain is idempotent on AGENTS.md.
-    assert "<!-- super-harness framework: plain -->" in text_after
+    assert "<!-- keepsail framework: plain -->" in text_after
 
 
 def test_install_conflicting_check_id_exits_validation_two(tmp_path: Path) -> None:

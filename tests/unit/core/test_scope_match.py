@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-import super_harness.core.scope_match as scope_match_module
-from super_harness.core.scope_match import (
+import keepsail.core.scope_match as scope_match_module
+from keepsail.core.scope_match import (
     GitScopeError,
     committed_scope_digest,
     covered_by_scope,

@@ -1,8 +1,9 @@
 ---
 id: d-single-gate-policy
-status: ratified
+status: superseded
 ratified_by: dawinialo@163.com
 ratified_at: '2026-07-29T13:19:06.561089Z'
+superseded_by: d-keepsail-single-gate-policy
 ratified_text_hash: sha256:c70ba32e4314d0da59b5a5bc844c5995d4b592b7240d81bf6afea764a5eec92b
 last_reconciled_by: dawinialo@163.com
 last_reconciled_at: '2026-10-23T08:28:46.967398Z'

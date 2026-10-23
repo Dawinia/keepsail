@@ -31,8 +31,8 @@ from pathlib import Path
 
 import click
 
+from keepsail.cli.lazy_group import CommandSpec, LazyGroup
 from scripts import gen_cli_reference
-from super_harness.cli.lazy_group import CommandSpec, LazyGroup
 
 
 def _build_fixture_group() -> click.Group:
@@ -151,7 +151,7 @@ def test_render_intentionally_loads_the_complete_lazy_tree(tmp_path, monkeypatch
 
 def test_real_init_reference_documents_interactive_yes_without_losing_lazy_commands() -> None:
     """The real lazy tree includes every root command and init's exact --yes help."""
-    from super_harness.cli import main as real_main
+    from keepsail.cli import main as real_main
 
     rendered = gen_cli_reference.render_markdown(real_main, root_name="keepsail")
     init_section = rendered.split("## keepsail init", 1)[1].split(
@@ -233,7 +233,7 @@ def test_real_cli_reference_is_in_sync() -> None:
     """
     from pathlib import Path
 
-    from super_harness.cli import main as real_main
+    from keepsail.cli import main as real_main
 
     repo_root = Path(__file__).resolve().parents[3]
     target = repo_root / "docs" / "cli-reference.md"
@@ -254,7 +254,7 @@ def test_header_notice_references_doc_check_gate() -> None:
 
 def test_real_review_reject_reference_documents_validation_exit() -> None:
     """Retired review commands document their generic validation failure."""
-    from super_harness.cli import main as real_main
+    from keepsail.cli import main as real_main
 
     rendered = gen_cli_reference.render_markdown(real_main, root_name="keepsail")
     section = rendered.split("## keepsail review reject", 1)[1].split(
@@ -267,7 +267,7 @@ def test_real_review_reject_reference_documents_validation_exit() -> None:
 
 def test_emit_mode_prints_rendered_markdown(capsys) -> None:
     """`main(["--emit"])` prints the real CLI reference to stdout and returns 0."""
-    from super_harness.cli import main as real_main
+    from keepsail.cli import main as real_main
 
     code = gen_cli_reference.main(["--emit"])
     assert code == 0

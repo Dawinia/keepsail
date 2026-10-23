@@ -9,7 +9,7 @@ exit code / decision.
 The deferral now lives inside `core.plan_paths.patterns_for_state`, which
 `_decide` calls unconditionally — `patterns_for_state` itself decides whether
 to call `load_plan_paths`. The monkeypatch below therefore patches
-`super_harness.core.plan_paths.load_plan_paths` directly: `patterns_for_state`
+`keepsail.core.plan_paths.load_plan_paths` directly: `patterns_for_state`
 calls it as a bare name in the SAME module, resolved via that module's
 `__globals__` at call time, so patching the module attribute is what the
 lookup actually resolves against — see the "do not hoist" note in
@@ -22,8 +22,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-import super_harness.core.plan_paths as plan_paths
-from super_harness.daemon import hook_entry
+import keepsail.core.plan_paths as plan_paths
+from keepsail.daemon import hook_entry
 
 
 def _repo(tmp_path: Path, change_id: str, state: str) -> Path:
@@ -51,10 +51,10 @@ def _repo(tmp_path: Path, change_id: str, state: str) -> Path:
 def test_plan_path_config_read_only_where_it_is_consulted(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, state: str, expect_read: bool
 ) -> None:
-    # `_decide` honours SUPER_HARNESS_CHANGE_ID as a change-id override; a value
+    # `_decide` honours KEEPSAIL_CHANGE_ID as a change-id override; a value
     # leaking in from the ambient environment would resolve a different (or no)
     # change and silently invalidate the parametrisation. Same hazard #60 fixed.
-    monkeypatch.delenv("SUPER_HARNESS_CHANGE_ID", raising=False)
+    monkeypatch.delenv("KEEPSAIL_CHANGE_ID", raising=False)
     root = _repo(tmp_path, "my-change", state)
     calls: list = []
     monkeypatch.setattr(
