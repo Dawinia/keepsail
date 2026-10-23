@@ -90,7 +90,7 @@ def test_setup_github_success_writes_template_and_calls_settings(tmp_path: Path)
     assert "<!-- closes #123, refs #456 -->" in text
     assert "\n---\n" in text
     assert "<!-- super-harness:metadata -->" in text
-    assert "<!-- auto-filled by super-harness PR-decorator sensor; do not edit manually -->" in text
+    assert "<!-- auto-filled by Keepsail PR-decorator sensor; do not edit manually -->" in text
     assert "<!-- /super-harness:metadata -->" in text
     # no operation-log on the happy path
     assert _op_logs(tmp_path) == []

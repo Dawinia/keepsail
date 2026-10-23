@@ -25,6 +25,10 @@ source installation alone does not make those registry jobs runnable.
 
 Both distributions own the same Python files and legacy console entry points.
 Do not install super-harness and keepsail together in one environment. For an
+existing dependency declaration or distribution-metadata lookup, rename the
+distribution requirement to keepsail in that project's own authorized update.
+The old distribution name is not a metadata/dependency alias: import and console
+compatibility do not satisfy a requirement for the old distribution. For an
 existing pip installation, record its source/version, back up local hook settings,
 uninstall super-harness first, then install Keepsail from the selected source:
 

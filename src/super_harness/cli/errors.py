@@ -50,5 +50,5 @@ def format_error(
     if hint:
         lines.append(f"  Hint: {hint}")
     if docs_anchor:
-        lines.append(f"  Docs: {DOCS_BASE}#{docs_anchor}")
+        lines.append(f"  Docs: {DOCS_BASE}#keepsail-{docs_anchor.replace(' ', '-')}")
     return "\n".join(lines)

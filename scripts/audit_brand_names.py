@@ -32,14 +32,16 @@ def category(path: str, line: str, token: str) -> str:
         return "import-or-environment-compatibility"
     if "github.com/Dawinia/super-harness" in line:
         return "existing-repository-link"
-    if path.startswith("tests/"):
-        return "legacy-compatibility-test"
     if path in {"README.md", "README.zh-CN.md", "docs/keepsail-migration.md", REPORT}:
         return "migration-explanation"
     if ("<!--" in line or "super-harness version" in line
             or "super-harness.yml" in line or "super-harness-backup" in line
-            or "super-harness.lock" in line or "super-harness gitignore" in line):
+            or "super-harness.lock" in line or "super-harness gitignore" in line
+            or "super-harness:metadata" in line
+            or re.search(r"super-harness (section|outer|agent:|framework:)", line)):
         return "stable-protocol-or-managed-identity"
+    if path == "tests/integration/cli/test_keepsail_compatibility.py":
+        return "legacy-console-upgrade-regression"
     if path == "pyproject.toml" or 'cli="$verifier/super-harness"' in line:
         return "legacy-console-or-trusted-base"
     return "UNCLASSIFIED"

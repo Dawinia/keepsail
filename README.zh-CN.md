@@ -27,7 +27,7 @@ brew install gh && gh auth login   # gh 是 init --setup-github 的前置依赖
 
 ## Quickstart
 
-引导一个仓库,亲眼看门拦住一次"越出生命周期"的编辑 —— 这正是这个工具的意义所在:
+引导一个仓库，观察一个已实现的控制面：门会拦住一次“越出生命周期”的编辑。
 
 ```bash
 # 先在 Keepsail checkout 中执行 pipx install .

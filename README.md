@@ -29,8 +29,8 @@ brew install gh && gh auth login   # gh is a prerequisite for init --setup-githu
 
 ## Quickstart
 
-Bootstrap a repo and watch the gate block an out-of-lifecycle edit — the whole
-point of the tool:
+Bootstrap a repo and observe one implemented control surface: the gate blocks
+an out-of-lifecycle edit.
 
 ```bash
 # Install from the Keepsail checkout first: pipx install .

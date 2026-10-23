@@ -134,7 +134,7 @@ def test_root_lazy_init_rejects_posix_and_unrelated_eager_imports(tmp_path: Path
 
 
 def test_non_tty_console_init_accepts_workspace_path_with_spaces(tmp_path: Path) -> None:
-    workspace = tmp_path / "super harness init smoke"
+    workspace = tmp_path / "keepsail init smoke"
     workspace.mkdir()
 
     result = _run_init(workspace)

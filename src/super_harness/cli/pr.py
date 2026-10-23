@@ -321,7 +321,7 @@ def pr_emit_opened(ctx: click.Context, pr_number: int, change: str) -> None:
                 hint=(
                     "Inspect the `sensor_crashed` event for the root cause — "
                     "common causes: gh auth/network, PR body has multiple or "
-                    "malformed `keepsail:metadata` markers, or change_id "
+                    "malformed `super-harness:metadata` markers, or change_id "
                     "resolution. Rerun `keepsail pr emit-opened` after fixing."
                 ),
             ),
