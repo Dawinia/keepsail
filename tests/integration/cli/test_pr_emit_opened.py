@@ -296,7 +296,8 @@ def test_gh_failure_exits_4(tmp_path: Path) -> None:
     assert r.exit_code == EXIT_EXTERNAL_TOOL, r.output + (r.stderr or "")
     combined = (r.stderr or "") + r.output
     assert "keepsail:metadata" in combined
-    assert "keepsail:metadata" not in combined
+    assert METADATA_BEGIN not in combined
+    assert METADATA_END not in combined
     # Stderr mentions something gh-related ("gh"/"PR-decorator"/"network").
     assert "gh" in combined or "PR-decorator" in combined or "network" in combined
     # No JSON envelope on stdout even under --json (3/4 do not emit one).
