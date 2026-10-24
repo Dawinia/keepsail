@@ -151,7 +151,14 @@ def _policy_at_commit(root: Path, commit: str) -> dict[str, Any] | None:
 
     if POLICY_PATH not in tracked_files_at_commit(root, commit):
         return None
-    return validate_policy(yaml.safe_load(file_text_at_commit(root, commit, POLICY_PATH)))
+    return _configured_policy(yaml.safe_load(file_text_at_commit(root, commit, POLICY_PATH)))
+
+
+def _configured_policy(raw: object) -> dict[str, Any]:
+    try:
+        return validate_policy(raw)
+    except KnowledgeError as exc:
+        raise KnowledgeError(str(exc), code="knowledge_config_invalid", exit_code=3) from exc
 
 
 def load_policy(root: Path, *, ref: str | None = None) -> dict[str, Any] | None:
@@ -180,7 +187,7 @@ def load_policy(root: Path, *, ref: str | None = None) -> dict[str, Any] | None:
         if ref is None:
             if not candidate:
                 raise KnowledgeError("activated knowledge policy is missing", exit_code=3)
-            current = validate_policy(yaml.safe_load(path.read_text(encoding="utf-8")))
+            current = _configured_policy(yaml.safe_load(path.read_text(encoding="utf-8")))
             _need(current == trusted, "candidate cannot replace the trusted knowledge policy")
         return deepcopy(trusted)
     except KnowledgeError:
@@ -289,6 +296,7 @@ def _empty() -> dict[str, Any]:
         "dispositions": {},
         "executions": {},
         "applicability": {},
+        "impact_approvals": {},
         "operations": {},
         "events": [],
     }
@@ -337,7 +345,9 @@ def load_ledger(path: Path, policy: dict[str, Any] | None) -> tuple[dict[str, An
             request.get("expected_revision") == prior_revision,
             "knowledge_corrupt: operation was not bound to its log prefix",
         )
-        result = _apply(ledger, event.type, request, policy)
+        result = _apply(
+            ledger, event.type, request, policy, event.payload.get("approval_context", {})
+        )
         _need(result == event.payload.get("result"), "knowledge event result was corrupted")
         ledger["events"].append(raw)
     return ledger, sha256(content).hexdigest()
@@ -359,8 +369,34 @@ def _operation(request: dict[str, Any]) -> str:
 
 
 def _apply(
-    ledger: dict[str, Any], event_type: str, request: dict[str, Any], policy: dict[str, Any]
+    ledger: dict[str, Any],
+    event_type: str,
+    request: dict[str, Any],
+    policy: dict[str, Any],
+    approval_context: dict[str, str | None] | None = None,
 ) -> dict[str, Any]:
+    approval_context = approval_context or {}
+    _need(
+        isinstance(approval_context, dict)
+        and all(
+            isinstance(k, str) and (v is None or isinstance(v, str))
+            for k, v in approval_context.items()
+        ),
+        "invalid trigger approval context",
+    )
+
+    def capture_impact_approval(kid: str, target: str | None = None) -> None:
+        linked = {
+            d["change_id"]
+            for d in ledger["deliveries"].values()
+            if any(v["knowledge_id"] == kid for v in d["constraints"])
+        }
+        if target is not None:
+            linked = {target}
+        for change_id in linked:
+            _need(change_id in approval_context, "trigger omits linked Change approval context")
+            ledger["impact_approvals"][(change_id, kid)] = approval_context[change_id]
+
     op = _operation(request)
     _need(op not in ledger["operations"], "duplicate operation event")
     if event_type == "knowledge_proposed":
@@ -399,10 +435,17 @@ def _apply(
                 ledger["current"][kid] = subject
                 ledger["states"][subject] = "effective"
                 ledger["recognitions"][subject] = eid
+                capture_impact_approval(kid)
             elif decision == "retire":
                 _need(ledger["current"].get(kid) == subject, "cannot retire a noncurrent version")
+                if version["authority"] == "constraint":
+                    _need(
+                        evidence["authorization_effect"] == "requires-human-authorization",
+                        "retiring an effective constraint requires owner authorization",
+                    )
                 del ledger["current"][kid]
                 ledger["states"][subject] = "retired"
+                capture_impact_approval(kid)
         elif kind == "applicability":
             _need(decision in {"apply", "not_applicable"}, "no applicability conclusion")
             _need(subject in ledger["versions"], "applicability names unknown version")
@@ -413,6 +456,9 @@ def _apply(
                     "constraint exclusion requires explicit owner authorization",
                 )
             ledger["applicability"][(evidence["target_change_id"], subject)] = eid
+            capture_impact_approval(
+                ledger["versions"][subject]["knowledge_id"], evidence["target_change_id"]
+            )
         elif kind == "disposition":
             _need(
                 decision in {"continue", "adjust", "reapprove", "not_applicable"},
@@ -506,6 +552,10 @@ def _apply(
                     for path in record.get("dependent_paths", []):
                         _path(path)
                     ledger["challenges"][op] = {**record, "change_id": request["change_id"]}
+                    capture_impact_approval(
+                        ledger["versions"][record["version_digest"]]["knowledge_id"],
+                        request["change_id"],
+                    )
             elif kind == "acquisition":
                 _need(
                     record.get("producer") in policy.get("observation_issuers", [])
@@ -625,14 +675,6 @@ def _view(
             }
         )
 
-    first_approval = next(
-        (
-            d.get("context", {}).get("approval_id")
-            for d in ledger["deliveries"].values()
-            if d["change_id"] == change
-        ),
-        context["approval_id"],
-    )
     impacts: dict[str, dict[str, Any]] = {}
     current_set = {v["version_digest"] for v in constraints}
     for old in supplied:
@@ -644,7 +686,9 @@ def _view(
                 "old_version": old_digest,
                 "new_version": ledger["current"].get(old["knowledge_id"]),
                 "basis_digest": impact_basis(old["knowledge_id"]),
-                "approval_id": first_approval,
+                "approval_id": ledger["impact_approvals"].get(
+                    (change, old["knowledge_id"]), context["approval_id"]
+                ),
                 "trigger": "version-or-applicability-changed",
             }
             impacts[digest_record(impact)] = impact
@@ -659,7 +703,10 @@ def _view(
             "basis_digest": impact_basis(
                 ledger["versions"][challenge["version_digest"]]["knowledge_id"]
             ),
-            "approval_id": first_approval,
+            "approval_id": ledger["impact_approvals"].get(
+                (change, ledger["versions"][challenge["version_digest"]]["knowledge_id"]),
+                context["approval_id"],
+            ),
             "trigger": "challenge",
             "challenge_id": cid,
         }
@@ -871,8 +918,19 @@ def prepare(
         and request.get("record", {}).get("outcome") == "verified"
     ):
         _validate_execution(root, path, ledger, request)
-    result = _apply(ledger, event_type, request, policy)
-    return {"request": request, "result": result, "policy_digest": policy["policy_digest"]}, False
+    from keepsail.core.reducer import derive_state
+
+    approval_context = {
+        cid: (s.effective_approval or {}).get("approval_id")
+        for cid, s in derive_state(path).items()
+    }
+    result = _apply(ledger, event_type, request, policy, approval_context)
+    return {
+        "request": request,
+        "result": result,
+        "policy_digest": policy["policy_digest"],
+        "approval_context": approval_context,
+    }, False
 
 
 def _validate_execution(
@@ -1049,7 +1107,9 @@ def validate_checkpoint(
         request = event.payload.get("request")
         _need(isinstance(request, dict), "missing retained request")
         assert isinstance(request, dict)
-        result = _apply(ledger, event.type, request, policy)
+        result = _apply(
+            ledger, event.type, request, policy, event.payload.get("approval_context", {})
+        )
         _need(result == event.payload.get("result"), "retained result mismatch")
         ledger["events"].append(raw)
     indexed = {e["event_id"]: e for e in events}

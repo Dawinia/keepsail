@@ -338,6 +338,7 @@ def test_corruption_is_not_empty_knowledge(workspace):
     with log.open("ab") as handle:
         handle.write(b'{"type":"knowledge_imported"')
     w.cli("knowledge", "show", code=2)
+
     w.cli("change", "resume", "change-a", code=2)
 
 
@@ -353,6 +354,9 @@ def test_policy_cannot_be_deleted_or_replaced_by_candidate(workspace):
     new["policy_digest"] = policy_digest(new)
     p.write_text(yaml.safe_dump(new), encoding="utf-8")
     w.cli("knowledge", "show", code=2)
+    p.write_text(yaml.safe_dump({"enabled": True}), encoding="utf-8")
+    w.cli("knowledge", "show", code=3)
+    w.cli("change", "resume", "change-a", code=3)
 
 
 def test_version_digest_binds_authority_and_scope():
@@ -513,3 +517,133 @@ def test_unknown_guidance_does_not_block_independent_work(workspace):
     w.recognize(v)
     w.cli("change", "start", "change-b", "--framework", "plain")
     w.cli("knowledge", "check", "change-b", "--paths", "docs/example.md")
+
+
+@pytest.mark.parametrize(
+    "authority,authorized,code",
+    [("constraint", False, 2), ("constraint", True, 0), ("guidance", False, 0)],
+)
+def test_constraint_retirement_requires_owner_authorization(workspace, authority, authorized, code):
+    w = workspace
+    v = version()
+    v["authority"] = authority
+    digest = w.recognize(v)
+    e = w.evidence("recognition", digest, "retire", issuer="reviewer")
+    if authorized:
+        e.update(
+            issuer="owner",
+            authorization_effect="requires-human-authorization",
+            human_authorization={"source": "owner decision to retire this constraint"},
+        )
+    before = (w.root / ".harness/events.jsonl").read_bytes()
+    w.submit("import", w.operation(evidence=e), code=code)
+    if code:
+        assert (w.root / ".harness/events.jsonl").read_bytes() == before
+    else:
+        assert w.cli("knowledge", "show")["data"]["versions"][0]["state"] == "retired"
+
+
+def test_impact_approval_epoch_ignores_preapproval_delivery_and_tracks_later_triggers(workspace):
+    from keepsail.core.events import Actor, Event
+    from keepsail.core.knowledge import validate_event
+
+    w = workspace
+    log = w.root / ".harness/events.jsonl"
+    w.cli("change", "start", "change-b", "--framework", "plain")
+
+    def deliver_b(op):
+        w.cli(
+            "knowledge",
+            "deliver",
+            "change-b",
+            "--operation-id",
+            op,
+            "--expected-revision",
+            w.revision(),
+        )
+
+    def approve_b(eid):
+        subject = derive_state(log)["change-b"].pending_revision["subject"]["subject_id"]
+        e = {
+            "version": "review-evidence/v1",
+            "evidence_id": eid,
+            "kind": "plan",
+            "subject_id": subject,
+            "decision": "approve",
+            "issuer": "owner",
+            "process": {"id": "owner-review", "version": "1"},
+            "original_evidence": {"decision": "approve", "source": "test fixture"},
+            "provenance": {"policy_digest": w.review["process"]["policy_digest"]},
+        }
+        w.cli("review", "import", "change-b", "--evidence", str(w.write(e)))
+        return derive_state(log)["change-b"].effective_approval["approval_id"]
+
+    deliver_b("empty-before-approval")
+    w.cli(
+        "plan",
+        "ready",
+        "change-b",
+        "--plan",
+        "plan.md",
+        "--scope",
+        "[plan.md]",
+        "--commitment",
+        "db=Use PostgreSQL",
+    )
+    initial = approve_b("plan-b-initial")
+    first = w.recognize(version())
+    deliver_b("v1-b")
+    w.cli("implementation", "start", "change-b")
+    previous = first
+    current_approval = initial
+    for epoch in (2, 3):
+        new = w.recognize(version(body=f"PostgreSQL rule {epoch}", previous=previous))
+        impact = next(
+            i for i in report(w.root, "change-b")["impacts"] if i["old_version"] == previous
+        )
+        assert impact["approval_id"] == current_approval
+        for linked in report(w.root, "change-b")["impacts"]:
+            raw = {
+                k: v
+                for k, v in linked.items()
+                if k not in {"impact_id", "status", "disposition_id", "disposition"}
+            }
+            e = w.evidence(
+                "disposition",
+                linked["impact_id"],
+                "reapprove",
+                impact=raw,
+                use_version=new,
+                obligations=["approve revised database constraint"],
+            )
+            w.submit("import", w.operation(evidence=e))
+        deliver_b(f"pending-epoch-{epoch}")
+        event = Event(
+            event_id=f"complete-{epoch}",
+            type="implementation_complete",
+            change_id="change-b",
+            timestamp="",
+            actor=Actor(type="agent", identifier="test"),
+            framework="plain",
+            payload={},
+        )
+        with pytest.raises(KnowledgeError, match="unresolved impact"):
+            validate_event(log, event)
+        w.cli(
+            "plan",
+            "redeclare",
+            "change-b",
+            "--plan",
+            "plan.md",
+            "--commitment",
+            f"db=Use database rule {epoch}",
+        )
+        current_approval = approve_b(f"plan-b-epoch-{epoch}")
+        retained = next(
+            i for i in report(w.root, "change-b")["impacts"] if i["old_version"] == previous
+        )
+        assert retained["impact_id"] == impact["impact_id"]
+        assert retained["approval_id"] != current_approval
+        deliver_b(f"new-approval-{epoch}")
+        validate_event(log, event)
+        previous = new

@@ -94,6 +94,8 @@ require that explicit owner authorization; semantic commitment/risk classificati
 still depends on the recognized process. No failed/empty/skip record grants authority.
 
 Recognition decisions are recognize/reject/retire against an exact version digest.
+Retiring an effective constraint also requires explicit owner authorization;
+ordinary guidance retirement can use the recognized process's existing authority.
 Replacing a version preserves its predecessor and recognition. Applicability
 decisions apply/not_applicable name the version and target_change_id. Knowledge
 correction alone cannot release work commitments or acceptance obligations.
@@ -134,6 +136,10 @@ asserting that another path is independent.
 
 After a recorded supplied version changes or is retired/excluded, resume exposes
 an impact with an exact impact_id and immutable subject fields. Disposition
+uses the approval effective when the knowledge change or challenge was recorded,
+captured by the strict writer in its immutable approval_context. Delivery telemetry
+cannot choose this baseline. Reapproval preserves that trigger context; a later
+knowledge-change trigger captures the then-current approval epoch. Disposition
 evidence uses that impact_id as subject_id and the complete subject as impact
 (exclude display fields impact_id/status/disposition_id/disposition). Decisions
 are continue, adjust, reapprove, not_applicable. Select an explicitly recognized
