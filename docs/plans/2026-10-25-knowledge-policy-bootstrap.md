@@ -17,7 +17,7 @@ remain unchanged. It requires a new recognized plan conclusion before that edit.
 The owner subsequently asked to deliver the repair and pilot requirement in one
 PR and answered “开始” to the proposal to add the confirmed pilot configuration
 and documentation, update coverage and repeat verification/review of the complete
-subject. This revision adds P6–P8 and replaces the earlier prohibition on installing
+subject. This revision adds P6–P9 and replaces the earlier prohibition on installing
 a first candidate. It authorizes preparing and publishing that combined PR, not
 merging it or claiming that the real policy or pilot has already taken effect.
 
@@ -76,6 +76,15 @@ has different semantics. Current regression fixtures begin with activation in ma
   attestation. Retain the full current-subject verification/review and create one
   PR for repair + candidate + pilot instructions. Do not merge or activate without
   the owner's later approval of the concrete result and repository-wide effects.
+- P9: Correct the CI verifier execution boundary without changing its trust root:
+  keep installing and executing the BASE_SHA verifier; run it in the explicitly
+  identified trusted BASE checkout with exact target Git objects and only original
+  target attestation bytes projected there. Always pass immutable base/head, bind
+  the complete target manifest from Git, reject missing objects/nonregular evidence,
+  and never fall back to candidate verifier code. Candidate schema/runtime acceptance
+  is separately required and is not advertised as a new ability of historical
+  trusted readers. Validate the real historical BASE reader and final combined
+  subject, not only the current candidate reader.
 
 ## Boundaries
 
@@ -164,7 +173,7 @@ Finish with exact code review and committed attestation; do not merge or activat
 
 ## Combined PR sequence and concrete pilot
 
-1. Submit this revised exact plan with P1–P8 and obtain the existing recognized
+1. Submit this revised exact plan with P1–P9 and obtain the existing recognized
    independent plan conclusion. Keep the original review/verification history.
 2. Add the candidate policy, retained owner record, immutable first-version JSON
    under `docs/knowledge-pilot/`, and `docs/knowledge-pilot.md`; link the operator
@@ -206,3 +215,27 @@ history, use recognized retirement/exclusion and impact disposition as applicabl
 general active policy replacement/deactivation remains a separate design gap.
 An actual replacement agent session is required to close real cross-session use;
 this PR may ship its prerequisites and handoff but must report that step pending.
+
+## Trusted verifier compatibility within the same PR
+
+The first combined plan was independently rejected because `.github/workflows/
+merge-gate.yml` installs the old BASE verifier but invokes it in candidate context.
+Its old code-subject recomputation consults that mutable context and rejects first
+policy delivery. The original reject evidence is imported and retained. An isolated
+real-Git comparison with the historical 7e2e6f8 reader reproduces exit 2 on the
+candidate workspace and exit 0 on the trusted BASE workspace with the same exact
+target objects, evidence and base/head. P9 addresses the common execution boundary,
+not the error message or its authority checks. The policy remains in the complete
+reviewed target manifest; this is not deleting it from an alleged HEAD checkout.
+
+P9 adds `.github/workflows/merge-gate.yml` and focused integration coverage for the
+workflow's actual evidence-projection program. Fetch target objects from the local
+candidate checkout into the trusted checkout, verify its HEAD remains BASE_SHA,
+project only regular `.harness/attestations/*.jsonl` Git blobs after path validation,
+and verify copied bytes. Do not copy candidate source/config or execute candidate
+verifier modules. Ensure negative evidence/missing-object cases reject. Add concrete
+candidate/bootstrap tests to the required candidate-acceptance job, retaining all
+existing tests. Validate activated-base strictness with the current reader and
+historical-reader limits explicitly; do not claim the old reader can validate the
+new candidate-policy semantics. Final historical installed-verifier acceptance
+against the complete frozen branch is required before PR publication.
