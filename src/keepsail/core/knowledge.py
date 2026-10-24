@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 from copy import deepcopy
+from functools import lru_cache
 from hashlib import sha256
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -94,6 +95,22 @@ def validate_policy(raw: object) -> dict[str, Any]:
     _need(isinstance(raw, dict), "knowledge policy must be a mapping")
     assert isinstance(raw, dict)
     _need(
+        set(raw)
+        <= {
+            "version",
+            "enabled",
+            "product_id",
+            "repository_id",
+            "minimum_reader",
+            "owner_activation",
+            "human_issuers",
+            "observation_issuers",
+            "processes",
+            "policy_digest",
+        },
+        "unsupported knowledge policy requirement",
+    )
+    _need(
         raw.get("version") == "knowledge-recognition/v1" and raw.get("enabled") is True,
         "knowledge policy must explicitly enable protocol v1",
     )
@@ -127,15 +144,32 @@ def validate_policy(raw: object) -> dict[str, Any]:
     return dict(raw)
 
 
+@lru_cache(maxsize=128)
+def _policy_at_commit(root: Path, commit: str) -> dict[str, Any] | None:
+    """Only immutable Git objects are cached; mutable policy files are always reread."""
+    from keepsail.core.scope_match import tracked_files_at_commit
+
+    if POLICY_PATH not in tracked_files_at_commit(root, commit):
+        return None
+    return validate_policy(yaml.safe_load(file_text_at_commit(root, commit, POLICY_PATH)))
+
+
 def load_policy(root: Path, *, ref: str | None = None) -> dict[str, Any] | None:
     """The trusted base must already contain owner activation; candidates cannot activate."""
     path = root / POLICY_PATH
     candidate = path.exists() if ref is None else False
+    if (
+        ref is None
+        and not candidate
+        and not any((p / ".git").exists() for p in (root, *root.parents))
+    ):
+        return None
     try:
-        base = ref or resolve_contract_base(root)
-        from keepsail.core.scope_match import tracked_files_at_commit
+        from keepsail.core.scope_match import resolve_commit
 
-        if POLICY_PATH not in tracked_files_at_commit(root, base):
+        base = resolve_commit(root, ref) if ref else resolve_contract_base(root)
+        trusted = _policy_at_commit(root.resolve(), base)
+        if trusted is None:
             if candidate:
                 raise KnowledgeError(
                     "knowledge policy is not activated in the trusted base",
@@ -143,14 +177,12 @@ def load_policy(root: Path, *, ref: str | None = None) -> dict[str, Any] | None:
                     exit_code=3,
                 )
             return None
-        text = file_text_at_commit(root, base, POLICY_PATH)
-        trusted = validate_policy(yaml.safe_load(text))
         if ref is None:
             if not candidate:
                 raise KnowledgeError("activated knowledge policy is missing", exit_code=3)
             current = validate_policy(yaml.safe_load(path.read_text(encoding="utf-8")))
             _need(current == trusted, "candidate cannot replace the trusted knowledge policy")
-        return trusted
+        return deepcopy(trusted)
     except KnowledgeError:
         raise
     except (GitScopeError, ApprovalError) as exc:
@@ -488,7 +520,13 @@ def _apply(
                 )
                 ledger["observations"].append({**record, "change_id": request["change_id"]})
             else:
-                ledger["observations"].append({**record, "change_id": request["change_id"]})
+                ledger["statements"].append(
+                    {
+                        **record,
+                        "change_id": request["change_id"],
+                        "category": "self-reported-output",
+                    }
+                )
         elif kind == "execution":
             eid = record.get("disposition_id")
             _need(
@@ -779,10 +817,12 @@ def prepare(
     op = _operation(request)
     prior = ledger["operations"].get(op)
     if prior:
-        if prior["request"] != request:
+        original_request = {k: v for k, v in prior["request"].items() if k != "_input_digest"}
+        normalized_request = {k: v for k, v in request.items() if k != "_input_digest"}
+        if original_request != normalized_request:
             raise KnowledgeError("operation ID reused with different request", exit_code=5)
         return {
-            "request": request,
+            "request": prior["request"],
             "result": prior["result"],
             "policy_digest": policy["policy_digest"],
         }, True
@@ -1079,6 +1119,9 @@ def check(root: Path, change: str, *, paths: list[str] | None = None) -> dict[st
     if view["coverage"] == "not_recorded":
         return view
     if paths:
+        unknown_constraints = any(
+            b.startswith("unknown applicability:") for b in view["blocking_reasons"]
+        )
         paths = [_path(p) for p in paths]
         relevant = []
         for impact in view["impacts"]:
@@ -1096,7 +1139,7 @@ def check(root: Path, change: str, *, paths: list[str] | None = None) -> dict[st
             elif any(covered_by_scope(p, deps) for p in paths):
                 relevant.append(impact["impact_id"])
         view["blocking_reasons"] = [f"unresolved dependent impact: {i}" for i in relevant]
-        if any(e["match"] == "unknown" for e in view["evaluated"]):
+        if unknown_constraints:
             view["blocking_reasons"].append("unknown applicability cannot establish independence")
     if not paths:
         ledger, _ = load_ledger(root / ".harness/events.jsonl", load_policy(root))

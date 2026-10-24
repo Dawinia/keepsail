@@ -376,13 +376,14 @@ def _emit_resume(ctx: click.Context, root: Path, slug: str, cs: ChangeState) -> 
     try:
         knowledge = report(root, slug)
     except (KnowledgeError, OSError, UnicodeError) as exc:
+        code = getattr(exc, "exit_code", 1)
         if ctx.obj.get("json"):
-            click.echo(json_envelope(command="change resume", status="fail", exit_code=2,
+            click.echo(json_envelope(command="change resume", status="fail", exit_code=code,
                                      errors=[{"code": "knowledge_unavailable",
                                               "message": str(exc)}]))
         else:
             click.echo(format_error(subcommand="change resume", message=str(exc)), err=True)
-        sys.exit(2)
+        sys.exit(code)
     recent = _tail_events_for_change(
         events_path(root), slug, limit=_RESUME_RECENT_EVENT_LIMIT
     )

@@ -551,9 +551,22 @@ def _new_contract_blockers(
 def _knowledge_attestation(root: Path, att_path: Path, state: Any, *, base: str | None) -> None:
     from keepsail.core.knowledge import load_policy, validate_checkpoint
     policy = load_policy(root, ref=base) if base else load_policy(root)
-    checkpoints = [event.payload for event in (
-        parse_event_line(line) for line in att_path.read_text(encoding="utf-8").splitlines()
-        if line.strip()) if event.type == "knowledge_checkpointed"]
+    checkpoints = []
+    for line in att_path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            event = parse_event_line(line)
+        except EventSchemaError:
+            # Legacy tolerant parsing is retained; enabled knowledge records and
+            # malformed knowledge material must never disappear into that path.
+            if policy is not None or "knowledge_" in line:
+                raise
+            continue
+        if event.type == "knowledge_checkpointed":
+            checkpoints.append(event.payload)
+        elif policy is None and event.type.startswith("knowledge_"):
+            raise ApprovalError("knowledge evidence has no trusted activation")
     if policy is None:
         if checkpoints or (state.current_code_subject or {}).get("knowledge_basis"):
             raise ApprovalError("knowledge protocol is not activated in the trusted base")

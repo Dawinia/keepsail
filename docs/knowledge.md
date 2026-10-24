@@ -39,6 +39,7 @@ not an owner activation record. The owner must retain actual authorization and
 upgrade trusted validation surfaces before activation. The ordinary plan/code
 review policy grants no knowledge authority. Stored issuer/process labels follow
 the existing local trust model; they are not identity authentication.
+Unsupported policy requirements are rejected rather than silently ignored.
 After activation, declare a governing Change before the first knowledge operation;
 the normal Change command creates the event ledger. A missing activated ledger
 is reported as unavailable rather than interpreted as an empty knowledge set.
@@ -63,7 +64,8 @@ supplied workspace JSON file with this outer shape:
 
 The final member is `version` for propose, `evidence` for import, or `record` for
 record. The input file's original byte digest is retained. Matching operation IDs
-and identical inputs return the original receipt; a reused ID with different
+and canonically identical inputs return the original receipt, even if JSON
+whitespace changes; a reused ID with different
 content fails. A stale expected revision fails under the event writer lock before
 append. The full log prefix digest is the CAS revision; the semantic basis digest
 separately identifies relevant knowledge, applicability and authorization.
@@ -113,6 +115,8 @@ observer, retained original_receipt, and the SHA256 of the returned body in
 returned_content_digest. These observed operations do not prove understanding or
 compliance; agent-declared adoption is a different category. Acquisition coverage
 is shown per delivery/version, including missing observations.
+Manually submitted emitted records are retained as self-reported output statements;
+they do not become observations of receipt or native stdout completion.
 
 `change resume <change>` recovers original supplies, current versions, effective
 approval, challenges, impact dispositions, action evidence and missing observations.

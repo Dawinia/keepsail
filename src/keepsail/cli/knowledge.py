@@ -243,6 +243,9 @@ def show(ctx: click.Context, identifier: str | None, version_digest: str | None)
             "evidence": list(ledger["evidence"].values()),
             "deliveries": ledger["deliveries"],
             "executions": ledger["executions"],
+            "challenges": ledger["challenges"],
+            "statements": ledger["statements"],
+            "observations": ledger["observations"],
         }
 
     _run(ctx, "knowledge show", action)

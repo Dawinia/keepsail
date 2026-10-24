@@ -20,6 +20,7 @@ from keepsail.core.knowledge import (
     load_policy,
     policy_digest,
     report,
+    validate_policy,
     version_record,
 )
 from keepsail.core.reducer import derive_state
@@ -319,6 +320,10 @@ def test_operation_replay_and_conflicts(workspace):
     assert first["version_digest"] == second["version_digest"]
     assert second["idempotent_replay"] is True
     assert before == (w.root / ".harness/events.jsonl").read_bytes()
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    same = w.cli("knowledge", "propose", "--record", str(path))["data"]
+    assert same["idempotent_replay"] is True
+    assert before == (w.root / ".harness/events.jsonl").read_bytes()
     data["version"]["body"] = "modified"
     w.submit("propose", data, code=5)
     stale = w.operation(version=version(body="other"))
@@ -368,6 +373,10 @@ def test_acquisition_statement_and_candidate_are_separate_facts(workspace):
     v = w.recognize(version())
     d = w.deliver()
     original = report(w.root, "change-a")["basis_digest"]
+    w.submit("record", w.operation(record={"kind": "emitted", "delivery_id": d["delivery_id"]}))
+    output = report(w.root, "change-a")
+    assert output["statements"][-1]["category"] == "self-reported-output"
+    assert output["observations"] == []
     w.submit(
         "record",
         w.operation(
@@ -487,3 +496,20 @@ def test_normal_writer_cannot_skip_knowledge_validation(workspace):
             ),
             skip_validation=True,
         )
+
+
+def test_unknown_policy_requirements_cannot_be_silently_ignored():
+    p = policy()
+    p["require_human_confirmation_every_time"] = True
+    p["policy_digest"] = policy_digest(p)
+    with pytest.raises(KnowledgeError, match="unsupported knowledge policy requirement"):
+        validate_policy(p)
+
+
+def test_unknown_guidance_does_not_block_independent_work(workspace):
+    w = workspace
+    v = version(selector={"paths": ["src/another"]})
+    v["authority"] = "guidance"
+    w.recognize(v)
+    w.cli("change", "start", "change-b", "--framework", "plain")
+    w.cli("knowledge", "check", "change-b", "--paths", "docs/example.md")
