@@ -370,6 +370,20 @@ def _emit_resume(ctx: click.Context, root: Path, slug: str, cs: ChangeState) -> 
     Shared by the explicit-slug path and the no-arg active-change path so the
     two never drift. Honours the `--json` flag (structured envelope vs Markdown).
     """
+    import json
+
+    from keepsail.core.knowledge import KnowledgeError, report
+    try:
+        knowledge = report(root, slug)
+    except (KnowledgeError, OSError, UnicodeError) as exc:
+        code = getattr(exc, "exit_code", 1)
+        if ctx.obj.get("json"):
+            click.echo(json_envelope(command="change resume", status="fail", exit_code=code,
+                                     errors=[{"code": "knowledge_unavailable",
+                                              "message": str(exc)}]))
+        else:
+            click.echo(format_error(subcommand="change resume", message=str(exc)), err=True)
+        sys.exit(code)
     recent = _tail_events_for_change(
         events_path(root), slug, limit=_RESUME_RECENT_EVENT_LIMIT
     )
@@ -390,11 +404,16 @@ def _emit_resume(ctx: click.Context, root: Path, slug: str, cs: ChangeState) -> 
                     # v0.1 contract: always []. Phase 8+ wires sensor backlog.
                     # TODO(phase-8): wire SensorBacklog.pending_for(slug)
                     "pending_sensors": [],
+                    "knowledge": knowledge,
                 },
             )
         )
     else:
-        click.echo(_render_resume_markdown(cs, recent))
+        text = _render_resume_markdown(cs, recent)
+        if knowledge["coverage"] != "not_recorded":
+            text += "\n\n## Knowledge and unresolved matters\n" + json.dumps(
+                knowledge, ensure_ascii=False, indent=2)
+        click.echo(text)
 
 
 @change_group.command("resume")

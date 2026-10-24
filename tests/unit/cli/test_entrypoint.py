@@ -17,6 +17,7 @@ COMMAND_NAMES = [
     "gate",
     "implementation",
     "init",
+    "knowledge",
     "observe",
     "on-merge",
     "plan",

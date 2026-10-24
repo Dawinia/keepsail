@@ -12,12 +12,13 @@ This table is consumed by:
 
 from typing import Literal
 
+from keepsail.core.events import KNOWLEDGE_EVENT_TYPES
 from keepsail.core.state import TERMINAL_STATES
 
 INVALID: Literal["__INVALID__"] = "__INVALID__"
 
 # Per spec §3.6: events that never change state (informational sensor signals + system audit)
-_INFORMATIONAL: frozenset[str] = frozenset(
+_INFORMATIONAL: frozenset[str] = KNOWLEDGE_EVENT_TYPES | frozenset(
     {
         "verification_passed",
         "verification_failed",
@@ -38,6 +39,7 @@ _INFORMATIONAL: frozenset[str] = frozenset(
         "implementation_recorded",
         "plan_revision_submitted",
         "plan_withdrawn",
+        "knowledge_checkpointed",
     }
 )
 

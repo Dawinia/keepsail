@@ -649,6 +649,144 @@ keepsail init [OPTIONS]
 - `4` `gh` CLI missing (with `--setup-github`)
 - `5` concurrent init lock contention
 
+## keepsail knowledge
+
+Deliver explicit constraints and retain knowledge versions and impact evidence.
+
+```
+keepsail knowledge COMMAND [ARGS...]
+```
+
+## keepsail knowledge check
+
+Check unresolved obligations; this never grants execution permission.
+
+```
+keepsail knowledge check [OPTIONS] CHANGE
+```
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `CHANGE` | text | *required* |  |
+| `--paths` | text (repeatable) | — | Declared independent action paths (segment prefixes). |
+
+**Exit codes:**
+
+- `0` success (a retained reject conclusion does not grant authority)
+- `1` I/O or internal error
+- `2` malformed/unrecognized evidence, corrupt knowledge, or unmet obligation
+- `3` missing or invalid activated configuration
+- `4` trusted Git lookup failed
+- `5` concurrent revision or operation identity conflict
+
+## keepsail knowledge deliver
+
+Persist the exact finite constraint set before writing it to stdout.
+
+```
+keepsail knowledge deliver [OPTIONS] CHANGE
+```
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `CHANGE` | text | *required* |  |
+| `--operation-id` | text | *required* |  |
+| `--expected-revision` | text | *required* |  |
+
+**Exit codes:**
+
+- `0` success (a retained reject conclusion does not grant authority)
+- `1` I/O or internal error
+- `2` malformed/unrecognized evidence, corrupt knowledge, or unmet obligation
+- `3` missing or invalid activated configuration
+- `4` trusted Git lookup failed
+- `5` concurrent revision or operation identity conflict
+
+## keepsail knowledge import
+
+Import an exact recognition, applicability or impact conclusion.
+
+```
+keepsail knowledge import [OPTIONS]
+```
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `--evidence` | text | *required* | Workspace JSON operation with original conclusion. |
+
+**Exit codes:**
+
+- `0` success (a retained reject conclusion does not grant authority)
+- `1` I/O or internal error
+- `2` malformed/unrecognized evidence, corrupt knowledge, or unmet obligation
+- `3` missing or invalid activated configuration
+- `4` trusted Git lookup failed
+- `5` concurrent revision or operation identity conflict
+
+## keepsail knowledge propose
+
+Retain an immutable candidate; this does not grant authority.
+
+```
+keepsail knowledge propose [OPTIONS]
+```
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `--record` | text | *required* | Workspace JSON knowledge operation. |
+
+**Exit codes:**
+
+- `0` success (a retained reject conclusion does not grant authority)
+- `1` I/O or internal error
+- `2` malformed/unrecognized evidence, corrupt knowledge, or unmet obligation
+- `3` missing or invalid activated configuration
+- `4` trusted Git lookup failed
+- `5` concurrent revision or operation identity conflict
+
+## keepsail knowledge record
+
+Record acquisition, statement, challenge or execution, preserving its category.
+
+```
+keepsail knowledge record [OPTIONS]
+```
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `--record` | text | *required* | Workspace JSON observation or agent statement. |
+
+**Exit codes:**
+
+- `0` success (a retained reject conclusion does not grant authority)
+- `1` I/O or internal error
+- `2` malformed/unrecognized evidence, corrupt knowledge, or unmet obligation
+- `3` missing or invalid activated configuration
+- `4` trusted Git lookup failed
+- `5` concurrent revision or operation identity conflict
+
+## keepsail knowledge show
+
+Read current and historical knowledge, original evidence and operation revision.
+
+```
+keepsail knowledge show [OPTIONS] [IDENTIFIER]
+```
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `[IDENTIFIER]` | text | — |  |
+| `--version` | text | — |  |
+
+**Exit codes:**
+
+- `0` success (a retained reject conclusion does not grant authority)
+- `1` I/O or internal error
+- `2` malformed/unrecognized evidence, corrupt knowledge, or unmet obligation
+- `3` missing or invalid activated configuration
+- `4` trusted Git lookup failed
+- `5` concurrent revision or operation identity conflict
+
 ## keepsail observe
 
 Operate the optional framework-observer host (start / stop / status).

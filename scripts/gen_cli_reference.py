@@ -277,6 +277,16 @@ _EXIT_CODES: dict[str, list[str]] = {
     ],
 }
 
+for _knowledge_command in ("propose", "import", "deliver", "record", "show", "check"):
+    _EXIT_CODES[f"knowledge {_knowledge_command}"] = [
+        "`0` success (a retained reject conclusion does not grant authority)",
+        "`1` I/O or internal error",
+        "`2` malformed/unrecognized evidence, corrupt knowledge, or unmet obligation",
+        "`3` missing or invalid activated configuration",
+        "`4` trusted Git lookup failed",
+        "`5` concurrent revision or operation identity conflict",
+    ]
+
 
 # ---------------------------------------------------------------------------
 # Markdown helpers

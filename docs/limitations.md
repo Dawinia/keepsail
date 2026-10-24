@@ -6,6 +6,24 @@ deliberately deferred to a later version; one is blocked by an upstream bug
 
 ## What v0.1 does NOT ship yet
 
+**Explicit knowledge slice:** The [knowledge CLI](knowledge.md) handles finite
+global/explicit selectors, immutable supplied versions, recognized corrections and
+recorded in-flight impacts in one repository. It does not discover all relevant
+knowledge or synchronize a product authority across repositories. Native editor
+hooks do not infer knowledge dependencies for every tool or shell command.
+Prepared output, observed acquisition, agent statements and actual check outcomes
+are distinct. Imported issuer labels do not cryptographically authenticate a
+producer. A trusted-base owner activation and upgraded validators are required;
+installing this code does not activate a knowledge policy. Old binary behavior is
+not retroactively changed by a minimum-reader declaration.
+
+Adjustment may enter verification/code review while its recognized disposition is
+executing; final knowledge check and attestation require verified execution.
+Reapproval dispositions additionally require a new effective plan approval.
+Historical Changes without a knowledge protocol are reported as `not_recorded`,
+not retrospectively compliant. Retained snapshots prove the recorded cut, not
+unobserved changes in another workspace or service.
+
 **Framework adapters (v0.2+):**
 - Spec Kit framework adapter
 - BMAD framework adapter

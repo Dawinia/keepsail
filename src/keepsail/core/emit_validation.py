@@ -172,6 +172,11 @@ def validate_preconditions(events_file: Path, new_event: Event) -> None:
                 f"(change_id={new_event.change_id})"
             )
     _validate_authority(events_file, new_event)
+    from keepsail.core.knowledge import KnowledgeError, validate_event
+    try:
+        validate_event(events_file, new_event)
+    except KnowledgeError as exc:
+        raise EmitPreconditionError(str(exc)) from exc
 
 
 def _validate_authority(events_file: Path, new_event: Event) -> None:
@@ -487,6 +492,9 @@ def is_new_contract_event(events_file: Path, event: Event) -> bool:
     from keepsail.core.reducer import derive_state
 
     payload = event.payload or {}
+    from keepsail.core.events import KNOWLEDGE_EVENT_TYPES
+    if event.type in KNOWLEDGE_EVENT_TYPES or event.type == "knowledge_checkpointed":
+        return True
     if any(
         payload.get(key) is not None
         for key in ("plan_subject", "approval", "evidence", "code_subject")
