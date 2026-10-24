@@ -27,7 +27,11 @@ CORE_EVENT_TYPES: frozenset[str] = frozenset(
 
 # Per lifecycle-event-model §3.6: extension events (sensor-emitted /
 # user-initiated / system-detected / sensor lifecycle)
-EXTENSION_EVENT_TYPES: frozenset[str] = frozenset(
+KNOWLEDGE_EVENT_TYPES = frozenset({
+    "knowledge_proposed", "knowledge_imported", "knowledge_delivered", "knowledge_recorded",
+})
+
+EXTENSION_EVENT_TYPES: frozenset[str] = KNOWLEDGE_EVENT_TYPES | frozenset(
     {
         # sensor-emitted (state-changing)
         "plan_approved",
@@ -69,6 +73,7 @@ EXTENSION_EVENT_TYPES: frozenset[str] = frozenset(
         "implementation_recorded",
         "plan_revision_submitted",
         "plan_withdrawn",
+        "knowledge_checkpointed",
     }
 )
 

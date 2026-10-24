@@ -154,9 +154,27 @@ regen-diff > prose rationale*) and a **sedimentation** arm (feedforward: capturi
 decaying knowledge). keepsail builds the conformance arm; the sedimentation arm
 is a future subsystem, not yet implemented. The **checkability tiers** flow from
 this: tier-1 (runnable check → hard anchor, can block); tier-2 (acceptance criterion,
-independent re-review — deferred); tier-3 (nothing checkable → recorded as *context*,
-never gates). `decision check` prints a `hard:context` ratio so the system can't
-quietly decay into all-advisory.
+independent re-review); tier-3 (no executable predicate). These tiers describe
+checkability. They do not lower an applicable constraint's authority: an unchecked
+constraint remains binding and its semantic assessment belongs to the recognized
+process. `decision check` prints the historical `hard:context` checkability ratio.
+
+### Explicit knowledge delivery
+
+The [knowledge CLI contract](knowledge.md) adds immutable knowledge versions,
+owner-recognized conclusions, explicit global/path/identity applicability,
+retained delivery and observable acquisition/agent statement separation. Changes
+recover supplied versions, effective approval references and unresolved impacts
+through `change resume`. Correction retains the old grounds; a recognized process
+decides continuation, adjustment or renewed approval. Execution reports do not
+replace actual verification and code review.
+
+The shared predicate is in `core/knowledge.py`; CLI, strict event emission and
+attestation use it. Cross-governing-Change knowledge is retained in a generated
+checkpoint event for pure Git attestation validation. The initial surface is one
+repository and the CLI. This does not implement full semantic recall, cross-repo
+knowledge authority, or interception of every agent tool. Policy activation is a
+separate owner decision; this implementation does not activate it for this repo.
 
 The craft of *writing* a check that bites without false positives (brittle
 one-token signatures, scoping the grep to source paths, when to leave a decision

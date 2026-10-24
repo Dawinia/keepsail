@@ -5,15 +5,14 @@ ratified_by: dawinialo@163.com
 ratified_at: '2026-06-26T09:45:27.695262Z'
 ratified_text_hash: sha256:bd22ae2dcac7f0630529e2d42457b809858d2ca19e33a4bf870b1bc76b1ba52b
 last_reconciled_by: dawinialo@163.com
-last_reconciled_at: '2026-10-23T14:04:06.851142Z'
+last_reconciled_at: '2026-10-24T05:51:17.338404Z'
 last_reconcile_kind: self
-last_reconcile_justification: Compared the complete anchored modules with 9442ba0
-  after normalizing only namespace, environment and product names. No behavior changed;
-  decision_check only repoints its sentinel to the ratified successor. Event append-only/frozen
-  semantics, pure fold, transition matrix, integrity verdicts, record lifecycle and
-  canonical hard-coded gate allowances remain intact. Re-stamp anchors at src/keepsail.
+last_reconcile_justification: 'Reviewed the complete transitions.py diff: knowledge
+  signals are declared informational in the single existing table; compute_target_state
+  and lifecycle transitions are unchanged and no ad-hoc state assignment was introduced.
+  Independent code review remains required for this Change.'
 reconciled_anchors:
-  src/keepsail/core/transitions.py: sha256:fae754af9ff682663ee904fc90053ef604bdfef21af63984207e1a2e5300d088
+  src/keepsail/core/transitions.py: sha256:21b04c4ac7b8b5327b0f7846ca2d29febc93daf5a9edd237933b3f4e12c55e11
 ---
 State transitions come only from the fixed declared matrix; no ad-hoc transition.
 

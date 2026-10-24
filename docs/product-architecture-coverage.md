@@ -90,3 +90,36 @@ The main reuse opportunity is existing Change authorization and exact-subject
 evidence. Main gaps are product-knowledge authority, explicit delivery, versioned
 acquisition trace and in-flight feedback. These are design inputs, not an
 implementation roadmap or permission to alter the normative architecture.
+
+## 2026-10-24 explicit-constraint slice (local implementation evidence)
+
+The table above remains the dated bfcdb007 audit. The new
+[CLI contract](knowledge.md), [implementation plan](plans/2026-10-24-explicit-constraints-implementation.md)
+and [PostgreSQL lifecycle test](../tests/integration/lifecycle/test_knowledge_delivery.py)
+describe a later, bounded implementation. This section does not rewrite that
+historical verdict or assert full architectural acceptance.
+
+| Capability | New implementation and remaining limit |
+|---|---|
+| C1 | Resume reconstructs supplied historical text, effective approval, current constraints, challenges and impact execution from persistent records, across replacement processes. Full reasoning and unknown semantic relationships remain outside recovery. |
+| C2 | Existing plan/code approval remains separate; current knowledge basis binds new subjects. Reapproval dispositions require a new effective plan approval. In-bound file additions still use implementation assessment. Semantic commitment/risk classification depends on the recognized process. |
+| C3 | The CLI retains the complete finite set selected by global, explicit repository/change/path selectors or recognized applicability. Non-matching and unknown are separate. It does not guarantee semantic recall or cross-repo delivery. |
+| C4 | Candidates, immutable versions, recognized authority, retirement, supersession and challenges have distinct records. No check is required for constraint authority. Knowledge correction cannot itself approve a changed work commitment. |
+| C5 | Strict event validation and attestation enforce declared knowledge preconditions; adjustment can enter verification/review, while final closure requires verified execution. This does not change native editor/shell interception coverage or the historical snapshot loader's behavior. |
+| C6 | Delivery snapshots retain exact versions and recognition evidence; observations, agent statements and check/review facts remain separate. Generated checkpoints retain cross-governing-Change knowledge for pure Git validation. Producer labels are not cryptographic authentication. |
+
+The isolated lifecycle scenario executes a failing PostgreSQL-version fixture,
+corrects it, obtains current-subject verification/review, records execution and
+validates attestation without the local event/state cache. The fixture demonstrates
+the governance chain; it is not a running PostgreSQL server or a production
+database migration. Concurrent processes compete for one exact ledger revision.
+Dedicated unit scenarios exercise candidate nonauthority, immutable identity,
+explicit matching, rejection/failure, challenge independence, corruption and
+policy downgrade refusal.
+
+The product identity is stable but the ledger is local to one repository. Shared
+product authority across repositories, broad knowledge formation, universal
+semantic applicability, full agent-loop ownership and all-tool enforcement remain
+unimplemented obligations/boundaries as specified by the normative architecture.
+This repository's knowledge policy is not activated; these are local source and
+isolated test capabilities, not published-package, active-hook or remote-CI proof.

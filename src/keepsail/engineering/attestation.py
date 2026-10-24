@@ -127,6 +127,8 @@ def extract_change_events(events_file: Path, slug: str) -> list[str]:
 def write_attestation(events_file: Path, attestations_dir: Path, slug: str) -> Path:
     """Snapshot the per-change event slice to ``<attestations_dir>/<slug>.jsonl``
     (idempotent overwrite)."""
+    from keepsail.core.knowledge import retain_checkpoint
+    retain_checkpoint(events_file, slug)
     lines = extract_change_events(events_file, slug)
     attestations_dir.mkdir(parents=True, exist_ok=True)
     out_path = attestations_dir / f"{slug}.jsonl"
@@ -330,6 +332,11 @@ def verify_attestations(
             blockers.extend(att_blockers)
             continue
         cs = derive_state(att_path)[slug]
+        try:
+            _knowledge_attestation(root, att_path, cs, base=base)
+        except (ApprovalError, ValueError, KeyError, TypeError) as exc:
+            blockers.append(f"attestation {slug}: knowledge evidence invalid: {exc}")
+            continue
         if recognition is not None and cs.effective_approval is None:
             blockers.append(
                 f"attestation {slug}: active review recognition requires an effective plan approval"
@@ -461,6 +468,7 @@ def _new_contract_blockers(
             approval_id=str(approval["approval_id"]),
             base=base or str(validated_code["base"]),
             head=head or str(validated_code["head"]),
+            knowledge_basis=validated_code.get("knowledge_basis"),
         )
     except (ApprovalError, GitScopeError, KeyError) as exc:
         blockers.append(f"attestation {slug}: cannot recompute code subject: {exc}")
@@ -538,6 +546,30 @@ def _new_contract_blockers(
     if missing:
         blockers.append(f"attestation {slug}: implementation coverage omits a changed file")
     return blockers
+
+
+def _knowledge_attestation(root: Path, att_path: Path, state: Any, *, base: str | None) -> None:
+    from keepsail.core.knowledge import load_policy, validate_checkpoint
+    policy = load_policy(root, ref=base) if base else load_policy(root)
+    checkpoints = [event.payload for event in (
+        parse_event_line(line) for line in att_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()) if event.type == "knowledge_checkpointed"]
+    if policy is None:
+        if checkpoints or (state.current_code_subject or {}).get("knowledge_basis"):
+            raise ApprovalError("knowledge protocol is not activated in the trusted base")
+        return
+    if not checkpoints:
+        raise ApprovalError("activated knowledge protocol requires a retained checkpoint")
+    required: list[dict[str, Any]] = []
+    if base:
+        from keepsail.core.scope_match import file_text_at_commit
+        for path in tracked_files_at_commit(root, base):
+            if path.startswith(ATTESTATIONS_DIRNAME + "/") and path.endswith(".jsonl"):
+                for line in file_text_at_commit(root, base, path).splitlines():
+                    raw = json.loads(line)
+                    if raw.get("type") == "knowledge_checkpointed":
+                        required.extend(raw["payload"]["events"])
+    validate_checkpoint(checkpoints[-1], policy, state, required_events=required)
 
 
 def events_from_stateful_attestation(root: Path, slug: str) -> list[Event]:

@@ -17,6 +17,10 @@ from keepsail.cli.lazy_group import CommandSpec, LazyGroup
 from keepsail.version import __version__
 
 COMMAND_SPECS = {
+    "knowledge": CommandSpec(
+        "keepsail.cli.knowledge:knowledge_group",
+        "Deliver explicit constraints and retain versions and impact evidence.",
+    ),
     "adapter": CommandSpec(
         "keepsail.cli.adapter:adapter_group",
         "Install / uninstall / list keepsail integrations for frameworks + agents.",

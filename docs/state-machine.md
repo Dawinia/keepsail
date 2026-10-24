@@ -79,6 +79,11 @@ These events are legal but leave the state unchanged (informational sensor signa
 - `gate_bypass_disclosed`
 - `gate_bypassed`
 - `implementation_recorded`
+- `knowledge_checkpointed`
+- `knowledge_delivered`
+- `knowledge_imported`
+- `knowledge_proposed`
+- `knowledge_recorded`
 - `merged_reverted`
 - `plan_revision_submitted`
 - `plan_withdrawn`

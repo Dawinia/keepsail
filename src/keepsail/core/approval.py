@@ -178,6 +178,11 @@ def make_plan_subject(
         "artifacts": manifest,
         "commitments": commitment_list,
     }
+    from keepsail.core.knowledge import report
+    knowledge = report(root, change_id)
+    if knowledge["coverage"] != "not_recorded":
+        subject["knowledge_basis"] = {
+            "version": "knowledge-basis/v1", "digest": knowledge["basis_digest"]}
     if prior_approval:
         subject["prior_approval"] = prior_approval
     subject["subject_id"] = f"plan:{digest_record(subject)}"
@@ -688,6 +693,7 @@ def make_code_subject(
     base: str,
     head: str = "HEAD",
     verification_config_digest: str | None = None,
+    knowledge_basis: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     requested_base = resolve_commit(root, base)
     resolved_head = resolve_commit(root, head)
@@ -710,6 +716,13 @@ def make_code_subject(
     }
     if verification_config_digest:
         subject["verification_config_digest"] = verification_config_digest
+    if knowledge_basis is None:
+        from keepsail.core.knowledge import report
+        knowledge = report(root, change_id, extra_paths=[str(row["path"]) for row in manifest])
+        if knowledge["coverage"] != "not_recorded":
+            knowledge_basis = {"version": "knowledge-basis/v1", "digest": knowledge["basis_digest"]}
+    if knowledge_basis is not None:
+        subject["knowledge_basis"] = knowledge_basis
     identity = {key: value for key, value in subject.items() if key != "head"}
     subject["subject_id"] = f"code:{digest_record(identity)}"
     return subject
