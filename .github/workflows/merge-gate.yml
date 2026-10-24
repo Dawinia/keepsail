@@ -36,13 +36,44 @@ jobs:
           env -u PYTHONPATH TRUSTED_ROOT="$GITHUB_WORKSPACE/.harness-trusted-base" \
             BASE_SHA="$BASE_SHA" "$verifier/python" -I -c \
             'import hashlib, importlib, os, pathlib, subprocess, tomllib; trusted = pathlib.Path(os.environ["TRUSTED_ROOT"]); project = tomllib.loads((trusted / "pyproject.toml").read_text())["project"]; namespace = project["scripts"][project["name"]].split(".", 1)[0]; attest = importlib.import_module(namespace + ".cli.attest"); events = importlib.import_module(namespace + ".core.events"); verifier = pathlib.Path(attest.__file__).resolve(); installed = pathlib.Path(events.__file__).resolve(); expected = trusted / "src" / namespace / "core" / "events.py"; assert subprocess.check_output(["git", "-C", str(trusted), "rev-parse", "HEAD"], text=True).strip() == os.environ["BASE_SHA"]; assert "site-packages" in str(verifier); assert "site-packages" in str(installed); assert ".harness-trusted-base" not in str(verifier); assert ".harness-trusted-base" not in str(installed); assert hashlib.sha256(installed.read_bytes()).hexdigest() == hashlib.sha256(expected.read_bytes()).hexdigest(); print("A17 verifier loaded from {} and matches trusted BASE_SHA={}".format(verifier, os.environ["BASE_SHA"]))'
-      - name: Verify lifecycle attestations cover the diff
+      - name: Prepare trusted BASE workspace with exact target evidence
         shell: bash
         run: |
-          cd "$GITHUB_WORKSPACE"
+          git -C .harness-trusted-base fetch --no-tags "$GITHUB_WORKSPACE" "$HEAD_SHA"
+          python - <<'PY'
+          import os
+          import pathlib
+          import subprocess
+
+          root = pathlib.Path(os.environ["GITHUB_WORKSPACE"]) / ".harness-trusted-base"
+          def git(*args):
+              return subprocess.check_output(["git", "-C", str(root), *args])
+          assert git("rev-parse", "HEAD").decode().strip() == os.environ["BASE_SHA"]
+          target = git("rev-parse", "--verify", os.environ["HEAD_SHA"] + "^{commit}").decode().strip()
+          assert target == os.environ["HEAD_SHA"]
+          entries = git("ls-tree", "-rz", target, "--", ".harness/attestations").split(b"\0")
+          for entry in filter(None, entries):
+              metadata, raw_path = entry.split(b"\t", 1)
+              mode, kind, oid = metadata.split()
+              path = pathlib.PurePosixPath(raw_path.decode("utf-8"))
+              assert mode in (b"100644", b"100755") and kind == b"blob", "nonregular attestation"
+              assert path.parts[:2] == (".harness", "attestations") and len(path.parts) == 3
+              assert path.suffix == ".jsonl" and ".." not in path.parts
+              destination = root.joinpath(*path.parts)
+              assert destination.resolve().is_relative_to(root.resolve())
+              content = git("cat-file", "blob", oid.decode())
+              destination.parent.mkdir(parents=True, exist_ok=True)
+              destination.write_bytes(content)
+              assert destination.read_bytes() == content
+          print("Trusted BASE workspace; only target attestation blobs projected, source/config unchanged")
+          PY
+      - name: Verify lifecycle attestations cover the complete target Git diff
+        shell: bash
+        run: |
+          cd "$GITHUB_WORKSPACE/.harness-trusted-base"
           # The trusted base may predate Keepsail; select only its installed CLI.
           verifier="$RUNNER_TEMP/keepsail-verifier/bin"
-          base_cli="$(env -u PYTHONPATH "$verifier/python" -I -c 'import pathlib, tomllib; print(tomllib.loads(pathlib.Path(".harness-trusted-base/pyproject.toml").read_text())["project"]["name"])')"
+          base_cli="$(env -u PYTHONPATH "$verifier/python" -I -c 'import pathlib, tomllib; print(tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["name"])')"
           cli="$verifier/$base_cli"
           env -u PYTHONPATH "$cli" \
             attest verify --base "$BASE_SHA" --head "$HEAD_SHA"
@@ -57,4 +88,4 @@ jobs:
       - name: Install candidate package for candidate tests only
         run: python -m pip install --disable-pip-version-check ".[dev]"
       - name: Run new-contract acceptance tests
-        run: python -m pytest -q tests/unit/core/test_approval.py tests/integration/lifecycle/test_plan_authority.py
+        run: python -m pytest -q tests/unit/core/test_approval.py tests/integration/lifecycle/test_plan_authority.py tests/integration/lifecycle/test_knowledge_policy_bootstrap.py tests/integration/lifecycle/test_keepsail_pilot_configuration.py tests/integration/lifecycle/test_trusted_verifier_workspace.py

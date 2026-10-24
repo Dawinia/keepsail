@@ -5,6 +5,13 @@ This is the single-repository CLI surface of the
 is still binding. Knowledge recognition and work authorization remain separate.
 This release does not activate a policy for the Keepsail repository.
 
+The repository now carries a first policy **candidate** and a bounded
+[Keepsail pilot procedure](knowledge-pilot.md), including retained owner choices,
+the proposed first knowledge version and activation/acceptance limits. Under the
+current inactive trusted base the file grants no authority. An authorized merge
+that makes it part of the trusted base is a real repository-protocol activation;
+it must not be described as an ordinary documentation-only merge.
+
 ## Activation and trust
 
 Effective authority comes only from an owner-controlled

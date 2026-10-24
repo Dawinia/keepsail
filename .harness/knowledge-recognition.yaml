@@ -1,0 +1,25 @@
+# First candidate: effective only after authorized trusted-base activation.
+version: knowledge-recognition/v1
+enabled: true
+product_id: keepsail
+repository_id: Dawinia/keepsail
+minimum_reader: knowledge-operation/v1
+owner_activation:
+  id: keepsail-knowledge-pilot-preparation-2026-10-25
+  source: docs/evidence/2026-10-25-knowledge-pilot-owner-authorization.json
+  by: keepsail-product-owner
+  decision: activate
+human_issuers:
+  - keepsail-product-owner
+observation_issuers:
+  - keepsail-cli-observer
+processes:
+  - id: keepsail-owner-knowledge
+    version: '1'
+    issuers:
+      - keepsail-product-owner
+    kinds:
+      - recognition
+      - applicability
+      - disposition
+policy_digest: 8837f4d7a4fede285eef7d8a15ab450ee70ea779e0580ac90f27cf9efbb86337
