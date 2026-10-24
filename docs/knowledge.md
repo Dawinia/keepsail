@@ -7,10 +7,24 @@ This release does not activate a policy for the Keepsail repository.
 
 ## Activation and trust
 
-An owner-controlled `.harness/knowledge-recognition.yaml` must already be present
-in the trusted base selected by the existing contract-base resolver (or in the
-explicit base supplied to attestation verification). A candidate cannot activate,
-replace or delete it to grant itself authority. The required mapping contains:
+Effective authority comes only from an owner-controlled
+`.harness/knowledge-recognition.yaml` in the trusted base selected by the existing
+contract-base resolver (or the explicit base supplied to attestation verification).
+A first candidate can be delivered through an ordinary approved Change while that
+base has no policy: the candidate must pass schema/digest validation and remain in
+the complete code subject, actual coverage and exact plan/code review. It does not
+activate the knowledge protocol. `knowledge show` then returns exit 0 with
+`coverage=not_recorded` and `policy_candidate.status=candidate` plus its policy
+digest; knowledge writes remain unavailable. Subject generation and export do not
+invent a knowledge basis or checkpoint for this inactive delivery.
+
+Committed attestation validation applies the same candidate checks to the target
+Git commit, independently of mutable worktree configuration. Invalid or unreadable
+configuration and unavailable trusted Git fail explicitly. A candidate cannot
+replace, disable or delete an already effective policy. A general policy-update
+or deactivation cutover is outside this first-delivery repair.
+
+The required mapping contains:
 
 ```yaml
 version: knowledge-recognition/v1
@@ -43,6 +57,20 @@ Unsupported policy requirements are rejected rather than silently ignored.
 After activation, declare a governing Change before the first knowledge operation;
 the normal Change command creates the event ledger. A missing activated ledger
 is reported as unavailable rather than interpreted as an empty knowledge set.
+
+Activation occurs only when an authorized owner-controlled delivery makes the
+policy part of the trusted base and the validation surfaces have been upgraded.
+Committing a candidate, an ordinary review approval, or writing `owner_activation`
+labels is not an independent grant of knowledge authority or identity proof.
+Historical delivery subjects stay unchanged; later actions use the now-effective
+policy and satisfy its delivery requirements without rewriting past approvals.
+This repair does not install or activate a policy for the Keepsail repository.
+
+Policy activation affects the repository protocol. A knowledge selector restricted
+to one Change limits that knowledge's applicability, not activation itself. Other
+Changes must still retain an exact delivery of their current constraint set,
+including an empty set. There is no per-Change activation or implicit empty-set
+exemption.
 
 ## Operations and machine output
 

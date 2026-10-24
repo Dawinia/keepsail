@@ -161,43 +161,50 @@ def _configured_policy(raw: object) -> dict[str, Any]:
         raise KnowledgeError(str(exc), code="knowledge_config_invalid", exit_code=3) from exc
 
 
-def load_policy(root: Path, *, ref: str | None = None) -> dict[str, Any] | None:
-    """The trusted base must already contain owner activation; candidates cannot activate."""
-    path = root / POLICY_PATH
-    candidate = path.exists() if ref is None else False
-    if (
-        ref is None
-        and not candidate
-        and not any((p / ".git").exists() for p in (root, *root.parents))
-    ):
-        return None
+def policy_configuration(
+    root: Path, *, ref: str | None = None, candidate_ref: str | None = None
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """Resolve effective authority separately from a validated delivery candidate.
+
+    Explicit Git inputs never read the mutable worktree. A first candidate may
+    be delivered normally, but only the trusted base can enable the protocol.
+    """
     try:
         from keepsail.core.scope_match import resolve_commit
 
+        current = None
+        if candidate_ref is not None:
+            current = _policy_at_commit(root.resolve(), resolve_commit(root, candidate_ref))
+        elif ref is None:
+            try:
+                text = (root / POLICY_PATH).read_text(encoding="utf-8")
+            except FileNotFoundError:
+                pass
+            else:
+                current = _configured_policy(yaml.safe_load(text))
+        if (ref is None and candidate_ref is None and current is None
+                and not any((p / ".git").exists() for p in (root, *root.parents))):
+            return None, None
         base = resolve_commit(root, ref) if ref else resolve_contract_base(root)
         trusted = _policy_at_commit(root.resolve(), base)
         if trusted is None:
-            if candidate:
-                raise KnowledgeError(
-                    "knowledge policy is not activated in the trusted base",
-                    code="knowledge_not_activated",
-                    exit_code=3,
-                )
-            return None
-        if ref is None:
-            if not candidate:
+            return None, deepcopy(current)
+        if ref is None or candidate_ref is not None:
+            if current is None:
                 raise KnowledgeError("activated knowledge policy is missing", exit_code=3)
-            current = _configured_policy(yaml.safe_load(path.read_text(encoding="utf-8")))
             _need(current == trusted, "candidate cannot replace the trusted knowledge policy")
-        return deepcopy(trusted)
+        return deepcopy(trusted), None
     except KnowledgeError:
         raise
     except (GitScopeError, ApprovalError) as exc:
-        if candidate:
-            raise KnowledgeError(str(exc), exit_code=4) from exc
-        return None
+        raise KnowledgeError(str(exc), exit_code=4) from exc
     except (OSError, UnicodeError, yaml.YAMLError) as exc:
         raise KnowledgeError(f"knowledge configuration unreadable: {exc}", exit_code=3) from exc
+
+
+def load_policy(root: Path, *, ref: str | None = None) -> dict[str, Any] | None:
+    """Load trusted authority; a validated first candidate has none."""
+    return policy_configuration(root, ref=ref)[0]
 
 
 def version_record(raw: object, policy: dict[str, Any]) -> dict[str, Any]:
@@ -832,10 +839,15 @@ def report(
     from keepsail.core.reducer import derive_state
 
     path = events_file or root / ".harness/events.jsonl"
-    policy = load_policy(root)
+    policy, candidate = policy_configuration(root)
     ledger, revision = load_ledger(path, policy)
     if policy is None:
-        return {"coverage": "not_recorded", "revision": revision}
+        view: dict[str, Any] = {"coverage": "not_recorded", "revision": revision}
+        if candidate is not None:
+            view["policy_candidate"] = {
+                "status": "candidate", "policy_digest": candidate["policy_digest"]
+            }
+        return view
     state = derive_state(path).get(change)
     _need(state is not None, "unknown Change")
     assert state is not None

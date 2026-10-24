@@ -20,6 +20,7 @@ from keepsail.core.knowledge import (
     check,
     load_ledger,
     load_policy,
+    policy_configuration,
     prepare,
     read_record,
     report,
@@ -226,7 +227,7 @@ def show(ctx: click.Context, identifier: str | None, version_digest: str | None)
     """Read current and historical knowledge, original evidence and operation revision."""
 
     def action(root: Path) -> dict[str, Any]:
-        policy = load_policy(root)
+        policy, candidate = policy_configuration(root)
         ledger, revision = load_ledger(events_path(root), policy)
         versions = [
             v
@@ -238,6 +239,9 @@ def show(ctx: click.Context, identifier: str | None, version_digest: str | None)
             raise KnowledgeError("unknown knowledge identity or version")
         return {
             "coverage": "explicit-rules-only" if policy else "not_recorded",
+            **({"policy_candidate": {
+                "status": "candidate", "policy_digest": candidate["policy_digest"]
+            }} if candidate is not None else {}),
             "revision": revision,
             "versions": [dict(v, state=ledger["states"][v["version_digest"]]) for v in versions],
             "evidence": list(ledger["evidence"].values()),
