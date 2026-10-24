@@ -1,6 +1,7 @@
 """CLI tests for `keepsail attest write` / `attest verify`."""
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 from click.testing import CliRunner
@@ -132,6 +133,14 @@ def _attestation(root: Path, slug: str, author: str, reviewer: str, *, junk=Fals
 
 def _verify(tmp_path, monkeypatch, diff: str, *, json_mode: bool = False):
     _init(tmp_path)
+    # The diff is mocked for disclosure tests; policy validation still needs
+    # an actual trusted commit proving absence, rather than an unavailable Git ref.
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=tmp_path, check=True)
+    subprocess.run(
+        ["git", "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
+         "commit", "--allow-empty", "-qm", "inactive policy fixture"],
+        cwd=tmp_path, check=True,
+    )
     monkeypatch.setattr(attest_mod, "_git_name_status", lambda b, h, c: diff)
     args = ["--workspace", str(tmp_path)]
     if json_mode:

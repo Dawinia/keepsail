@@ -134,7 +134,7 @@ def test_evidence_replacement_must_supersede_latest_subject_conclusion() -> None
 
 
 def test_code_subject_contains_rename_mode_and_blob_identity(tmp_path: Path) -> None:
-    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=tmp_path, check=True)
     subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=tmp_path, check=True)
     subprocess.run(["git", "config", "user.name", "Test"], cwd=tmp_path, check=True)
     old = tmp_path / "old.py"
