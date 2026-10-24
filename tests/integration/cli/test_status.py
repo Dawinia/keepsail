@@ -829,7 +829,7 @@ def test_status_invalidates_retained_receipts_when_packet_target_is_not_current_
     tmp_path: Path,
 ) -> None:
     _init(tmp_path)
-    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=tmp_path, check=True)
     subprocess.run(
         ["git", "config", "user.email", "status-test@example.com"],
         cwd=tmp_path,
