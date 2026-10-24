@@ -2,7 +2,7 @@
 change: 2026-10-25-knowledge-policy-bootstrap
 stage: plan
 ---
-# First knowledge-policy delivery
+# First knowledge-policy delivery and Keepsail pilot preparation
 
 The owner confirmed the diagnosis and implementation proposal in this chat with
 “开始” on 2026-10-25. This authorizes implementation of this plan, subject to the
@@ -13,6 +13,13 @@ On 2026-10-25 the owner additionally answered “确认调整至 1200 秒并继�
 the concrete proposal changing only the full pytest check's execution budget
 from 600 to 1200 seconds. This revision adds P5; P1–P4 and all other restrictions
 remain unchanged. It requires a new recognized plan conclusion before that edit.
+
+The owner subsequently asked to deliver the repair and pilot requirement in one
+PR and answered “开始” to the proposal to add the confirmed pilot configuration
+and documentation, update coverage and repeat verification/review of the complete
+subject. This revision adds P6–P8 and replaces the earlier prohibition on installing
+a first candidate. It authorizes preparing and publishing that combined PR, not
+merging it or claiming that the real policy or pilot has already taken effect.
 
 ## Problem and commitments
 
@@ -41,11 +48,41 @@ has different semantics. Current regression fixtures begin with activation in ma
   `.harness/verification.yaml`, preserving the complete test command, `must_pass`
   and every other check. Re-run normal done under the new approved budget and
   bind verification, code review and attestation to the exact current subject.
+- P6: Include the owner-selected first policy candidate at
+  `.harness/knowledge-recognition.yaml`: product `keepsail`, repository
+  `Dawinia/keepsail`, protocol `knowledge-operation/v1`; only
+  `keepsail-product-owner` may recognize knowledge, applicability and dispositions
+  through `keepsail-owner-knowledge` version `1`. The separately selected
+  `keepsail-cli-observer` may record actual retained CLI output, never understanding
+  or compliance. Preserve the exact visible owner choices, approvals and limits
+  in `docs/evidence/2026-10-25-knowledge-pilot-owner-authorization.json` and bind
+  the candidate to that retained source with a canonical policy digest. Owner labels
+  are local trust configuration, not authenticated identity. No agent-generated
+  recognition or fabricated owner approval for a knowledge version.
+- P7: Document the single target Change `2026-10-25-knowledge-cli-pilot`, first
+  knowledge `delivery-evidence-boundary`, its exact candidate body/source and AND
+  selector for repository and Change. Supply a reviewable version JSON, not a
+  pre-approved operation/ledger event. Preserve the distinction between candidate,
+  trusted policy activation, exact version recognition, supply, actual acquisition,
+  agent statement and check result. Describe actual replacement-session acceptance,
+  v1/v2 impact disposition, repository-wide protocol impact (including empty-set
+  delivery), active Change inventory and withdrawal/history limits. No claim of
+  completed real-agent use or of per-Change protocol activation.
+- P8: Exercise the concrete repository candidate through existing isolated normal
+  governance delivery and owner-controlled trusted-base advancement, with actual
+  CLI subprocess retrieval and owner fixture evidence explicitly distinguished
+  from real owner recognition. Verify target matching versus another Change,
+  candidate non-authority, retained output/statement/check separation and pure Git
+  attestation. Retain the full current-subject verification/review and create one
+  PR for repair + candidate + pilot instructions. Do not merge or activate without
+  the owner's later approval of the concrete result and repository-wide effects.
 
 ## Boundaries
 
-No real `.harness/knowledge-recognition.yaml` is installed. No merge, publication,
-policy activation, ledger/state/approval/receipt edits, historical migration, or
+The earlier P1–P5 checkpoint installed no real policy. This revision permits the
+first candidate file in the real worktree and combined PR, but it remains inactive
+under the current trusted base. No merge, actual policy activation,
+ledger/state/approval/receipt edits, historical migration, or
 ratified decision body edits. Do not reopen archived explicit-constraints.
 Preserve pre-existing test_knowledge_delivery.py working-tree state, .superpowers/
 and docs/research/. Use an independent bootstrap regression file.
@@ -124,3 +161,48 @@ Required scenarios:
 Freeze each reviewed subject in a commit. Do not edit while review is pending.
 Batch code findings through implementation reopen and re-review current subject.
 Finish with exact code review and committed attestation; do not merge or activate.
+
+## Combined PR sequence and concrete pilot
+
+1. Submit this revised exact plan with P1–P8 and obtain the existing recognized
+   independent plan conclusion. Keep the original review/verification history.
+2. Add the candidate policy, retained owner record, immutable first-version JSON
+   under `docs/knowledge-pilot/`, and `docs/knowledge-pilot.md`; link the operator
+   guide from docs/knowledge.md. The original preparation record and subsequent
+   “one PR / 开始” exchange are both retained, explicitly preserving the still
+   unapproved merge and exact knowledge-version recognition.
+3. The first constraint body is: “交付、可观察获取、agent 采用声明、检查结果必须分开记录；缺失获取或检查不能宣称已读、已理解或已合规。”
+   Its selector is `repository_ids: [Dawinia/keepsail]` AND
+   `change_ids: [2026-10-25-knowledge-cli-pilot]`, authority `constraint`,
+   previous_version null. Retain source architecture text and repository baseline.
+   This is a proposal for later exact-version owner recognition, not approval from
+   the generic “开始” message.
+4. Reuse the existing BootstrapWorkspace fixture for concrete-policy integration
+   coverage; add only the test logic needed for this real configuration. Tests may
+   simulate owner recognition only in an explicitly isolated Git fixture. No real
+   knowledge operations are possible under the inactive trusted base.
+5. Inventory active Changes using the real CLI, report next-action impacts without
+   transitioning unrelated Changes. Other Changes require exact current-set supply
+   after activation, even if this knowledge does not match them. No silent protocol
+   exemption, blanket approval revocation or automatic retirement of old work.
+6. Record all actual coverage against the revised approval. Run focused concrete
+   policy/bootstrap regressions, normal full done under the retained 1200-second
+   budget, decision/doc checks, exact independent code review, attestation export
+   and pure Git verification. Push the branch and create/update one PR; retain CI
+   results separately. Freeze edits while a review is pending.
+
+Estimated additional files: .harness/knowledge-recognition.yaml,
+docs/evidence/2026-10-25-knowledge-pilot-owner-authorization.json,
+docs/knowledge-pilot.md, docs/knowledge-pilot/delivery-evidence-boundary-v1.json,
+tests/integration/lifecycle/test_keepsail_pilot_configuration.py and docs/knowledge.md.
+No runtime extension is planned beyond already delivered P1–P5. A product defect
+requiring changed commitments must be diagnosed and proposed before implementation.
+
+Merge acceptance is explicitly separate: confirm actual trusted-base/source
+versions, repository-wide affected Changes, CI, preserved local event continuity,
+and the absence of effective knowledge until later exact-version recognition.
+Rollback is not deletion of active policy or events: stop new pilot work, retain
+history, use recognized retirement/exclusion and impact disposition as applicable;
+general active policy replacement/deactivation remains a separate design gap.
+An actual replacement agent session is required to close real cross-session use;
+this PR may ship its prerequisites and handoff but must report that step pending.
