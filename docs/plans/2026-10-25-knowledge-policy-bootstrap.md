@@ -9,6 +9,11 @@ The owner confirmed the diagnosis and implementation proposal in this chat with
 existing recognized plan/code review. It does not authorize merge or activation.
 The normative source remains `docs/product-architecture.md`.
 
+On 2026-10-25 the owner additionally answered “确认调整至 1200 秒并继续” to
+the concrete proposal changing only the full pytest check's execution budget
+from 600 to 1200 seconds. This revision adds P5; P1–P4 and all other restrictions
+remain unchanged. It requires a new recognized plan conclusion before that edit.
+
 ## Problem and commitments
 
 `load_policy` currently treats the presence of a first candidate as an error when
@@ -32,6 +37,10 @@ has different semantics. Current regression fixtures begin with activation in ma
   policy deletion/replacement rejection and checkpoint/basis checks.
 - P4: Document first delivery, owner-controlled trusted-base activation, historical
   compatibility, repository-wide protocol impact and the limits of this repair.
+- P5: Change only the pytest check's `timeout_seconds` from 600 to 1200 in
+  `.harness/verification.yaml`, preserving the complete test command, `must_pass`
+  and every other check. Re-run normal done under the new approved budget and
+  bind verification, code review and attestation to the exact current subject.
 
 ## Boundaries
 
@@ -65,12 +74,28 @@ inserting knowledge basis into the first policy's delivery subject.
    them. Pass the actual attestation target commit to candidate validation.
 4. Update docs/knowledge.md. Record any within-approval file additions/adjustments
    and actual coverage via implementation record; no manual evidence construction.
+5. After this revision's recognized approval, make the single P5 budget change.
+   Retain the original failed 600-second run. Do not infer success from a longer
+   deadline: actual complete execution and normal done must pass.
 
 Estimated files: core/knowledge.py, cli/knowledge.py,
 engineering/attestation.py, docs/knowledge.md,
 tests/integration/lifecycle/test_knowledge_policy_bootstrap.py,
 tests/unit/core/test_knowledge.py and relevant existing attestation tests only if
 necessary. New plan and exact retained external review evidence are delivery files.
+P5 additionally includes `.harness/verification.yaml`. Actual P3 fixture coverage
+also includes tests/unit/core/test_approval.py, tests/unit/cli/test_attest.py,
+tests/integration/cli/test_status.py and
+tests/integration/lifecycle/test_plan_authority.py: these establish real inactive
+trusted main commits while retaining their original behavioral assertions.
+
+The full current-source diagnostic with CI=1 and the native project toolchain
+completed 2365 passed, 22 skipped, 9 warnings in 740.05s. The unchanged 600-second
+formal run timed out at 600395ms and emitted no implementation_complete. Timings
+show real Git/process/lifecycle tests, including the two new first-delivery
+scenarios at 14.55s and 14.34s; no tests were excluded to obtain the passing result.
+The new budget provides execution headroom; it is not a product performance
+acceptance result or permission to hide a stalled/failed check.
 
 ## Validation and delivery
 
