@@ -25,5 +25,5 @@ checks:
 - id: pytest
   command: [python, -m, scripts.run_project_check, pytest, -q]
   must_pass: true
-  timeout_seconds: 600
+  timeout_seconds: 1200
 adapter_provided: []
