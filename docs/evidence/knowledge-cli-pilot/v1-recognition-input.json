@@ -1,0 +1,31 @@
+{
+  "schema_version": "knowledge-operation/v1",
+  "operation_id": "pilot-recognize-boundary-v1-20261025-01",
+  "expected_revision": "54f5e596e170d50fe195c994431c7d66d5edcea9daafc4c326ba769da02e346d",
+  "change_id": "2026-10-25-knowledge-cli-pilot",
+  "evidence": {
+    "schema_version": "knowledge-evidence/v1",
+    "evidence_id": "pilot-owner-recognition-boundary-v1-20261025-01",
+    "kind": "recognition",
+    "subject_id": "0f240f5f1e72ee8bc72665e18ad16ad0d3b06615e0e9fd371007ff8531bb04cb",
+    "decision": "recognize",
+    "issuer": "keepsail-product-owner",
+    "process": {
+      "id": "keepsail-owner-knowledge",
+      "version": "1"
+    },
+    "authorization_effect": "unchanged",
+    "original_evidence": {
+      "source": "current-chat/01a1726b-5486-7e40-adee-1f6d2d37c474",
+      "retention": "Exact visible question and structured user reply; local issuer labels do not authenticate identity.",
+      "question": "请对已由 CLI 提议的 delivery-evidence-boundary v1 作精确认可。正文：“交付、可观察获取、agent 采用声明、检查结果必须分开记录；缺失获取或检查不能宣称已读、已理解或已合规。”版本 digest：0f240f5f1e72ee8bc72665e18ad16ad0d3b06615e0e9fd371007ff8531bb04cb。权威为 constraint，仅匹配 Dawinia/keepsail 仓库 AND 2026-10-25-knowledge-cli-pilot Change；来源是已保留的产品架构证据边界。此决定不改变工作承诺，也不认可未来 v2 或影响裁定。",
+      "answer": "认可该确切 v1 为上述范围内的约束"
+    },
+    "provenance": {
+      "policy_digest": "8837f4d7a4fede285eef7d8a15ab450ee70ea779e0580ac90f27cf9efbb86337",
+      "source": "current-chat/01a1726b-5486-7e40-adee-1f6d2d37c474",
+      "retained_input": "docs/evidence/knowledge-cli-pilot/v1-recognition-input.json",
+      "boundary": "Knowledge recognition only; no work commitment, risk, future version or impact disposition change."
+    }
+  }
+}
