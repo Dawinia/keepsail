@@ -67,7 +67,7 @@ jobs:
               assert destination.read_bytes() == content
           print("Trusted BASE workspace; only target attestation blobs projected, source/config unchanged")
           PY
-      - name: Verify lifecycle attestations cover the complete target Git diff
+      - name: Verify lifecycle attestations cover the diff
         shell: bash
         run: |
           cd "$GITHUB_WORKSPACE/.harness-trusted-base"
