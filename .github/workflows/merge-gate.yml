@@ -9,11 +9,18 @@ on:
 
 jobs:
   attest-verify:
+    needs: candidate-acceptance
+    if: ${{ always() }}
     runs-on: ubuntu-latest
     env:
       BASE_SHA: ${{ github.event.pull_request.base.sha }}
       HEAD_SHA: ${{ github.event.pull_request.head.sha }}
     steps:
+      - name: Require successful candidate acceptance
+        shell: bash
+        env:
+          CANDIDATE_RESULT: ${{ needs.candidate-acceptance.result }}
+        run: test "$CANDIDATE_RESULT" = success
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
       - name: Checkout trusted baseline verifier source

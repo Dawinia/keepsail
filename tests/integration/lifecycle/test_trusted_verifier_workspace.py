@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -23,6 +24,33 @@ def projection_program() -> str:
         if s.get("name") == "Prepare trusted BASE workspace with exact target evidence"
     )
     return step["run"].split("python - <<'PY'\n", 1)[1].rsplit("\nPY", 1)[0]
+
+
+@pytest.mark.parametrize("outcome", ["success", "failure", "cancelled", "skipped", ""])
+def test_required_verifier_rejects_unsuccessful_candidate_acceptance(outcome):
+    workflow = Path(__file__).resolve().parents[3] / ".github/workflows/merge-gate.yml"
+    job = yaml.safe_load(workflow.read_text(encoding="utf-8"))["jobs"]["attest-verify"]
+    assert job["needs"] == "candidate-acceptance"
+    assert job["if"] == "${{ always() }}"
+    guard = next(
+        step
+        for step in job["steps"]
+        if step.get("name") == "Require successful candidate acceptance"
+    )
+    assert guard["env"]["CANDIDATE_RESULT"] == "${{ needs.candidate-acceptance.result }}"
+    bash = shutil.which("bash")
+    if os.name == "nt":
+        executable = shutil.which("git")
+        git_bash = Path(executable).resolve().parents[1] / "bin/bash.exe" if executable else None
+        bash = str(git_bash) if git_bash and git_bash.is_file() else None
+    if bash is None:
+        pytest.skip("workflow guard execution requires bash")
+    result = subprocess.run(
+        [bash, "-e", "-c", guard["run"]],
+        env={**os.environ, "CANDIDATE_RESULT": outcome},
+        capture_output=True,
+    )
+    assert (result.returncode == 0) == (outcome == "success")
 
 
 @pytest.mark.parametrize("case", ["valid", "missing-object", "symlink", "wrong-base"])
