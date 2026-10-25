@@ -3,14 +3,14 @@
 This is the single-repository CLI surface of the
 [product architecture](product-architecture.md). An unchecked effective constraint
 is still binding. Knowledge recognition and work authorization remain separate.
-This release does not activate a policy for the Keepsail repository.
+The repository policy became effective through the trusted base after PR #130
+merged; see the [real pilot acceptance record](knowledge-pilot/acceptance.md).
 
-The repository now carries a first policy **candidate** and a bounded
+The repository carries the first delivered policy and a bounded
 [Keepsail pilot procedure](knowledge-pilot.md), including retained owner choices,
-the proposed first knowledge version and activation/acceptance limits. Under the
-current inactive trusted base the file grants no authority. An authorized merge
-that makes it part of the trusted base is a real repository-protocol activation;
-it must not be described as an ordinary documentation-only merge.
+the proposed first knowledge version and activation/acceptance limits. The actual
+trusted base now includes the policy: repository protocol obligations are active.
+This does not itself recognize the first knowledge version or complete acceptance.
 
 ## Activation and trust
 
@@ -71,7 +71,8 @@ Committing a candidate, an ordinary review approval, or writing `owner_activatio
 labels is not an independent grant of knowledge authority or identity proof.
 Historical delivery subjects stay unchanged; later actions use the now-effective
 policy and satisfy its delivery requirements without rewriting past approvals.
-This repair does not install or activate a policy for the Keepsail repository.
+The repair alone did not activate the policy; the later authorized merge into
+the actual trusted base did. Historical pre-activation evidence stays historical.
 
 Policy activation affects the repository protocol. A knowledge selector restricted
 to one Change limits that knowledge's applicability, not activation itself. Other

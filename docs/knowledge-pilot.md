@@ -4,6 +4,12 @@ This procedure delivers the first policy and prepares real use in one PR with th
 bootstrap repair. It does **not** claim that merging code completes the pilot.
 The [product architecture](product-architecture.md) remains normative.
 
+PR #130 has since merged. The actual trusted base now includes the policy and
+the CLI reports active protocol coverage. The [real acceptance record](knowledge-pilot/acceptance.md)
+tracks completed operations separately from pending knowledge recognition and
+replacement-session use. Pre-merge instructions below retain their original
+conditional meaning; they are not a claim that the current policy is inactive.
+
 ## Owner choices and current authority
 
 The [retained owner excerpts](evidence/2026-10-25-knowledge-pilot-owner-authorization.json)

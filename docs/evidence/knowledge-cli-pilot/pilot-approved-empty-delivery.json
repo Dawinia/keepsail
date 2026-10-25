@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "E:\\Work\\keepsail\\.venv\\Scripts\\keepsail.exe",
+    "--json",
+    "knowledge",
+    "deliver",
+    "2026-10-25-knowledge-cli-pilot",
+    "--operation-id",
+    "pilot-approved-empty-20261025-01",
+    "--expected-revision",
+    "0f597e5c73aedbafd41368bab620f67b2b93018b431ded920b2b6ea70ed6bdb5"
+  ],
+  "exit_code": 0,
+  "stdout": "{\"command\":\"knowledge deliver\",\"version\":\"0.1.0\",\"status\":\"pass\",\"exit_code\":0,\"data\":{\"delivery_id\":\"pilot-approved-empty-20261025-01\",\"supply_status\":\"prepared\",\"change_id\":\"2026-10-25-knowledge-cli-pilot\",\"constraints\":[],\"basis_digest\":\"d41ef271e238e577061611c0b787d69dfd59b64c7d4175a0eb0d9fe260ced1de\",\"evaluated\":[],\"context\":{\"paths\":[\"docs/evidence/knowledge-cli-pilot\",\"docs/knowledge-pilot.md\",\"docs/knowledge-pilot/acceptance.md\",\"docs/knowledge.md\",\"docs/plans/2026-10-25-knowledge-cli-pilot.md\"],\"approval_id\":\"approval:pilot-plan-review-20261025-a75436eb-independent-01\",\"plan_subject_id\":\"plan:a75436eb347d7d545dce2c1ff15672248ee5caea9644a73f80c629b6140bc0e9\"},\"recognition_evidence\":{},\"idempotent_replay\":false,\"revision\":\"4b615ffebdb337b69cbf5a1b8488babd4029351a38eb526a5e5d2744c87782da\",\"stale\":false,\"missing_observations\":[\"recipient-acquisition\",\"understanding\",\"compliance\"],\"limits\":[\"explicit-rules-only\",\"single-repository\"]},\"errors\":[]}\r\n",
+  "stderr": "line 31: unknown event type 'l1_update_completed'; skipping\r\nline 40: unknown event type 'l1_update_completed'; skipping\r\nline 49: unknown event type 'l1_update_completed'; skipping\r\nline 31: unknown event type 'l1_update_completed'; skipping\r\nline 40: unknown event type 'l1_update_completed'; skipping\r\nline 49: unknown event type 'l1_update_completed'; skipping\r\nline 31: unknown event type 'l1_update_completed'; skipping\r\nline 40: unknown event type 'l1_update_completed'; skipping\r\nline 49: unknown event type 'l1_update_completed'; skipping\r\nline 31: unknown event type 'l1_update_completed'; skipping\r\nline 40: unknown event type 'l1_update_completed'; skipping\r\nline 49: unknown event type 'l1_update_completed'; skipping\r\nline 31: unknown event type 'l1_update_completed'; skipping\r\nline 40: unknown event type 'l1_update_completed'; skipping\r\nline 49: unknown event type 'l1_update_completed'; skipping\r\nline 31: unknown event type 'l1_update_completed'; skipping\r\nline 40: unknown event type 'l1_update_completed'; skipping\r\nline 49: unknown event type 'l1_update_completed'; skipping\r\nline 31: unknown event type 'l1_update_completed'; skipping\r\nline 40: unknown event type 'l1_update_completed'; skipping\r\nline 49: unknown event type 'l1_update_completed'; skipping\r\nline 31: unknown event type 'l1_update_completed'; skipping\r\nline 40: unknown event type 'l1_update_completed'; skipping\r\nline 49: unknown event type 'l1_update_completed'; skipping\r\nline 31: unknown event type 'l1_update_completed'; skipping\r\nline 40: unknown event type 'l1_update_completed'; skipping\r\nline 49: unknown event type 'l1_update_completed'; skipping\r\n"
+}

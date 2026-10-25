@@ -1,0 +1,230 @@
+{
+  "sandbox": "C:\\Users\\DawiniaLo\\.codex\\visualizations\\2026\\10\\25\\01a1726b-5486-7e40-adee-1f6d2d37c474\\pilot\\isolated-138d8a15",
+  "boundary": "Disposable cloned repository and copied retained ledger; actual repository ledger was not modified by these cases. No recognized version created.",
+  "results": [
+    {
+      "case": "identical-operation-replay",
+      "argv": [
+        "E:\\Work\\keepsail\\.venv\\Scripts\\keepsail.exe",
+        "--workspace",
+        "C:\\Users\\DawiniaLo\\.codex\\visualizations\\2026\\10\\25\\01a1726b-5486-7e40-adee-1f6d2d37c474\\pilot\\isolated-138d8a15",
+        "--json",
+        "knowledge",
+        "propose",
+        "--record",
+        "docs/evidence/knowledge-cli-pilot/replay.json"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "stdout": "{\"command\":\"knowledge propose\",\"version\":\"0.1.0\",\"status\":\"pass\",\"exit_code\":0,\"data\":{\"version_digest\":\"0f240f5f1e72ee8bc72665e18ad16ad0d3b06615e0e9fd371007ff8531bb04cb\",\"state\":\"candidate\",\"effective\":false,\"idempotent_replay\":true,\"revision\":\"54f5e596e170d50fe195c994431c7d66d5edcea9daafc4c326ba769da02e346d\"},\"errors\":[]}\r\n",
+      "stderr": ""
+    },
+    {
+      "case": "stale-revision",
+      "argv": [
+        "E:\\Work\\keepsail\\.venv\\Scripts\\keepsail.exe",
+        "--workspace",
+        "C:\\Users\\DawiniaLo\\.codex\\visualizations\\2026\\10\\25\\01a1726b-5486-7e40-adee-1f6d2d37c474\\pilot\\isolated-138d8a15",
+        "--json",
+        "knowledge",
+        "propose",
+        "--record",
+        "docs/evidence/knowledge-cli-pilot/stale.json"
+      ],
+      "exit_code": 5,
+      "expected_exit_code": 5,
+      "stdout": "{\"command\":\"knowledge propose\",\"version\":\"0.1.0\",\"status\":\"fail\",\"exit_code\":5,\"data\":{},\"errors\":[{\"code\":\"knowledge_conflict\",\"message\":\"knowledge revision conflict\"}]}\r\n",
+      "stderr": ""
+    },
+    {
+      "case": "operation-id-conflict",
+      "argv": [
+        "E:\\Work\\keepsail\\.venv\\Scripts\\keepsail.exe",
+        "--workspace",
+        "C:\\Users\\DawiniaLo\\.codex\\visualizations\\2026\\10\\25\\01a1726b-5486-7e40-adee-1f6d2d37c474\\pilot\\isolated-138d8a15",
+        "--json",
+        "knowledge",
+        "propose",
+        "--record",
+        "docs/evidence/knowledge-cli-pilot/conflict.json"
+      ],
+      "exit_code": 5,
+      "expected_exit_code": 5,
+      "stdout": "{\"command\":\"knowledge propose\",\"version\":\"0.1.0\",\"status\":\"fail\",\"exit_code\":5,\"data\":{},\"errors\":[{\"code\":\"knowledge_invalid\",\"message\":\"operation ID reused with different request\"}]}\r\n",
+      "stderr": ""
+    },
+    {
+      "case": "isolated-show",
+      "argv": [
+        "E:\\Work\\keepsail\\.venv\\Scripts\\keepsail.exe",
+        "--workspace",
+        "C:\\Users\\DawiniaLo\\.codex\\visualizations\\2026\\10\\25\\01a1726b-5486-7e40-adee-1f6d2d37c474\\pilot\\isolated-138d8a15",
+        "--json",
+        "knowledge",
+        "show"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "stdout": "{\"command\":\"knowledge show\",\"version\":\"0.1.0\",\"status\":\"pass\",\"exit_code\":0,\"data\":{\"coverage\":\"explicit-rules-only\",\"revision\":\"54f5e596e170d50fe195c994431c7d66d5edcea9daafc4c326ba769da02e346d\",\"versions\":[{\"schema_version\":\"knowledge-version/v1\",\"product_id\":\"keepsail\",\"knowledge_id\":\"delivery-evidence-boundary\",\"body\":\"\\u4ea4\\u4ed8\\u3001\\u53ef\\u89c2\\u5bdf\\u83b7\\u53d6\\u3001agent \\u91c7\\u7528\\u58f0\\u660e\\u3001\\u68c0\\u67e5\\u7ed3\\u679c\\u5fc5\\u987b\\u5206\\u5f00\\u8bb0\\u5f55\\uff1b\\u7f3a\\u5931\\u83b7\\u53d6\\u6216\\u68c0\\u67e5\\u4e0d\\u80fd\\u5ba3\\u79f0\\u5df2\\u8bfb\\u3001\\u5df2\\u7406\\u89e3\\u6216\\u5df2\\u5408\\u89c4\\u3002\",\"rationale\":\"Preserve the product architecture's observable evidence boundaries without granting knowledge recognition or work authorization through a delivery receipt.\",\"sources\":[{\"origin\":\"git:7e2e6f8b7a41821721f877dca84316424fb632bc:docs/product-architecture.md#trace-and-guarantee-boundaries\",\"content\":\"Distinguish what Keepsail supplied, what observed retrieval/read operations returned, what the agent stated it adopted/rejected/challenged and why, and what result checks verified. Record identity, version and provenance within the observable integration boundary and disclose missing observations.\"},{\"origin\":\"git:7e2e6f8b7a41821721f877dca84316424fb632bc:docs/product-architecture.md#trace-and-guarantee-boundaries\",\"content\":\"Supply or reading does not prove understanding or adoption; agent statements do not prove compliance.\"}],\"selector\":{\"repository_ids\":[\"Dawinia/keepsail\"],\"change_ids\":[\"2026-10-25-knowledge-cli-pilot\"]},\"authority\":\"constraint\",\"previous_version\":null,\"version_digest\":\"0f240f5f1e72ee8bc72665e18ad16ad0d3b06615e0e9fd371007ff8531bb04cb\",\"state\":\"candidate\"}],\"evidence\":[],\"deliveries\":{\"postmerge-bootstrap-empty-20261025-01\":{\"change_id\":\"2026-10-25-knowledge-policy-bootstrap\",\"constraints\":[],\"basis_digest\":\"aec235ef42ff967f8f482002891c5961f684901f9885c99b6ee0ac10b90e0140\",\"evaluated\":[],\"context\":{\"paths\":[\".github/workflows/merge-gate.yml\",\".harness/knowledge-recognition.yaml\",\".harness/verification.yaml\",\"docs/evidence/2026-10-25-knowledge-pilot-owner-authorization.json\",\"docs/knowledge-pilot\",\"docs/knowledge-pilot.md\",\"docs/knowledge-pilot/delivery-evidence-boundary-v1.json\",\"docs/knowledge.md\",\"docs/plans/2026-10-25-knowledge-policy-bootstrap.md\",\"src/keepsail\",\"src/keepsail/cli/knowledge.py\",\"src/keepsail/core/approval.py\",\"src/keepsail/core/knowledge.py\",\"src/keepsail/engineering/attestation.py\",\"tests\",\"tests/integration/cli/test_status.py\",\"tests/integration/lifecycle/test_keepsail_pilot_configuration.py\",\"tests/integration/lifecycle/test_knowledge_policy_bootstrap.py\",\"tests/integration/lifecycle/test_plan_authority.py\",\"tests/integration/lifecycle/test_trusted_verifier_workspace.py\",\"tests/unit/cli/test_attest.py\",\"tests/unit/core/test_approval.py\"],\"approval_id\":\"approval:combined-plan-review-20261025-5d1a85a4-independent-02-corrected\",\"plan_subject_id\":\"plan:5d1a85a41262e1c19797b766739fc7d6f549732b9b30ec80fb9b2ba56d47cd6a\"},\"recognition_evidence\":{}},\"pilot-preplan-empty-20261025-01\":{\"change_id\":\"2026-10-25-knowledge-cli-pilot\",\"constraints\":[],\"basis_digest\":\"706918c47de4fd3fb6ceeffa43636c150d4105cba6c970b635b092c4d58f2afc\",\"evaluated\":[],\"context\":{\"paths\":[],\"approval_id\":null,\"plan_subject_id\":null},\"recognition_evidence\":{}},\"pilot-approved-empty-20261025-01\":{\"change_id\":\"2026-10-25-knowledge-cli-pilot\",\"constraints\":[],\"basis_digest\":\"d41ef271e238e577061611c0b787d69dfd59b64c7d4175a0eb0d9fe260ced1de\",\"evaluated\":[],\"context\":{\"paths\":[\"docs/evidence/knowledge-cli-pilot\",\"docs/knowledge-pilot.md\",\"docs/knowledge-pilot/acceptance.md\",\"docs/knowledge.md\",\"docs/plans/2026-10-25-knowledge-cli-pilot.md\"],\"approval_id\":\"approval:pilot-plan-review-20261025-a75436eb-independent-01\",\"plan_subject_id\":\"plan:a75436eb347d7d545dce2c1ff15672248ee5caea9644a73f80c629b6140bc0e9\"},\"recognition_evidence\":{}}},\"executions\":{},\"challenges\":{},\"statements\":[],\"observations\":[]},\"errors\":[]}\r\n",
+      "stderr": ""
+    },
+    {
+      "case": "unknown-issuer",
+      "argv": [
+        "E:\\Work\\keepsail\\.venv\\Scripts\\keepsail.exe",
+        "--workspace",
+        "C:\\Users\\DawiniaLo\\.codex\\visualizations\\2026\\10\\25\\01a1726b-5486-7e40-adee-1f6d2d37c474\\pilot\\isolated-138d8a15",
+        "--json",
+        "knowledge",
+        "import",
+        "--evidence",
+        "docs/evidence/knowledge-cli-pilot/unknown.json"
+      ],
+      "exit_code": 2,
+      "expected_exit_code": 2,
+      "stdout": "{\"command\":\"knowledge import\",\"version\":\"0.1.0\",\"status\":\"fail\",\"exit_code\":2,\"data\":{},\"errors\":[{\"code\":\"knowledge_invalid\",\"message\":\"conclusion is not from a recognized process\"}]}\r\n",
+      "stderr": "line 31: unknown event type 'l1_update_completed'; skipping\r\nline 40: unknown event type 'l1_update_completed'; skipping\r\nline 49: unknown event type 'l1_update_completed'; skipping\r\n"
+    },
+    {
+      "case": "corrupt-ledger-fails-closed",
+      "argv": [
+        "E:\\Work\\keepsail\\.venv\\Scripts\\keepsail.exe",
+        "--workspace",
+        "C:\\Users\\DawiniaLo\\.codex\\visualizations\\2026\\10\\25\\01a1726b-5486-7e40-adee-1f6d2d37c474\\pilot\\isolated-138d8a15",
+        "--json",
+        "knowledge",
+        "show"
+      ],
+      "exit_code": 2,
+      "expected_exit_code": 2,
+      "stdout": "{\"command\":\"knowledge show\",\"version\":\"0.1.0\",\"status\":\"fail\",\"exit_code\":2,\"data\":{},\"errors\":[{\"code\":\"knowledge_corrupt\",\"message\":\"knowledge_corrupt: event 2481: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)\"}]}\r\n",
+      "stderr": ""
+    }
+  ],
+  "input_fixtures": {
+    "conflict.json": {
+      "schema_version": "knowledge-operation/v1",
+      "operation_id": "pilot-propose-boundary-v1-20261025-01",
+      "expected_revision": "a9d701f3b47082d6d6b081269b269ace3abd623022c068714b42299ff2b2038e",
+      "change_id": "2026-10-25-knowledge-cli-pilot",
+      "version": {
+        "schema_version": "knowledge-version/v1",
+        "product_id": "keepsail",
+        "knowledge_id": "delivery-evidence-boundary",
+        "body": "Isolated conflicting body",
+        "rationale": "Preserve the product architecture's observable evidence boundaries without granting knowledge recognition or work authorization through a delivery receipt.",
+        "sources": [
+          {
+            "origin": "git:7e2e6f8b7a41821721f877dca84316424fb632bc:docs/product-architecture.md#trace-and-guarantee-boundaries",
+            "content": "Distinguish what Keepsail supplied, what observed retrieval/read operations returned, what the agent stated it adopted/rejected/challenged and why, and what result checks verified. Record identity, version and provenance within the observable integration boundary and disclose missing observations."
+          },
+          {
+            "origin": "git:7e2e6f8b7a41821721f877dca84316424fb632bc:docs/product-architecture.md#trace-and-guarantee-boundaries",
+            "content": "Supply or reading does not prove understanding or adoption; agent statements do not prove compliance."
+          }
+        ],
+        "selector": {
+          "repository_ids": [
+            "Dawinia/keepsail"
+          ],
+          "change_ids": [
+            "2026-10-25-knowledge-cli-pilot"
+          ]
+        },
+        "authority": "constraint",
+        "previous_version": null
+      }
+    },
+    "replay.json": {
+      "schema_version": "knowledge-operation/v1",
+      "operation_id": "pilot-propose-boundary-v1-20261025-01",
+      "expected_revision": "a9d701f3b47082d6d6b081269b269ace3abd623022c068714b42299ff2b2038e",
+      "change_id": "2026-10-25-knowledge-cli-pilot",
+      "version": {
+        "schema_version": "knowledge-version/v1",
+        "product_id": "keepsail",
+        "knowledge_id": "delivery-evidence-boundary",
+        "body": "交付、可观察获取、agent 采用声明、检查结果必须分开记录；缺失获取或检查不能宣称已读、已理解或已合规。",
+        "rationale": "Preserve the product architecture's observable evidence boundaries without granting knowledge recognition or work authorization through a delivery receipt.",
+        "sources": [
+          {
+            "origin": "git:7e2e6f8b7a41821721f877dca84316424fb632bc:docs/product-architecture.md#trace-and-guarantee-boundaries",
+            "content": "Distinguish what Keepsail supplied, what observed retrieval/read operations returned, what the agent stated it adopted/rejected/challenged and why, and what result checks verified. Record identity, version and provenance within the observable integration boundary and disclose missing observations."
+          },
+          {
+            "origin": "git:7e2e6f8b7a41821721f877dca84316424fb632bc:docs/product-architecture.md#trace-and-guarantee-boundaries",
+            "content": "Supply or reading does not prove understanding or adoption; agent statements do not prove compliance."
+          }
+        ],
+        "selector": {
+          "repository_ids": [
+            "Dawinia/keepsail"
+          ],
+          "change_ids": [
+            "2026-10-25-knowledge-cli-pilot"
+          ]
+        },
+        "authority": "constraint",
+        "previous_version": null
+      }
+    },
+    "stale.json": {
+      "schema_version": "knowledge-operation/v1",
+      "operation_id": "isolated-stale-new-operation",
+      "expected_revision": "a9d701f3b47082d6d6b081269b269ace3abd623022c068714b42299ff2b2038e",
+      "change_id": "2026-10-25-knowledge-cli-pilot",
+      "version": {
+        "schema_version": "knowledge-version/v1",
+        "product_id": "keepsail",
+        "knowledge_id": "delivery-evidence-boundary",
+        "body": "交付、可观察获取、agent 采用声明、检查结果必须分开记录；缺失获取或检查不能宣称已读、已理解或已合规。",
+        "rationale": "Preserve the product architecture's observable evidence boundaries without granting knowledge recognition or work authorization through a delivery receipt.",
+        "sources": [
+          {
+            "origin": "git:7e2e6f8b7a41821721f877dca84316424fb632bc:docs/product-architecture.md#trace-and-guarantee-boundaries",
+            "content": "Distinguish what Keepsail supplied, what observed retrieval/read operations returned, what the agent stated it adopted/rejected/challenged and why, and what result checks verified. Record identity, version and provenance within the observable integration boundary and disclose missing observations."
+          },
+          {
+            "origin": "git:7e2e6f8b7a41821721f877dca84316424fb632bc:docs/product-architecture.md#trace-and-guarantee-boundaries",
+            "content": "Supply or reading does not prove understanding or adoption; agent statements do not prove compliance."
+          }
+        ],
+        "selector": {
+          "repository_ids": [
+            "Dawinia/keepsail"
+          ],
+          "change_ids": [
+            "2026-10-25-knowledge-cli-pilot"
+          ]
+        },
+        "authority": "constraint",
+        "previous_version": null
+      }
+    },
+    "unknown.json": {
+      "schema_version": "knowledge-operation/v1",
+      "operation_id": "isolated-unknown-issuer",
+      "expected_revision": "54f5e596e170d50fe195c994431c7d66d5edcea9daafc4c326ba769da02e346d",
+      "change_id": "2026-10-25-knowledge-cli-pilot",
+      "evidence": {
+        "schema_version": "knowledge-evidence/v1",
+        "evidence_id": "isolated-unknown-issuer",
+        "kind": "recognition",
+        "subject_id": "0f240f5f1e72ee8bc72665e18ad16ad0d3b06615e0e9fd371007ff8531bb04cb",
+        "decision": "recognize",
+        "issuer": "unrecognized-isolated-issuer",
+        "process": {
+          "id": "keepsail-owner-knowledge",
+          "version": "1"
+        },
+        "authorization_effect": "unchanged",
+        "original_evidence": {
+          "note": "Deliberately invalid isolated fixture; no human conclusion"
+        },
+        "provenance": {
+          "policy_digest": "8837f4d7a4fede285eef7d8a15ab450ee70ea779e0580ac90f27cf9efbb86337"
+        }
+      }
+    }
+  }
+}
