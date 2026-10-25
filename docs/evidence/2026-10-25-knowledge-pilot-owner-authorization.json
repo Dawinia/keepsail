@@ -1,0 +1,30 @@
+{
+  "record_id": "keepsail-knowledge-pilot-preparation-2026-10-25",
+  "source": "current-chat/01a16ed3-4ea4-76e3-8bc4-9beba5a52e08",
+  "issuer": "keepsail-product-owner",
+  "date": "2026-10-25",
+  "retained_exchanges": [
+    {
+      "prompt": "是否确认以下范围？1. 仅 Keepsail 仓库的一个新试点 Change，工作限于 CLI 使用说明与验收。2. 知识认可、适用与影响裁定由你本人决定；观察者只记录实际 CLI 返回。3. 后续由你开启一次替换会话，完成真实恢复与采用验收。此确认用于后续配置准备；具体 merge 将在结果可审核后另行确认。",
+      "user_reply": "可以"
+    },
+    {
+      "user_request": "这边不也有个需求吗，为什么不在一个 pr 里一起完成呢，还要分开",
+      "proposal": "我会按合并交付调整：保留已有修复证据，为新增配置和文档走正常治理，更新完整覆盖，重新验证与评审最终对象，形成一个 PR。不会直接沿用旧评审覆盖新增内容；最终合并仍等你确认。",
+      "user_reply": "开始"
+    }
+  ],
+  "selected_policy": {
+    "product_id": "keepsail",
+    "repository_id": "Dawinia/keepsail",
+    "human_issuer": "keepsail-product-owner",
+    "process": {"id": "keepsail-owner-knowledge", "version": "1", "kinds": ["recognition", "applicability", "disposition"]},
+    "observation_issuer": "keepsail-cli-observer",
+    "observation_boundary": "Retained actual CLI returned content with delivery/version and content digest; not understanding or compliance",
+    "target_change": "2026-10-25-knowledge-cli-pilot"
+  },
+  "authorized_now": ["prepare the selected first policy candidate", "include repair, policy candidate and pilot documentation in one reviewed and verified PR", "publish that combined PR"],
+  "reserved": ["merge and actual trusted-base activation", "exact knowledge-version recognition", "v2 impact disposition", "claim of completed replacement-agent-session acceptance"],
+  "repository_effect": "A Change selector limits the knowledge applicability, not protocol activation. After authorized activation other Changes require current-set delivery, including the empty set. The merge decision must explicitly consider those effects.",
+  "retention_limit": "Exact visible excerpts manually retained from the current conversation, not an authenticated message export. No message identifiers were supplied. Issuer labels are the existing local trust model, not cryptographic identity. This record is neither a knowledge recognition conclusion nor a claim that activation already happened."
+}

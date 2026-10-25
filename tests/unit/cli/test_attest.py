@@ -1,6 +1,7 @@
 """CLI tests for `keepsail attest write` / `attest verify`."""
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 from click.testing import CliRunner
@@ -9,7 +10,20 @@ import keepsail.cli.attest as attest_mod
 from keepsail.cli import main
 
 
+def _inactive_git_base(root: Path) -> None:
+    if (root / ".git").exists():
+        return
+    # A mocked diff still needs a real commit proving policy absence.
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=root, check=True)
+    subprocess.run(
+        ["git", "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
+         "commit", "--allow-empty", "-qm", "inactive policy fixture"],
+        cwd=root, check=True,
+    )
+
+
 def _init(root: Path) -> None:
+    _inactive_git_base(root)
     (root / ".harness").mkdir(parents=True, exist_ok=True)
     (root / ".harness" / "events.jsonl").write_text(
         '{"change_id":"s","type":"intent_declared","event_id":"e1",'
@@ -205,6 +219,7 @@ from keepsail.core.paths import events_path  # noqa: E402
 
 def _seed_lifecycle(root: Path, slug: str, author: str, reviewer: str) -> EventWriter:
     """Emit a full READY_TO_MERGE lifecycle for *slug* into the workspace events.jsonl."""
+    _inactive_git_base(root)
     (root / ".harness").mkdir(parents=True, exist_ok=True)
     w = EventWriter(events_path(root))
     _emit_id(w, "intent_declared", slug, author)

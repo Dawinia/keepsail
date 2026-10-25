@@ -685,6 +685,9 @@ def git_change_manifest(root: Path, *, base: str, head: str) -> list[dict[str, A
     return sorted(result, key=lambda row: (str(row.get("path")), str(row.get("old_path", ""))))
 
 
+_AUTO_KNOWLEDGE_BASIS = object()
+
+
 def make_code_subject(
     root: Path,
     *,
@@ -693,7 +696,7 @@ def make_code_subject(
     base: str,
     head: str = "HEAD",
     verification_config_digest: str | None = None,
-    knowledge_basis: dict[str, Any] | None = None,
+    knowledge_basis: dict[str, Any] | None | object = _AUTO_KNOWLEDGE_BASIS,
 ) -> dict[str, Any]:
     requested_base = resolve_commit(root, base)
     resolved_head = resolve_commit(root, head)
@@ -716,12 +719,16 @@ def make_code_subject(
     }
     if verification_config_digest:
         subject["verification_config_digest"] = verification_config_digest
-    if knowledge_basis is None:
+    # Omitted means live preparation; explicit None means a retained subject
+    # had no knowledge basis. Git verification must not consult mutable state.
+    if knowledge_basis is _AUTO_KNOWLEDGE_BASIS:
         from keepsail.core.knowledge import report
         knowledge = report(root, change_id, extra_paths=[str(row["path"]) for row in manifest])
+        knowledge_basis = None
         if knowledge["coverage"] != "not_recorded":
             knowledge_basis = {"version": "knowledge-basis/v1", "digest": knowledge["basis_digest"]}
     if knowledge_basis is not None:
+        assert isinstance(knowledge_basis, dict)
         subject["knowledge_basis"] = knowledge_basis
     identity = {key: value for key, value in subject.items() if key != "head"}
     subject["subject_id"] = f"code:{digest_record(identity)}"

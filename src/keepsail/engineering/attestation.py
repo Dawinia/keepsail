@@ -333,7 +333,7 @@ def verify_attestations(
             continue
         cs = derive_state(att_path)[slug]
         try:
-            _knowledge_attestation(root, att_path, cs, base=base)
+            _knowledge_attestation(root, att_path, cs, base=base, head=head)
         except (ApprovalError, ValueError, KeyError, TypeError) as exc:
             blockers.append(f"attestation {slug}: knowledge evidence invalid: {exc}")
             continue
@@ -548,9 +548,13 @@ def _new_contract_blockers(
     return blockers
 
 
-def _knowledge_attestation(root: Path, att_path: Path, state: Any, *, base: str | None) -> None:
-    from keepsail.core.knowledge import load_policy, validate_checkpoint
-    policy = load_policy(root, ref=base) if base else load_policy(root)
+def _knowledge_attestation(
+    root: Path, att_path: Path, state: Any, *, base: str | None, head: str | None = None
+) -> None:
+    from keepsail.core.knowledge import policy_configuration, validate_checkpoint
+    policy, _ = policy_configuration(
+        root, ref=base, candidate_ref=head or ("HEAD" if base else None)
+    )
     checkpoints = []
     for line in att_path.read_text(encoding="utf-8").splitlines():
         if not line.strip():
