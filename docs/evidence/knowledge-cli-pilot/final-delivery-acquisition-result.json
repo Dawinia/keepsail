@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "E:\\Work\\keepsail\\.venv\\Scripts\\keepsail.exe",
+    "--json",
+    "knowledge",
+    "record",
+    "--record",
+    "docs\\evidence\\knowledge-cli-pilot\\final-delivery-acquisition-input.json"
+  ],
+  "exit_code": 0,
+  "stdout": "{\"command\":\"knowledge record\",\"version\":\"0.1.0\",\"status\":\"pass\",\"exit_code\":0,\"data\":{\"record_id\":\"pilot-final-coverage-v2-acquisition-20261026-01\",\"kind\":\"acquisition\",\"recorded\":true,\"idempotent_replay\":false,\"revision\":\"07bf94275cf269ed29fe83889d8bd9ffb76915aac429e3ef856f0a03f669c55c\"},\"errors\":[]}\n",
+  "stderr": "line 31: unknown event type 'l1_update_completed'; skipping\nline 40: unknown event type 'l1_update_completed'; skipping\nline 49: unknown event type 'l1_update_completed'; skipping\nline 31: unknown event type 'l1_update_completed'; skipping\nline 40: unknown event type 'l1_update_completed'; skipping\nline 49: unknown event type 'l1_update_completed'; skipping\nline 31: unknown event type 'l1_update_completed'; skipping\nline 40: unknown event type 'l1_update_completed'; skipping\nline 49: unknown event type 'l1_update_completed'; skipping\nline 31: unknown event type 'l1_update_completed'; skipping\nline 40: unknown event type 'l1_update_completed'; skipping\nline 49: unknown event type 'l1_update_completed'; skipping\nline 31: unknown event type 'l1_update_completed'; skipping\nline 40: unknown event type 'l1_update_completed'; skipping\nline 49: unknown event type 'l1_update_completed'; skipping\n"
+}

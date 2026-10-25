@@ -1,0 +1,14 @@
+{
+  "session_id": "01a17370-b6fa-7893-a319-7aaba9d8cb8e",
+  "argv": [
+    "E:\\Work\\keepsail\\.venv\\Scripts\\keepsail.exe",
+    "--json",
+    "knowledge",
+    "record",
+    "--record",
+    "docs\\evidence\\knowledge-cli-pilot\\replacement-v1-adoption-input.json"
+  ],
+  "exit_code": 0,
+  "stdout": "{\"command\":\"knowledge record\",\"version\":\"0.1.0\",\"status\":\"pass\",\"exit_code\":0,\"data\":{\"record_id\":\"replacement-v1-adoption-20261025-01\",\"kind\":\"statement\",\"recorded\":true,\"idempotent_replay\":false,\"revision\":\"4c0116e95d9fd0f66a7e0ecd37c5579e7649516409becc65f878d3610b57566c\"},\"errors\":[]}\n",
+  "stderr": "line 31: unknown event type 'l1_update_completed'; skipping\nline 40: unknown event type 'l1_update_completed'; skipping\nline 49: unknown event type 'l1_update_completed'; skipping\nline 31: unknown event type 'l1_update_completed'; skipping\nline 40: unknown event type 'l1_update_completed'; skipping\nline 49: unknown event type 'l1_update_completed'; skipping\nline 31: unknown event type 'l1_update_completed'; skipping\nline 40: unknown event type 'l1_update_completed'; skipping\nline 49: unknown event type 'l1_update_completed'; skipping\nline 31: unknown event type 'l1_update_completed'; skipping\nline 40: unknown event type 'l1_update_completed'; skipping\nline 49: unknown event type 'l1_update_completed'; skipping\nline 31: unknown event type 'l1_update_completed'; skipping\nline 40: unknown event type 'l1_update_completed'; skipping\nline 49: unknown event type 'l1_update_completed'; skipping\n"
+}

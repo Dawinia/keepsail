@@ -119,9 +119,11 @@ A general active-policy replacement/deactivation cutover is **not implemented by
 this repair** and requires its own authorized design. A Git revert is not a knowledge
 disposition. Independent authorized work may continue.
 
-This PR validates installation paths/source, candidate delivery, exact Git evidence
-and isolated protocol behavior. Real activation, exact first-version recognition,
-replacement-agent acquisition/use and real v2 disposition remain pending their
-actual operations. Cross-repository sharing, universal tool interception, complete
+The original preparation validated installation paths/source, candidate delivery,
+exact Git evidence and isolated protocol behavior. The linked acceptance record
+now retains real activation, exact v1/v2 recognition, replacement-agent acquisition
+and documentation use, and the owner's explicit continue-with-v2 disposition.
+Final verification, review and attestation are separate native lifecycle evidence.
+Cross-repository sharing, universal tool interception, complete
 semantic recall and long-term usage effectiveness remain outside this slice;
 those limits do not narrow the normative product architecture.

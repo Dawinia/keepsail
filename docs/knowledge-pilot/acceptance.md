@@ -59,14 +59,133 @@ for the documentation/evidence work. Neither record proves compliance.
 Native resume restores original v1 supply, the effective approval, current
 constraint, acquisition coverage and adoption declaration. Native knowledge check
 passes with no unresolved impacts or challenges. Those are bounded control
-results, not evidence of universal recall or semantic compliance. This same
-executor performed that read; genuine replacement-executor use remains pending.
+results, not evidence of universal recall or semantic compliance. The original
+executor performed that read; later replacement use is recorded below.
 An interim implementation assessment records the handoff and actual evidence
 coverage. A second native supply `pilot-v1-handoff-coverage-delivery-20261025-01`
-retains v1 under that expanded file context; its acquisition remains unrecorded.
+retains v1 under that expanded file context; at handoff its acquisition was unrecorded.
 The earlier original-supply acquisition is preserved, not reassigned to this
 second delivery. Fresh decision/doc/whitespace checks passed and were retained in
 `v1-document-checks.json`. No final `done`, code approval or attestation is claimed.
+
+## Replacement executor use
+
+The owner authorized this genuine replacement chat, session
+`01a17370-b6fa-7893-a319-7aaba9d8cb8e`, from source session
+`01a1726b-5486-7e40-adee-1f6d2d37c474`. On entry, branch
+`codex/knowledge-cli-pilot` was at `781d8a83fa6133f13bab096681ad8555cc7588fe`.
+The explicit repository `.venv/Scripts/keepsail.exe` ran with `PYTHONUTF8=1`.
+Imported modules resolved under `E:/Work/keepsail/src/keepsail`; the actual
+trusted-base resolver still selected `202171797aaf6899a1a44e51ef1451b0f13a6384`.
+See [identity evidence](../evidence/knowledge-cli-pilot/replacement-identity.json).
+
+Native [resume](../evidence/knowledge-cli-pilot/replacement-resume.json) returned
+`IMPLEMENTATION_IN_PROGRESS`, effective approval
+`approval:pilot-plan-review-20261025-a75436eb-independent-01`, both saved v1
+supplies, the exact effective v1 constraint, and no impacts or challenges.
+The native [exact version read](../evidence/knowledge-cli-pilot/replacement-v1-show.json)
+returned the immutable body and retained delivery records. At that point pending duties were
+v2 recognition and impact disposition, final actual coverage, verification,
+independent code review and attestation. Resume/read created no new supply.
+
+| Evidence category | Replacement executor fact | Boundary |
+|---|---|---|
+| Supply | Original `pilot-effective-v1-delivery-20261025-01` and later `pilot-v1-handoff-coverage-delivery-20261025-01` restored, both exact v1 `0f240f5f1e72ee8bc72665e18ad16ad0d3b06615e0e9fd371007ff8531bb04cb` | Historical receipts remain original; no new delivery claimed |
+| Observed acquisition | Native `replacement-v1-acquisition-20261025-01` binds this session's actual show receipt and UTF-8 body SHA256 `53bc6714e6d454f48f48e9b21ef995414d1b311af11fd314fa8da0f8a347c5e4` to the later saved supply | Previous executor's observation is not reassigned; retrieval proves no understanding |
+| Agent statement | Native `replacement-v1-adoption-20261025-01` declares adoption for this real document update | Declaration proves no compliance |
+| Checks | Entry native knowledge check exited 0; fresh document, decision and knowledge results are retained separately in `replacement-document-checks.json` | Only the named checks and their actual results are covered |
+
+This section is the replacement executor's actual approved documentation action.
+The acquisition and adoption inputs/results are retained separately under
+`docs/evidence/knowledge-cli-pilot/replacement-v1-*`. Missing understanding and
+compliance observations remain disclosed; passing mechanical checks do not fill them.
+Historical isolated fixtures remain separate from real impacts and challenges.
+
+### Narrow v2 recognition and owner-selected continuation
+
+After the real v1 use and passing checks, native proposal
+`pilot-propose-boundary-v2-replacement-20261025-01` returned candidate digest
+`1212230c5189d0e10f7b9b2b75eec372cdaf80115a0e9162ed2063d42a4e93cc`,
+`effective=false`. The [exact input](../evidence/knowledge-cli-pilot/replacement-v2-proposal-input.json)
+and [actual result](../evidence/knowledge-cli-pilot/replacement-v2-proposal-result.json)
+retain its complete text, unchanged selector/constraint authority, rationale and
+v1 predecessor. It separates missing acquisition from missing check claims and
+explicitly bounds what positive records prove, following the existing architecture.
+The owner answered "认可，直接开始" to that exact body/digest/scope in replacement
+session `01a17370-b6fa-7893-a319-7aaba9d8cb8e`. Native import of
+`pilot-owner-recognition-boundary-v2-20261025-01` returned `effective=true`;
+[recognition input](../evidence/knowledge-cli-pilot/v2-recognition-input.json) and
+[result](../evidence/knowledge-cli-pilot/v2-recognition-result.json) retain the
+conclusion separately from work authorization. V1 text, recognition and supplies
+remain historical evidence. No impact disposition was inferred from this reply.
+
+Native [impact resume](../evidence/knowledge-cli-pilot/v2-impact-resume.json)
+returned pending impact
+`8bfc3023b83ae44d1b52bae64e83e2f84992985c6cf39081bde748bd3d097d3b`,
+old version `0f240f5f1e72ee8bc72665e18ad16ad0d3b06615e0e9fd371007ff8531bb04cb`,
+new version `1212230c5189d0e10f7b9b2b75eec372cdaf80115a0e9162ed2063d42a4e93cc`,
+basis `4b560aebacd0f82362f6a575effe4ad4fcfb16c2962a6663e7b4034ced46336f`,
+trigger `version-or-applicability-changed`, and trigger approval
+`approval:pilot-plan-review-20261025-a75436eb-independent-01`.
+No real challenges were returned. After the exact impact proposal and clarification
+that continuation means adopting v2 under the same P1–P9 commitments and restrictions,
+the owner replied "继续" on 2026-10-26. Native disposition import
+`pilot-owner-continue-v2-20261026-01` returned `decision=continue`, `effective=true`.
+The [exact input](../evidence/knowledge-cli-pilot/v2-disposition-input.json) preserves
+the complete immutable impact, original trigger approval, chosen v2 and actual reply;
+the [result](../evidence/knowledge-cli-pilot/v2-disposition-result.json) is separate.
+No work commitment or acceptance obligation was relaxed.
+
+Native supply `pilot-effective-v2-delivery-20261026-01` returned the exact v2 body
+and recognition. Its [receipt](../evidence/knowledge-cli-pilot/v2-delivery-result.json)
+supports the separately recorded `pilot-v2-acquisition-20261026-01` using observer
+`keepsail-cli-observer` and the actual returned UTF-8 body hash. The separate
+`pilot-v2-adoption-20261026-01` is this executor's declaration for remaining work.
+Native [knowledge check](../evidence/knowledge-cli-pilot/v2-continued-check.json)
+exited 0, returning the impact as `resolved` with no blocking reasons. These are
+distinct supply, retrieval, declaration and bounded-check facts. The earlier
+post-recognition exit 2 remains retained as a genuine pending-impact/missing-delivery
+result, not rewritten as success. Final verification/review/attestation are tracked
+through the native lifecycle and must not be inferred from this check.
+
+### Actual coverage exposed a runtime blocker
+
+The subsequent native `implementation record` accepted 80 actual/planned-finalization
+paths under the same effective approval. A new exact-context v2 delivery
+`pilot-final-coverage-v2-delivery-20261026-01` and its separate observed acquisition
+`pilot-final-coverage-v2-acquisition-20261026-01` both succeeded. Nevertheless,
+[final knowledge check](../evidence/knowledge-cli-pilot/final-knowledge-check.json)
+returned exit 2: a new pending impact
+`ebe2a74ab72f23bdf2fdc543e06e7d74cfb4ffa9630f11decbcbce3c51957959`.
+The prior owner conclusion remains retained; the current projection no longer
+matches it. The passing earlier check is historical, not current completion evidence.
+
+The [read-only differential diagnosis](../evidence/knowledge-cli-pilot/coverage-impact-diagnosis.json)
+uses the same validated live ledger and policy, changing only context paths from
+the two actual CLI outputs. Original paths resolve the owner's exact impact;
+expanded coverage produces the new pending impact. Approval, plan subject,
+effective constraints, applicability results and challenges are identical.
+The [repeated native check](../evidence/knowledge-cli-pilot/coverage-impact-repeat-check.json)
+reproduced exit 2. The implementation hashes the complete mutable path set into
+the impact basis, so unrelated within-approval coverage additions orphan this
+non-path-selected constraint's existing disposition. Refreshing delivery alone
+does not resolve that mismatch.
+
+This is a product gap against within-approval autonomy and stable recovery, not
+authorization to reclassify the failed check or bypass the gate. No source fix,
+replacement approval, fabricated disposition, ledger rewrite, `done`, final code
+approval or attestation has been performed in response. Source repair requires
+its own concrete root-cause/repair/test plan and explicit owner approval under
+the pilot restrictions. Diagnostic files added after the 80-path assessment
+also need refreshed final coverage before any eventual completion.
+
+An [independent diagnostic review](../evidence/knowledge-cli-pilot/coverage-impact-independent-review.md)
+confirmed the issue with just one unrelated added path and identified the shared
+checkpoint/legacy-evidence requirements. The [proposed repair/test plan](../evidence/knowledge-cli-pilot/coverage-impact-repair-plan.md)
+is awaiting separate source-work authorization; it is not a recognized plan or
+code approval. Fresh full/changed decision checks, doc check and whitespace check
+passed after the diagnosis update; the external result is retained at
+`C:/Users/DawiniaLo/.codex/visualizations/2026/10/25/01a17370-b6fa-7893-a319-7aaba9d8cb8e/coverage-impact-document-checks.json`.
 
 ## Evidence layers and pending work
 
@@ -74,13 +193,13 @@ second delivery. Fresh decision/doc/whitespace checks passed and were retained i
 |---|---|---|
 | Local CLI and policy | Actual CLI calls and trusted policy resolved successfully | Editable local installation; no new package acceptance claimed |
 | Work authorization | Exact independent plan approval imported; implementation started | Scope remains documentation/evidence only |
-| Version recognition | Exact owner v1 conclusion imported after proposal | No v2 recognition or impact disposition granted |
-| Supply | Effective v1 body/version/recognition retained and returned; earlier empty supplies preserved | Prepared supply is not acquisition |
-| Observable acquisition | Actual captured v1 receipt, returned body digest and selected observer recorded | No understanding claim |
+| Version recognition | Exact owner v1 and v2 conclusions imported after their proposals | Version recognition is separate from work approval |
+| Supply | V1 historical supplies preserved; owner-selected v2 delivered with exact recognition | Prepared supply is not acquisition |
+| Observable acquisition | Actual captured v1/v2 receipts, returned body digests and selected observer recorded | No understanding claim |
 | Agent adoption | Separate adopt statement with reason recorded | Agent declaration does not prove compliance |
-| Checks | Decision/doc and whitespace checks passed after initial documentation edits | These do not prove semantic compliance |
-| Replacement executor use | Entry historical records restored in this session | Genuine recovery/use of v1 still pending another authorized session |
-| Correction and impact | No v2 proposal or disposition | Exact owner decisions and retained impacts still pending |
+| Checks | Earlier bounded checks passed; latest knowledge check exits 2 after actual coverage changed impact identity | Runtime blocker remains; no final verification claimed |
+| Replacement executor use | Authorized replacement restored exact v1, recorded its own acquisition/adoption and edited this document | Final verification/review remain pending |
+| Correction and impact | Owner selected continue with v2; original disposition retained | Coverage then reprojected a new pending impact; current completion is blocked |
 | Negative scenarios | Isolated replay/CAS/issuer/corruption checks passed; nonmatching empty-set precondition and challenge dependencies exercised | No isolated challenge or fixture conclusion was imported into real work |
 
 Workspace-local [evidence](../evidence/knowledge-cli-pilot/) retains original
@@ -114,7 +233,8 @@ independent path. Missing original evidence and failed/skip/empty conclusions al
 returned failure rather than approval. These fixture records exist only in copied
 ledgers. The case runner corrected its assumptions about plaintext change-start
 output and the string `non_matching`; these were runner corrections, not product
-code changes. The [replacement handoff](handoff-v1.md) names the next real action.
+code changes. The [replacement handoff](handoff-v1.md) preserves the historical
+handoff; the replacement use and continuation above record its actual execution.
 
 Cross-repository sharing, universal tool interception, complete semantic recall,
 understanding and long-term effectiveness remain unverified. No pending item is

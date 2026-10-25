@@ -1,0 +1,11 @@
+{
+  "session_id": "01a17370-b6fa-7893-a319-7aaba9d8cb8e",
+  "head": "781d8a83fa6133f13bab096681ad8555cc7588fe",
+  "branch": "codex/knowledge-cli-pilot",
+  "module_paths": [
+    "E:\\Work\\keepsail\\src\\keepsail\\__init__.py",
+    "E:\\Work\\keepsail\\src\\keepsail\\core\\knowledge.py"
+  ],
+  "trusted_base": "202171797aaf6899a1a44e51ef1451b0f13a6384",
+  "policy_digest": "8837f4d7a4fede285eef7d8a15ab450ee70ea779e0580ac90f27cf9efbb86337"
+}
