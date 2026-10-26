@@ -1,0 +1,14 @@
+{
+  "head": "e8eb70c09c557165fe4012017194ad45cb2aa50f",
+  "branch": "codex/knowledge-pilot-acceptance",
+  "trusted_base": "e8eb70c09c557165fe4012017194ad45cb2aa50f",
+  "knowledge_module": "E:\\Work\\keepsail\\src\\keepsail\\core\\knowledge.py",
+  "session_id": "01a17370-b6fa-7893-a319-7aaba9d8cb8e",
+  "pr131": {
+    "mergeCommit": {
+      "oid": "e8eb70c09c557165fe4012017194ad45cb2aa50f"
+    },
+    "mergedAt": "2026-10-26T16:59:33Z",
+    "state": "MERGED"
+  }
+}

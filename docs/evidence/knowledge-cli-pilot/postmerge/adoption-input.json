@@ -1,0 +1,13 @@
+{
+  "schema_version": "knowledge-operation/v1",
+  "operation_id": "pilot-postmerge-adoption-20261027-01",
+  "expected_revision": "a33dcf28afda02495311e95c7aeda807e1beb1dc2fc4ef8c14ecab47fa521d9b",
+  "change_id": "2026-10-25-knowledge-cli-pilot",
+  "record": {
+    "kind": "statement",
+    "delivery_id": "pilot-postmerge-final-v2-delivery-20261027-01",
+    "version_digest": "1212230c5189d0e10f7b9b2b75eec372cdaf80115a0e9162ed2063d42a4e93cc",
+    "decision": "adopt",
+    "reason": "Same authorized replacement session 01a17370-b6fa-7893-a319-7aaba9d8cb8e adopts owner-selected v2 for post-merge final acceptance documentation under unchanged P1-P9. Declaration is separate from actual acquisition/checks and proves neither understanding nor compliance."
+  }
+}
