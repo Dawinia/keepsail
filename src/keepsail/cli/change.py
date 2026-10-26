@@ -47,7 +47,13 @@ from keepsail.cli.errors import format_error
 from keepsail.cli.output import json_envelope
 from keepsail.core.active_change import read_active_change_id
 from keepsail.core.clock import utc_now_iso
-from keepsail.core.events import Actor, Event, EventSchemaError, parse_event_line
+from keepsail.core.events import (
+    Actor,
+    Event,
+    EventSchemaError,
+    effective_event_lines,
+    parse_event_line,
+)
 from keepsail.core.identity import resolve_identity
 from keepsail.core.paths import (
     HarnessNotInitialized,
@@ -71,6 +77,54 @@ _RESUME_RECENT_EVENT_LIMIT = 20
 @click.group("change")
 def change_group() -> None:
     """Declare / abandon / list lifecycle changes."""
+
+
+@change_group.command("recover")
+@click.argument("slug")
+@click.option("--source-commit", required=True,
+              help="Actual merged Git object retaining attestation.")
+@click.option("--pr", required=True, type=click.IntRange(min=1))
+@click.option("--apply", is_flag=True, help="Append after successful dry-run and revision check.")
+@click.option("--expected-revision", default=None, help="Exact dry-run physical ledger SHA256.")
+@click.pass_context
+def recover(ctx: click.Context, slug: str, source_commit: str, pr: int,
+            apply: bool, expected_revision: str | None) -> None:
+    """Recover retained evidence of an already verified historical merge."""
+    import subprocess
+
+    from keepsail.core.recovery import prepare_recovery, recovery_event
+    from keepsail.core.scope_match import GitScopeError, resolve_commit
+
+    try:
+        validate_slug(slug)
+        root = find_harness_root(Path(ctx.obj.get("workspace") or "."))
+        source_commit = resolve_commit(root, source_commit)
+        pending = events_path(root).with_name(".events.recovery-pending.json").exists()
+        if apply and not expected_revision:
+            raise ValueError("--apply requires the dry-run --expected-revision")
+        if pending:
+            if not apply:
+                raise ValueError("pending append; resume with the original --apply revision")
+            EventWriter(events_path(root)).recover(
+                None, expected_revision=str(expected_revision), change=slug,
+                source_commit=source_commit, pr=pr)
+            data = {"change_id": slug, "merge_commit_sha": source_commit, "resumed": True}
+        else:
+            data = prepare_recovery(root, slug, source_commit, pr)
+            if apply and not data["idempotent_replay"]:
+                EventWriter(events_path(root)).recover(
+                    recovery_event(data), expected_revision=str(expected_revision),
+                    change=slug, source_commit=source_commit, pr=pr)
+            data.pop("event", None)
+        if apply:
+            refresh_state_after_emit(root)
+        data["applied"] = apply
+        click.echo(json_envelope(command="change recover", status="pass", exit_code=0, data=data)
+                   if ctx.obj.get("json") else str(data))
+    except (ValueError, KeyError, TypeError, OSError, subprocess.SubprocessError,
+            HarnessNotInitialized, GitScopeError) as exc:
+        click.echo(format_error(subcommand="change recover", message=str(exc)), err=True)
+        raise SystemExit(EXIT_VALIDATION) from exc
 
 
 @change_group.command("start")
@@ -286,7 +340,7 @@ def _tail_events_for_change(events_file: Path, slug: str, limit: int) -> list[Ev
     if not events_file.exists():
         return []
     matched: list[Event] = []
-    for line in events_file.read_text(encoding="utf-8").splitlines():
+    for line in effective_event_lines(events_file.read_text(encoding="utf-8").splitlines()):
         if not line.strip():
             continue
         try:

@@ -202,6 +202,27 @@ keepsail change list [OPTIONS]
 - `1` generic error
 - `3` no `.harness/`
 
+## keepsail change recover
+
+Recover retained evidence of an already verified historical merge.
+
+```
+keepsail change recover [OPTIONS] SLUG
+```
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `SLUG` | text | *required* |  |
+| `--source-commit` | text | *required* | Actual merged Git object retaining attestation. |
+| `--pr` | integer range | *required* |  |
+| `--apply` | flag | `False` | Append after successful dry-run and revision check. |
+| `--expected-revision` | text | — | Exact dry-run physical ledger SHA256. |
+
+**Exit codes:**
+
+- `0` success
+- `1` generic error
+
 ## keepsail change resume
 
 Emit an agent-ready context dump for resuming a change mid-flight.

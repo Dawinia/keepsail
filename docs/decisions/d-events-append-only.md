@@ -5,15 +5,16 @@ ratified_by: dawinialo@163.com
 ratified_at: '2026-06-26T09:45:08.963090Z'
 ratified_text_hash: sha256:8db7275f6ea859c6e8ada8b4e77ec8a954024d45bffcc6a822ede1d62f69254b
 last_reconciled_by: dawinialo@163.com
-last_reconciled_at: '2026-10-26T06:19:42.514044Z'
+last_reconciled_at: '2026-10-26T18:30:50.605819Z'
 last_reconcile_kind: self
-last_reconcile_justification: 'Reviewed events.py diff and frozen Event/serializer/writer:
-  only the versioned knowledge operation event name is added; no mutation, reorder,
-  truncation or cache authority path is introduced. Independent exact code review
-  remains required.'
+last_reconcile_justification: Reviewed frozen event, shared effective reader, strict
+  recovery transaction and suffix journal. Existing bytes are never mutated, reordered
+  or truncated; original source bytes remain in one self-contained log event. Journal
+  resumes only the exact suffix and is not state authority. Independent exact code
+  review remains required.
 reconciled_anchors:
-  src/keepsail/core/events.py: sha256:8cd000f94fdf78a278c4472d06430d900a2bc8684877c211a6e0a07ed4f0b2da
-  src/keepsail/core/writer.py: sha256:eb72a1f4776295fef635cdd8e1ec074009d3ea8e1cb4ffea15f11775ea51aa96
+  src/keepsail/core/events.py: sha256:390c267f88379ad3a24540fa7fe27e66673d531ca9115b1849030c5f1b0fd194
+  src/keepsail/core/writer.py: sha256:433d84f67b4617edcf9a354406391f6042dcf831f429092b9c663e8b3d855a32
 ---
 Events are append-only; the log is the source of truth, state is derived.
 

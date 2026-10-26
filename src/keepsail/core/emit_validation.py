@@ -40,7 +40,7 @@ from keepsail.core.approval import (
     validate_implementation_assessment,
     validate_plan_subject,
 )
-from keepsail.core.events import Event, EventSchemaError, parse_event_line
+from keepsail.core.events import Event, EventSchemaError, effective_event_lines, parse_event_line
 from keepsail.core.scope_match import GitScopeError
 from keepsail.core.transitions import INVALID, compute_target_state
 
@@ -101,7 +101,7 @@ def _current_state(events_file: Path, change_id: str) -> str | None:
     if not events_file.exists():
         return None
     current: str | None = None
-    for line in events_file.read_text(encoding="utf-8").splitlines():
+    for line in effective_event_lines(events_file.read_text(encoding="utf-8").splitlines()):
         if not line.strip():
             continue
         try:
@@ -123,7 +123,7 @@ def _change_event_types(events_file: Path, change_id: str) -> set[str]:
     if not events_file.exists():
         return set()
     seen: set[str] = set()
-    for line in events_file.read_text(encoding="utf-8").splitlines():
+    for line in effective_event_lines(events_file.read_text(encoding="utf-8").splitlines()):
         if not line.strip():
             continue
         try:
@@ -144,6 +144,14 @@ def validate_preconditions(events_file: Path, new_event: Event) -> None:
     2. Hard prerequisites: certain events require specific prior events on the
        same change_id (e.g. implementation_complete needs verification_passed).
     """
+    if new_event.type == "historical_change_recovered":
+        from keepsail.core.recovery import validate_recovery
+
+        try:
+            validate_recovery(events_file, new_event)
+        except (ValueError, KeyError, TypeError) as exc:
+            raise EmitPreconditionError(str(exc)) from exc
+        return
     current = _current_state(events_file, new_event.change_id)
     target = compute_target_state(current, new_event.type)
     if target == INVALID:
@@ -547,7 +555,7 @@ def find_ordering_violations(events_file: Path, change_id: str) -> list[Ordering
     violations: list[OrderingViolation] = []
     current: str | None = None
     seen: set[str] = set()
-    for line in events_file.read_text(encoding="utf-8").splitlines():
+    for line in effective_event_lines(events_file.read_text(encoding="utf-8").splitlines()):
         if not line.strip():
             continue
         try:

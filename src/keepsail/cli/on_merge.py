@@ -195,16 +195,15 @@ def on_merge_cli(ctx: click.Context, commit: str, change: str | None) -> None:
     try:
         _emit_merged(writer, change_id, commit)
     except EmitPreconditionError as e:
-        # The change is not in READY_TO_MERGE. This is a hard data integrity
-        # signal — exit 1 with a clean format_error rather than the strict
-        # writer's traceback. NO --json envelope (1/3 do not emit one).
+        # State, authority and knowledge failures share this exception.
         click.echo(
             format_error(
                 subcommand="on-merge",
                 message=str(e),
                 hint=(
-                    "Inspect `.harness/events.jsonl` and `state.yaml` — the change "
-                    "must be READY_TO_MERGE before a `merged` event."
+                    "Inspect `keepsail status` and `knowledge check` for the named "
+                    "precondition. A verified historical merge may require "
+                    "`change recover`; do not disable current policy."
                 ),
             ),
             err=True,

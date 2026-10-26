@@ -6,7 +6,8 @@ revisit if append-only replay cost becomes a bottleneck.
 
 Validation policy (spec §3.8.1 layered):
 - Emit-time (writer / emit_validation): strict — reject before append.
-- Reducer-time (this module): TOLERANT — log.warning + skip; never raise.
+- Reducer-time: tolerate malformed legacy lines; invalid recovery envelopes raise
+  rather than expose partial restored authority.
   Events on disk already passed emit-time validation OR were appended by older
   tool versions / direct edits / partial writes — the reducer must not crash.
 
@@ -47,6 +48,12 @@ CLOCK_DRIFT_WARN_THRESHOLD_S = 60
 
 # @decision:d-state-pure-fold
 def derive_state(events_file: Path) -> dict[str, ChangeState]:
+    if not events_file.exists():
+        return {}
+    return derive_state_from_lines(events_file.read_text(encoding="utf-8").splitlines())
+
+
+def derive_state_from_lines(lines: list[str]) -> dict[str, ChangeState]:
     """Full-rebuild reducer: replay events.jsonl → per-change state map.
 
     Returns an empty dict if `events_file` does not exist (first-run case).
@@ -68,10 +75,9 @@ def derive_state(events_file: Path) -> dict[str, ChangeState]:
     """
     state: dict[str, ChangeState] = {}
     last_ts: dict[str, str] = {}
-    if not events_file.exists():
-        return state
+    from keepsail.core.events import effective_event_lines
 
-    raw_lines = events_file.read_text(encoding="utf-8").splitlines()
+    raw_lines = effective_event_lines(lines)
     for line_num, line in enumerate(raw_lines, start=1):
         if not line.strip():
             continue
