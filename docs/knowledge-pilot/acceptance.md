@@ -1,7 +1,8 @@
 # Real CLI knowledge pilot acceptance
 
-Change: `2026-10-25-knowledge-cli-pilot`. This is an in-progress record, not a
-completion claim. The owner confirmed the concrete P1–P9 plan with "开始".
+Change: `2026-10-25-knowledge-cli-pilot`. This record separates completed pilot
+operations from final lifecycle evidence; it does not infer completion from a
+passing knowledge check. The owner confirmed the concrete P1–P9 plan with "开始".
 The normative account remains [product architecture](../product-architecture.md).
 
 ## Verified entry and authorization
@@ -148,7 +149,7 @@ post-recognition exit 2 remains retained as a genuine pending-impact/missing-del
 result, not rewritten as success. Final verification/review/attestation are tracked
 through the native lifecycle and must not be inferred from this check.
 
-### Actual coverage exposed a runtime blocker
+### Historical blocker: actual coverage changed impact identity
 
 The subsequent native `implementation record` accepted 80 actual/planned-finalization
 paths under the same effective approval. A new exact-context v2 delivery
@@ -187,7 +188,35 @@ code approval. Fresh full/changed decision checks, doc check and whitespace chec
 passed after the diagnosis update; the external result is retained at
 `C:/Users/DawiniaLo/.codex/visualizations/2026/10/25/01a17370-b6fa-7893-a319-7aaba9d8cb8e/coverage-impact-document-checks.json`.
 
-## Evidence layers and pending work
+## Post-merge recovery and finalization
+
+PR #131 merged on 2026-10-27 at 00:59:33 Asia/Shanghai, squash commit
+`e8eb70c09c557165fe4012017194ad45cb2aa50f`. After fetching main, the executor
+created `codex/knowledge-pilot-acceptance` from that merged commit. No source
+patches were made for this finalization. The actual trusted-base resolver now
+selects that commit and the explicit repository `.venv` imports
+`E:/Work/keepsail/src/keepsail`. Original untracked material remains preserved.
+
+Native resume restores the original plan approval and owner continue-with-v2
+disposition. Native knowledge check exits 0 with no blocking reasons and restores
+exact original impact
+`8bfc3023b83ae44d1b52bae64e83e2f84992985c6cf39081bde748bd3d097d3b`
+as `resolved`. This is actual merged-source recovery, separate from the earlier
+unmerged-source checks. The failed historical checks above remain retained;
+neither their results nor the owner's conclusion were rewritten.
+
+The finalization records actual assessment/coverage and refreshes exact current
+v2 supply after recording that coverage. Actual returned body/receipt and observer
+acquisition remain separate from agent adoption and check facts. Workspace-local
+operation inputs/results are retained in `docs/evidence/knowledge-cli-pilot/postmerge/`.
+Final full verification, exact independent code conclusion and attestation are
+subsequent native lifecycle evidence, not predictions in this frozen document.
+Their authoritative retained artifact is
+`.harness/attestations/2026-10-25-knowledge-cli-pilot.jsonl` once native export
+and pure-Git verification succeed. Until those actual operations pass, P9 is pending.
+Remote CI for any final documentation delivery is a separate evidence layer.
+
+## Evidence layers
 
 | Layer | Current evidence | Boundary |
 |---|---|---|
@@ -197,9 +226,9 @@ passed after the diagnosis update; the external result is retained at
 | Supply | V1 historical supplies preserved; owner-selected v2 delivered with exact recognition | Prepared supply is not acquisition |
 | Observable acquisition | Actual captured v1/v2 receipts, returned body digests and selected observer recorded | No understanding claim |
 | Agent adoption | Separate adopt statement with reason recorded | Agent declaration does not prove compliance |
-| Checks | Earlier bounded checks passed; latest knowledge check exits 2 after actual coverage changed impact identity | Runtime blocker remains; no final verification claimed |
+| Checks | Post-merge native knowledge check passes and retains original resolved impact | Full verification/review/attestation require their actual native records |
 | Replacement executor use | Authorized replacement restored exact v1, recorded its own acquisition/adoption and edited this document | Final verification/review remain pending |
-| Correction and impact | Owner selected continue with v2; original disposition retained | Coverage then reprojected a new pending impact; current completion is blocked |
+| Correction and impact | Owner selected continue with v2; merged repair restores the exact original impact and disposition | Historical coverage-induced failure preserved; no new owner judgment invented |
 | Negative scenarios | Isolated replay/CAS/issuer/corruption checks passed; nonmatching empty-set precondition and challenge dependencies exercised | No isolated challenge or fixture conclusion was imported into real work |
 
 Workspace-local [evidence](../evidence/knowledge-cli-pilot/) retains original

@@ -1,0 +1,406 @@
+{
+  "assessment": {
+    "approval_id": "approval:pilot-plan-review-20261025-a75436eb-independent-01",
+    "change_id": "2026-10-25-knowledge-cli-pilot",
+    "affected_commitments": [
+      "P1",
+      "P2",
+      "P6",
+      "P7",
+      "P9"
+    ],
+    "conclusion": "within_approval; post-merge P9 finalization, no commitment or restriction change",
+    "reasons": [
+      "Merged PR131 is the actual trusted base; native pilot check restores original recognized continue-v2 disposition.",
+      "Update actual acceptance evidence and coverage; preserve all historical failures, v1/v2 records, original approval and user conclusion.",
+      "Finalization adds only documentation/evidence; normal native full verification, independent exact code conclusion and pure-Git attestation remain actual subsequent obligations, not self-reported completion."
+    ],
+    "references": [
+      "docs/knowledge-pilot/acceptance.md",
+      "docs\\evidence\\knowledge-cli-pilot\\postmerge\\identity.json",
+      "docs\\evidence\\knowledge-cli-pilot\\postmerge\\pilot-check.json"
+    ]
+  },
+  "coverage": [
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/activation.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/bootstrap-empty-delivery.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/final-assessment-input.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/final-assessment-result.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/final-delivery-acquisition-before-show.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/final-delivery-acquisition-input.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/final-delivery-acquisition-result.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/final-delivery-before-show.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/final-delivery-result.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/final-document-checks.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/final-knowledge-check.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/isolated-pre-recognition-results.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/isolated-v1-control-results.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/pilot-approved-empty-delivery.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/pilot-implementation-start.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/pilot-plan-import.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/pilot-plan-ready.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/pilot-plan-review.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/pilot-preplan-delivery.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/postmerge/acquisition-input.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/postmerge/acquisition-result.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/postmerge/adoption-input.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/postmerge/adoption-result.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/postmerge/assessment-input.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/postmerge/assessment-result.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/postmerge/before-acquisition.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/postmerge/before-adoption.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/postmerge/before-delivery.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/postmerge/delivery-result.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/postmerge/document-checks.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/postmerge/identity.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/postmerge/knowledge-check.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/postmerge/pilot-check.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/postmerge/pilot-resume.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/pre-recognition-checks.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/replacement-document-checks.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/replacement-document-diff.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/replacement-identity.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/replacement-resume.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/replacement-v1-acquisition-before.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/replacement-v1-acquisition-input.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/replacement-v1-acquisition-result.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/replacement-v1-adoption-before.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/replacement-v1-adoption-input.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/replacement-v1-adoption-result.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/replacement-v1-check.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/replacement-v1-show.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/replacement-v2-before-proposal.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/replacement-v2-candidate-checks.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/replacement-v2-document-diff.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/replacement-v2-proposal-input.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/replacement-v2-proposal-result.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-acquisition-input.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-acquisition-result.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-adoption-input.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-adoption-result.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-assessment-input.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-assessment-result.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-before-proposal.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-before-recognition.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-candidate-show.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-check.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-delivery-result.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-document-checks.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-handoff-check.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-handoff-delivery.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-handoff-show.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-proposal-input.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-proposal-result.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-recognition-input.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-recognition-result.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-resume.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v2-acquisition-before-show.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v2-acquisition-input.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v2-acquisition-result.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v2-adoption-before-show.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v2-adoption-input.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v2-adoption-result.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v2-before-recognition.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v2-continued-check.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v2-delivery-before-show.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v2-delivery-result.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v2-disposition-before-resume.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v2-disposition-before-show.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v2-disposition-input.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v2-disposition-result.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v2-impact-resume.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v2-post-recognition-checks.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v2-recognition-input.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v2-recognition-result.json",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/knowledge-pilot.md",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/knowledge-pilot/acceptance.md",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/knowledge-pilot/handoff-v1.md",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/knowledge.md",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    },
+    {
+      "path": "docs/plans/2026-10-25-knowledge-cli-pilot.md",
+      "reason": "Approved pilot documentation/evidence coverage including final native input/result captures."
+    }
+  ]
+}
