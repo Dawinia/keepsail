@@ -1,0 +1,33 @@
+[
+  {
+    "argv": [
+      "E:\\Work\\keepsail\\.venv\\Scripts\\keepsail.exe",
+      "decision",
+      "check",
+      "--changed"
+    ],
+    "exit_code": 0,
+    "stdout": "hard:context = 3:9 (25% hard)\r\ndecision check: clean\r\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "E:\\Work\\keepsail\\.venv\\Scripts\\keepsail.exe",
+      "doc",
+      "check"
+    ],
+    "exit_code": 0,
+    "stdout": "doc check: clean\r\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "warning: LF will be replaced by CRLF in docs/knowledge-pilot/acceptance.md.\nThe file will have its original line endings in your working directory\n"
+  }
+]

@@ -1,0 +1,24 @@
+{
+  "base": "202171797aaf6899a1a44e51ef1451b0f13a6384",
+  "policy_digest": "8837f4d7a4fede285eef7d8a15ab450ee70ea779e0580ac90f27cf9efbb86337",
+  "version_digest": "0f240f5f1e72ee8bc72665e18ad16ad0d3b06615e0e9fd371007ff8531bb04cb",
+  "executable": "E:\\Work\\keepsail\\.venv\\Scripts\\python.exe",
+  "knowledge": {
+    "command": "knowledge show",
+    "version": "0.1.0",
+    "status": "pass",
+    "exit_code": 0,
+    "data": {
+      "coverage": "explicit-rules-only",
+      "revision": "c972d954a7c72b3cacd590d8d200e9ab653987233c129734bbdbd3279777a716",
+      "versions": [],
+      "evidence": [],
+      "deliveries": {},
+      "executions": {},
+      "challenges": {},
+      "statements": [],
+      "observations": []
+    },
+    "errors": []
+  }
+}

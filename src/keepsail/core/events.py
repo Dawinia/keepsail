@@ -27,9 +27,15 @@ CORE_EVENT_TYPES: frozenset[str] = frozenset(
 
 # Per lifecycle-event-model §3.6: extension events (sensor-emitted /
 # user-initiated / system-detected / sensor lifecycle)
-KNOWLEDGE_EVENT_TYPES = frozenset({
-    "knowledge_proposed", "knowledge_imported", "knowledge_delivered", "knowledge_recorded",
-})
+KNOWLEDGE_EVENT_TYPES = frozenset(
+    {
+        "knowledge_proposed",
+        "knowledge_imported",
+        "knowledge_delivered",
+        "knowledge_recorded",
+        "knowledge_operation_v2",
+    }
+)
 
 EXTENSION_EVENT_TYPES: frozenset[str] = KNOWLEDGE_EVENT_TYPES | frozenset(
     {

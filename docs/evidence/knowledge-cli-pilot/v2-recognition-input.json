@@ -1,0 +1,42 @@
+{
+  "schema_version": "knowledge-operation/v1",
+  "operation_id": "pilot-recognize-boundary-v2-20261025-01",
+  "expected_revision": "20dd28e6116d97ef4ae5296e68cf0e8d7a4906ea13839ccdfcf6268b0e469512",
+  "change_id": "2026-10-25-knowledge-cli-pilot",
+  "evidence": {
+    "schema_version": "knowledge-evidence/v1",
+    "evidence_id": "pilot-owner-recognition-boundary-v2-20261025-01",
+    "kind": "recognition",
+    "subject_id": "1212230c5189d0e10f7b9b2b75eec372cdaf80115a0e9162ed2063d42a4e93cc",
+    "decision": "recognize",
+    "issuer": "keepsail-product-owner",
+    "process": {
+      "id": "keepsail-owner-knowledge",
+      "version": "1"
+    },
+    "authorization_effect": "unchanged",
+    "original_evidence": {
+      "source": "current-chat/01a17370-b6fa-7893-a319-7aaba9d8cb8e",
+      "retention": "Exact proposed body, digest, scope and user reply retained; local labels do not authenticate identity.",
+      "body": "交付、可观察获取、agent 采用声明、检查结果必须分开记录，并绑定确切知识版本与证据；缺失获取记录时不得宣称已观察到获取，缺失检查记录时不得宣称已检查或检查通过。交付或获取不证明理解或采用，agent 声明不证明合规；检查通过仅支持其明确覆盖的检查结论。",
+      "version_digest": "1212230c5189d0e10f7b9b2b75eec372cdaf80115a0e9162ed2063d42a4e93cc",
+      "authority": "constraint",
+      "selector": {
+        "repository_ids": [
+          "Dawinia/keepsail"
+        ],
+        "change_ids": [
+          "2026-10-25-knowledge-cli-pilot"
+        ]
+      },
+      "question": "请明确认可或拒绝该确切 v2。按已批准 P7 和知识认可策略，此处需要你的独立判断；认可后才会 import，再呈现实际 impact 供你裁定，工作批准不会自动改变。",
+      "answer": "认可，直接开始"
+    },
+    "provenance": {
+      "policy_digest": "8837f4d7a4fede285eef7d8a15ab450ee70ea779e0580ac90f27cf9efbb86337",
+      "source": "current-chat/01a17370-b6fa-7893-a319-7aaba9d8cb8e",
+      "retained_input": "docs\\evidence\\knowledge-cli-pilot\\v2-recognition-input.json",
+      "boundary": "Recognition of exact v2 only; impact disposition awaits its concrete recovered subject. Work commitments unchanged."
+    }
+  }
+}

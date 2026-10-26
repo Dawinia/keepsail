@@ -1,0 +1,353 @@
+{
+  "assessment": {
+    "approval_id": "approval:pilot-plan-review-20261025-a75436eb-independent-01",
+    "change_id": "2026-10-25-knowledge-cli-pilot",
+    "affected_commitments": [
+      "P1",
+      "P2",
+      "P3",
+      "P4",
+      "P5",
+      "P6",
+      "P7",
+      "P8",
+      "P9"
+    ],
+    "conclusion": "within_approval; real owner-selected continue with v2 recorded; final verification/review/attestation are separate subsequent obligations",
+    "reasons": [
+      "P1/P2 documentation and retained actual inputs/stdout/exit evidence; no source code, dependencies, policy or restrictions changed.",
+      "P3/P4/P5 exact plan approval, native v1 recognition, original supply, acquisition/adoption and isolated nonmatching controls retained.",
+      "P6 genuine owner-authorized replacement session restored exact v1 and original approval, recorded its own acquisition/adoption and performed real acceptance documentation edits.",
+      "P7 exact narrow v2 separately recognized; actual impact and trigger approval restored; owner then selected continue with explicit v2 under unchanged P1-P9 commitments. Native disposition, delivery, acquisition/adoption and passing bounded check retained.",
+      "P8 isolated stale/conflicting/invalid/corrupt/challenge cases remain isolated; no unrelated historical Change transitioned.",
+      "P9 exact file coverage includes final assessment and imminent native result captures. Required done, independent code conclusion and attestation remain pending their actual execution; no declaration substitutes for them."
+    ],
+    "references": [
+      "docs/knowledge-pilot/acceptance.md",
+      "docs\\evidence\\knowledge-cli-pilot\\v2-disposition-input.json",
+      "docs\\evidence\\knowledge-cli-pilot\\v2-continued-check.json"
+    ]
+  },
+  "coverage": [
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/activation.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/bootstrap-empty-delivery.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/final-assessment-input.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/final-assessment-result.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/final-delivery-acquisition-before-show.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/final-delivery-acquisition-input.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/final-delivery-acquisition-result.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/final-delivery-before-show.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/final-delivery-result.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/final-document-checks.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/final-knowledge-check.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/isolated-pre-recognition-results.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/isolated-v1-control-results.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/pilot-approved-empty-delivery.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/pilot-implementation-start.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/pilot-plan-import.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/pilot-plan-ready.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/pilot-plan-review.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/pilot-preplan-delivery.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/pre-recognition-checks.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/replacement-document-checks.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/replacement-document-diff.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/replacement-identity.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/replacement-resume.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/replacement-v1-acquisition-before.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/replacement-v1-acquisition-input.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/replacement-v1-acquisition-result.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/replacement-v1-adoption-before.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/replacement-v1-adoption-input.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/replacement-v1-adoption-result.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/replacement-v1-check.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/replacement-v1-show.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/replacement-v2-before-proposal.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/replacement-v2-candidate-checks.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/replacement-v2-document-diff.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/replacement-v2-proposal-input.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/replacement-v2-proposal-result.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-acquisition-input.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-acquisition-result.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-adoption-input.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-adoption-result.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-assessment-input.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-assessment-result.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-before-proposal.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-before-recognition.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-candidate-show.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-check.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-delivery-result.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-document-checks.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-handoff-check.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-handoff-delivery.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-handoff-show.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-proposal-input.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-proposal-result.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-recognition-input.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-recognition-result.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-resume.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v2-acquisition-before-show.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v2-acquisition-input.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v2-acquisition-result.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v2-adoption-before-show.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v2-adoption-input.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v2-adoption-result.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v2-before-recognition.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v2-continued-check.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v2-delivery-before-show.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v2-delivery-result.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v2-disposition-before-resume.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v2-disposition-before-show.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v2-disposition-input.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v2-disposition-result.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v2-impact-resume.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v2-post-recognition-checks.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v2-recognition-input.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v2-recognition-result.json",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/knowledge-pilot.md",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/knowledge-pilot/acceptance.md",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/knowledge-pilot/handoff-v1.md",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/knowledge.md",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    },
+    {
+      "path": "docs/plans/2026-10-25-knowledge-cli-pilot.md",
+      "reason": "P1-P9 approved documentation and real retained CLI evidence; includes imminent finalization captures."
+    }
+  ]
+}

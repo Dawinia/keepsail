@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "E:\\Work\\keepsail\\.venv\\Scripts\\keepsail.exe",
+    "--json",
+    "knowledge",
+    "deliver",
+    "2026-10-25-knowledge-cli-pilot",
+    "--operation-id",
+    "pilot-preplan-empty-20261025-01",
+    "--expected-revision",
+    "09f052633f3ea929dc96e74a202c15ef565c4d0bf6249f3faf421745be5b5953"
+  ],
+  "exit_code": 0,
+  "stdout": "{\"command\":\"knowledge deliver\",\"version\":\"0.1.0\",\"status\":\"pass\",\"exit_code\":0,\"data\":{\"delivery_id\":\"pilot-preplan-empty-20261025-01\",\"supply_status\":\"prepared\",\"change_id\":\"2026-10-25-knowledge-cli-pilot\",\"constraints\":[],\"basis_digest\":\"706918c47de4fd3fb6ceeffa43636c150d4105cba6c970b635b092c4d58f2afc\",\"evaluated\":[],\"context\":{\"paths\":[],\"approval_id\":null,\"plan_subject_id\":null},\"recognition_evidence\":{},\"idempotent_replay\":false,\"revision\":\"ebaeee4d6912bb1b28bda0520ca42585fbd08f10629bafd1b8d756d3f11d2d08\",\"stale\":false,\"missing_observations\":[\"recipient-acquisition\",\"understanding\",\"compliance\"],\"limits\":[\"explicit-rules-only\",\"single-repository\"]},\"errors\":[]}\r\n",
+  "stderr": "line 31: unknown event type 'l1_update_completed'; skipping\r\nline 40: unknown event type 'l1_update_completed'; skipping\r\nline 49: unknown event type 'l1_update_completed'; skipping\r\nline 31: unknown event type 'l1_update_completed'; skipping\r\nline 40: unknown event type 'l1_update_completed'; skipping\r\nline 49: unknown event type 'l1_update_completed'; skipping\r\nline 31: unknown event type 'l1_update_completed'; skipping\r\nline 40: unknown event type 'l1_update_completed'; skipping\r\nline 49: unknown event type 'l1_update_completed'; skipping\r\nline 31: unknown event type 'l1_update_completed'; skipping\r\nline 40: unknown event type 'l1_update_completed'; skipping\r\nline 49: unknown event type 'l1_update_completed'; skipping\r\nline 31: unknown event type 'l1_update_completed'; skipping\r\nline 40: unknown event type 'l1_update_completed'; skipping\r\nline 49: unknown event type 'l1_update_completed'; skipping\r\nline 31: unknown event type 'l1_update_completed'; skipping\r\nline 40: unknown event type 'l1_update_completed'; skipping\r\nline 49: unknown event type 'l1_update_completed'; skipping\r\nline 31: unknown event type 'l1_update_completed'; skipping\r\nline 40: unknown event type 'l1_update_completed'; skipping\r\nline 49: unknown event type 'l1_update_completed'; skipping\r\nline 31: unknown event type 'l1_update_completed'; skipping\r\nline 40: unknown event type 'l1_update_completed'; skipping\r\nline 49: unknown event type 'l1_update_completed'; skipping\r\nline 31: unknown event type 'l1_update_completed'; skipping\r\nline 40: unknown event type 'l1_update_completed'; skipping\r\nline 49: unknown event type 'l1_update_completed'; skipping\r\n"
+}

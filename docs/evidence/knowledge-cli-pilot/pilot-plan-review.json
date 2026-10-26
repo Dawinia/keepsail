@@ -1,0 +1,42 @@
+{
+  "version": "review-evidence/v1",
+  "evidence_id": "pilot-plan-review-20261025-a75436eb-independent-01",
+  "kind": "plan",
+  "subject_id": "plan:a75436eb347d7d545dce2c1ff15672248ee5caea9644a73f80c629b6140bc0e9",
+  "decision": "approve",
+  "issuer": "codex-subagent",
+  "process": {
+    "id": "codex-subagent-review",
+    "version": "codex-subagent-review/v1"
+  },
+  "original_evidence": {
+    "reviewer": "/root/pilot_plan_review",
+    "decision": "approve",
+    "summary": "Independent exact-subject plan review approves P1-P9 for the real single-repository CLI documentation/evidence pilot. No blocking standards or specification finding was identified. This is plan review approval only; it is not knowledge recognition or an impact disposition.",
+    "standards_findings": [],
+    "spec_findings": [],
+    "assessment": [
+      "Independently resolved HEAD c391de78e5f9a6720d154cbbbbf544c1f8f28fce and validated the frozen plan-authority/v1 subject. Both adopted artifacts (the pilot plan and automatically adopted docs/product-foundations.md) match their current worktree and committed artifact digests. All nine commitments are retained in the frozen subject.",
+      "P1-P3 define documentation and retained CLI evidence scope, use native governance writes and exact independent review, and preserve approved-commitment versus implementation-coverage semantics. No source, policy or remote-settings changes are authorized.",
+      "P4-P5 keep a proposal candidate without authority until the selected human owner recognizes its exact native returned digest. Actual returned body/receipt, acquisition observation, agent adoption and checks remain distinct. Nonmatching and empty-set behavior is evaluated without advancing unrelated historical Changes.",
+      "P6 correctly treats this session as recovery of pre-pilot records only, since no v1 supply existed at entry. A genuine later replacement executor, concrete handoff, owner session authorization and real approved documentation action remain required; a subprocess is explicitly insufficient.",
+      "P7 preserves v1 and reserves exact future v2 recognition and exact impact disposition to the owner-recognized process. It does not preselect continuation, automatically revoke approval, release commitments through knowledge correction or permit self-reported verified execution.",
+      "P8 isolates malformed/conflicting/corrupt evidence and dependency experiments from the real ledger. Missing, failed, skipped or unknown-issuer conclusions cannot become approval; challenge does not release a constraint.",
+      "P9 retains native verification, assessment, exact code review and attestation obligations while distinguishing installation, policy, observable acquisition, real use and traceability. Pending owner/session stages must remain pending; this review cannot support marking the full pilot complete before those stages actually occur.",
+      "The normative product architecture remains authoritative. The bounded single-repository CLI exercise discloses cross-repository sharing, universal interception, complete recall, semantic understanding and long-term effectiveness limits without narrowing product obligations."
+    ],
+    "validation": {
+      "independently_performed": "Read current AGENTS.md, frozen plan and adopted foundation artifact, normative product architecture, knowledge/procedure docs, concrete v1 proposal and owner-preparation record, both recognition contracts, review import/validation implementation. Ran read-only subject validation and committed/worktree artifact digest comparisons. No repository or ledger mutations; only this external conclusion artifact was written.",
+      "not_performed": "No runtime acceptance, full test suite, remote GitHub revalidation or knowledge operation execution was performed by this reviewer. These remain implementation/acceptance evidence, not established by plan review."
+    },
+    "limitations": "Owner confirmation is the visible current-chat response and supplied task context, not authenticated identity evidence. Entry-state merge/base/activation facts are implementation-agent retained evidence, not independently remote-revalidated here. Future v2 content/disposition is intentionally not yet selected; it must receive its own exact owner conclusion. Approval covers only the named current frozen plan subject and does not approve implementation, authorize source fixes, recognize v1/v2 or claim completed replacement-session acceptance."
+  },
+  "provenance": {
+    "policy_digest": "41e290b360e52e83f5fd6e4538c4c465cbb758871e47c05972b28c8e251d41b4",
+    "change_id": "2026-10-25-knowledge-cli-pilot",
+    "commit": "c391de78e5f9a6720d154cbbbbf544c1f8f28fce",
+    "base": "202171797aaf6899a1a44e51ef1451b0f13a6384",
+    "reviewer_task": "/root/pilot_plan_review",
+    "subject_manifest": "C:\\Users\\DawiniaLo\\.codex\\visualizations\\2026\\10\\25\\01a1726b-5486-7e40-adee-1f6d2d37c474\\pilot\\pilot-plan-subject.json"
+  }
+}

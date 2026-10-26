@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "E:\\Work\\keepsail\\.venv\\Scripts\\keepsail.exe",
+    "--json",
+    "knowledge",
+    "import",
+    "--evidence",
+    "docs/evidence/knowledge-cli-pilot/v1-recognition-input.json"
+  ],
+  "exit_code": 0,
+  "stdout": "{\"command\":\"knowledge import\",\"version\":\"0.1.0\",\"status\":\"pass\",\"exit_code\":0,\"data\":{\"evidence_id\":\"pilot-owner-recognition-boundary-v1-20261025-01\",\"decision\":\"recognize\",\"effective\":true,\"idempotent_replay\":false,\"revision\":\"eeee7c4bb2e22a33c926dc937c85ef1e05b1fb17a75b18b031666931eb30f74d\"},\"errors\":[]}\r\n",
+  "stderr": "line 31: unknown event type 'l1_update_completed'; skipping\r\nline 40: unknown event type 'l1_update_completed'; skipping\r\nline 49: unknown event type 'l1_update_completed'; skipping\r\nline 31: unknown event type 'l1_update_completed'; skipping\r\nline 40: unknown event type 'l1_update_completed'; skipping\r\nline 49: unknown event type 'l1_update_completed'; skipping\r\nline 31: unknown event type 'l1_update_completed'; skipping\r\nline 40: unknown event type 'l1_update_completed'; skipping\r\nline 49: unknown event type 'l1_update_completed'; skipping\r\nline 31: unknown event type 'l1_update_completed'; skipping\r\nline 40: unknown event type 'l1_update_completed'; skipping\r\nline 49: unknown event type 'l1_update_completed'; skipping\r\nline 31: unknown event type 'l1_update_completed'; skipping\r\nline 40: unknown event type 'l1_update_completed'; skipping\r\nline 49: unknown event type 'l1_update_completed'; skipping\r\n"
+}

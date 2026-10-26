@@ -4,6 +4,12 @@ This procedure delivers the first policy and prepares real use in one PR with th
 bootstrap repair. It does **not** claim that merging code completes the pilot.
 The [product architecture](product-architecture.md) remains normative.
 
+PR #130 has since merged. The actual trusted base now includes the policy and
+the CLI reports active protocol coverage. The [real acceptance record](knowledge-pilot/acceptance.md)
+tracks completed operations separately from pending knowledge recognition and
+replacement-session use. Pre-merge instructions below retain their original
+conditional meaning; they are not a claim that the current policy is inactive.
+
 ## Owner choices and current authority
 
 The [retained owner excerpts](evidence/2026-10-25-knowledge-pilot-owner-authorization.json)
@@ -113,9 +119,11 @@ A general active-policy replacement/deactivation cutover is **not implemented by
 this repair** and requires its own authorized design. A Git revert is not a knowledge
 disposition. Independent authorized work may continue.
 
-This PR validates installation paths/source, candidate delivery, exact Git evidence
-and isolated protocol behavior. Real activation, exact first-version recognition,
-replacement-agent acquisition/use and real v2 disposition remain pending their
-actual operations. Cross-repository sharing, universal tool interception, complete
+The original preparation validated installation paths/source, candidate delivery,
+exact Git evidence and isolated protocol behavior. The linked acceptance record
+now retains real activation, exact v1/v2 recognition, replacement-agent acquisition
+and documentation use, and the owner's explicit continue-with-v2 disposition.
+Final verification, review and attestation are separate native lifecycle evidence.
+Cross-repository sharing, universal tool interception, complete
 semantic recall and long-term usage effectiveness remain outside this slice;
 those limits do not narrow the normative product architecture.

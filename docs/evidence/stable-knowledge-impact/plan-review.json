@@ -1,0 +1,22 @@
+{
+  "version": "review-evidence/v1",
+  "evidence_id": "stable-impact-plan-review-20261026-01",
+  "kind": "plan",
+  "subject_id": "plan:a56fd650576f948ffd19be57aaf52b117ca9abab6130b7ccbf2969b431d7c238",
+  "decision": "approve",
+  "issuer": "codex-subagent",
+  "process": {
+    "id": "codex-subagent-review",
+    "version": "codex-subagent-review/v1"
+  },
+  "original_evidence": {
+    "reviewer": "/root/exact_plan_review",
+    "decision": "approve",
+    "response": "Decision: approve.\n\nExact subject: plan:a56fd650576f948ffd19be57aaf52b117ca9abab6130b7ccbf2969b431d7c238\nChange: 2026-10-26-stable-knowledge-impact\nReviewed HEAD: 12f7b9e2f69eb27880ac0735df838a76ffce12c1\nPlan artifact digest: 0d9bff2ceecc67e593247f054641a6133a4672e0e084dbfe5f0603813c27bfb9\n\nI independently read the frozen pending subject, plan artifact, originating repair proposal and diagnostic review, recognition policy, normative architecture, and relevant writer/replay/view/checkpoint/CLI code. The artifact matches HEAD and remains unchanged. No files or lifecycle evidence were modified.\n\nThere are no blocking plan findings. R1–R6 establish an implementable bounded repair, including explicit old-reader rejection, retained trigger evidence usable without historical lifecycle context, exact legacy reconstruction, current delivery freshness, genuine relevance changes, and independent verification. Deferring a new recovery operation while failing closed on insufficient legacy evidence is consistent with the authorized boundary.\n\nImplementation review must verify these consequential details:\n- Versioned envelope dispatch must preserve authoring authorization, CAS, idempotency, execution verification and strict writer validation for the underlying import/record operation. The marker alone cannot supply safety.\n- Store approval/context by impact episode, including each challenge identity. Existing (change, knowledge_id) approval storage is insufficient if a subsequent challenge overwrites an earlier challenge’s epoch.\n- Current relevance evaluation must cover the relevant historical/current versions and challenge dependencies. Equality must exclude unknown results; genuine applicability/version changes must not inherit a prior disposition.\n- Validate legacy context candidates through the complete exact legacy impact and subject digest, admitting only proven path-insensitive relevance. Missing or conflicting proof remains a blocker. Preserve current-path checking and delivery freshness.\n- Pure-Git replay must validate snapshots and computed subjects from retained envelopes, reject missing/tampered evidence, and agree with live replay. A live writer’s state-derived snapshot without retained validation is insufficient.\n\nThe proposed knowledge_operation_v2 envelope refinement fits R2: retain original v1 inputs/policy; declare operation kind, minimum reader and trigger schema; use the shared strict replay model. These implementation checks do not relax approved commitments.\n\nProvenance: independent Codex subagent /root/exact_plan_review, invoked by implementation agent outside Keepsail core, under process codex-subagent-review, version codex-subagent-review/v1, issuer codex-subagent; policy digest 41e290b360e52e83f5fd6e4538c4c465cbb758871e47c05972b28c8e251d41b4. This complete response is the original review conclusion to retain. Approval covers this exact plan only; it is not code approval, knowledge recognition, policy activation or permission to merge."
+  },
+  "provenance": {
+    "policy_digest": "41e290b360e52e83f5fd6e4538c4c465cbb758871e47c05972b28c8e251d41b4",
+    "commit": "12f7b9e2f69eb27880ac0735df838a76ffce12c1",
+    "change_id": "2026-10-26-stable-knowledge-impact"
+  }
+}

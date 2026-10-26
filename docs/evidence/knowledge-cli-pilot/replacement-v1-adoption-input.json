@@ -1,0 +1,13 @@
+{
+  "schema_version": "knowledge-operation/v1",
+  "operation_id": "replacement-v1-adoption-20261025-01",
+  "expected_revision": "20452e9f7ac90c72e201eaa26c6aa28fc710fecfd4b0705edc0d8e5269382fba",
+  "change_id": "2026-10-25-knowledge-cli-pilot",
+  "record": {
+    "kind": "statement",
+    "delivery_id": "pilot-v1-handoff-coverage-delivery-20261025-01",
+    "version_digest": "0f240f5f1e72ee8bc72665e18ad16ad0d3b06615e0e9fd371007ff8531bb04cb",
+    "decision": "adopt",
+    "reason": "Replacement executor session 01a17370-b6fa-7893-a319-7aaba9d8cb8e received exact v1 through native resume/show. I adopt its separate supply/acquisition/agent statement/check fields for the real acceptance document update. Prior executor observations are not mine; this declaration proves neither understanding nor compliance."
+  }
+}

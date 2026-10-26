@@ -3,14 +3,14 @@
 This is the single-repository CLI surface of the
 [product architecture](product-architecture.md). An unchecked effective constraint
 is still binding. Knowledge recognition and work authorization remain separate.
-This release does not activate a policy for the Keepsail repository.
+The repository policy became effective through the trusted base after PR #130
+merged; see the [real pilot acceptance record](knowledge-pilot/acceptance.md).
 
-The repository now carries a first policy **candidate** and a bounded
+The repository carries the first delivered policy and a bounded
 [Keepsail pilot procedure](knowledge-pilot.md), including retained owner choices,
-the proposed first knowledge version and activation/acceptance limits. Under the
-current inactive trusted base the file grants no authority. An authorized merge
-that makes it part of the trusted base is a real repository-protocol activation;
-it must not be described as an ordinary documentation-only merge.
+the proposed first knowledge version and activation/acceptance limits. The actual
+trusted base now includes the policy: repository protocol obligations are active.
+This does not itself recognize the first knowledge version or complete acceptance.
 
 ## Activation and trust
 
@@ -71,7 +71,8 @@ Committing a candidate, an ordinary review approval, or writing `owner_activatio
 labels is not an independent grant of knowledge authority or identity proof.
 Historical delivery subjects stay unchanged; later actions use the now-effective
 policy and satisfy its delivery requirements without rewriting past approvals.
-This repair does not install or activate a policy for the Keepsail repository.
+The repair alone did not activate the policy; the later authorized merge into
+the actual trusted base did. Historical pre-activation evidence stays historical.
 
 Policy activation affects the repository protocol. A knowledge selector restricted
 to one Change limits that knowledge's applicability, not activation itself. Other
@@ -162,6 +163,41 @@ It is pure read, including when used from a replacement process. `knowledge show
 new supply or an acquisition.
 
 ## Correction and impact handling
+
+New CLI import/record operations retain a `knowledge_operation_v2` event envelope
+with `minimum_reader: knowledge-trigger/v2`, the underlying operation kind,
+strict trigger contexts and their computed exact impact subjects. Original
+`knowledge-operation/v1` input records and the trusted policy remain unchanged.
+The event name makes older readers reject unsupported knowledge events rather
+than ignore trigger semantics. The checkpoint retains these same envelopes;
+writer, ledger replay and pure-Git validation use the shared validator. This is
+reader compatibility, not policy activation or authenticated writer identity.
+
+Each version/applicability episode and each individual challenge keeps its own
+trigger context and approval. Current delivery still binds actual current paths.
+An unrelated within-approval coverage addition therefore needs fresh delivery,
+but does not recreate an already recognized impact. The shared evaluator compares
+the relevant historical/current selectors and challenge dependencies; unknown or
+changed relevance cannot inherit the old judgment. Later version/state or
+recognized applicability changes still change the complete impact basis.
+
+For legacy events, the reader can preserve a recognized exact subject only by
+enumerating validated same-Change delivery contexts and reconstructing the full
+legacy impact object and digest, including policy, versions/states/current,
+applicability and approval. This bounded compatibility proof admits only
+path-insensitive selectors and dependencies, retains current relevance checks,
+and never assumes the latest delivery is the original context. Missing or
+conflicting proof and path-sensitive/unknown relevance remain blocking. Existing
+events, IDs and conclusions are not rewritten. An explicit context-recovery
+operation is outside this repair and would require separate authorization.
+
+Legacy replay also proves the complete recognized impact at its original import
+position, before later triggers can overwrite the legacy shared approval slot.
+That derived proof preserves only that exact episode's approval, and still
+requires a matching retained delivery context and the complete current basis.
+A later independent challenge therefore keeps its new approval while an older
+resolved version/challenge impact keeps its own. The proof is reconstructed from
+original events in live and checkpoint replay, not persisted as invented evidence.
 
 `knowledge check <change>` reports unmet obligations and requires an exact retained
 delivery of the current effective set. With `--paths <path>` it checks declared

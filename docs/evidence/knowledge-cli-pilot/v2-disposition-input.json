@@ -1,0 +1,43 @@
+{
+  "schema_version": "knowledge-operation/v1",
+  "operation_id": "pilot-disposition-continue-v2-20261026-01",
+  "expected_revision": "c5787d9d49fe9f87fb6a3b58a3adb61fb83311938f5d0f14a1b174dab893c923",
+  "change_id": "2026-10-25-knowledge-cli-pilot",
+  "evidence": {
+    "schema_version": "knowledge-evidence/v1",
+    "evidence_id": "pilot-owner-continue-v2-20261026-01",
+    "kind": "disposition",
+    "subject_id": "8bfc3023b83ae44d1b52bae64e83e2f84992985c6cf39081bde748bd3d097d3b",
+    "decision": "continue",
+    "issuer": "keepsail-product-owner",
+    "process": {
+      "id": "keepsail-owner-knowledge",
+      "version": "1"
+    },
+    "authorization_effect": "unchanged",
+    "original_evidence": {
+      "source": "current-chat/01a17370-b6fa-7893-a319-7aaba9d8cb8e",
+      "impact_id": "8bfc3023b83ae44d1b52bae64e83e2f84992985c6cf39081bde748bd3d097d3b",
+      "proposal": "continue，采用 v2 1212230c5189d0e10f7b9b2b75eec372cdaf80115a0e9162ed2063d42a4e93cc，保持原 P1–P9 承诺与限制。",
+      "clarification": "现在需要确认的是：正在进行的这个试点，是否继续沿用原 P1–P9 计划，并采用 v2 约束后续工作？我建议继续采用 v2，不改变原计划、范围或验收要求。",
+      "answer": "继续",
+      "boundary": "Actual owner reply to the concrete impact proposal and clarification; continuation selects v2 without releasing any work or acceptance obligation."
+    },
+    "provenance": {
+      "policy_digest": "8837f4d7a4fede285eef7d8a15ab450ee70ea779e0580ac90f27cf9efbb86337",
+      "source": "current-chat/01a17370-b6fa-7893-a319-7aaba9d8cb8e",
+      "retained_input": "docs\\evidence\\knowledge-cli-pilot\\v2-disposition-input.json",
+      "boundary": "Concrete impact continuation with explicit recognized v2, same P1-P9 work commitments and restrictions."
+    },
+    "use_version": "1212230c5189d0e10f7b9b2b75eec372cdaf80115a0e9162ed2063d42a4e93cc",
+    "impact": {
+      "change_id": "2026-10-25-knowledge-cli-pilot",
+      "knowledge_id": "delivery-evidence-boundary",
+      "old_version": "0f240f5f1e72ee8bc72665e18ad16ad0d3b06615e0e9fd371007ff8531bb04cb",
+      "new_version": "1212230c5189d0e10f7b9b2b75eec372cdaf80115a0e9162ed2063d42a4e93cc",
+      "basis_digest": "4b560aebacd0f82362f6a575effe4ad4fcfb16c2962a6663e7b4034ced46336f",
+      "approval_id": "approval:pilot-plan-review-20261025-a75436eb-independent-01",
+      "trigger": "version-or-applicability-changed"
+    }
+  }
+}

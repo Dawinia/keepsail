@@ -1,0 +1,33 @@
+{
+  "schema_version": "knowledge-operation/v1",
+  "operation_id": "pilot-propose-boundary-v2-replacement-20261025-01",
+  "expected_revision": "4c0116e95d9fd0f66a7e0ecd37c5579e7649516409becc65f878d3610b57566c",
+  "change_id": "2026-10-25-knowledge-cli-pilot",
+  "version": {
+    "schema_version": "knowledge-version/v1",
+    "product_id": "keepsail",
+    "knowledge_id": "delivery-evidence-boundary",
+    "body": "交付、可观察获取、agent 采用声明、检查结果必须分开记录，并绑定确切知识版本与证据；缺失获取记录时不得宣称已观察到获取，缺失检查记录时不得宣称已检查或检查通过。交付或获取不证明理解或采用，agent 声明不证明合规；检查通过仅支持其明确覆盖的检查结论。",
+    "rationale": "Narrow correction after actual replacement-executor use: v1 combines missing acquisition and missing check into one prohibition about read/understood/compliant, without explicitly stating that even present records do not prove understanding or compliance. Separate the missing-record claims and bound positive check claims to actual coverage, following the existing normative trace-and-guarantee boundaries. Preserve selector, constraint authority, work commitments and historical v1.",
+    "sources": [
+      {
+        "origin": "git:7e2e6f8b7a41821721f877dca84316424fb632bc:docs/product-architecture.md#trace-and-guarantee-boundaries",
+        "content": "Distinguish what Keepsail supplied, what observed retrieval/read operations returned, what the agent stated it adopted/rejected/challenged and why, and what result checks verified. Record identity, version and provenance within the observable integration boundary and disclose missing observations."
+      },
+      {
+        "origin": "git:7e2e6f8b7a41821721f877dca84316424fb632bc:docs/product-architecture.md#trace-and-guarantee-boundaries",
+        "content": "Supply or reading does not prove understanding or adoption; agent statements do not prove compliance."
+      }
+    ],
+    "selector": {
+      "repository_ids": [
+        "Dawinia/keepsail"
+      ],
+      "change_ids": [
+        "2026-10-25-knowledge-cli-pilot"
+      ]
+    },
+    "authority": "constraint",
+    "previous_version": "0f240f5f1e72ee8bc72665e18ad16ad0d3b06615e0e9fd371007ff8531bb04cb"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "schema_version": "knowledge-operation/v1",
+  "operation_id": "pilot-v1-agent-adoption-20261025-01",
+  "expected_revision": "27f7c7c46465ac072645a4e83b5181efcd99389cc72ff9f2f9fe4072ac837c3f",
+  "change_id": "2026-10-25-knowledge-cli-pilot",
+  "record": {
+    "kind": "statement",
+    "delivery_id": "pilot-effective-v1-delivery-20261025-01",
+    "version_digest": "0f240f5f1e72ee8bc72665e18ad16ad0d3b06615e0e9fd371007ff8531bb04cb",
+    "decision": "adopt",
+    "reason": "I received the exact v1 body in native CLI output and will use separate supplied/acquired/agent-declared/check-result fields in the pilot acceptance document and handoff. This is an agent declaration, not proof of understanding or compliance."
+  }
+}

@@ -82,6 +82,7 @@ These events are legal but leave the state unchanged (informational sensor signa
 - `knowledge_checkpointed`
 - `knowledge_delivered`
 - `knowledge_imported`
+- `knowledge_operation_v2`
 - `knowledge_proposed`
 - `knowledge_recorded`
 - `merged_reverted`

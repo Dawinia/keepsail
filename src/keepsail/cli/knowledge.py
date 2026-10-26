@@ -16,6 +16,7 @@ from keepsail.core.emit_validation import EmitPreconditionError
 from keepsail.core.events import Actor, Event
 from keepsail.core.knowledge import (
     PROTOCOL,
+    TRIGGER_EVENT,
     KnowledgeError,
     check,
     load_ledger,
@@ -149,7 +150,7 @@ def import_evidence(ctx: click.Context, evidence: str) -> None:
     _run(
         ctx,
         "knowledge import",
-        lambda root: _submit(root, "knowledge_imported", read_record(root, evidence)),
+        lambda root: _submit(root, TRIGGER_EVENT, read_record(root, evidence)),
     )
 
 
@@ -161,7 +162,7 @@ def record_evidence(ctx: click.Context, record: str) -> None:
     _run(
         ctx,
         "knowledge record",
-        lambda root: _submit(root, "knowledge_recorded", read_record(root, record)),
+        lambda root: _submit(root, TRIGGER_EVENT, read_record(root, record)),
     )
 
 
@@ -239,9 +240,16 @@ def show(ctx: click.Context, identifier: str | None, version_digest: str | None)
             raise KnowledgeError("unknown knowledge identity or version")
         return {
             "coverage": "explicit-rules-only" if policy else "not_recorded",
-            **({"policy_candidate": {
-                "status": "candidate", "policy_digest": candidate["policy_digest"]
-            }} if candidate is not None else {}),
+            **(
+                {
+                    "policy_candidate": {
+                        "status": "candidate",
+                        "policy_digest": candidate["policy_digest"],
+                    }
+                }
+                if candidate is not None
+                else {}
+            ),
             "revision": revision,
             "versions": [dict(v, state=ledger["states"][v["version_digest"]]) for v in versions],
             "evidence": list(ledger["evidence"].values()),

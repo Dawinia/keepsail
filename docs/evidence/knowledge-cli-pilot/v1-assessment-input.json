@@ -1,0 +1,173 @@
+{
+  "assessment": {
+    "approval_id": "approval:pilot-plan-review-20261025-a75436eb-independent-01",
+    "change_id": "2026-10-25-knowledge-cli-pilot",
+    "affected_commitments": [
+      "P1",
+      "P2",
+      "P4",
+      "P5",
+      "P6",
+      "P8",
+      "P9"
+    ],
+    "conclusion": "within_approval; interim only, not pilot completion",
+    "reasons": [
+      "Actual v1 owner recognition, supply, observed output and agent adoption are recorded separately; documentation is a real action under v1.",
+      "Additional handoff document implements approved P6; evidence input/result files implement P2/P8 without changing commitments or restrictions.",
+      "Replacement-session use, v2 recognition/impact disposition and final verification/code review/attestation remain pending."
+    ],
+    "references": [
+      "docs/knowledge-pilot/acceptance.md",
+      "docs/knowledge-pilot/handoff-v1.md",
+      "docs/evidence/knowledge-cli-pilot/v1-recognition-input.json",
+      "docs/evidence/knowledge-cli-pilot/isolated-v1-control-results.json"
+    ]
+  },
+  "coverage": [
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/activation.json",
+      "reason": "Approved documentation/evidence pilot coverage, including imminent native result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/bootstrap-empty-delivery.json",
+      "reason": "Approved documentation/evidence pilot coverage, including imminent native result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/isolated-pre-recognition-results.json",
+      "reason": "Approved documentation/evidence pilot coverage, including imminent native result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/isolated-v1-control-results.json",
+      "reason": "Approved documentation/evidence pilot coverage, including imminent native result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/pilot-approved-empty-delivery.json",
+      "reason": "Approved documentation/evidence pilot coverage, including imminent native result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/pilot-implementation-start.json",
+      "reason": "Approved documentation/evidence pilot coverage, including imminent native result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/pilot-plan-import.json",
+      "reason": "Approved documentation/evidence pilot coverage, including imminent native result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/pilot-plan-ready.json",
+      "reason": "Approved documentation/evidence pilot coverage, including imminent native result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/pilot-plan-review.json",
+      "reason": "Approved documentation/evidence pilot coverage, including imminent native result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/pilot-preplan-delivery.json",
+      "reason": "Approved documentation/evidence pilot coverage, including imminent native result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/pre-recognition-checks.json",
+      "reason": "Approved documentation/evidence pilot coverage, including imminent native result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-acquisition-input.json",
+      "reason": "Approved documentation/evidence pilot coverage, including imminent native result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-acquisition-result.json",
+      "reason": "Approved documentation/evidence pilot coverage, including imminent native result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-adoption-input.json",
+      "reason": "Approved documentation/evidence pilot coverage, including imminent native result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-adoption-result.json",
+      "reason": "Approved documentation/evidence pilot coverage, including imminent native result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-assessment-input.json",
+      "reason": "Approved documentation/evidence pilot coverage, including imminent native result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-assessment-result.json",
+      "reason": "Approved documentation/evidence pilot coverage, including imminent native result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-before-proposal.json",
+      "reason": "Approved documentation/evidence pilot coverage, including imminent native result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-before-recognition.json",
+      "reason": "Approved documentation/evidence pilot coverage, including imminent native result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-candidate-show.json",
+      "reason": "Approved documentation/evidence pilot coverage, including imminent native result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-check.json",
+      "reason": "Approved documentation/evidence pilot coverage, including imminent native result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-delivery-result.json",
+      "reason": "Approved documentation/evidence pilot coverage, including imminent native result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-document-checks.json",
+      "reason": "Approved documentation/evidence pilot coverage, including imminent native result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-handoff-check.json",
+      "reason": "Approved documentation/evidence pilot coverage, including imminent native result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-handoff-delivery.json",
+      "reason": "Approved documentation/evidence pilot coverage, including imminent native result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-handoff-show.json",
+      "reason": "Approved documentation/evidence pilot coverage, including imminent native result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-proposal-input.json",
+      "reason": "Approved documentation/evidence pilot coverage, including imminent native result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-proposal-result.json",
+      "reason": "Approved documentation/evidence pilot coverage, including imminent native result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-recognition-input.json",
+      "reason": "Approved documentation/evidence pilot coverage, including imminent native result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-recognition-result.json",
+      "reason": "Approved documentation/evidence pilot coverage, including imminent native result captures."
+    },
+    {
+      "path": "docs/evidence/knowledge-cli-pilot/v1-resume.json",
+      "reason": "Approved documentation/evidence pilot coverage, including imminent native result captures."
+    },
+    {
+      "path": "docs/knowledge-pilot.md",
+      "reason": "Approved documentation/evidence pilot coverage, including imminent native result captures."
+    },
+    {
+      "path": "docs/knowledge-pilot/acceptance.md",
+      "reason": "Approved documentation/evidence pilot coverage, including imminent native result captures."
+    },
+    {
+      "path": "docs/knowledge-pilot/handoff-v1.md",
+      "reason": "Approved documentation/evidence pilot coverage, including imminent native result captures."
+    },
+    {
+      "path": "docs/knowledge.md",
+      "reason": "Approved documentation/evidence pilot coverage, including imminent native result captures."
+    },
+    {
+      "path": "docs/plans/2026-10-25-knowledge-cli-pilot.md",
+      "reason": "Approved documentation/evidence pilot coverage, including imminent native result captures."
+    }
+  ]
+}

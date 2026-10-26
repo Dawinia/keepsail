@@ -26,6 +26,8 @@ from keepsail.core.events import KNOWLEDGE_EVENT_TYPES, Event, parse_event_line
 from keepsail.core.scope_match import GitScopeError, covered_by_scope, file_text_at_commit
 
 PROTOCOL = "knowledge-operation/v1"
+TRIGGER_EVENT = "knowledge_operation_v2"
+TRIGGER_READER = "knowledge-trigger/v2"
 POLICY_PATH = ".harness/knowledge-recognition.yaml"
 EVENT_TYPES = KNOWLEDGE_EVENT_TYPES
 PREREQUISITES = frozenset(
@@ -182,8 +184,12 @@ def policy_configuration(
                 pass
             else:
                 current = _configured_policy(yaml.safe_load(text))
-        if (ref is None and candidate_ref is None and current is None
-                and not any((p / ".git").exists() for p in (root, *root.parents))):
+        if (
+            ref is None
+            and candidate_ref is None
+            and current is None
+            and not any((p / ".git").exists() for p in (root, *root.parents))
+        ):
             return None, None
         base = resolve_commit(root, ref) if ref else resolve_contract_base(root)
         trusted = _policy_at_commit(root.resolve(), base)
@@ -304,6 +310,8 @@ def _empty() -> dict[str, Any]:
         "executions": {},
         "applicability": {},
         "impact_approvals": {},
+        "triggers": {},
+        "legacy_proofs": {},
         "operations": {},
         "events": [],
     }
@@ -352,9 +360,7 @@ def load_ledger(path: Path, policy: dict[str, Any] | None) -> tuple[dict[str, An
             request.get("expected_revision") == prior_revision,
             "knowledge_corrupt: operation was not bound to its log prefix",
         )
-        result = _apply(
-            ledger, event.type, request, policy, event.payload.get("approval_context", {})
-        )
+        result = _replay_operation(ledger, event.type, event.payload, policy)
         _need(result == event.payload.get("result"), "knowledge event result was corrupted")
         ledger["events"].append(raw)
     return ledger, sha256(content).hexdigest()
@@ -381,6 +387,7 @@ def _apply(
     request: dict[str, Any],
     policy: dict[str, Any],
     approval_context: dict[str, str | None] | None = None,
+    captured: list[tuple[str, str]] | None = None,
 ) -> dict[str, Any]:
     approval_context = approval_context or {}
     _need(
@@ -403,6 +410,8 @@ def _apply(
         for change_id in linked:
             _need(change_id in approval_context, "trigger omits linked Change approval context")
             ledger["impact_approvals"][(change_id, kid)] = approval_context[change_id]
+            if captured is not None:
+                captured.append((change_id, kid))
 
     op = _operation(request)
     _need(op not in ledger["operations"], "duplicate operation event")
@@ -486,7 +495,8 @@ def _apply(
                 selected = evidence["use_version"]
                 _need(
                     selected in ledger["recognitions"]
-                    and ledger["versions"][selected]["authority"] == "constraint",
+                    and ledger["versions"][selected]["authority"] == "constraint"
+                    and ledger["versions"][selected]["knowledge_id"] == impact.get("knowledge_id"),
                     "disposition cannot grant candidate or guidance constraint authority",
                 )
             if decision in {"adjust", "reapprove"}:
@@ -511,6 +521,7 @@ def _apply(
             "delivery needs exact basis",
         )
         assert isinstance(delivery, dict)
+        _validate_context(delivery.get("context"))
         for item in delivery.get("constraints", []):
             _need(
                 item == ledger["versions"].get(item.get("version_digest")),
@@ -622,12 +633,198 @@ def _matches(version: dict[str, Any], policy: dict[str, Any], change: str, paths
     return "matched"
 
 
+def _validate_context(context: Any) -> None:
+    _need(
+        isinstance(context, dict) and set(context) == {"paths", "approval_id", "plan_subject_id"},
+        "invalid trigger/delivery context",
+    )
+    _need(
+        isinstance(context["paths"], list)
+        and all(isinstance(p, str) and _path(p) == p for p in context["paths"])
+        and context["paths"] == sorted(set(context["paths"])),
+        "invalid context paths",
+    )
+    for key in ("approval_id", "plan_subject_id"):
+        _need(context[key] is None or _text(context[key]), "invalid context approval")
+
+
+def _subject(impact: dict[str, Any]) -> dict[str, Any]:
+    return {
+        k: v
+        for k, v in impact.items()
+        if k not in {"impact_id", "status", "disposition_id", "disposition"}
+    }
+
+
+def _trigger_key(impact: dict[str, Any]) -> tuple[str, str, str | None]:
+    return impact["change_id"], impact["knowledge_id"], impact.get("challenge_id")
+
+
+def _replay_operation(
+    ledger: dict[str, Any],
+    event_type: str,
+    payload: dict[str, Any],
+    policy: dict[str, Any],
+    *,
+    building: bool = False,
+) -> dict[str, Any]:
+    if event_type != TRIGGER_EVENT:
+        result = _apply(
+            ledger, event_type, payload["request"], policy, payload.get("approval_context", {})
+        )
+        evidence = payload["request"].get("evidence", {})
+        if event_type == "knowledge_imported" and evidence.get("kind") == "disposition":
+            impact = evidence["impact"]
+            change, kid = impact["change_id"], impact.get("knowledge_id")
+            # Prove the complete subject at its original replay position, while
+            # the contemporaneous approval is still available. Later triggers
+            # may update the legacy shared approval slot, never this exact proof.
+            if _path_insensitive(ledger, change, kid):
+                for delivery in ledger["deliveries"].values():
+                    if delivery["change_id"] != change:
+                        continue
+                    view = _view(ledger, policy, change, delivery["context"], stabilize=False)
+                    if any(_subject(i) == impact for i in view["impacts"]):
+                        ledger["legacy_proofs"][evidence["subject_id"]] = deepcopy(impact)
+                        break
+        return result
+    _need(payload.get("minimum_reader") == TRIGGER_READER, "unsupported trigger reader")
+    operation_type = payload.get("operation_type")
+    _need(
+        operation_type in {"knowledge_imported", "knowledge_recorded"},
+        "invalid trigger operation type",
+    )
+    assert isinstance(operation_type, str)
+    contexts = payload.get("trigger_contexts")
+    _need(isinstance(contexts, dict), "missing trigger contexts")
+    assert isinstance(contexts, dict)
+    request = payload["request"]
+    evidence = request.get("evidence", {})
+    disposition_target = (
+        evidence.get("impact", {}).get("change_id")
+        if evidence.get("kind") == "disposition"
+        else None
+    )
+    if disposition_target:
+        _need(disposition_target in contexts, "missing disposition context")
+        _validate_context(contexts[disposition_target])
+        view = _view(ledger, policy, disposition_target, contexts[disposition_target])
+        _need(
+            any(
+                i["impact_id"] == evidence.get("subject_id") and _subject(i) == evidence["impact"]
+                for i in view["impacts"]
+            ),
+            "stale or unknown retained impact subject",
+        )
+    captured: list[tuple[str, str]] = []
+    result = _apply(
+        ledger,
+        operation_type,
+        payload["request"],
+        policy,
+        payload.get("approval_context", {}),
+        captured,
+    )
+    if disposition_target:
+        # A coverage-induced relevance transition has no knowledge import event
+        # of its own. Freeze its exact new subject when its real disposition is
+        # recorded. Do not replace an existing stabilized or legacy subject with
+        # the current paths merely because a disposition was imported.
+        raw_view = _view(
+            ledger, policy, disposition_target, contexts[disposition_target], stabilize=False
+        )
+        if any(_subject(i) == evidence["impact"] for i in raw_view["impacts"]):
+            captured.append((disposition_target, evidence["impact"]["knowledge_id"]))
+    targets = {cid for cid, _ in captured}
+    if disposition_target:
+        targets.add(disposition_target)
+    _need(set(contexts) == targets, "trigger context coverage mismatch")
+    challenge_id = (
+        request["operation_id"]
+        if operation_type == "knowledge_recorded"
+        else evidence["impact"].get("challenge_id")
+        if disposition_target
+        else None
+    )
+    snapshots = []
+    for cid, kid in sorted(set(captured)):
+        context = contexts[cid]
+        _validate_context(context)
+        _need(
+            context["approval_id"] == payload["approval_context"].get(cid),
+            "trigger context approval mismatch",
+        )
+        view = _view(ledger, policy, cid, context, stabilize=False)
+        subjects = [
+            _subject(i)
+            for i in view["impacts"]
+            if i["knowledge_id"] == kid and i.get("challenge_id") == challenge_id
+        ]
+        snapshots.append(
+            {
+                "change_id": cid,
+                "knowledge_id": kid,
+                "challenge_id": challenge_id,
+                "context": context,
+                "subjects": subjects,
+            }
+        )
+    if building:
+        payload["trigger_snapshots"] = deepcopy(snapshots)
+    else:
+        _need(payload.get("trigger_snapshots") == snapshots, "trigger snapshot mismatch")
+    for snapshot in snapshots:
+        ledger["triggers"][_trigger_key(snapshot)] = deepcopy(snapshot)
+    return result
+
+
+def _relevance(
+    ledger: dict[str, Any], policy: dict[str, Any], change: str, kid: str, paths: list[str]
+) -> list[Any]:
+    facts: list[Any] = []
+    for digest, version in sorted(ledger["versions"].items()):
+        if version["knowledge_id"] == kid and ledger["states"][digest] != "candidate":
+            facts.append((digest, _matches(version, policy, change, paths)))
+    for cid, challenge in sorted(ledger["challenges"].items()):
+        if (
+            challenge["change_id"] == change
+            and ledger["versions"][challenge["version_digest"]]["knowledge_id"] == kid
+        ):
+            deps = challenge.get("dependent_paths")
+            facts.append(
+                (
+                    cid,
+                    "global"
+                    if challenge.get("dependency") == "global"
+                    else "unknown"
+                    if not paths or not deps
+                    else tuple(any(covered_by_scope(p, [dep]) for p in paths) for dep in deps),
+                )
+            )
+    return facts
+
+
+def _path_insensitive(ledger: dict[str, Any], change: str, kid: str) -> bool:
+    return all(
+        "paths" not in v["selector"]
+        for d, v in ledger["versions"].items()
+        if v["knowledge_id"] == kid and ledger["states"][d] != "candidate"
+    ) and all(
+        c.get("dependency") == "global"
+        for c in ledger["challenges"].values()
+        if c["change_id"] == change
+        and ledger["versions"][c["version_digest"]]["knowledge_id"] == kid
+    )
+
+
 def _view(
     ledger: dict[str, Any],
     policy: dict[str, Any],
     change: str,
     context: dict[str, Any],
     verified_subject: str | None = None,
+    *,
+    stabilize: bool = True,
 ) -> dict[str, Any]:
     evaluated, constraints, blockers = [], [], []
     for digest in sorted(ledger["current"].values()):
@@ -662,7 +859,7 @@ def _view(
         }
     )
 
-    def impact_basis(kid: str) -> str:
+    def impact_basis(kid: str, paths: list[str] | None = None) -> str:
         versions = {
             d: ledger["states"][d]
             for d, v in ledger["versions"].items()
@@ -671,7 +868,7 @@ def _view(
         return digest_record(
             {
                 "policy": policy["policy_digest"],
-                "paths": context["paths"],
+                "paths": context["paths"] if paths is None else paths,
                 "current": ledger["current"].get(kid),
                 "versions": versions,
                 "applicability": sorted(
@@ -718,6 +915,56 @@ def _view(
             "challenge_id": cid,
         }
         impacts[digest_record(impact)] = impact
+    if stabilize:
+        stable = {}
+        for impact in impacts.values():
+            kid = impact["knowledge_id"]
+            snapshot = ledger["triggers"].get(_trigger_key(impact))
+            if snapshot:
+                old_context = snapshot["context"]
+                old_facts = _relevance(ledger, policy, change, kid, old_context["paths"])
+                new_facts = _relevance(ledger, policy, change, kid, context["paths"])
+                # Unknown relevance is never an equivalence proof.
+                if old_facts == new_facts and all(f[1] != "unknown" for f in new_facts):
+                    impact = {**impact, "basis_digest": impact_basis(kid, old_context["paths"])}
+                impact["approval_id"] = next(
+                    (
+                        s["approval_id"]
+                        for s in snapshot["subjects"]
+                        if s["old_version"] == impact["old_version"]
+                    ),
+                    old_context["approval_id"],
+                )
+            elif _path_insensitive(ledger, change, kid):
+                # Exact legacy reconstruction, never a versions/approval alias.
+                candidates = []
+                for delivery in ledger["deliveries"].values():
+                    if delivery["change_id"] != change:
+                        continue
+                    basis_digest = impact_basis(kid, delivery["context"]["paths"])
+                    subjects = [{**impact, "basis_digest": basis_digest}]
+                    for proof in ledger["legacy_proofs"].values():
+                        candidate = {
+                            **impact,
+                            "basis_digest": basis_digest,
+                            "approval_id": proof["approval_id"],
+                        }
+                        # A historical epoch is usable only for its complete
+                        # previously proved subject, never a version-pair alias.
+                        if candidate == proof:
+                            subjects.append(candidate)
+                    for candidate in subjects:
+                        iid = digest_record(candidate)
+                        evidence = ledger["evidence"].get(ledger["dispositions"].get(iid), {})
+                        if (
+                            evidence.get("subject_id") == iid
+                            and evidence.get("impact") == candidate
+                        ):
+                            candidates.append(candidate)
+                if candidates and all(c == candidates[0] for c in candidates):
+                    impact = candidates[0]
+            stable[digest_record(impact)] = impact
+        impacts = stable
     outcomes = []
     for iid, impact in sorted(impacts.items()):
         eid = ledger["dispositions"].get(iid)
@@ -845,7 +1092,8 @@ def report(
         view: dict[str, Any] = {"coverage": "not_recorded", "revision": revision}
         if candidate is not None:
             view["policy_candidate"] = {
-                "status": "candidate", "policy_digest": candidate["policy_digest"]
+                "status": "candidate",
+                "policy_digest": candidate["policy_digest"],
             }
         return view
     state = derive_state(path).get(change)
@@ -873,6 +1121,9 @@ def prepare(
     _need(policy is not None, "no owner-activated knowledge policy")
     assert policy is not None
     ledger, revision = load_ledger(path, policy)
+    operation_type = event_type
+    if event_type == TRIGGER_EVENT:
+        operation_type = "knowledge_imported" if "evidence" in request else "knowledge_recorded"
     op = _operation(request)
     prior = ledger["operations"].get(op)
     if prior:
@@ -887,7 +1138,7 @@ def prepare(
         }, True
     if request["expected_revision"] != revision:
         raise KnowledgeError("knowledge revision conflict", code="knowledge_conflict", exit_code=5)
-    if event_type == "knowledge_delivered":
+    if operation_type == "knowledge_delivered":
         view = report(root, request["change_id"], events_file=path)
         expected = {
             k: view[k]
@@ -901,7 +1152,7 @@ def prepare(
             )
         }
         _need(request.get("delivery") == expected, "delivery does not cover the current finite set")
-    if event_type == "knowledge_imported":
+    if operation_type == "knowledge_imported":
         ev = request.get("evidence", {})
         target = ev.get("impact", {}).get("change_id") if ev.get("kind") == "disposition" else None
         if target:
@@ -926,23 +1177,38 @@ def prepare(
                     "disposition selects another knowledge identity",
                 )
     if (
-        event_type == "knowledge_recorded"
+        operation_type == "knowledge_recorded"
         and request.get("record", {}).get("outcome") == "verified"
     ):
         _validate_execution(root, path, ledger, request)
     from keepsail.core.reducer import derive_state
 
+    states = derive_state(path)
     approval_context = {
-        cid: (s.effective_approval or {}).get("approval_id")
-        for cid, s in derive_state(path).items()
+        cid: (s.effective_approval or {}).get("approval_id") for cid, s in states.items()
     }
-    result = _apply(ledger, event_type, request, policy, approval_context)
-    return {
+    payload = {
         "request": request,
-        "result": result,
         "policy_digest": policy["policy_digest"],
         "approval_context": approval_context,
-    }, False
+    }
+    if event_type == TRIGGER_EVENT:
+        captured: list[tuple[str, str]] = []
+        _apply(deepcopy(ledger), operation_type, request, policy, approval_context, captured)
+        context_targets = {cid for cid, _ in captured}
+        if operation_type == "knowledge_imported":
+            evidence = request.get("evidence", {})
+            if evidence.get("kind") == "disposition":
+                context_targets.add(evidence["impact"]["change_id"])
+        payload.update(
+            {
+                "operation_type": operation_type,
+                "minimum_reader": TRIGGER_READER,
+                "trigger_contexts": {cid: _context(states[cid]) for cid in context_targets},
+            }
+        )
+    payload["result"] = _replay_operation(ledger, event_type, payload, policy, building=True)
+    return payload, False
 
 
 def _validate_execution(
@@ -996,7 +1262,10 @@ def validate_event(events_file: Path, event: Event) -> None:
 
         state = derive_state(events_file).get(event.change_id)
         _need(state is not None, "unknown governing Change")
-        if event.type in {"knowledge_proposed", "knowledge_imported"}:
+        operation_type = (
+            event.payload.get("operation_type") if event.type == TRIGGER_EVENT else event.type
+        )
+        if operation_type in {"knowledge_proposed", "knowledge_imported"}:
             _need(
                 state is not None
                 and state.effective_approval is not None
@@ -1119,9 +1388,7 @@ def validate_checkpoint(
         request = event.payload.get("request")
         _need(isinstance(request, dict), "missing retained request")
         assert isinstance(request, dict)
-        result = _apply(
-            ledger, event.type, request, policy, event.payload.get("approval_context", {})
-        )
+        result = _replay_operation(ledger, event.type, event.payload, policy)
         _need(result == event.payload.get("result"), "retained result mismatch")
         ledger["events"].append(raw)
     indexed = {e["event_id"]: e for e in events}

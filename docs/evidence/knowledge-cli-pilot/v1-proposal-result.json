@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "E:\\Work\\keepsail\\.venv\\Scripts\\keepsail.exe",
+    "--json",
+    "knowledge",
+    "propose",
+    "--record",
+    "docs/evidence/knowledge-cli-pilot/v1-proposal-input.json"
+  ],
+  "exit_code": 0,
+  "stdout": "{\"command\":\"knowledge propose\",\"version\":\"0.1.0\",\"status\":\"pass\",\"exit_code\":0,\"data\":{\"version_digest\":\"0f240f5f1e72ee8bc72665e18ad16ad0d3b06615e0e9fd371007ff8531bb04cb\",\"state\":\"candidate\",\"effective\":false,\"idempotent_replay\":false,\"revision\":\"54f5e596e170d50fe195c994431c7d66d5edcea9daafc4c326ba769da02e346d\"},\"errors\":[]}\r\n",
+  "stderr": "line 31: unknown event type 'l1_update_completed'; skipping\r\nline 40: unknown event type 'l1_update_completed'; skipping\r\nline 49: unknown event type 'l1_update_completed'; skipping\r\nline 31: unknown event type 'l1_update_completed'; skipping\r\nline 40: unknown event type 'l1_update_completed'; skipping\r\nline 49: unknown event type 'l1_update_completed'; skipping\r\nline 31: unknown event type 'l1_update_completed'; skipping\r\nline 40: unknown event type 'l1_update_completed'; skipping\r\nline 49: unknown event type 'l1_update_completed'; skipping\r\nline 31: unknown event type 'l1_update_completed'; skipping\r\nline 40: unknown event type 'l1_update_completed'; skipping\r\nline 49: unknown event type 'l1_update_completed'; skipping\r\nline 31: unknown event type 'l1_update_completed'; skipping\r\nline 40: unknown event type 'l1_update_completed'; skipping\r\nline 49: unknown event type 'l1_update_completed'; skipping\r\n"
+}
