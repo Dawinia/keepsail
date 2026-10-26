@@ -289,7 +289,7 @@ def test_challenge_does_not_release_constraint_and_independent_action_can_contin
     w.cli("knowledge", "check", "change-a", "--paths", "docs/usage.md")
 
 
-@pytest.mark.parametrize("mutation", ["empty", "failure", "issuer", "policy", "subject"])
+@pytest.mark.parametrize("mutation", ["empty", "failure", "skip", "issuer", "policy", "subject"])
 def test_invalid_conclusions_leave_log_unchanged(workspace, mutation):
     w = workspace
     v = w.submit("propose", w.operation(version=version()))["version_digest"]
@@ -298,6 +298,8 @@ def test_invalid_conclusions_leave_log_unchanged(workspace, mutation):
         e["original_evidence"] = None
     elif mutation == "failure":
         e["decision"] = "failed"
+    elif mutation == "skip":
+        e["decision"] = "skip"
     elif mutation == "issuer":
         e["issuer"] = "not-owner"
     elif mutation == "policy":
@@ -647,3 +649,238 @@ def test_impact_approval_epoch_ignores_preapproval_delivery_and_tracks_later_tri
         deliver_b(f"new-approval-{epoch}")
         validate_event(log, event)
         previous = new
+
+
+def continued_version(w, selector=None):
+    first = w.recognize(version(selector=selector))
+    w.deliver()
+    second = w.recognize(version(body="PostgreSQL 17+", previous=first, selector=selector))
+    impact = report(w.root, "change-a")["impacts"][0]
+    raw = {
+        k: v
+        for k, v in impact.items()
+        if k not in {"impact_id", "status", "disposition_id", "disposition"}
+    }
+    evidence = w.evidence(
+        "disposition", impact["impact_id"], "continue", impact=raw, use_version=second
+    )
+    w.submit("import", w.operation(evidence=evidence))
+    return first, second, impact, evidence
+
+
+@pytest.mark.parametrize("legacy", [False, True])
+def test_exact_legacy_proof_and_new_snapshots_do_not_alias_later_versions(
+    workspace, monkeypatch, legacy
+):
+    import importlib
+
+    from keepsail.core.knowledge import _view
+
+    w = workspace
+    if legacy:
+        monkeypatch.setattr(
+            importlib.import_module("keepsail.cli.knowledge"), "TRIGGER_EVENT", "knowledge_imported"
+        )
+    _, second, impact, evidence = continued_version(w)
+    ledger, _ = load_ledger(w.root / ".harness/events.jsonl", policy())
+    context = report(w.root, "change-a")["context"]
+    changed = {**context, "paths": ["docs/extra.md", *context["paths"]]}
+    view = _view(ledger, policy(), "change-a", changed)
+    assert view["impacts"][0]["impact_id"] == impact["impact_id"]
+    assert view["impacts"][0]["disposition"] == evidence
+    if legacy:
+        # A fresh, nonmatching latest context cannot replace the older proof.
+        latest = deepcopy(next(reversed(ledger["deliveries"].values())))
+        latest["context"] = changed
+        ledger["deliveries"]["latest"] = latest
+        assert _view(ledger, policy(), "change-a", changed)["impacts"][0]["status"] == "resolved"
+        for delivery in ledger["deliveries"].values():
+            delivery["context"] = changed
+        missing = _view(ledger, policy(), "change-a", changed)
+        assert missing["impacts"][0]["status"] == "pending"
+        assert missing["impacts"][0]["disposition"] is None
+    w.recognize(version(body="PostgreSQL 18+", previous=second))
+    assert all(i["disposition"] is None for i in report(w.root, "change-a")["impacts"])
+
+
+def test_snapshot_relevance_retains_same_match_and_blocks_path_crossing_or_unknown(workspace):
+    from keepsail.core.knowledge import _view
+
+    w = workspace
+    _, _, impact, _ = continued_version(w, {"paths": ["src/db"]})
+    ledger, _ = load_ledger(w.root / ".harness/events.jsonl", policy())
+    context = report(w.root, "change-a")["context"]
+    unrelated = {**context, "paths": ["docs/extra.md", *context["paths"]]}
+    assert (
+        _view(ledger, policy(), "change-a", unrelated)["impacts"][0]["impact_id"]
+        == impact["impact_id"]
+    )
+    for paths in (["docs/extra.md"], []):
+        changed = _view(ledger, policy(), "change-a", {**context, "paths": paths})
+        assert changed["impacts"][0]["status"] == "pending"
+        assert changed["blocking_reasons"]
+
+
+@pytest.mark.parametrize("mutation", ["missing", "paths", "approval", "subject", "reader"])
+def test_retained_trigger_envelope_rejects_tampering(workspace, mutation):
+    from keepsail.core.knowledge import _empty, _replay_operation
+
+    w = workspace
+    continued_version(w)
+    ledger, _ = load_ledger(w.root / ".harness/events.jsonl", policy())
+    replay = _empty()
+    altered = False
+    for event in ledger["events"]:
+        payload = deepcopy(event["payload"])
+        if not altered and payload.get("trigger_snapshots"):
+            altered = True
+            if mutation == "missing":
+                del payload["trigger_snapshots"]
+            elif mutation == "paths":
+                payload["trigger_contexts"]["change-a"]["paths"] = ["wrong/path"]
+            elif mutation == "approval":
+                payload["trigger_contexts"]["change-a"]["approval_id"] = "wrong"
+            elif mutation == "subject":
+                payload["trigger_snapshots"][0]["subjects"][0]["basis_digest"] = "wrong"
+            else:
+                payload["minimum_reader"] = "unknown-reader"
+            with pytest.raises(KnowledgeError):
+                _replay_operation(replay, event["type"], payload, policy())
+            break
+        _replay_operation(replay, event["type"], payload, policy())
+    assert altered
+
+
+@pytest.mark.parametrize("dependency", ["global", "paths"])
+def test_each_challenge_keeps_its_own_trigger_approval(workspace, dependency):
+    w = workspace
+    log = w.root / ".harness/events.jsonl"
+    digest = w.recognize(version())
+    delivery = w.deliver()
+
+    def challenge():
+        record = {
+            "kind": "challenge",
+            "decision": "challenge",
+            "reason": "counterevidence",
+            "delivery_id": delivery["delivery_id"],
+            "version_digest": digest,
+            **(
+                {"dependency": "global"}
+                if dependency == "global"
+                else {"dependent_paths": ["src/db"]}
+            ),
+        }
+        w.submit("record", w.operation(record=record))
+
+    challenge()
+    original = report(w.root, "change-a")["impacts"][0]
+    w.cli(
+        "plan",
+        "redeclare",
+        "change-a",
+        "--plan",
+        "plan.md",
+        "--commitment",
+        "db=Use PostgreSQL with new approval epoch",
+    )
+    subject = derive_state(log)["change-a"].pending_revision["subject"]["subject_id"]
+    evidence = {
+        "version": "review-evidence/v1",
+        "evidence_id": "second-plan",
+        "kind": "plan",
+        "subject_id": subject,
+        "decision": "approve",
+        "issuer": "owner",
+        "process": {"id": "owner-review", "version": "1"},
+        "original_evidence": {"decision": "approve", "source": "isolated test fixture"},
+        "provenance": {"policy_digest": w.review["process"]["policy_digest"]},
+    }
+    w.cli("review", "import", "change-a", "--evidence", str(w.write(evidence)))
+    new_approval = derive_state(log)["change-a"].effective_approval["approval_id"]
+    challenge()
+    impacts = report(w.root, "change-a")["impacts"]
+    old = next(i for i in impacts if i["challenge_id"] == original["challenge_id"])
+    new = next(i for i in impacts if i["challenge_id"] != original["challenge_id"])
+    assert old["impact_id"] == original["impact_id"]
+    assert old["approval_id"] == original["approval_id"] != new_approval
+    assert new["approval_id"] == new_approval
+
+
+def test_recognized_applicability_is_a_new_obligation_and_unknown_reader_fails(
+    workspace, monkeypatch
+):
+    import keepsail.core.knowledge as knowledge
+
+    w = workspace
+    _, second, impact, _ = continued_version(w)
+    evidence = w.evidence("applicability", second, "apply", target_change_id="change-a")
+    w.submit("import", w.operation(evidence=evidence))
+    current = report(w.root, "change-a")["impacts"][0]
+    assert current["impact_id"] != impact["impact_id"]
+    assert current["status"] == "pending"
+    monkeypatch.setattr(knowledge, "EVENT_TYPES", knowledge.EVENT_TYPES - {knowledge.TRIGGER_EVENT})
+    with pytest.raises(KnowledgeError, match="unsupported knowledge event protocol"):
+        knowledge.load_ledger(w.root / ".harness/events.jsonl", policy())
+
+
+def test_path_boundary_requires_new_judgment_then_preserves_its_exact_subject(workspace):
+    w = workspace
+    first = w.recognize(version(selector={"paths": ["src/db"]}))
+    w.deliver()
+    second = w.submit(
+        "propose",
+        w.operation(
+            version=version(
+                body="PostgreSQL applies to new work",
+                previous=first,
+                selector={"paths": ["src/new"]},
+            )
+        ),
+    )["version_digest"]
+    recognition = w.evidence(
+        "recognition",
+        second,
+        "recognize",
+        authorization_effect="requires-human-authorization",
+        human_authorization={"source": "isolated owner fixture: change selector"},
+    )
+    w.submit("import", w.operation(evidence=recognition))
+
+    def continue_current():
+        impact = report(w.root, "change-a")["impacts"][0]
+        raw = {
+            k: v
+            for k, v in impact.items()
+            if k not in {"impact_id", "status", "disposition_id", "disposition"}
+        }
+        evidence = w.evidence(
+            "disposition", impact["impact_id"], "continue", impact=raw, use_version=second
+        )
+        w.submit("import", w.operation(evidence=evidence))
+        return impact
+
+    original = continue_current()
+
+    def cover(paths):
+        assessment = {
+            "assessment": {
+                "approval_id": original["approval_id"],
+                "affected_commitments": ["db"],
+                "conclusion": "within_approval",
+                "reasons": ["Fixture coverage update"],
+                "references": ["plan.md"],
+            },
+            "coverage": [{"path": p} for p in paths],
+        }
+        w.cli("implementation", "record", "change-a", "--assessment", str(w.write(assessment)))
+
+    cover(["src/new/model.py"])
+    changed = report(w.root, "change-a")["impacts"][0]
+    assert changed["impact_id"] != original["impact_id"]
+    assert changed["status"] == "pending"
+    approved = continue_current()
+    cover(["src/new/model.py", "docs/unrelated.md"])
+    retained = report(w.root, "change-a")["impacts"][0]
+    assert retained["impact_id"] == approved["impact_id"]
+    assert retained["status"] == "resolved"

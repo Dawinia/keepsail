@@ -164,6 +164,33 @@ new supply or an acquisition.
 
 ## Correction and impact handling
 
+New CLI import/record operations retain a `knowledge_operation_v2` event envelope
+with `minimum_reader: knowledge-trigger/v2`, the underlying operation kind,
+strict trigger contexts and their computed exact impact subjects. Original
+`knowledge-operation/v1` input records and the trusted policy remain unchanged.
+The event name makes older readers reject unsupported knowledge events rather
+than ignore trigger semantics. The checkpoint retains these same envelopes;
+writer, ledger replay and pure-Git validation use the shared validator. This is
+reader compatibility, not policy activation or authenticated writer identity.
+
+Each version/applicability episode and each individual challenge keeps its own
+trigger context and approval. Current delivery still binds actual current paths.
+An unrelated within-approval coverage addition therefore needs fresh delivery,
+but does not recreate an already recognized impact. The shared evaluator compares
+the relevant historical/current selectors and challenge dependencies; unknown or
+changed relevance cannot inherit the old judgment. Later version/state or
+recognized applicability changes still change the complete impact basis.
+
+For legacy events, the reader can preserve a recognized exact subject only by
+enumerating validated same-Change delivery contexts and reconstructing the full
+legacy impact object and digest, including policy, versions/states/current,
+applicability and approval. This bounded compatibility proof admits only
+path-insensitive selectors and dependencies, retains current relevance checks,
+and never assumes the latest delivery is the original context. Missing or
+conflicting proof and path-sensitive/unknown relevance remain blocking. Existing
+events, IDs and conclusions are not rewritten. An explicit context-recovery
+operation is outside this repair and would require separate authorization.
+
 `knowledge check <change>` reports unmet obligations and requires an exact retained
 delivery of the current effective set. With `--paths <path>` it checks declared
 independent-action dependencies; it does not grant execution authority. Challenges

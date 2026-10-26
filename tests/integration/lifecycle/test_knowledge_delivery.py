@@ -59,11 +59,69 @@ def review(w: Workspace, slug: str, kind: str, subject: str, eid: str) -> None:
     w.cli("review", "import", slug, "--evidence", str(w.write(evidence)))
 
 
+@pytest.mark.parametrize(
+    "selector", [{"global": True}, {"repository_ids": ["test-repo"], "change_ids": ["change-a"]}]
+)
+def test_coverage_refresh_preserves_exact_recognized_impact(tmp_path: Path, selector):
+    w = Workspace(tmp_path)
+    first = w.recognize(version(selector=selector))
+    w.deliver()
+    w.deliver()  # Multiple supplies must not choose a different impact identity.
+    second = w.recognize(version(body="PostgreSQL 17+", previous=first, selector=selector))
+    impact = report(w.root, "change-a")["impacts"][0]
+    frozen = {
+        k: v
+        for k, v in impact.items()
+        if k not in {"impact_id", "status", "disposition_id", "disposition"}
+    }
+    evidence = w.evidence(
+        "disposition", impact["impact_id"], "continue", impact=frozen, use_version=second
+    )
+    w.submit("import", w.operation(evidence=evidence))
+    w.deliver()
+    assert process(w, "knowledge", "check", "change-a").returncode == 0
+    assessment = {
+        "assessment": {
+            "approval_id": impact["approval_id"],
+            "affected_commitments": ["db"],
+            "conclusion": "within_approval",
+            "reasons": ["Additional documentation fixture"],
+            "references": ["plan.md"],
+        },
+        "coverage": [{"path": "plan.md"}, {"path": "docs/extra.md"}],
+    }
+    w.cli("implementation", "record", "change-a", "--assessment", str(w.write(assessment)))
+    missing = process(w, "knowledge", "check", "change-a")
+    assert missing.returncode == 2
+    assert "exact retained delivery" in missing.stdout
+    w.deliver()
+    current = process(w, "knowledge", "check", "change-a")
+    assert current.returncode == 0, current.stdout
+    retained = json.loads(current.stdout)["data"]["impacts"][0]
+    assert retained["impact_id"] == impact["impact_id"]
+    assert retained["disposition"] == evidence
+    assert retained["status"] == "resolved"
+
+
 @pytest.mark.parametrize("disposition", ["adjust", "reapprove"])
+@pytest.mark.parametrize("legacy", [False, True])
 def test_postgresql_adjustment_cross_change_attestation_and_new_session(
-    tmp_path: Path, disposition
+    tmp_path: Path, disposition, legacy, monkeypatch
 ):
     w = Workspace(tmp_path)
+    if legacy:
+        # Exercise retained v1 writer records, not rewritten v2 lookalikes.
+        import importlib
+
+        module = importlib.import_module("keepsail.cli.knowledge")
+        submit = module._submit
+
+        def old_writer(root, event_type, request):
+            if event_type == module.TRIGGER_EVENT:
+                event_type = "knowledge_imported" if "evidence" in request else "knowledge_recorded"
+            return submit(root, event_type, request)
+
+        monkeypatch.setattr(module, "_submit", old_writer)
     log = w.root / ".harness/events.jsonl"
     first = w.recognize(version())
     w.deliver()
@@ -191,6 +249,15 @@ def test_postgresql_adjustment_cross_change_attestation_and_new_session(
     git(w.root, "add", "database.txt")
     git(w.root, "commit", "-qm", "apply recognized PostgreSQL correction")
     assess()
+    # Current delivery/attestation must include the expanded actual coverage,
+    # without reinterpreting the already recognized adjustment subject.
+    before_expansion = report(w.root, "change-a")["impacts"][0]["impact_id"]
+    (w.root / "docs").mkdir()
+    (w.root / "docs/coverage-note.md").write_text("Additional fixture evidence\n", encoding="utf-8")
+    git(w.root, "add", "docs/coverage-note.md")
+    git(w.root, "commit", "-qm", "extend within-approval coverage")
+    assess()
+    assert report(w.root, "change-a")["impacts"][0]["impact_id"] == before_expansion
     w.deliver()
     w.cli("done", "change-a")
     state = derive_state(log)["change-a"]
