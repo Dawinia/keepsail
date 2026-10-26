@@ -47,3 +47,21 @@ original pilot remains independently governed. Its historical v1/v2 inputs,
 supplies and owner conclusion stay intact; any permitted finalization uses native
 append-only operations. Missing legacy contexts and path-sensitive/unknown legacy
 relevance remain fail-closed; a new recovery operation is deferred.
+
+## Independent rejection and correction
+
+The first exact code review rejected subject `code:273755f95267c63e8a8cf3a169440b21ae4f08df4fc009140ae196d7d06c56c2`.
+After a new approval epoch, one v2 challenge overwrote a legacy impact's shared
+approval slot and orphaned its exact conclusion. The genuine rejection was
+retained externally and imported as `stable-impact-code-reject-20261026-01`;
+native `implementation reopen` preserved the effective plan approval.
+
+Two native regressions (legacy version impact and legacy challenge) first failed,
+then passed with live/checkpoint parity. Together with both exact-legacy tests,
+the corrected targeted run passed four cases. Original-position replay now proves
+the complete legacy subject before later triggers overwrite shared legacy state;
+the stored derived proof can preserve only that exact subject/epoch, still requiring
+matching retained contexts and current full basis. External `mixed-legacy-red.txt`
+and `mixed-legacy-green.txt` retain the actual results. The earlier full run
+(`2392 passed, 22 skipped`) is historical and does not verify this correction.
+Final native verification and a new exact independent review remain required.

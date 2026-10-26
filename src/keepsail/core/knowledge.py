@@ -311,6 +311,7 @@ def _empty() -> dict[str, Any]:
         "applicability": {},
         "impact_approvals": {},
         "triggers": {},
+        "legacy_proofs": {},
         "operations": {},
         "events": [],
     }
@@ -668,9 +669,25 @@ def _replay_operation(
     building: bool = False,
 ) -> dict[str, Any]:
     if event_type != TRIGGER_EVENT:
-        return _apply(
+        result = _apply(
             ledger, event_type, payload["request"], policy, payload.get("approval_context", {})
         )
+        evidence = payload["request"].get("evidence", {})
+        if event_type == "knowledge_imported" and evidence.get("kind") == "disposition":
+            impact = evidence["impact"]
+            change, kid = impact["change_id"], impact.get("knowledge_id")
+            # Prove the complete subject at its original replay position, while
+            # the contemporaneous approval is still available. Later triggers
+            # may update the legacy shared approval slot, never this exact proof.
+            if _path_insensitive(ledger, change, kid):
+                for delivery in ledger["deliveries"].values():
+                    if delivery["change_id"] != change:
+                        continue
+                    view = _view(ledger, policy, change, delivery["context"], stabilize=False)
+                    if any(_subject(i) == impact for i in view["impacts"]):
+                        ledger["legacy_proofs"][evidence["subject_id"]] = deepcopy(impact)
+                        break
+        return result
     _need(payload.get("minimum_reader") == TRIGGER_READER, "unsupported trigger reader")
     operation_type = payload.get("operation_type")
     _need(
@@ -924,14 +941,26 @@ def _view(
                 for delivery in ledger["deliveries"].values():
                     if delivery["change_id"] != change:
                         continue
-                    candidate = {
-                        **impact,
-                        "basis_digest": impact_basis(kid, delivery["context"]["paths"]),
-                    }
-                    iid = digest_record(candidate)
-                    evidence = ledger["evidence"].get(ledger["dispositions"].get(iid), {})
-                    if evidence.get("subject_id") == iid and evidence.get("impact") == candidate:
-                        candidates.append(candidate)
+                    basis_digest = impact_basis(kid, delivery["context"]["paths"])
+                    subjects = [{**impact, "basis_digest": basis_digest}]
+                    for proof in ledger["legacy_proofs"].values():
+                        candidate = {
+                            **impact,
+                            "basis_digest": basis_digest,
+                            "approval_id": proof["approval_id"],
+                        }
+                        # A historical epoch is usable only for its complete
+                        # previously proved subject, never a version-pair alias.
+                        if candidate == proof:
+                            subjects.append(candidate)
+                    for candidate in subjects:
+                        iid = digest_record(candidate)
+                        evidence = ledger["evidence"].get(ledger["dispositions"].get(iid), {})
+                        if (
+                            evidence.get("subject_id") == iid
+                            and evidence.get("impact") == candidate
+                        ):
+                            candidates.append(candidate)
                 if candidates and all(c == candidates[0] for c in candidates):
                     impact = candidates[0]
             stable[digest_record(impact)] = impact

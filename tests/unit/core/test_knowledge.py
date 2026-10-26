@@ -884,3 +884,97 @@ def test_path_boundary_requires_new_judgment_then_preserves_its_exact_subject(wo
     retained = report(w.root, "change-a")["impacts"][0]
     assert retained["impact_id"] == approved["impact_id"]
     assert retained["status"] == "resolved"
+
+
+@pytest.mark.parametrize("legacy_episode", ["version", "challenge"])
+def test_mixed_legacy_episode_keeps_approval_after_new_v2_challenge(
+    workspace, monkeypatch, legacy_episode
+):
+    import importlib
+
+    from keepsail.core.knowledge import checkpoint, validate_checkpoint
+    from tests.integration.lifecycle.test_knowledge_delivery import review
+
+    w = workspace
+    module = importlib.import_module("keepsail.cli.knowledge")
+    submit = module._submit
+
+    def old_writer(root, event_type, request):
+        if event_type == module.TRIGGER_EVENT:
+            event_type = "knowledge_imported" if "evidence" in request else "knowledge_recorded"
+        return submit(root, event_type, request)
+
+    def conclude(impact, digest):
+        raw = {
+            k: v
+            for k, v in impact.items()
+            if k not in {"impact_id", "status", "disposition_id", "disposition"}
+        }
+        evidence = w.evidence(
+            "disposition", impact["impact_id"], "continue", impact=raw, use_version=digest
+        )
+        w.submit("import", w.operation(evidence=evidence))
+
+    with monkeypatch.context() as legacy:
+        legacy.setattr(module, "_submit", old_writer)
+        if legacy_episode == "version":
+            _, digest, original, _ = continued_version(w)
+        else:
+            digest = w.recognize(version())
+            delivery = w.deliver()
+            w.submit(
+                "record",
+                w.operation(
+                    record={
+                        "kind": "challenge",
+                        "decision": "challenge",
+                        "reason": "original concern",
+                        "delivery_id": delivery["delivery_id"],
+                        "version_digest": digest,
+                        "dependency": "global",
+                    }
+                ),
+            )
+            original = report(w.root, "change-a")["impacts"][0]
+            conclude(original, digest)
+    delivery = w.deliver()
+    w.cli(
+        "plan",
+        "redeclare",
+        "change-a",
+        "--plan",
+        "plan.md",
+        "--commitment",
+        "db=Use PostgreSQL under a new approval epoch",
+    )
+    state = derive_state(w.root / ".harness/events.jsonl")["change-a"]
+    review(w, "change-a", "plan", state.pending_revision["subject"]["subject_id"], "second-plan")
+    w.submit(
+        "record",
+        w.operation(
+            record={
+                "kind": "challenge",
+                "decision": "challenge",
+                "reason": "new independent concern",
+                "delivery_id": delivery["delivery_id"],
+                "version_digest": digest,
+                "dependency": "global",
+            }
+        ),
+    )
+    view = report(w.root, "change-a")
+    preserved = next(i for i in view["impacts"] if i["impact_id"] == original["impact_id"])
+    assert preserved["status"] == "resolved"
+    assert preserved["approval_id"] == original["approval_id"] == "approval:plan-1"
+    pending = next(i for i in view["impacts"] if i["status"] == "pending")
+    assert pending["approval_id"] == "approval:second-plan"
+    conclude(pending, digest)
+    w.deliver()
+    view = report(w.root, "change-a")
+    retained = checkpoint(w.root, "change-a")
+    state = derive_state(w.root / ".harness/events.jsonl")["change-a"]
+    # This unit tests pure knowledge replay; full lifecycle/Git code subject
+    # validation is covered by the new/legacy attestation integration cases.
+    state.current_code_subject = {"knowledge_basis": {"digest": view["basis_digest"]}}
+    replayed = validate_checkpoint(retained, policy(), state)
+    assert replayed["impacts"] == view["impacts"]

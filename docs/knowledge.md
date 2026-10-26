@@ -191,6 +191,14 @@ conflicting proof and path-sensitive/unknown relevance remain blocking. Existing
 events, IDs and conclusions are not rewritten. An explicit context-recovery
 operation is outside this repair and would require separate authorization.
 
+Legacy replay also proves the complete recognized impact at its original import
+position, before later triggers can overwrite the legacy shared approval slot.
+That derived proof preserves only that exact episode's approval, and still
+requires a matching retained delivery context and the complete current basis.
+A later independent challenge therefore keeps its new approval while an older
+resolved version/challenge impact keeps its own. The proof is reconstructed from
+original events in live and checkpoint replay, not persisted as invented evidence.
+
 `knowledge check <change>` reports unmet obligations and requires an exact retained
 delivery of the current effective set. With `--paths <path>` it checks declared
 independent-action dependencies; it does not grant execution authority. Challenges
