@@ -431,7 +431,9 @@ def test_native_integrity_and_disclosure_readers_share_recovery(historical):
     assert ("historical", "code_review_passed") in _seen_from_events(root)
 
 
-@pytest.mark.parametrize("corruption", ["type", "newline", "extra-line", "timestamp"])
+@pytest.mark.parametrize("corruption", [
+    "type", "newline", "extra-line", "timestamp", "unicode-separator", "unicode-tail",
+    "duplicate-key", "journal-duplicate"])
 def test_self_consistent_invalid_journal_is_rejected(historical, monkeypatch, corruption):
     import base64
     from hashlib import sha256
@@ -451,6 +453,14 @@ def test_self_consistent_invalid_journal_is_rejected(historical, monkeypatch, co
     assert recover(root, merged, "--apply", "--expected-revision", revision).exit_code != 0
     monkeypatch.setattr(writer_module.os, "write", write)
     journal = root / ".harness/.events.recovery-pending.json"
+    if corruption == "journal-duplicate":
+        journal.write_bytes(b'{"prefix_length":0,' + journal.read_bytes()[1:])
+        retained_bytes = journal.read_bytes()
+        result = recover(root, merged, "--apply", "--expected-revision", revision)
+        assert result.exit_code != 0, result.output
+        assert log.read_bytes() == before
+        assert journal.read_bytes() == retained_bytes
+        return
     retained = json.loads(journal.read_text())
     data = base64.b64decode(retained["append_base64"])
     if corruption in {"type", "timestamp"}:
@@ -460,6 +470,14 @@ def test_self_consistent_invalid_journal_is_rejected(historical, monkeypatch, co
         else:
             event["timestamp"] = 0
         data = (json.dumps(event) + "\n").encode()
+    elif corruption == "unicode-separator":
+        event = json.loads(data)
+        event["actor"]["identifier"] = "split\u2028record"
+        data = (json.dumps(event, ensure_ascii=False) + "\n").encode()
+    elif corruption == "duplicate-key":
+        data = b'{"event_id":"duplicate",' + data[1:]
+    elif corruption == "unicode-tail":
+        data = data[:-1] + "\u2028\n".encode()
     elif corruption == "newline":
         data = data[:-1]
     else:
@@ -472,3 +490,22 @@ def test_self_consistent_invalid_journal_is_rejected(historical, monkeypatch, co
     assert result.exit_code != 0, result.output
     assert log.read_bytes() == before
     assert journal.read_bytes() == retained_bytes
+
+
+@pytest.mark.parametrize("field", ["root-extra", "actor-extra", "nonfinite"])
+def test_transport_schema_rejects_unrecognized_data(field):
+    from dataclasses import asdict
+
+    from keepsail.core.recovery import validate_recovery_record
+
+    event = Event("transport", "historical_change_recovered", "historical",
+                  "2026-10-27T00:00:00Z", Actor("agent", "test"), "plain")
+    data = asdict(event)
+    if field == "root-extra":
+        data["unrecognized_authority"] = "owner"
+    elif field == "actor-extra":
+        data["actor"]["unrecognized_authority"] = "owner"
+    else:
+        data["framework_state"] = {"nonfinite": float("nan")}
+    with pytest.raises(ValueError):
+        validate_recovery_record((json.dumps(data) + "\n").encode())

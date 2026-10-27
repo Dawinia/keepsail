@@ -41,7 +41,7 @@ import threading
 from hashlib import sha256
 from pathlib import Path
 
-from keepsail.core.approval import authorizing_event
+from keepsail.core.approval import authorizing_event, load_json_record
 from keepsail.core.emit_validation import (
     EmitPreconditionError,
     is_new_contract_event,
@@ -194,14 +194,14 @@ class EventWriter:
         An incomplete UTF-8/JSON line cannot expose nested approvals. Ordinary
         writers refuse the pending journal until this exact append is completed.
         """
-        from keepsail.core.recovery import validate_recovery, validate_recovery_header
+        from keepsail.core.recovery import validate_recovery, validate_recovery_record
 
         journal_path = self.path.with_name(".events.recovery-pending.json")
         identity = {"change": change, "source_commit": source_commit, "pr": pr}
         with self._lock, exclusive_file_lock(self._lock_path):
             current = self.path.read_bytes() if self.path.exists() else b""
             if journal_path.exists():
-                journal = json.loads(journal_path.read_text(encoding="utf-8"))
+                journal = load_json_record(journal_path)
                 if journal.get("identity") != identity:
                     raise EmitPreconditionError("pending recovery belongs to another request")
                 data = base64.b64decode(journal["append_base64"], validate=True)
@@ -213,12 +213,6 @@ class EventWriter:
                     raise EmitPreconditionError("pending recovery prefix or append was modified")
                 if expected_revision != journal["prefix_sha256"]:
                     raise EmitPreconditionError("pending recovery revision mismatch")
-                from keepsail.core.events import parse_event_line
-
-                if not data.endswith(b"\n") or data.count(b"\n") != 1:
-                    raise EmitPreconditionError(
-                        "pending recovery must contain one complete newline-terminated event")
-                event = parse_event_line(data.decode("utf-8"))
             else:
                 if sha256(current).hexdigest() != expected_revision:
                     raise EmitPreconditionError("historical recovery target revision changed")
@@ -227,7 +221,7 @@ class EventWriter:
                 prefix = current
                 suffix = b""
                 data = (serialize_event(event) + "\n").encode("utf-8")
-            validate_recovery_header(event)
+            event = validate_recovery_record(data)
             if (event.change_id != change or event.payload.get("source_commit") != source_commit
                     or event.payload.get("pr") != pr):
                 raise EmitPreconditionError("pending recovery event identity mismatch")

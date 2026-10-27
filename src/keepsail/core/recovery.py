@@ -19,6 +19,7 @@ import yaml
 from keepsail.core.approval import (
     ApprovalError,
     _recognition_from_mapping,
+    canonical_json,
     evidence_digest,
     evidence_is_recognized,
     has_unresolved_candidate,
@@ -326,8 +327,27 @@ def validate_recovery_header(event: Event) -> None:
     checked = parse_event_line(serialize_event(event))
     _need(isinstance(checked.event_id, str) and bool(checked.event_id) and
           isinstance(checked.actor.identifier, str) and bool(checked.actor.identifier) and
-          parse_ts(checked.timestamp) is not None and isinstance(event.payload, dict),
+          parse_ts(checked.timestamp) is not None and isinstance(event.payload, dict) and
+          (checked.framework_state is None or isinstance(checked.framework_state, dict)),
           "invalid recovery event shape")
+
+
+def validate_recovery_record(data: bytes) -> Event:
+    """Validate the exact bytes all readers will consume, not a reserialization."""
+    _need(data.endswith(b"\n") and data.count(b"\n") == 1,
+          "recovery requires one complete newline-terminated event")
+    # strict_events uses the same Unicode line separation as lifecycle readers
+    # and rejects duplicate keys like the physical knowledge ledger reader.
+    text = data.decode("utf-8")
+    _need(len(text.splitlines()) == 1, "recovery record has additional line separators")
+    events = strict_events(text)
+    _need(len(events) == 1, "recovery requires exactly one physical event")
+    raw = json.loads(text, object_pairs_hook=_unique)
+    canonical_json(raw)  # Reject non-finite/non-JSON data before it enters the log.
+    _need(set(raw) <= set(asdict(events[0])) and
+          set(raw["actor"]) <= {"type", "identifier"}, "unsupported recovery event fields")
+    validate_recovery_header(events[0])
+    return events[0]
 
 
 def validate_recovery(events_file: Path, event: Event) -> None:
