@@ -1,6 +1,8 @@
 """Historical merge recovery uses immutable Git evidence, never current authority."""
 
 import json
+import shutil
+from copy import deepcopy
 
 import pytest
 import yaml
@@ -24,9 +26,10 @@ def _evidence(root, **kwargs):
     return path
 
 
-@pytest.fixture
-def historical(tmp_path, monkeypatch):
-    root = tmp_path / "repo"
+@pytest.fixture(scope="module")
+def historical_template(tmp_path_factory):
+    """Build the immutable native-approved history once, not once per attack."""
+    root = tmp_path_factory.mktemp("historical-template") / "repo"
     (root / ".harness").mkdir(parents=True)
     _recognition(root)
     (root / "plan.md").write_text("# Historical goal\nPublish answer.\n")
@@ -87,11 +90,21 @@ def historical(tmp_path, monkeypatch):
             "mergeCommit": {"oid": merged}, "headRefOid": head,
             "baseRefName": "main", "url": "https://github.com/owner/repo/pull/1",
             "body": "<!-- keepsail:metadata -->\nchange: historical\n<!-- /keepsail:metadata -->"}
-    from keepsail.core import recovery
-    monkeypatch.setattr(recovery, "github_merge_fact", lambda *args: fact)
     _git(root, "remote", "add", "origin", "https://github.com/owner/repo.git")
     prefix = b"\n".join(full.splitlines()[:2]) + b"\n"
     (root / ".harness/events.jsonl").write_bytes(prefix)
+    return root, merged, base, full, prefix, fact
+
+
+@pytest.fixture
+def historical(tmp_path, monkeypatch, historical_template):
+    from keepsail.core import recovery
+
+    template, merged, base, full, prefix, original_fact = historical_template
+    root = tmp_path / "repo"
+    shutil.copytree(template, root)
+    fact = deepcopy(original_fact)
+    monkeypatch.setattr(recovery, "github_merge_fact", lambda *args: fact)
     return root, merged, base, full, prefix, fact
 
 

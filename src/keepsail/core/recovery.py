@@ -257,26 +257,32 @@ def prepare_recovery(
     _need(load_policy(root, ref=subject["base"]) is None,
           "historical active knowledge requires unsupported dependency closure")
     recognition = load_recognition(root, ref=subject["base"])
-    for head in [subject["head"], fact["headRefOid"], source_commit]:
+    verified_git: set[tuple[str, str]] = set()
+
+    def check_git_subject(checked: dict[str, Any], head: str) -> None:
+        immutable_head = resolve_commit(root, head)
+        key = (checked["subject_id"], immutable_head)
+        if key in verified_git:
+            return
         expected = make_code_subject(
-            root, change_id=change, approval_id=subject["approval_id"],
-            base=subject["base"], head=head, knowledge_basis=None,
-            verification_config_digest=subject.get("verification_config_digest"),
+            root, change_id=change, approval_id=checked["approval_id"],
+            base=checked["base"], head=immutable_head, knowledge_basis=None,
+            verification_config_digest=checked.get("verification_config_digest"),
         )
-        _need(expected["subject_id"] == subject["subject_id"],
-              "complete merged content differs from reviewed code subject")
+        _need(expected["subject_id"] == checked["subject_id"],
+              "historical Git content differs from its reviewed code subject")
+        verified_git.add(key)
+
+    # Each distinct immutable object/complete subject is still checked. Repeated
+    # verification/completion/review references do not need identical Git reads.
+    for head in [subject["head"], fact["headRefOid"], source_commit]:
+        check_git_subject(subject, head)
     for event in events:
         retained = event.payload.get("code_subject") or event.payload.get("verification", {}).get(
             "code_subject")
         if retained is not None:
             checked = validate_code_subject(retained, change_id=change)
-            expected = make_code_subject(
-                root, change_id=change, approval_id=checked["approval_id"],
-                base=checked["base"], head=checked["head"], knowledge_basis=None,
-                verification_config_digest=checked.get("verification_config_digest"),
-            )
-            _need(expected["subject_id"] == checked["subject_id"],
-                  "historical Git subject differs from its original manifest")
+            check_git_subject(checked, checked["head"])
     target_path = events_file or root / ".harness/events.jsonl"
     physical = target_path.read_bytes() if target_path.exists() else b""
     _need(not physical or physical.endswith(b"\n"), "unterminated target ledger")
