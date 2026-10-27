@@ -19,7 +19,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from keepsail.core.events import Event, EventSchemaError, parse_event_line
+from keepsail.core.events import Event, EventSchemaError, effective_event_lines, parse_event_line
 from keepsail.core.gate_blocks import GateBlockRecord, read_blocks
 from keepsail.core.parse_ts import parse_ts
 from keepsail.core.paths import gate_blocks_path
@@ -158,7 +158,7 @@ def _read_all_events(events_file: Path) -> list[Event]:
         return []
     out: list[Event] = []
     seen: set[tuple[str, ...]] = set()
-    for line in events_file.read_text(encoding="utf-8").splitlines():
+    for line in effective_event_lines(events_file.read_text(encoding="utf-8").splitlines()):
         if not line.strip():
             continue
         try:

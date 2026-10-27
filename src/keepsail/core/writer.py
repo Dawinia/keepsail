@@ -33,12 +33,15 @@ already vetted the stream); the append still holds the flock so a skip write
 cannot slip into another writer's validate→append window.
 """
 
+import base64
+import json
 import os
 import tempfile
 import threading
+from hashlib import sha256
 from pathlib import Path
 
-from keepsail.core.approval import authorizing_event
+from keepsail.core.approval import authorizing_event, load_json_record
 from keepsail.core.emit_validation import (
     EmitPreconditionError,
     is_new_contract_event,
@@ -136,6 +139,12 @@ class EventWriter:
             # The process lock spans validate+append so no writer validates a
             # stale stream then appends over another writer's transition.
             with exclusive_file_lock(self._lock_path):
+                if self.path.with_name(".events.recovery-pending.json").exists():
+                    raise EmitPreconditionError(
+                        "historical recovery append pending; resume change recover")
+                if any(event.type == "historical_change_recovered" for event in events):
+                    raise EmitPreconditionError(
+                        "historical recovery requires the strict recovery transaction")
                 guarded = [
                     event
                     for event in events
@@ -176,3 +185,78 @@ class EventWriter:
                     os.fsync(fd)
                 finally:
                     os.close(fd)
+
+    def recover(self, event: Event | None, *, expected_revision: str,
+                change: str, source_commit: str, pr: int) -> None:
+        """Durable, suffix-resumable append; never overwrite/truncate log bytes.
+
+        Readers see either the old history or one complete recovery envelope.
+        An incomplete UTF-8/JSON line cannot expose nested approvals. Ordinary
+        writers refuse the pending journal until this exact append is completed.
+        """
+        from keepsail.core.recovery import validate_recovery, validate_recovery_record
+
+        journal_path = self.path.with_name(".events.recovery-pending.json")
+        identity = {"change": change, "source_commit": source_commit, "pr": pr}
+        with self._lock, exclusive_file_lock(self._lock_path):
+            current = self.path.read_bytes() if self.path.exists() else b""
+            if journal_path.exists():
+                journal = load_json_record(journal_path)
+                if journal.get("identity") != identity:
+                    raise EmitPreconditionError("pending recovery belongs to another request")
+                data = base64.b64decode(journal["append_base64"], validate=True)
+                size = journal["prefix_length"]
+                prefix, suffix = current[:size], current[size:]
+                if (len(prefix) != size or sha256(prefix).hexdigest() != journal["prefix_sha256"]
+                        or sha256(data).hexdigest() != journal["append_sha256"]
+                        or not data.startswith(suffix)):
+                    raise EmitPreconditionError("pending recovery prefix or append was modified")
+                if expected_revision != journal["prefix_sha256"]:
+                    raise EmitPreconditionError("pending recovery revision mismatch")
+            else:
+                if sha256(current).hexdigest() != expected_revision:
+                    raise EmitPreconditionError("historical recovery target revision changed")
+                if event is None or event.type != "historical_change_recovered":
+                    raise EmitPreconditionError("missing prepared recovery envelope")
+                prefix = current
+                suffix = b""
+                data = (serialize_event(event) + "\n").encode("utf-8")
+            event = validate_recovery_record(data)
+            if (event.change_id != change or event.payload.get("source_commit") != source_commit
+                    or event.payload.get("pr") != pr):
+                raise EmitPreconditionError("pending recovery event identity mismatch")
+            # Validate the original prefix even after an interrupted append. The
+            # temporary file is not a state source and never replaces the log.
+            staged_path: Path | None = None
+            try:
+                with tempfile.NamedTemporaryFile(dir=self.path.parent, prefix=".events-",
+                                                 suffix=".tmp", delete=False) as staged:
+                    staged.write(prefix)
+                    staged_path = Path(staged.name)
+                validate_recovery(staged_path, event)
+            finally:
+                if staged_path is not None:
+                    staged_path.unlink(missing_ok=True)
+            if not journal_path.exists():
+                journal = {"identity": identity, "prefix_length": len(prefix),
+                           "prefix_sha256": sha256(prefix).hexdigest(),
+                           "append_sha256": sha256(data).hexdigest(),
+                           "append_base64": base64.b64encode(data).decode("ascii")}
+                # Exclusive creation + fsync precedes every log byte. A damaged
+                # journal fails closed and is preserved for investigation.
+                with journal_path.open("xb") as pending:
+                    pending.write(json.dumps(journal).encode())
+                    pending.flush()
+                    os.fsync(pending.fileno())
+            fd = os.open(self.path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o644)
+            try:
+                remaining = memoryview(data)[len(suffix):]
+                while remaining:
+                    written = os.write(fd, remaining)
+                    if written <= 0:
+                        raise OSError("recovery append made no progress")
+                    remaining = remaining[written:]
+                os.fsync(fd)
+            finally:
+                os.close(fd)
+            journal_path.unlink()

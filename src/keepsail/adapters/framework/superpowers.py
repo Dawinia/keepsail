@@ -19,6 +19,7 @@ from keepsail.core.events import (
     Event,
     EventSchemaError,
     Framework,
+    effective_event_lines,
     parse_event_line,
 )
 from keepsail.core.frontmatter import split_frontmatter
@@ -93,7 +94,7 @@ def _seen_from_events(workspace: Path) -> set[tuple[str, str]]:
     if not path.exists():
         return set()
     seen: set[tuple[str, str]] = set()
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for line in effective_event_lines(path.read_text(encoding="utf-8").splitlines()):
         if not line.strip():
             continue
         try:

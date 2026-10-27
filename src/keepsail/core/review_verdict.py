@@ -24,7 +24,7 @@ from typing import Any
 
 import yaml
 
-from keepsail.core.events import Event, EventSchemaError, parse_event_line
+from keepsail.core.events import Event, EventSchemaError, effective_event_lines, parse_event_line
 
 _STATUSES = {"pass", "fail", "na"}
 _SEVERITIES = {"blocker", "major", "minor"}
@@ -174,7 +174,7 @@ def read_change_events(events_file: Path, change_id: str) -> list[Event]:
     if not events_file.exists():
         return []
     out: list[Event] = []
-    for line in events_file.read_text(encoding="utf-8").splitlines():
+    for line in effective_event_lines(events_file.read_text(encoding="utf-8").splitlines()):
         if not line.strip():
             continue
         try:

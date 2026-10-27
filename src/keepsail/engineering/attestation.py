@@ -34,7 +34,7 @@ from keepsail.core.approval import (
     validate_evidence,
 )
 from keepsail.core.emit_validation import find_ordering_violations
-from keepsail.core.events import Event, EventSchemaError, parse_event_line
+from keepsail.core.events import Event, EventSchemaError, effective_event_lines, parse_event_line
 from keepsail.core.reducer import derive_state
 from keepsail.core.scope_match import GitScopeError, resolve_commit, tracked_files_at_commit
 
@@ -172,7 +172,7 @@ def check_attestation(
     if missing:
         blockers.append(f"attestation {slug}: missing milestone event(s) {missing}")
     events: list[Event] = []
-    for raw in attestation_path.read_text(encoding="utf-8").splitlines():
+    for raw in effective_event_lines(attestation_path.read_text(encoding="utf-8").splitlines()):
         try:
             event = parse_event_line(raw)
         except EventSchemaError:
@@ -597,7 +597,7 @@ def events_from_stateful_attestation(root: Path, slug: str) -> list[Event]:
         lines = path.read_text(encoding="utf-8").splitlines()
     except OSError:
         return events
-    for raw in lines:
+    for raw in effective_event_lines(lines):
         try:
             event = parse_event_line(raw)
         except EventSchemaError:
@@ -735,7 +735,7 @@ def independence_for_attestation(att_path: Path) -> dict[str, Any]:
     ``attest verify`` — mirrors the reducer / ``check_attestation`` policy.
     """
     events: list[Event] = []
-    for raw in att_path.read_text(encoding="utf-8").splitlines():
+    for raw in effective_event_lines(att_path.read_text(encoding="utf-8").splitlines()):
         s = raw.strip()
         if not s:
             continue
@@ -781,7 +781,7 @@ def gate_bypass_for_attestation(att_path: Path) -> dict[str, Any]:
     partially-corrupt attestation.
     """
     events: list[Event] = []
-    for raw in att_path.read_text(encoding="utf-8").splitlines():
+    for raw in effective_event_lines(att_path.read_text(encoding="utf-8").splitlines()):
         s = raw.strip()
         if not s:
             continue

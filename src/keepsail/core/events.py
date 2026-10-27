@@ -11,6 +11,7 @@ Public surface:
 """
 
 import json
+from collections.abc import Iterable, Iterator
 from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
 
@@ -80,6 +81,7 @@ EXTENSION_EVENT_TYPES: frozenset[str] = KNOWLEDGE_EVENT_TYPES | frozenset(
         "plan_revision_submitted",
         "plan_withdrawn",
         "knowledge_checkpointed",
+        "historical_change_recovered",
     }
 )
 
@@ -214,3 +216,47 @@ def serialize_event(event: Event) -> str:
     Compact separators (no space after `:` or `,`) for space efficiency.
     """
     return json.dumps(asdict(event), separators=(",", ":"), sort_keys=False)
+
+
+def effective_event_lines(lines: Iterable[str]) -> Iterator[str]:
+    """One offline lifecycle view; physical knowledge-prefix hashing is unchanged.
+
+    Malformed legacy lines retain existing caller-specific tolerance. A malformed
+    recovery envelope fails closed rather than exposing partial restored authority.
+    """
+    history: dict[str, list[str]] = {}
+    identifiers: set[str] = set()
+    for line in lines:
+        try:
+            event = parse_event_line(line)
+        except EventSchemaError:
+            yield line
+            continue
+        if event.type != "historical_change_recovered":
+            history.setdefault(event.change_id, []).append(serialize_event(event))
+            identifiers.add(event.event_id)
+            yield line
+            continue
+        from keepsail.core.recovery import (
+            retained_history,
+            strict_events,
+            validate_recovery_record,
+        )
+
+        record = line if line.endswith("\n") else line + "\n"
+        event = validate_recovery_record(record.encode("utf-8"))
+        restored_events = retained_history(event.payload, event.change_id)
+        source = strict_events(event.payload["source_text"], event.change_id)
+        expected = [serialize_event(e) for e in source[:event.payload["prefix_count"]]]
+        if history.get(event.change_id, []) != expected:
+            raise EventSchemaError("recovery envelope does not extend its exact source prefix")
+        source_ids = {e.event_id for e in source}
+        restored_ids = {e.event_id for e in restored_events}
+        if (event.event_id in identifiers | source_ids | restored_ids or
+                any(e.event_id in identifiers for e in restored_events)):
+            raise EventSchemaError("recovery envelope has a conflicting event ID")
+        identifiers.add(event.event_id)
+        for restored in restored_events:
+            history.setdefault(event.change_id, []).append(serialize_event(restored))
+            identifiers.add(restored.event_id)
+            yield serialize_event(restored)
