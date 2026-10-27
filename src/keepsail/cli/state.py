@@ -26,6 +26,7 @@ from keepsail.cli.output import json_envelope
 from keepsail.core.events import (
     KNOWN_EVENT_TYPES,
     EventSchemaError,
+    effective_event_lines,
     parse_event_line,
 )
 from keepsail.core.paths import (
@@ -126,7 +127,8 @@ def state_verify(ctx: click.Context) -> None:
     violations: list[str] = []
     parsed_events = []
     if f.exists():
-        for ln, line in enumerate(f.read_text(encoding="utf-8").splitlines(), start=1):
+        for ln, line in enumerate(effective_event_lines(
+                f.read_text(encoding="utf-8").splitlines()), start=1):
             if not line.strip():
                 continue
             try:

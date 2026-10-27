@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from keepsail.core.events import effective_event_lines
 from keepsail.core.slug import SlugError, validate_slug
 from keepsail.exit_codes import (
     EXIT_EXTERNAL_TOOL as _EXIT_EXTERNAL_TOOL,
@@ -164,7 +165,7 @@ def _iter_events(events_file: Path) -> Iterator[dict[str, Any]]:
     """
     if not events_file.exists():
         return
-    for raw in events_file.read_text(encoding="utf-8").splitlines():
+    for raw in effective_event_lines(events_file.read_text(encoding="utf-8").splitlines()):
         raw = raw.strip()
         if not raw:
             continue

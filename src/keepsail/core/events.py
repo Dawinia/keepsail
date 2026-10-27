@@ -244,7 +244,10 @@ def effective_event_lines(lines: Iterable[str]) -> Iterator[str]:
         expected = [serialize_event(e) for e in source[:event.payload["prefix_count"]]]
         if history.get(event.change_id, []) != expected:
             raise EventSchemaError("recovery envelope does not extend its exact source prefix")
-        if event.event_id in identifiers or any(e.event_id in identifiers for e in restored_events):
+        source_ids = {e.event_id for e in source}
+        restored_ids = {e.event_id for e in restored_events}
+        if (event.event_id in identifiers | source_ids | restored_ids or
+                any(e.event_id in identifiers for e in restored_events)):
             raise EventSchemaError("recovery envelope has a conflicting event ID")
         identifiers.add(event.event_id)
         for restored in restored_events:

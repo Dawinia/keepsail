@@ -364,3 +364,68 @@ def test_tampered_immutable_attestation_cannot_authorize_recovery(historical, ta
     result = recover(root, changed)
     assert result.exit_code != 0, result.output
     assert log.read_bytes() == before
+
+
+@pytest.mark.parametrize("kind", ["plan", "code", "assessment"])
+def test_reject_retroactive_authority(historical, kind):
+    root, _, _, _, _, fact = historical
+    path = root / ".harness/attestations/historical.jsonl"
+    rows = [json.loads(line) for line in path.read_text().splitlines()]
+    if kind == "assessment":
+        imported = next(r for r in rows if r["type"] == "implementation_recorded")
+        milestone = "implementation_complete"
+    else:
+        imported = next(r for r in rows if r["type"] == "review_evidence_imported" and
+                        r["payload"]["evidence"]["kind"] == kind)
+        milestone = "plan_approved" if kind == "plan" else "code_review_passed"
+    rows.remove(imported)
+    index = next(i for i, r in enumerate(rows) if r["type"] == milestone)
+    rows.insert(index + 1, imported)
+    path.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+    _git(root, "add", str(path))
+    _git(root, "commit", "-qm", "retroactive authority fixture")
+    changed = _git(root, "rev-parse", "HEAD")
+    fact["mergeCommit"]["oid"] = changed
+    fact["headRefOid"] = changed
+    log = root / ".harness/events.jsonl"
+    before = log.read_bytes()
+    result = recover(root, changed)
+    assert result.exit_code != 0, result.output
+    assert log.read_bytes() == before
+
+
+@pytest.mark.parametrize("collision", ["source", "merged"])
+def test_reject_envelope_id_collision_live_and_offline(historical, collision):
+    from dataclasses import replace
+
+    from keepsail.core.events import effective_event_lines
+    from keepsail.core.recovery import prepare_recovery, recovery_event
+
+    root, merged, _, _, _, _ = historical
+    log = root / ".harness/events.jsonl"
+    data = prepare_recovery(root, "historical", merged, 1)
+    event = recovery_event(data)
+    source = [json.loads(line) for line in event.payload["source_text"].splitlines()]
+    event = replace(event, event_id=(source[-1]["event_id"] if collision == "source"
+                    else event.payload["merged_event"]["event_id"]))
+    before = log.read_bytes()
+    with pytest.raises(ValueError, match="ID"):
+        EventWriter(log).recover(event, expected_revision=data["expected_revision"],
+                                 change="historical", source_commit=merged, pr=1)
+    assert log.read_bytes() == before
+    with pytest.raises(ValueError, match="ID"):
+        list(effective_event_lines([*before.decode().splitlines(), serialize_event(event)]))
+
+
+def test_native_integrity_and_disclosure_readers_share_recovery(historical):
+    from keepsail.adapters.framework.superpowers import _seen_from_events
+    from keepsail.engineering.value_report import _read_all_events
+
+    root, merged, _, _, _, _ = historical
+    data = json.loads(recover(root, merged).stdout)["data"]
+    assert recover(root, merged, "--apply", "--expected-revision",
+                   data["expected_revision"]).exit_code == 0
+    result = CliRunner().invoke(main, ["--workspace", str(root), "state", "verify"])
+    assert result.exit_code == 0, result.output
+    assert _read_all_events(root / ".harness/events.jsonl")[-1].type == "merged"
+    assert ("historical", "code_review_passed") in _seen_from_events(root)

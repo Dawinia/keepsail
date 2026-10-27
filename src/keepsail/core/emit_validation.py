@@ -20,11 +20,13 @@ in profiling.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
 from keepsail.core.approval import (
     ApprovalError,
+    Recognition,
     authorizing_event,
     evidence_digest,
     evidence_is_recognized,
@@ -42,6 +44,7 @@ from keepsail.core.approval import (
 )
 from keepsail.core.events import Event, EventSchemaError, effective_event_lines, parse_event_line
 from keepsail.core.scope_match import GitScopeError
+from keepsail.core.state import ChangeState
 from keepsail.core.transitions import INVALID, compute_target_state
 
 __all__ = [
@@ -188,20 +191,32 @@ def validate_preconditions(events_file: Path, new_event: Event) -> None:
 
 
 def _validate_authority(events_file: Path, new_event: Event) -> None:
-    """Enforce new-contract authority at the shared writer seam.
-
-    A state name is not evidence.  This guard therefore folds the event stream
-    and checks the approval/reference payload before an authorizing event can
-    be appended.  Legacy events already on disk are replayed by the reducer,
-    but a new writer cannot create a new legacy approval or skip this check by
-    passing ``skip_validation`` (the writer rejects that separately).
-    """
     from keepsail.core.reducer import derive_state
 
     try:
         root = events_file.parent.parent
-        active_recognition = recognition_contract_active(root)
-        current = derive_state(events_file).get(new_event.change_id)
+        validate_authority_context(
+            derive_state(events_file).get(new_event.change_id), new_event,
+            active_recognition=recognition_contract_active(root),
+            recognition_loader=lambda: load_recognition(root),
+            check_git=lambda subject: _validate_git_subject(events_file, subject),
+        )
+    except (ApprovalError, GitScopeError, TypeError, KeyError) as exc:
+        raise EmitPreconditionError(str(exc)) from exc
+
+
+def validate_authority_context(
+    current: ChangeState | None, new_event: Event, *, active_recognition: bool,
+    recognition_loader: Callable[[], Recognition],
+    check_git: Callable[[dict[str, object]], None],
+) -> None:
+    """Shared authority predicates against preceding state, not later evidence.
+
+    The native writer supplies live policy/Git checks. Historical recovery
+    supplies retained recognition and validates immutable Git subjects separately;
+    offline replay never fetches mutable authority or grants new authoring rights.
+    """
+    try:
         payload = new_event.payload or {}
         new_contract = active_recognition or bool(
             payload.get("plan_subject")
@@ -243,7 +258,7 @@ def _validate_authority(events_file: Path, new_event: Event) -> None:
                 raise ApprovalError("review evidence requires an existing Change")
             if payload.get("subject_id") != evidence.get("subject_id"):
                 raise ApprovalError("review evidence event subject does not match its evidence")
-            recognition = load_recognition(events_file.parent.parent)
+            recognition = recognition_loader()
             if not evidence_is_recognized(evidence, recognition):
                 raise ApprovalError("evidence process or issuer is not user-recognized")
             if recognition.policy_digest:
@@ -336,7 +351,7 @@ def _validate_authority(events_file: Path, new_event: Event) -> None:
                 raise ApprovalError("verification requires an applicable plan approval")
             if code_subject.get("approval_id") != current.effective_approval.get("approval_id"):
                 raise ApprovalError("verification uses a different plan approval")
-            _validate_git_subject(events_file, code_subject)
+            check_git(code_subject)
         elif authorizing_event(new_event.type):
             if not new_contract:
                 return
@@ -429,7 +444,7 @@ def _validate_authority(events_file: Path, new_event: Event) -> None:
                             raise ApprovalError(
                                 "code review evidence uses a different code subject"
                             )
-                    _validate_git_subject(events_file, validated_subject)
+                    check_git(validated_subject)
             elif new_event.type == "merged":
                 if current is None:
                     raise ApprovalError("merge requires an existing Change")

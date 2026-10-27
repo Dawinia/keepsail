@@ -34,6 +34,7 @@ from keepsail.core.events import (
     Actor,
     Event,
     parse_event_line,
+    serialize_event,
 )
 from keepsail.core.scope_match import file_text_at_commit, resolve_commit
 
@@ -81,10 +82,20 @@ def strict_events(text: str, change: str | None = None) -> list[Event]:
 
 def retained_history(payload: dict[str, Any], change: str) -> list[Event]:
     """Validate a self-contained envelope without network, Git or mutable files."""
+    from keepsail.core.emit_validation import validate_authority_context
     from keepsail.core.reducer import derive_state_from_lines
     from keepsail.core.transitions import INVALID, compute_target_state
 
     _need(payload.get("version") == PROTOCOL, "unsupported recovery reader")
+    commit = payload.get("source_commit")
+    pr = payload.get("pr")
+    repository = payload.get("repository")
+    _need(isinstance(commit, str) and re.fullmatch(r"[0-9a-f]{40}", commit),
+          "invalid retained source commit")
+    _need(type(pr) is int and pr > 0 and isinstance(repository, str) and
+          re.fullmatch(r"[\w.-]+/[\w.-]+", repository), "invalid retained repository or PR")
+    _need(payload.get("source_path") == f".harness/attestations/{change}.jsonl",
+          "retained source path mismatch")
     source = payload.get("source_text")
     _need(isinstance(source, str), "missing original source bytes")
     assert isinstance(source, str)
@@ -104,11 +115,24 @@ def retained_history(payload: dict[str, Any], change: str) -> list[Event]:
                   "historical recognition or retained evidence digest mismatch")
     current = None
     seen: set[str] = set()
+    preceding_lines: list[str] = []
+    contract_seen = False
     for event in events:
         target = compute_target_state(current, event.type)
         _need(target != INVALID, "source lifecycle ordering conflict")
         if event.type == "implementation_complete":
             _need("verification_passed" in seen, "missing verification predecessor")
+        # Use the native writer's predicates at the original event position.
+        # Pre-cutover legacy records remain history; they cannot supply the final
+        # evidence-backed approval required by this protocol.
+        preceding = derive_state_from_lines(preceding_lines).get(change)
+        contract_seen = contract_seen or any(event.payload.get(key) is not None for key in (
+            "plan_subject", "approval", "evidence", "code_subject"))
+        validate_authority_context(
+            preceding, event, active_recognition=contract_seen,
+            recognition_loader=lambda: recognition, check_git=lambda subject: None,
+        )
+        preceding_lines.append(serialize_event(event))
         current = target
         seen.add(event.type)
     _need(current == "READY_TO_MERGE", "source must retain the reviewed pre-merge history")
@@ -151,7 +175,9 @@ def retained_history(payload: dict[str, Any], change: str) -> list[Event]:
     count = payload.get("prefix_count")
     _need(type(count) is int and 0 <= count <= len(events), "invalid source prefix count")
     fact = payload.get("merge_fact", {})
-    _need(fact.get("state") == "MERGED" and bool(fact.get("mergedAt")),
+    _need(fact.get("state") == "MERGED" and bool(fact.get("mergedAt")) and
+          fact.get("mergeCommit", {}).get("oid") == commit and
+          fact.get("url") == f"https://github.com/{repository}/pull/{pr}",
           "missing retained merge fact")
     merged = parse_event_line(json.dumps(payload.get("merged_event")))
     _need(merged.type == "merged" and merged.change_id == change and
@@ -238,6 +264,18 @@ def prepare_recovery(
         )
         _need(expected["subject_id"] == subject["subject_id"],
               "complete merged content differs from reviewed code subject")
+    for event in events:
+        retained = event.payload.get("code_subject") or event.payload.get("verification", {}).get(
+            "code_subject")
+        if retained is not None:
+            checked = validate_code_subject(retained, change_id=change)
+            expected = make_code_subject(
+                root, change_id=change, approval_id=checked["approval_id"],
+                base=checked["base"], head=checked["head"], knowledge_basis=None,
+                verification_config_digest=checked.get("verification_config_digest"),
+            )
+            _need(expected["subject_id"] == checked["subject_id"],
+                  "historical Git subject differs from its original manifest")
     target_path = events_file or root / ".harness/events.jsonl"
     physical = target_path.read_bytes() if target_path.exists() else b""
     _need(not physical or physical.endswith(b"\n"), "unterminated target ledger")
@@ -289,8 +327,15 @@ def validate_recovery(events_file: Path, event: Event) -> None:
     _need(not expected["idempotent_replay"], "recovery was already recorded")
     existing = strict_events(events_file.read_text(encoding="utf-8"))
     ids = {e.event_id for e in existing}
-    _need(event.event_id not in ids and
-          payload["merged_event"]["event_id"] not in ids, "recovery event ID conflict")
+    from keepsail.core.events import effective_event_lines
+
+    effective = strict_events("\n".join(effective_event_lines(
+        events_file.read_text(encoding="utf-8").splitlines())))
+    ids.update(e.event_id for e in effective)
+    source_ids = {e.event_id for e in strict_events(payload["source_text"], event.change_id)}
+    merged_id = payload["merged_event"]["event_id"]
+    _need(event.event_id not in ids | source_ids | {merged_id} and
+          merged_id not in ids | source_ids, "recovery event ID conflict")
     actual = dict(payload)
     prepared = expected["event"]["payload"]
     # IDs/time of a prepared record are locators; its facts must match exactly.
