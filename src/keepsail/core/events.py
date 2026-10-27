@@ -237,8 +237,13 @@ def effective_event_lines(lines: Iterable[str]) -> Iterator[str]:
             identifiers.add(event.event_id)
             yield line
             continue
-        from keepsail.core.recovery import retained_history, strict_events
+        from keepsail.core.recovery import (
+            retained_history,
+            strict_events,
+            validate_recovery_header,
+        )
 
+        validate_recovery_header(event)
         restored_events = retained_history(event.payload, event.change_id)
         source = strict_events(event.payload["source_text"], event.change_id)
         expected = [serialize_event(e) for e in source[:event.payload["prefix_count"]]]

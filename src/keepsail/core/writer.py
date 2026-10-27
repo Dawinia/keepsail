@@ -194,7 +194,7 @@ class EventWriter:
         An incomplete UTF-8/JSON line cannot expose nested approvals. Ordinary
         writers refuse the pending journal until this exact append is completed.
         """
-        from keepsail.core.recovery import validate_recovery
+        from keepsail.core.recovery import validate_recovery, validate_recovery_header
 
         journal_path = self.path.with_name(".events.recovery-pending.json")
         identity = {"change": change, "source_commit": source_commit, "pr": pr}
@@ -215,6 +215,9 @@ class EventWriter:
                     raise EmitPreconditionError("pending recovery revision mismatch")
                 from keepsail.core.events import parse_event_line
 
+                if not data.endswith(b"\n") or data.count(b"\n") != 1:
+                    raise EmitPreconditionError(
+                        "pending recovery must contain one complete newline-terminated event")
                 event = parse_event_line(data.decode("utf-8"))
             else:
                 if sha256(current).hexdigest() != expected_revision:
@@ -224,6 +227,7 @@ class EventWriter:
                 prefix = current
                 suffix = b""
                 data = (serialize_event(event) + "\n").encode("utf-8")
+            validate_recovery_header(event)
             if (event.change_id != change or event.payload.get("source_commit") != source_commit
                     or event.payload.get("pr") != pr):
                 raise EmitPreconditionError("pending recovery event identity mismatch")

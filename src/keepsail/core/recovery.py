@@ -318,8 +318,21 @@ def prepare_recovery(
             "code_subject_id": subject["subject_id"], "event": asdict(envelope)}
 
 
+def validate_recovery_header(event: Event) -> None:
+    """The transport checksum cannot substitute for event type/shape checks."""
+    from keepsail.core.parse_ts import parse_ts
+
+    _need(event.type == RECOVERY_EVENT, "expected a recovery event type")
+    checked = parse_event_line(serialize_event(event))
+    _need(isinstance(checked.event_id, str) and bool(checked.event_id) and
+          isinstance(checked.actor.identifier, str) and bool(checked.actor.identifier) and
+          parse_ts(checked.timestamp) is not None and isinstance(event.payload, dict),
+          "invalid recovery event shape")
+
+
 def validate_recovery(events_file: Path, event: Event) -> None:
     """Shared strict writer seam; rejects handcrafted/bypassed envelopes."""
+    validate_recovery_header(event)
     payload = event.payload
     retained_history(payload, event.change_id)
     expected = prepare_recovery(events_file.parent.parent, event.change_id,

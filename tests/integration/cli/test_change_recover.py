@@ -429,3 +429,46 @@ def test_native_integrity_and_disclosure_readers_share_recovery(historical):
     assert result.exit_code == 0, result.output
     assert _read_all_events(root / ".harness/events.jsonl")[-1].type == "merged"
     assert ("historical", "code_review_passed") in _seen_from_events(root)
+
+
+@pytest.mark.parametrize("corruption", ["type", "newline", "extra-line", "timestamp"])
+def test_self_consistent_invalid_journal_is_rejected(historical, monkeypatch, corruption):
+    import base64
+    from hashlib import sha256
+
+    import keepsail.core.writer as writer_module
+
+    root, merged, _, _, _, _ = historical
+    log = root / ".harness/events.jsonl"
+    before = log.read_bytes()
+    revision = json.loads(recover(root, merged).stdout)["data"]["expected_revision"]
+    write = writer_module.os.write
+
+    def interrupt_before_append(fd, data):
+        raise OSError("injected before first append byte")
+
+    monkeypatch.setattr(writer_module.os, "write", interrupt_before_append)
+    assert recover(root, merged, "--apply", "--expected-revision", revision).exit_code != 0
+    monkeypatch.setattr(writer_module.os, "write", write)
+    journal = root / ".harness/.events.recovery-pending.json"
+    retained = json.loads(journal.read_text())
+    data = base64.b64decode(retained["append_base64"])
+    if corruption in {"type", "timestamp"}:
+        event = json.loads(data)
+        if corruption == "type":
+            event["type"] = "verification_passed"
+        else:
+            event["timestamp"] = 0
+        data = (json.dumps(event) + "\n").encode()
+    elif corruption == "newline":
+        data = data[:-1]
+    else:
+        data += b"\n"
+    retained["append_sha256"] = sha256(data).hexdigest()
+    retained["append_base64"] = base64.b64encode(data).decode()
+    journal.write_text(json.dumps(retained))
+    retained_bytes = journal.read_bytes()
+    result = recover(root, merged, "--apply", "--expected-revision", revision)
+    assert result.exit_code != 0, result.output
+    assert log.read_bytes() == before
+    assert journal.read_bytes() == retained_bytes
