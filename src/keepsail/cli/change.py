@@ -563,3 +563,40 @@ def resume(ctx: click.Context, slug: str | None) -> None:
         sys.exit(EXIT_VALIDATION)
     _emit_resume(ctx, root, slug, derived[slug])
     sys.exit(EXIT_OK)
+
+
+@change_group.command("context")
+@click.argument("slug")
+@click.option("--preview", is_flag=True, help="Read current context without recording supply.")
+@click.option("--entry", "entry_id", help="SessionStart entry epoch to supply and retrieve.")
+@click.option("--page", type=click.IntRange(min=1), default=1, show_default=True)
+@click.option("--statement", type=click.Path(exists=True, dir_okay=False),
+              help="Explicit entry-statement/v1 JSON; never auto-adopts knowledge.")
+@click.pass_context
+def context_command(ctx: click.Context, slug: str, preview: bool,
+                    entry_id: str | None, page: int, statement: str | None) -> None:
+    """Retrieve the explicitly selected Change's current authority context."""
+    from keepsail.cli.knowledge import _run
+    from keepsail.core.context import PAGE_BYTES, project_context
+    from keepsail.core.knowledge import KnowledgeError
+    from keepsail.daemon.context_hook import record_statement, retrieve_context
+
+    ctx.obj["unicode_output"] = True
+
+    def action(root: Path) -> dict[str, Any]:
+        if preview and (entry_id or statement):
+            raise KnowledgeError("--preview and --entry/--statement are mutually exclusive")
+        if preview:
+            return project_context(root, slug)
+        if entry_id is None:
+            raise KnowledgeError("explicit --entry or --preview required", code="entry_unbound")
+        if statement:
+            return record_statement(root, slug, entry_id, statement)
+        data = retrieve_context(root, slug, entry_id, page)
+        encoded = json_envelope(command="change context", status="pass", exit_code=0,
+                                data=data, ensure_ascii=False)
+        if len(encoded.encode("utf-8")) + 1 > PAGE_BYTES:
+            raise KnowledgeError("context page exceeds tool-return budget", code="page_incomplete")
+        return data
+
+    _run(ctx, "change context", action)

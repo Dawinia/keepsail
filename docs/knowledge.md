@@ -244,3 +244,12 @@ remain outside this slice. Historical Changes stay readable with knowledge
 coverage=not_recorded. No historical event, decision or receipt is migrated or
 retroactively promoted into an observation. Damaged enabled-protocol records fail
 explicitly; absence is not substituted for corruption.
+
+## Claude session entry
+
+The optional [session-bound context integration](knowledge-context.md) composes
+this protocol with frozen work approval and ratified decisions. It uses native
+supply and whole-version acquisition records, adding an outer paginated envelope
+and actual CLI tool-return receipts. Resume/show remain read-only. This does not
+expand knowledge-recognition policy, the archived pilot selector, or all-tool
+enforcement. Actual host and replacement-session acceptance remain separate.

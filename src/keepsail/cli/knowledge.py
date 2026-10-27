@@ -54,6 +54,7 @@ def _output(
                 ]
                 if error
                 else [],
+                ensure_ascii=not ctx.obj.get("unicode_output", False),
             )
         )
     elif error:
@@ -174,50 +175,55 @@ def record_evidence(ctx: click.Context, record: str) -> None:
 def deliver(ctx: click.Context, change: str, operation_id: str, expected_revision: str) -> None:
     """Persist the exact finite constraint set before writing it to stdout."""
 
-    def action(root: Path) -> dict[str, Any]:
-        policy = load_policy(root)
-        ledger, _ = load_ledger(events_path(root), policy)
-        prior = ledger["operations"].get(operation_id)
-        if prior:
-            request = prior["request"]
-            if (
-                request["change_id"] != change
-                or request["expected_revision"] != expected_revision
-                or "delivery" not in request
-            ):
-                raise KnowledgeError("operation ID reused for a different delivery", exit_code=5)
-        else:
-            view = report(root, change)
-            if view["coverage"] == "not_recorded":
-                raise KnowledgeError("no owner-activated knowledge policy", exit_code=3)
-            request = {
-                "schema_version": PROTOCOL,
-                "operation_id": operation_id,
-                "expected_revision": expected_revision,
-                "change_id": change,
-                "delivery": {
-                    k: view[k]
-                    for k in (
-                        "change_id",
-                        "constraints",
-                        "basis_digest",
-                        "evaluated",
-                        "context",
-                        "recognition_evidence",
-                    )
-                },
-            }
-        result = _submit(root, "knowledge_delivered", request)
-        current = report(root, change)
-        result["stale"] = (
-            result["basis_digest"] != current["basis_digest"]
-            or result["constraints"] != current["constraints"]
-        )
-        result["missing_observations"] = ["recipient-acquisition", "understanding", "compliance"]
-        result["limits"] = ["explicit-rules-only", "single-repository"]
-        return result
+    _run(ctx, "knowledge deliver", lambda root: deliver_knowledge(
+        root, change, operation_id, expected_revision,
+    ))
 
-    _run(ctx, "knowledge deliver", action)
+
+def deliver_knowledge(root: Path, change: str, operation_id: str,
+                      expected_revision: str) -> dict[str, Any]:
+    """Shared native supply operation; preserves CAS and replay semantics."""
+    policy = load_policy(root)
+    ledger, _ = load_ledger(events_path(root), policy)
+    prior = ledger["operations"].get(operation_id)
+    if prior:
+        request = prior["request"]
+        if (
+            request["change_id"] != change
+            or request["expected_revision"] != expected_revision
+            or "delivery" not in request
+        ):
+            raise KnowledgeError("operation ID reused for a different delivery", exit_code=5)
+    else:
+        view = report(root, change)
+        if view["coverage"] == "not_recorded":
+            raise KnowledgeError("no owner-activated knowledge policy", exit_code=3)
+        request = {
+            "schema_version": PROTOCOL,
+            "operation_id": operation_id,
+            "expected_revision": expected_revision,
+            "change_id": change,
+            "delivery": {
+                k: view[k]
+                for k in (
+                    "change_id",
+                    "constraints",
+                    "basis_digest",
+                    "evaluated",
+                    "context",
+                    "recognition_evidence",
+                )
+            },
+        }
+    result = _submit(root, "knowledge_delivered", request)
+    current = report(root, change)
+    result["stale"] = (
+        result["basis_digest"] != current["basis_digest"]
+        or result["constraints"] != current["constraints"]
+    )
+    result["missing_observations"] = ["recipient-acquisition", "understanding", "compliance"]
+    result["limits"] = ["explicit-rules-only", "single-repository"]
+    return result
 
 
 @knowledge_group.command("show")

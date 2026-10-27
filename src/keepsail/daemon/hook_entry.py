@@ -37,11 +37,14 @@ env KEEPSAIL_CHANGE_ID  optional override (all modes); default derives
                               the active (most recently active non-terminal) change
                               from the `changes` map in .harness/state.yaml.
 
-Fail-open everywhere (Axiom 1: prevent, don't punish — never block on a call
+Legacy modes fail open (Axiom 1: prevent, don't punish — never block on a call
 shape we don't understand): empty argv, no .harness/, malformed stdin, corrupt
 state, and an unknown --agent ALL ALLOW. The decision is pure and in-process
 (design 2026-07-03): one state.yaml snapshot → the pure PreToolUseGate; there is
-no daemon on the decision path.
+no daemon on the decision path. The explicit Claude `--context` mode instead
+reports unavailable selected edit prerequisites as exit 2; read/diagnostic events
+remain nonblocking. Host-skipped hooks or host-enforced timeouts are outside the
+process's control and require separate activation/latency evidence.
 """
 from __future__ import annotations
 
@@ -88,14 +91,19 @@ def main() -> None:  # console_script entry
             if event == "stop":
                 from keepsail.adapters.agent.claude_code import ClaudeCodeAdapter
                 _run_stop(ClaudeCodeAdapter())
-            else:
+            elif "--context" in argv:
+                from keepsail.daemon.context_hook import run_context_hook
+                cli_index = argv.index("--cli") + 1 if "--cli" in argv else len(argv)
+                cli = argv[cli_index] if cli_index < len(argv) else None
+                run_context_hook(event, cli)
+            elif event == "pre-tool-use":
                 _run_claude_code_shim()
             return
         if agent == "codex":
             if event == "stop":
                 from keepsail.adapters.agent.codex import CodexAdapter
                 _run_stop(CodexAdapter())
-            else:
+            elif event == "pre-tool-use":
                 _run_codex_shim()
             return
         # Fail-open: never block on a shim contract we don't understand.
@@ -222,7 +230,8 @@ def _run_stop(adapter: AgentAdapter) -> None:
 
 
 def _decide(
-    tool: str, file: str | None
+    tool: str, file: str | None, *, context_session: str | None = None,
+    context_change: str | None = None,
 ) -> tuple[Literal["allow", "block"], str, str | None]:
     """Shared in-process decision core for all invocation modes (design 2026-07-03).
 
@@ -254,11 +263,20 @@ def _decide(
 
     override = os.environ.get("KEEPSAIL_CHANGE_ID")
     snapshot = load_state_snapshot(root, change_id_override=override)
+    entry_context = None
+    if context_session is not None:
+        from keepsail.core.context import context_gate_inputs
+        from keepsail.core.state_snapshot import StateSnapshot
+
+        state, entry_context = context_gate_inputs(
+            root, context_change or "", context_session, canonical_relpath(root, file),
+        )
+        snapshot = StateSnapshot(change_id=context_change, state=state)
     # Deferral (design 2026-07-29) lives inside `patterns_for_state` — see its
     # docstring in `core/plan_paths.py` for the rationale and the
     # d-keepsail-single-gate-policy note on why `cli/gate.py` calls the same helper.
     patterns = patterns_for_state(root, snapshot.state, PLAN_PATH_ALLOW_STATES)
-    result = PreToolUseGate(plan_path_patterns=patterns).decide(
+    result = PreToolUseGate(plan_path_patterns=patterns, entry_context=entry_context).decide(
         ProposedAction(
             kind="edit", file=file, resolved_path=canonical_relpath(root, file)
         ),

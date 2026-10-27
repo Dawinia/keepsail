@@ -121,5 +121,30 @@ The product identity is stable but the ledger is local to one repository. Shared
 product authority across repositories, broad knowledge formation, universal
 semantic applicability, full agent-loop ownership and all-tool enforcement remain
 unimplemented obligations/boundaries as specified by the normative architecture.
-This repository's knowledge policy is not activated; these are local source and
-isolated test capabilities, not published-package, active-hook or remote-CI proof.
+At the 2026-10-24 slice above, this repository's policy had not been activated.
+The following dated update records the later trusted-base activation; source,
+installed hooks, package publication and actual CI/session evidence remain separate.
+
+## 2026-10-27 baseline refresh and single-harness integration candidate
+
+Live audit baseline: main, origin/main and remote main were all
+`bb69097dffee4e782568da4ea688d06b5773cbf4`. The native contract-base resolver
+returned the same commit. This dated section preserves the earlier historical
+audit instead of applying its gaps as current capability claims.
+
+| Obligation | Current evidence and remaining boundary |
+|---|---|
+| Trusted knowledge policy | [PR #130](https://github.com/Dawinia/keepsail/pull/130) merged the policy; native resolution reports active `8837f4d7...`. Repository protocol applies separately from the pilot knowledge's Change-specific selector. |
+| Stable in-flight grounds | [PR #131](https://github.com/Dawinia/keepsail/pull/131) preserves immutable trigger/approval/disposition across unrelated coverage changes while exposing real relevance changes. |
+| Real manual cross-session CLI use | [PR #132](https://github.com/Dawinia/keepsail/pull/132) and [acceptance](knowledge-pilot/acceptance.md) retain the actual replacement executor, v1/v2 and four fact categories. This is not proof of the new hook path. |
+| Baseline and historical closure | [PR #133](https://github.com/Dawinia/keepsail/pull/133) supplies historical merged-Change recovery compatibility; native product-baseline and pilot states are ARCHIVED. Unrelated READY_TO_MERGE remnants remain outside this Change. |
+| Checkability and authority | The old table's tier-3 quotation is historical. Current [technical architecture](ARCHITECTURE.md#7-decision-conformance--the-core-decisions-bind-code-subsystem) separates checkability from constraint authority. |
+| C1/C2 entry context | The [confirmed plan](plans/2026-10-27-harness-knowledge-context.md) adds explicit Change/session/epoch binding and complete frozen approval/commitment/restriction and ratified-text projection. Candidate implementation needs current exact review and actual host acceptance. |
+| C3/C6 delivery and observation | Native supply, bounded pages, exact CLI-return reconstruction, native whole-version acquisition and separate declarations/checks. SessionStart printing is not acquisition; empty-set context receipts are not knowledge versions. |
+| C4/C5 recovery and local action | Current-authority refresh retains old version/approval grounds; actual paths can expose new applicability. Selected edit preconditions preserve independent work and existing authoring allowances. Real A/B and recognized v1/v2 disposition remain required. |
+
+The [new entry guide](knowledge-context.md) describes the candidate interface.
+Implementation fixtures are supplemental evidence, not actual Claude callback or
+replacement-session acceptance. No current claim of complete H7/A1–A12 acceptance,
+published package, merged integration, shared cross-repository authority, semantic
+recall, all-tool interception or model understanding/compliance is made here.

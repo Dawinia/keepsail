@@ -1,0 +1,42 @@
+{
+  "schema_version": "knowledge-operation/v1",
+  "operation_id": "harness-context-v1-recognition-20261028-01",
+  "expected_revision": "2feb40645bcbebf2c9eccf84c84b1139d546ac2cfb44cec94598cffd560d4c43",
+  "change_id": "2026-10-27-harness-knowledge-context",
+  "evidence": {
+    "schema_version": "knowledge-evidence/v1",
+    "evidence_id": "harness-context-owner-recognition-v1-20261028-01",
+    "kind": "recognition",
+    "subject_id": "24276b8e081c3d297cb035d5cf868f974e6e8afbc349edf0312596b3acde52fe",
+    "decision": "recognize",
+    "process": {
+      "id": "keepsail-owner-knowledge",
+      "version": "1"
+    },
+    "issuer": "keepsail-product-owner",
+    "authorization_effect": "unchanged",
+    "original_evidence": {
+      "source": "owner-message-in-chat",
+      "thread_id": "01a17d4a-2fff-7cc0-9558-39ce65fb006d",
+      "quoted_response": "认可该确切 v1 为上述范围内的约束",
+      "object_presented": {
+        "knowledge_id": "harness-context-evidence-boundary",
+        "version_digest": "24276b8e081c3d297cb035d5cf868f974e6e8afbc349edf0312596b3acde52fe",
+        "body": "在本 Change 的 Claude Code 集成边界内，供应内容、实际 CLI 返回的可观察获取、执行者采用或异议声明、实际检查结果分别记录；开始或恢复任务时交付当前有效批准、适用约束和未决事项，保留原有版本依据。获取记录不证明理解，执行者声明不证明合规。",
+        "selector": {
+          "repository_ids": [
+            "Dawinia/keepsail"
+          ],
+          "change_ids": [
+            "2026-10-27-harness-knowledge-context"
+          ]
+        },
+        "authority": "constraint"
+      },
+      "boundary": "Only this exact v1 and scope; no work-commitment change, v2 recognition or impact disposition."
+    },
+    "provenance": {
+      "policy_digest": "8837f4d7a4fede285eef7d8a15ab450ee70ea779e0580ac90f27cf9efbb86337"
+    }
+  }
+}

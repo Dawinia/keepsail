@@ -6,13 +6,15 @@ ratified_at: '2026-10-23T14:02:36.491824Z'
 supersedes: d-single-gate-policy
 ratified_text_hash: sha256:d1c0a806764e84409b7e35ca60d5f70ef52d7dc8fb1a3f4c7f23a809df5080cc
 last_reconciled_by: dawinialo@163.com
-last_reconciled_at: '2026-10-23T14:05:09.655775Z'
+last_reconciled_at: '2026-10-27T14:35:44.418049Z'
 last_reconcile_kind: self
-last_reconcile_justification: 'Read gates.decisions and shared PreToolUseGate reader:
-  same four literals, disjoint allowance states and canonical hard-coded paths; hook
-  and gate CLI still share the single policy.'
+last_reconcile_justification: 'Reviewed full decisions/gate diff: existing lifecycle
+  matrix and authoring path sets unchanged. Selected entry control and missing-state
+  policy live in gates.decisions; hook and gate CLI consume the same context_gate_inputs
+  and pure gate. Added readiness never grants work authorization or changes lifecycle
+  states. 96 gate tests passed; independent exact code review remains required.'
 reconciled_anchors:
-  src/keepsail/gates/decisions.py: sha256:7646c57c7beabdf2f903fe00667d6be1444a59907e9a794d03bb6469bd2ff892
+  src/keepsail/gates/decisions.py: sha256:3b415033b7492047cf634cf8a1198933d0169f640bd4bbb27cc28f22c202727d
 ---
 Gate policy lives in one module (gates.decisions); the in-process gate reads it, neither invents nor forks policy.
 

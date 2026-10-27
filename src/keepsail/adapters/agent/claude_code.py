@@ -28,6 +28,7 @@ API stability: **experimental** (v0.1).
 
 from __future__ import annotations
 
+import shlex
 import shutil
 import subprocess
 from pathlib import Path
@@ -122,6 +123,15 @@ For each review epoch:
 The imported evidence must cover the exact frozen subject. A reviewer may read
 unchanged repository material as supporting context, but a finding never widens
 the target implicitly. Do not edit while an external review is pending.
+
+#### Optional session-bound context
+
+When installed with `adapter install claude-code --knowledge-context`, follow the
+SessionStart hint before product edits: run its exact Bash command and retrieve
+every context page. Bind the intended task with `KEEPSAIL_CHANGE_ID`; a resumed or
+compacted session requires the new entry's retrieval. Declare adoption or challenge
+explicitly. See [context delivery](docs/knowledge-context.md) for statements,
+refresh, independent-work checks, evidence boundaries and opt-out.
 {_AGENTS_MD_END}"""
 
 
@@ -134,6 +144,7 @@ class ClaudeCodeAdapter(AgentAdapter):
 
     name: ClassVar[str] = "claude-code"
     version: ClassVar[str] = "0.1.0"
+    knowledge_context: bool | None = None
     capabilities: ClassVar[dict[str, bool]] = {
         "pre_tool_use_hook": True,  # Claude Code PreToolUse hook
         "post_tool_use_hook": True,  # Claude Code PostToolUse hook
@@ -196,12 +207,38 @@ class ClaudeCodeAdapter(AgentAdapter):
     def plan_hook_install(
         self, workspace: Path, *, hook_executable: str, cli_executable: str
     ) -> SettingsMergePlan:
-        return plan_settings_merge(
+        legacy = plan_settings_merge(
             workspace / ".claude" / "settings.local.json",
             workspace_root=workspace,
             pre_tool_use_command=f"{hook_executable} --agent claude-code",
             session_start_command=f"{cli_executable} change resume",
             stop_command=f"{hook_executable} --agent claude-code --event stop",
+        )
+        enabled = self.knowledge_context
+        if enabled is None:
+            enabled = b"--agent claude-code --event session-start" in (legacy.original_bytes or b"")
+        if not enabled:
+            if self.knowledge_context is False:
+                return plan_settings_merge(
+                    workspace / ".claude" / "settings.local.json", workspace_root=workspace,
+                    pre_tool_use_command=f"{hook_executable} --agent claude-code",
+                    session_start_command=f"{cli_executable} change resume",
+                    stop_command=f"{hook_executable} --agent claude-code --event stop",
+                    context_commands={},
+                )
+            return legacy
+        hook = shlex.quote(hook_executable.replace("\\", "/"))
+        cli = shlex.quote(cli_executable.replace("\\", "/"))
+        base = f"{hook} --agent claude-code"
+        return plan_settings_merge(
+            workspace / ".claude" / "settings.local.json", workspace_root=workspace,
+            pre_tool_use_command=f"{base} --context",
+            session_start_command=f"{base} --event session-start --context --cli {cli}",
+            stop_command=f"{base} --event stop",
+            context_commands={
+                "UserPromptSubmit": f"{base} --event user-prompt-submit --context",
+                "PostToolUse": f"{base} --event post-tool-use --context",
+            },
         )
 
     def stop_should_check(self, payload: dict[str, Any]) -> bool:
@@ -257,9 +294,15 @@ class ClaudeCodeAdapter(AgentAdapter):
     def on_uninstall(self, workspace: Path) -> None:
         """Restore the earliest pristine backup or remove marker-owned hooks."""
         settings_path = workspace / ".claude" / "settings.local.json"
+        preview = self.plan_hook_install(workspace, hook_executable="keepsail-hook",
+                                         cli_executable="keepsail")
+        context_events = b"--agent claude-code --event session-start" in (
+            preview.original_bytes or b""
+        )
         restore_or_remove_managed_hooks(
             settings_path,
             pre_tool_use_marker="--agent claude-code",
             stop_marker="--agent claude-code --event stop",
             workspace_root=workspace,
+            context_events=context_events,
         )

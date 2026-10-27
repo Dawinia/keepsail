@@ -94,6 +94,15 @@ For each review epoch:
 The imported evidence must cover the exact frozen subject. A reviewer may read
 unchanged repository material as supporting context, but a finding never widens
 the target implicitly. Do not edit while an external review is pending.
+
+#### Optional session-bound context
+
+When installed with `adapter install claude-code --knowledge-context`, follow the
+SessionStart hint before product edits: run its exact Bash command and retrieve
+every context page. Bind the intended task with `KEEPSAIL_CHANGE_ID`; a resumed or
+compacted session requires the new entry's retrieval. Declare adoption or challenge
+explicitly. See [context delivery](docs/knowledge-context.md) for statements,
+refresh, independent-work checks, evidence boundaries and opt-out.
 <!-- /keepsail agent: claude-code -->
 
 ### Before opening PR

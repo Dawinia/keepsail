@@ -100,12 +100,19 @@ def adapter_group() -> None:
 
 @adapter_group.command("install")
 @click.argument("name")  # free-form: registry membership checked below (NOT click.Choice)
+@click.option("--knowledge-context/--no-knowledge-context", default=None,
+              help="Opt in/out of Claude's session-bound knowledge delivery (otherwise preserve).")
 @click.pass_context
-def adapter_install(ctx: click.Context, name: str) -> None:
+def adapter_install(ctx: click.Context, name: str, knowledge_context: bool | None) -> None:
     """Install the <name> adapter (registers hooks + persists adapters.yaml)."""
     root = _resolve_root(ctx, "adapter install")
 
     adapter = _resolve_builtin_or_exit(name, "adapter install")
+    if knowledge_context is not None:
+        from keepsail.adapters.agent.claude_code import ClaudeCodeAdapter
+        if not isinstance(adapter, ClaudeCodeAdapter):
+            raise click.UsageError("--knowledge-context is supported only for claude-code")
+        adapter.knowledge_context = knowledge_context
     kind = "framework" if isinstance(adapter, FrameworkAdapter) else "agent"
 
     # verification.yaml: empty-safe (agents + the v0.1 framework built-ins that

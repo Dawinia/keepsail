@@ -41,6 +41,7 @@ keepsail adapter install [OPTIONS] NAME
 | Param | Type | Default | Description |
 |-------|------|---------|-------------|
 | `NAME` | text | *required* |  |
+| `--knowledge-context` | flag | `False` | Opt in/out of Claude's session-bound knowledge delivery (otherwise preserve). |
 
 **Exit codes:**
 
@@ -180,6 +181,27 @@ keepsail change abandon [OPTIONS] SLUG
 - `1` generic error
 - `3` no `.harness/`
 - `5` lock contention
+
+## keepsail change context
+
+Retrieve the explicitly selected Change's current authority context.
+
+```
+keepsail change context [OPTIONS] SLUG
+```
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `SLUG` | text | *required* |  |
+| `--preview` | flag | `False` | Read current context without recording supply. |
+| `--entry` | text | — | SessionStart entry epoch to supply and retrieve. |
+| `--page` | integer range | `1` |  |
+| `--statement` | file | — | Explicit entry-statement/v1 JSON; never auto-adopts knowledge. |
+
+**Exit codes:**
+
+- `0` success
+- `1` generic error
 
 ## keepsail change list
 
@@ -560,6 +582,8 @@ keepsail gate check [OPTIONS] {pre-tool-use|pre-commit|pre-push|pr-open|pr-merge
 | `--file` | text | — |  |
 | `--change-id` | text | — |  |
 | `--pr` | integer | — |  |
+| `--agent` | {claude-code} | — |  |
+| `--session-id` | text | — | Current explicitly bound Claude session. |
 
 **Exit codes:**
 
