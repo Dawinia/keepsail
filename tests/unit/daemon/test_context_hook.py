@@ -82,3 +82,20 @@ def test_invalid_tool_returns_do_not_fill_empty_context_observations(tmp_path, m
     assert observe_return(tmp_path, callback)["complete"]
     assert entry_readiness(tmp_path, "change-a", "executor-a")["ready"]
     assert workspace.cli("knowledge", "show")["data"]["observations"] == []
+
+
+def test_same_workspace_subdirectory_is_not_a_different_task_root(tmp_path):
+    from keepsail.daemon.context_hook import start_session
+
+    Workspace(tmp_path)
+    nested = tmp_path / "src"
+    nested.mkdir()
+    payload = {"hook_event_name": "SessionStart", "session_id": "executor-nested",
+               "source": "startup", "cwd": str(nested)}
+    entry = start_session(tmp_path, payload, cli_executable="/tools/keepsail", change="change-a")
+    assert entry["root"] == tmp_path.resolve().as_posix()
+    foreign = tmp_path / "other-product"
+    (foreign / ".harness").mkdir(parents=True)
+    with pytest.raises(ValueError):
+        start_session(tmp_path, {**payload, "cwd": str(foreign)},
+                      cli_executable="/tools/keepsail", change="change-a")

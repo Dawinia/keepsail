@@ -20,6 +20,7 @@ from keepsail.core.approval import (
 )
 from keepsail.core.decisions import compute_body_hash, load_decisions
 from keepsail.core.knowledge import KnowledgeError, check, load_ledger, load_policy, report
+from keepsail.core.paths import HarnessNotInitialized, find_harness_root
 from keepsail.core.reducer import derive_state
 from keepsail.core.scope_match import resolve_commit
 from keepsail.core.slug import validate_slug
@@ -39,6 +40,16 @@ _AUTHORITY_FIELDS = (
 class EntryReadiness:
     blocking_reasons: tuple[str, ...]
     next_command: str
+
+
+def callback_matches_workspace(root: Path, cwd: Any) -> bool:
+    """Bind a callback to its nearest workspace, including valid subdirectories."""
+    if not isinstance(cwd, str) or not Path(cwd).is_absolute():
+        return False
+    try:
+        return find_harness_root(Path(cwd)) == root.resolve()
+    except (HarnessNotInitialized, ValueError, OSError):
+        return False
 
 
 def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -163,7 +174,10 @@ def make_manifest(projection: dict[str, Any], entry: dict[str, Any],
 
 def read_manifest(root: Path, entry: dict[str, Any]) -> dict[str, Any]:
     selected = load_json_record(context_path(root, entry["entry_id"], "current.json"))
-    mid = selected["manifest_id"]
+    return _manifest_at(root, entry, selected["manifest_id"])
+
+
+def _manifest_at(root: Path, entry: dict[str, Any], mid: str) -> dict[str, Any]:
     if not isinstance(mid, str) or not re.fullmatch(r"[0-9a-f]{64}", mid):
         raise KnowledgeError("invalid manifest identity")
     manifest = load_json_record(context_path(root, entry["entry_id"], mid + ".json"))
@@ -182,6 +196,48 @@ def read_manifest(root: Path, entry: dict[str, Any]) -> dict[str, Any]:
         raise KnowledgeError("manifest content does not match authority",
                              code="context_unavailable")
     return manifest
+
+
+def _project_statements(root: Path, change: str,
+                        ledger: dict[str, Any]) -> tuple[list[dict[str, Any]], list[str]]:
+    """Recover retained self-reports without granting knowledge/approval authority."""
+    entry_ids = set()
+    for delivery_id, delivery in ledger["deliveries"].items():
+        match = re.fullmatch(r"context-([A-Za-z0-9_-]{1,128})-[0-9a-f]{64}", delivery_id)
+        if delivery["change_id"] == change and match:
+            entry_ids.add(match[1])
+    declarations, problems = [], []
+    # ponytail: scan this Change's retained entry declarations; index only if measured costly.
+    for entry_id in sorted(entry_ids):
+        try:
+            directory = context_path(root, entry_id, "statements")
+            if not directory.exists():
+                continue
+            entry = load_json_record(context_path(root, entry_id, "entry.json"))
+            if (entry.get("entry_id") != entry_id or entry.get("change_id") != change
+                    or entry.get("root") != root.resolve().as_posix()):
+                raise KnowledgeError("historical entry identity mismatch")
+            for path in sorted(directory.glob("*.json")):
+                statement = load_json_record(context_path(root, entry_id, "statements", path.name))
+                manifest = _manifest_at(root, entry, statement["manifest_id"])
+                if (statement.get("schema_version") != "entry-statement/v1"
+                        or statement.get("entry_id") != entry_id
+                        or digest_record(statement) != path.stem
+                        or manifest["delivery_id"] not in ledger["deliveries"]):
+                    raise KnowledgeError("historical statement integrity mismatch")
+                declarations.append({
+                    "statement_id": path.stem, "change_id": change,
+                    "source_entry_id": entry_id, "source_session_id": entry["session_id"],
+                    "manifest_id": statement["manifest_id"], "declaration": statement,
+                    "category": "executor-self-report", "authority_effect": "unchanged",
+                    "status": "unresolved" if statement["decision"] == "challenge" else "declared",
+                    "recognized_disposition": None, "current_epoch_observation": False,
+                    "resolution_scope": "no linked recognized conclusion in this carrier",
+                    "locator": path.relative_to(root).as_posix(),
+                })
+        except (ValueError, KeyError, TypeError, OSError) as exc:
+            problems.append(f"entry declaration unavailable: {entry_id}: {exc}")
+    return declarations, problems
 
 
 def page_data(manifest: dict[str, Any], page: int) -> dict[str, Any]:
@@ -205,7 +261,7 @@ def validate_return(root: Path, entry: dict[str, Any], manifest: dict[str, Any],
     if (not isinstance(payload.get("tool_input"), dict)
             or payload.get("hook_event_name") != "PostToolUse" or payload.get("tool_name") != "Bash"
             or payload.get("session_id") != entry["session_id"] or payload.get("agent_id")
-            or Path(payload.get("cwd", "")).resolve() != root.resolve()
+            or not callback_matches_workspace(root, payload.get("cwd"))
             or not isinstance(payload.get("tool_use_id"), str) or not payload["tool_use_id"]):
         raise KnowledgeError("tool return identity mismatch", code="page_incomplete")
     response = payload.get("tool_response")
@@ -339,6 +395,8 @@ def project_context(root: Path, change: str) -> dict[str, Any]:
     ) else None
     decisions, errors = load_decisions(root)
     problems = [f"decision unavailable: {e}" for e in errors]
+    declarations, declaration_errors = _project_statements(root, change, ledger)
+    problems.extend(declaration_errors)
     conventions = []
     for decision in sorted(decisions, key=lambda d: d.id):
         if decision.status != "ratified":
@@ -390,15 +448,19 @@ def project_context(root: Path, change: str) -> dict[str, Any]:
     return {
         "schema_version": SCHEMA, **authority, "authority_digest": authority_digest,
         "recovery": {"supplied": list(history.values()),
+                     "unresolved_declarations": [d["statement_id"] for d in declarations
+                                                 if d["status"] == "unresolved"],
                      "detail": "knowledge show retains every exact historical delivery/context"},
         "trace": {
+            "project_statements": declarations,
             "statements": knowledge.get("statements", [])[-10:],
             "statement_count": len(knowledge.get("statements", [])),
             "acquisition_coverage": knowledge.get("acquisition_coverage", [])[-10:],
             "observation_ids": [o.get("tool_use_id", o.get("delivery_id"))
                                 for o in knowledge.get("observations", [])[-10:]],
             "observation_count": len(knowledge.get("observations", [])),
-            "detail": "knowledge show retains the complete unabridged trace",
+            "detail": "knowledge show retains native knowledge trace; project declarations "
+                      "retain original entry/manifest locators and do not grant authority",
             "missing": knowledge.get("missing_observations", []),
         },
         "supply_status": "not_supplied", "acquisition_status": "not_observed",

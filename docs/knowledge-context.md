@@ -56,6 +56,14 @@ appends alone do not invalidate it. Repeated historical supplies are grouped by
 version and approval epoch in the operational projection. `knowledge show` retains
 every original delivery/context and the complete unabridged trace.
 
+Approval/convention/empty-set declarations retain their original entry and manifest
+in the context trace, including after session replacement or compaction. Reported
+challenges with no linked recognized conclusion remain labelled unresolved in
+that carrier; the label does not confer authority or globally block independent
+work. A later declaration cannot erase the original fact or substitute for a
+recognized disposition. Native knowledge trace remains available through
+`knowledge show`; outer declarations retain their operation-log locators.
+
 ## Four separate facts
 
 | Fact | Evidence and limit |

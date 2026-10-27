@@ -1,0 +1,134 @@
+{
+  "assessment": {
+    "approval_id": "approval:2026-10-27-harness-context-plan-01-78d618de",
+    "affected_commitments": [
+      "H1",
+      "H3",
+      "H4",
+      "H5",
+      "H6",
+      "H8"
+    ],
+    "conclusion": "within_approval",
+    "reasons": [
+      "Address exact candidate review rejection: infer opt-in only from a managed SessionStart registration and restore project-context declarations with immutable original entry/manifest provenance, explicitly as self-reports without authority or current-entry acquisition.",
+      "Accept callback cwd in the same nearest Keepsail workspace, including subdirectories, while rejecting nested foreign workspaces; preserve root, Change and epoch binding.",
+      "Retain original rejected review and add regression coverage within the effective approval. H7 real Claude A/B acceptance remains pending; this record is coverage, not completion."
+    ],
+    "references": [
+      "docs/plans/2026-10-27-harness-knowledge-context.md",
+      "docs/knowledge-context.md",
+      "docs/evidence/harness-knowledge-context/README.md"
+    ]
+  },
+  "coverage": [
+    {
+      "path": "AGENTS.md"
+    },
+    {
+      "path": "docs/README.md"
+    },
+    {
+      "path": "docs/adapters/claude-code.md"
+    },
+    {
+      "path": "docs/cli-reference.md"
+    },
+    {
+      "path": "docs/decisions/d-gate-governs-git-product.md"
+    },
+    {
+      "path": "docs/decisions/d-keepsail-single-gate-policy.md"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/README.md"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/assessment-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/original-plan-review-01.md"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/plan-review-01.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/v1-proposal-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/v1-recognition-input.json"
+    },
+    {
+      "path": "docs/knowledge-context.md"
+    },
+    {
+      "path": "docs/knowledge.md"
+    },
+    {
+      "path": "docs/limitations.md"
+    },
+    {
+      "path": "docs/plans/2026-10-27-harness-knowledge-context.md"
+    },
+    {
+      "path": "docs/product-architecture-coverage.md"
+    },
+    {
+      "path": "src/keepsail/adapters/agent/_settings_merge.py"
+    },
+    {
+      "path": "src/keepsail/adapters/agent/claude_code.py"
+    },
+    {
+      "path": "src/keepsail/cli/adapter.py"
+    },
+    {
+      "path": "src/keepsail/cli/change.py"
+    },
+    {
+      "path": "src/keepsail/cli/gate.py"
+    },
+    {
+      "path": "src/keepsail/cli/knowledge.py"
+    },
+    {
+      "path": "src/keepsail/cli/output.py"
+    },
+    {
+      "path": "src/keepsail/core/context.py"
+    },
+    {
+      "path": "src/keepsail/daemon/context_hook.py"
+    },
+    {
+      "path": "src/keepsail/daemon/hook_entry.py"
+    },
+    {
+      "path": "src/keepsail/gates/decisions.py"
+    },
+    {
+      "path": "src/keepsail/gates/pre_tool_use.py"
+    },
+    {
+      "path": "tests/integration/adapter/test_claude_context.py"
+    },
+    {
+      "path": "tests/unit/adapters/test_claude_code.py"
+    },
+    {
+      "path": "tests/unit/core/test_context.py"
+    },
+    {
+      "path": "tests/unit/daemon/test_context_hook.py"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/candidate-code-review-01.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/original-candidate-code-review-01.md"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/assessment-review-fixes-input.json"
+    }
+  ]
+}

@@ -12,6 +12,7 @@ from typing import Any
 from keepsail.cli.knowledge import _submit, deliver_knowledge
 from keepsail.core.approval import digest_record, load_json_record
 from keepsail.core.context import (
+    callback_matches_workspace,
     context_path,
     entry_command,
     make_manifest,
@@ -45,6 +46,7 @@ def _summary(root: Path, entry: dict[str, Any], projection: dict[str, Any]) -> s
                         for v in (knowledge["constraints"] or [])[:10]],
         "constraint_count": len(knowledge["constraints"] or []),
         "pending_impacts": sum(i["status"] != "resolved" for i in knowledge["impacts"] or []),
+        "unresolved_project_declarations": len(projection["recovery"]["unresolved_declarations"]),
         "problems": projection["problems"][:5],
         "next_command": entry_command(entry),
         "instructions": (
@@ -79,7 +81,7 @@ def run_context_hook(event: str, cli: str | None) -> None:
         payload = json.load(sys.stdin)
         root = find_harness_root(Path.cwd())
         if (not isinstance(payload, dict) or payload.get("hook_event_name") != names[event]
-                or Path(payload.get("cwd", "")).resolve() != root.resolve()):
+                or not callback_matches_workspace(root, payload.get("cwd"))):
             raise KnowledgeError("context callback identity unavailable")
         change = os.environ.get("KEEPSAIL_CHANGE_ID", "")
         if event == "pre-tool-use":
@@ -151,7 +153,7 @@ def run_context_hook(event: str, cli: str | None) -> None:
 def start_session(root: Path, payload: dict[str, Any], *, cli_executable: str,
                   change: str) -> dict[str, Any]:
     if (payload.get("hook_event_name") != "SessionStart" or payload.get("agent_id")
-            or Path(payload.get("cwd", "")).resolve() != root.resolve()):
+            or not callback_matches_workspace(root, payload.get("cwd"))):
         raise KnowledgeError("invalid session-start callback", code="entry_unbound")
     entry = new_entry(root, change, payload.get("session_id", ""),
                        payload.get("source", ""), cli_executable)

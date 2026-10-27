@@ -28,6 +28,7 @@ API stability: **experimental** (v0.1).
 
 from __future__ import annotations
 
+import json
 import shlex
 import shutil
 import subprocess
@@ -135,6 +136,28 @@ refresh, independent-work checks, evidence boundaries and opt-out.
 {_AGENTS_MD_END}"""
 
 
+def _context_hook_installed(raw: bytes | None) -> bool:
+    """Only an actual managed SessionStart registration selects the existing mode."""
+    settings = json.loads(raw or b"{}")
+    for entry in settings.get("hooks", {}).get("SessionStart", []):
+        if not isinstance(entry, dict) or not isinstance(entry.get("hooks"), list):
+            continue
+        for hook in entry["hooks"]:
+            if not isinstance(hook, dict) or hook.get("type") != "command":
+                continue
+            command = hook.get("command")
+            if (not isinstance(command, str)
+                    or "--agent claude-code --event session-start" not in command):
+                continue
+            tokens = shlex.split(command)
+            if (len(tokens) == 8
+                    and Path(tokens[0]).name.lower() in {"keepsail-hook", "keepsail-hook.exe"}
+                    and tokens[1:7] == ["--agent", "claude-code", "--event", "session-start",
+                                       "--context", "--cli"]):
+                return True
+    return False
+
+
 class ClaudeCodeAdapter(AgentAdapter):
     """Reference adapter for the Claude Code runtime (adapter-architecture §3.5).
 
@@ -216,7 +239,7 @@ class ClaudeCodeAdapter(AgentAdapter):
         )
         enabled = self.knowledge_context
         if enabled is None:
-            enabled = b"--agent claude-code --event session-start" in (legacy.original_bytes or b"")
+            enabled = _context_hook_installed(legacy.original_bytes)
         if not enabled:
             if self.knowledge_context is False:
                 return plan_settings_merge(
@@ -296,9 +319,7 @@ class ClaudeCodeAdapter(AgentAdapter):
         settings_path = workspace / ".claude" / "settings.local.json"
         preview = self.plan_hook_install(workspace, hook_executable="keepsail-hook",
                                          cli_executable="keepsail")
-        context_events = b"--agent claude-code --event session-start" in (
-            preview.original_bytes or b""
-        )
+        context_events = _context_hook_installed(preview.original_bytes)
         restore_or_remove_managed_hooks(
             settings_path,
             pre_tool_use_marker="--agent claude-code",

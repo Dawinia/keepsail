@@ -148,3 +148,34 @@ def test_dependent_challenge_waits_while_independent_approved_work_continues(tmp
     consume()
     assert entry_readiness(tmp_path, "change-a", "executor-a", "docs/independent.md")["ready"]
     assert not entry_readiness(tmp_path, "change-a", "executor-a", "src/db/file.py")["ready"]
+
+
+def test_project_only_declarations_recover_as_self_reports_in_new_epoch(tmp_path):
+    from keepsail.daemon.context_hook import start_session
+
+    workspace = Workspace(tmp_path)
+    callback = {"hook_event_name": "SessionStart", "session_id": "executor-a",
+                "source": "startup", "cwd": str(tmp_path)}
+    entry = start_session(tmp_path, callback, cli_executable="/tools/keepsail", change="change-a")
+    packet = workspace.cli("change", "context", "change-a", "--entry", entry["entry_id"])["data"]
+    for decision, reason in [("challenge", "unresolved convention question"),
+                             ("adopt", "explicit empty-set project adoption")]:
+        record = {"schema_version": "entry-statement/v1", "entry_id": entry["entry_id"],
+                  "manifest_id": packet["manifest_id"], "actor": "fixture-executor-a",
+                  "decision": decision, "reason": reason, "knowledge_versions": [],
+                  "project_context": True, "dependent_paths": ["src/db"]}
+        workspace.cli("change", "context", "change-a", "--entry", entry["entry_id"],
+                       "--statement", str(workspace.write(record)))
+    next_entry = start_session(tmp_path, {**callback, "source": "compact"},
+                               cli_executable="/tools/keepsail", change="change-a")
+    projected = workspace.cli("change", "context", "change-a", "--preview")["data"]
+    declarations = projected["trace"]["project_statements"]
+    assert {d["declaration"]["reason"] for d in declarations} == {
+        "unresolved convention question", "explicit empty-set project adoption",
+    }
+    challenge = next(d for d in declarations if d["declaration"]["decision"] == "challenge")
+    assert challenge["status"] == "unresolved"
+    assert challenge["recognized_disposition"] is None
+    assert all(d["source_entry_id"] == entry["entry_id"] for d in declarations)
+    assert all(d["source_entry_id"] != next_entry["entry_id"] for d in declarations)
+    assert workspace.cli("knowledge", "show")["data"]["statements"] == []

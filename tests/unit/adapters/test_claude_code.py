@@ -81,6 +81,25 @@ def test_context_opt_in_is_one_transaction_and_survives_reinstall(tmp_path):
     assert "UserPromptSubmit" not in restored["hooks"]
 
 
+def test_permission_prose_does_not_opt_in_to_context(tmp_path):
+    path = tmp_path / ".claude/settings.local.json"
+    path.parent.mkdir()
+    path.write_text(json.dumps({
+        "permissions": {"allow": [
+            "Bash(keepsail-hook --agent claude-code --event session-start *)",
+        ]},
+        "hooks": {"SessionStart": [{"hooks": [
+            {"type": "command", "command": 'echo "user-owned'},
+        ]}]},
+    }), encoding="utf-8")
+    planned = ClaudeCodeAdapter().plan_hook_install(
+        tmp_path, hook_executable="/env/keepsail-hook", cli_executable="/env/keepsail",
+    )
+    settings = json.loads(planned.desired_bytes)
+    assert _commands(settings) == ["/env/keepsail-hook --agent claude-code"]
+    assert "PostToolUse" not in settings["hooks"]
+
+
 def _which_both(name: str) -> str | None:
     """Resolve both binaries install_hooks needs (PreToolUse + SessionStart)."""
     return {

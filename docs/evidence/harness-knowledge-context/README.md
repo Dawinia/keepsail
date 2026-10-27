@@ -41,3 +41,10 @@ operation inputs/results; runtime context receipts use the existing ignored
 operation-log area. An initial native delivery failed with Windows file sharing
 error 32; its idempotent retry succeeded. Its temporary file was preserved, along
 with all pre-existing untracked material. No ledger/state was hand-repaired.
+
+Candidate `3206f70` received a retained independent **reject** before installation:
+unrelated settings text could select context mode, and project-only declarations
+were not recovered in replacement context. Both fixes stay within H1/H3/H4/H6 and
+have failing-then-passing regressions. Its unfinished verification was cancelled;
+it is not a current passing verification or imported final code approval. The
+corrected exact candidate requires fresh verification and independent review.
