@@ -1,0 +1,770 @@
+{
+  "version": "code-subject/v1",
+  "change_id": "2026-10-27-harness-knowledge-context",
+  "approval_id": "approval:2026-10-28-harness-context-codex-revision-plan-01-84705107",
+  "base": "bb69097dffee4e782568da4ea688d06b5773cbf4",
+  "head": "4189c4d9122318caf55720892ddf1a3b3a6922fe",
+  "manifest": [
+    {
+      "status": "M",
+      "path": "AGENTS.md",
+      "old": {
+        "mode": "100644",
+        "blob": "036e37d4f91736ae547fa782bd862daea674125b"
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "4f8566aed81fd78faf5fe2370606cbd4093b6e96"
+      }
+    },
+    {
+      "status": "M",
+      "path": "docs/README.md",
+      "old": {
+        "mode": "100644",
+        "blob": "8ff5b8eccd33806804b27f7120d180328ce9039c"
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "3ce313d5f361d2c31fa74fedc6be17e91d1e31ac"
+      }
+    },
+    {
+      "status": "M",
+      "path": "docs/adapters/claude-code.md",
+      "old": {
+        "mode": "100644",
+        "blob": "74c630e0ef310bf1bb5717ab5c1aa3b72efcf93f"
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "1800a618f0957295ea59ee88bcfff257e7518a64"
+      }
+    },
+    {
+      "status": "M",
+      "path": "docs/adapters/codex.md",
+      "old": {
+        "mode": "100644",
+        "blob": "a35f00686add354c527938859144b33b5cec84f5"
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "76e3c2ce12d35dae7f7f80850afda9b49260aca1"
+      }
+    },
+    {
+      "status": "M",
+      "path": "docs/cli-reference.md",
+      "old": {
+        "mode": "100644",
+        "blob": "6a3331dcf6817c4fdb3bde794f4da307f990d594"
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "407ccceb8fdd3d3ba3ce9d30ec4ac0a798b3e7d5"
+      }
+    },
+    {
+      "status": "M",
+      "path": "docs/decisions/d-events-append-only.md",
+      "old": {
+        "mode": "100644",
+        "blob": "a08e974d2e2132c7a7002e87810484cc7cc8a341"
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "157a445d0112a8f216b3ed10c933932b4a0e30c8"
+      }
+    },
+    {
+      "status": "M",
+      "path": "docs/decisions/d-gate-governs-git-product.md",
+      "old": {
+        "mode": "100644",
+        "blob": "6d310e1d36a82af6b33fe12331445d68ecb0ab32"
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "46b0b7b3aa53690a544c83015643c2784bdd8018"
+      }
+    },
+    {
+      "status": "M",
+      "path": "docs/decisions/d-keepsail-single-gate-policy.md",
+      "old": {
+        "mode": "100644",
+        "blob": "37d1003b1a17e59485e3021a54820b6b148b90b8"
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "5931da7cc5f4e747d18f45614ef85918ee332309"
+      }
+    },
+    {
+      "status": "A",
+      "path": "docs/evidence/harness-knowledge-context/README.md",
+      "old": {
+        "mode": null,
+        "blob": null
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "168932b5b0530826eb8df423acdceb5db98854e7"
+      }
+    },
+    {
+      "status": "A",
+      "path": "docs/evidence/harness-knowledge-context/assessment-input.json",
+      "old": {
+        "mode": null,
+        "blob": null
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "ddf5888ae547fa7141137ec119a35fa11d220c22"
+      }
+    },
+    {
+      "status": "A",
+      "path": "docs/evidence/harness-knowledge-context/assessment-review-fixes-input.json",
+      "old": {
+        "mode": null,
+        "blob": null
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "7232b6635445a33ef55f5e2ee7ad6d432fc355f7"
+      }
+    },
+    {
+      "status": "A",
+      "path": "docs/evidence/harness-knowledge-context/candidate-code-review-01.json",
+      "old": {
+        "mode": null,
+        "blob": null
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "797d1129bad01a6bf3ec77d1f39da9d1212828f2"
+      }
+    },
+    {
+      "status": "A",
+      "path": "docs/evidence/harness-knowledge-context/codex-assessment-input.json",
+      "old": {
+        "mode": null,
+        "blob": null
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "c5de9d38462857a1e880cb1fcca03bafbf3865e4"
+      }
+    },
+    {
+      "status": "A",
+      "path": "docs/evidence/harness-knowledge-context/codex-budget-fix-assessment-input.json",
+      "old": {
+        "mode": null,
+        "blob": null
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "92ed03b30371c93720304a530f8b4a40e9e0d953"
+      }
+    },
+    {
+      "status": "A",
+      "path": "docs/evidence/harness-knowledge-context/codex-candidate-code-review-01.json",
+      "old": {
+        "mode": null,
+        "blob": null
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "993645721d27d04ea8c536a608fb79ec76115244"
+      }
+    },
+    {
+      "status": "A",
+      "path": "docs/evidence/harness-knowledge-context/codex-candidate-code-review-02.json",
+      "old": {
+        "mode": null,
+        "blob": null
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "4608fe3e8a6d06b5d021eadb43044bbdcda1e0f8"
+      }
+    },
+    {
+      "status": "A",
+      "path": "docs/evidence/harness-knowledge-context/codex-candidate-code-review-03.json",
+      "old": {
+        "mode": null,
+        "blob": null
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "8ea27df2fe2b28074b234d2775425c5ccf7e2313"
+      }
+    },
+    {
+      "status": "A",
+      "path": "docs/evidence/harness-knowledge-context/codex-knowledge-test-prep-assessment-input.json",
+      "old": {
+        "mode": null,
+        "blob": null
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "0e68c349e7a1059fcc8d4c9643ad054577182512"
+      }
+    },
+    {
+      "status": "A",
+      "path": "docs/evidence/harness-knowledge-context/codex-revision-plan-review-01.json",
+      "old": {
+        "mode": null,
+        "blob": null
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "4c4c6ad26d5930728d5413ef8705ca863101f787"
+      }
+    },
+    {
+      "status": "A",
+      "path": "docs/evidence/harness-knowledge-context/codex-runtime-adjustment-assessment-input.json",
+      "old": {
+        "mode": null,
+        "blob": null
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "47dbca9a0339d0c6266f42873d1672d1a3448e3d"
+      }
+    },
+    {
+      "status": "A",
+      "path": "docs/evidence/harness-knowledge-context/codex-v1-proposal-input.json",
+      "old": {
+        "mode": null,
+        "blob": null
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "e673e9c83934b982463429384bb487fcaac66a03"
+      }
+    },
+    {
+      "status": "A",
+      "path": "docs/evidence/harness-knowledge-context/codex-v1-recognition-input.json",
+      "old": {
+        "mode": null,
+        "blob": null
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "2adce566a2f458613d9d3dc8da7a585c5eeafab2"
+      }
+    },
+    {
+      "status": "A",
+      "path": "docs/evidence/harness-knowledge-context/codex-verification-prep-assessment-input.json",
+      "old": {
+        "mode": null,
+        "blob": null
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "0454f868595345c796f92e89fe9f27626d3d37c4"
+      }
+    },
+    {
+      "status": "A",
+      "path": "docs/evidence/harness-knowledge-context/original-candidate-code-review-01.md",
+      "old": {
+        "mode": null,
+        "blob": null
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "197446e83c3dc18994b03dae9544534b7aea0c7d"
+      }
+    },
+    {
+      "status": "A",
+      "path": "docs/evidence/harness-knowledge-context/original-codex-candidate-code-review-01.md",
+      "old": {
+        "mode": null,
+        "blob": null
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "66d8404a359816bda10b05bc604cda67b20cbe7f"
+      }
+    },
+    {
+      "status": "A",
+      "path": "docs/evidence/harness-knowledge-context/original-codex-candidate-code-review-02.md",
+      "old": {
+        "mode": null,
+        "blob": null
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "8fe48021250131fa043643ff81543b0c9b31c83d"
+      }
+    },
+    {
+      "status": "A",
+      "path": "docs/evidence/harness-knowledge-context/original-codex-candidate-code-review-03.md",
+      "old": {
+        "mode": null,
+        "blob": null
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "ce3404cf7f7013e5c073e8aa490a53b474abdba2"
+      }
+    },
+    {
+      "status": "A",
+      "path": "docs/evidence/harness-knowledge-context/original-codex-revision-plan-review-01.md",
+      "old": {
+        "mode": null,
+        "blob": null
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "31e1436306919578b77987156e68630e66e479b5"
+      }
+    },
+    {
+      "status": "A",
+      "path": "docs/evidence/harness-knowledge-context/original-plan-review-01.md",
+      "old": {
+        "mode": null,
+        "blob": null
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "2b2c048190f04cd8e1c9f4bb956caf1713f86d6f"
+      }
+    },
+    {
+      "status": "A",
+      "path": "docs/evidence/harness-knowledge-context/plan-review-01.json",
+      "old": {
+        "mode": null,
+        "blob": null
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "0a7aa18f90043b689d8c38a0760368c5a2af0513"
+      }
+    },
+    {
+      "status": "A",
+      "path": "docs/evidence/harness-knowledge-context/v1-proposal-input.json",
+      "old": {
+        "mode": null,
+        "blob": null
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "9674104c32550df0f201c02a6cf2fcac76d112b6"
+      }
+    },
+    {
+      "status": "A",
+      "path": "docs/evidence/harness-knowledge-context/v1-recognition-input.json",
+      "old": {
+        "mode": null,
+        "blob": null
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "cd7daccaf91321d3c58fc89785449df5ac8ad4dc"
+      }
+    },
+    {
+      "status": "A",
+      "path": "docs/knowledge-context.md",
+      "old": {
+        "mode": null,
+        "blob": null
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "6e5a45fb9b4ecfdb43f11b17e6139733c3951fc8"
+      }
+    },
+    {
+      "status": "M",
+      "path": "docs/knowledge.md",
+      "old": {
+        "mode": "100644",
+        "blob": "61d5f1e68cf6fc78ec1aaab3562a6056d9b0dde4"
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "caa62ed2fea5652a59a571184832f1c7a47d6669"
+      }
+    },
+    {
+      "status": "M",
+      "path": "docs/limitations.md",
+      "old": {
+        "mode": "100644",
+        "blob": "5e4b4aab9b8cd0220d2430f8ae4b29ac9f3ffcfb"
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "fcb75218f9d05c3fc7f52302395a0310ea8d45da"
+      }
+    },
+    {
+      "status": "A",
+      "path": "docs/plans/2026-10-27-harness-knowledge-context-codex-revision.md",
+      "old": {
+        "mode": null,
+        "blob": null
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "e1c152b813e6d721d6e5118bad9aa9f6afdccbc9"
+      }
+    },
+    {
+      "status": "A",
+      "path": "docs/plans/2026-10-27-harness-knowledge-context.md",
+      "old": {
+        "mode": null,
+        "blob": null
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "57426fd1feea874d96af3cf870a9e0fccc15d816"
+      }
+    },
+    {
+      "status": "M",
+      "path": "docs/product-architecture-coverage.md",
+      "old": {
+        "mode": "100644",
+        "blob": "3b01e6732dc84e9fa82301e554952bd06e94e217"
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "d6406e30f59322543ad658e2c0a3db713ba1c5ff"
+      }
+    },
+    {
+      "status": "M",
+      "path": "src/keepsail/adapters/agent/_settings_merge.py",
+      "old": {
+        "mode": "100644",
+        "blob": "4d5c0d935f45dbd0953354967189561c917b8d86"
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "bf8f49f36b8ac10906c184ae65c8f35d47030893"
+      }
+    },
+    {
+      "status": "M",
+      "path": "src/keepsail/adapters/agent/claude_code.py",
+      "old": {
+        "mode": "100644",
+        "blob": "bee8f99dd3512a531d86b8b594f74a0775243794"
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "ce705f1cef1a9a4aba7273215e419ddd2383434b"
+      }
+    },
+    {
+      "status": "M",
+      "path": "src/keepsail/adapters/agent/codex.py",
+      "old": {
+        "mode": "100644",
+        "blob": "890e27269226fa7cc6b7e0d8ca3714971c94eee7"
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "51dd4ab37d792f4cb341393540ab97d2e8bc48ab"
+      }
+    },
+    {
+      "status": "M",
+      "path": "src/keepsail/cli/adapter.py",
+      "old": {
+        "mode": "100644",
+        "blob": "bb3650d08064f9c8cd3804124329549106fc6a4b"
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "6ee89830e4347ab0d08cc14029245ab5bdc7975d"
+      }
+    },
+    {
+      "status": "M",
+      "path": "src/keepsail/cli/change.py",
+      "old": {
+        "mode": "100644",
+        "blob": "9f8e38ff7bece0aac4db0f01826b21854c183d62"
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "f8a07b69ca1d8808df9fd6d1dabfbb9c8a3e96a1"
+      }
+    },
+    {
+      "status": "M",
+      "path": "src/keepsail/cli/gate.py",
+      "old": {
+        "mode": "100644",
+        "blob": "67af158c85d98fafc33e621c74548a3e4a021770"
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "bf37dd1cf5b9b4b1628edd96c62dd2968d4f66f0"
+      }
+    },
+    {
+      "status": "M",
+      "path": "src/keepsail/cli/knowledge.py",
+      "old": {
+        "mode": "100644",
+        "blob": "e433a571dbfbc7c97b520189428ca59f48a4eed9"
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "1324ac6ed6f8264f84a42a811ae42d147bf87250"
+      }
+    },
+    {
+      "status": "M",
+      "path": "src/keepsail/cli/output.py",
+      "old": {
+        "mode": "100644",
+        "blob": "570eca733c90c403a1fd57d16caa34cb684edb9d"
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "7c854eb959f96d4b7b79f70ad6a0e2f574382c94"
+      }
+    },
+    {
+      "status": "A",
+      "path": "src/keepsail/core/context.py",
+      "old": {
+        "mode": null,
+        "blob": null
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "4262af4945994fe09f7d12949c71698a6b7087c9"
+      }
+    },
+    {
+      "status": "M",
+      "path": "src/keepsail/core/writer.py",
+      "old": {
+        "mode": "100644",
+        "blob": "41411e84b3a4405b30a34ebe0114e74609f04395"
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "42485b9b5f36481c95b11bf0ec2de12c72f1e3f3"
+      }
+    },
+    {
+      "status": "A",
+      "path": "src/keepsail/daemon/codex_context_hook.py",
+      "old": {
+        "mode": null,
+        "blob": null
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "3ffd9eb599783087b391f1d690b9261250cf06ac"
+      }
+    },
+    {
+      "status": "A",
+      "path": "src/keepsail/daemon/context_hook.py",
+      "old": {
+        "mode": null,
+        "blob": null
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "121f8d859faf28dba53be245a1eacea1726462e1"
+      }
+    },
+    {
+      "status": "M",
+      "path": "src/keepsail/daemon/hook_entry.py",
+      "old": {
+        "mode": "100644",
+        "blob": "38e82d138ba215f887a6ea1f4674de4e68b35275"
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "9da591f9832dfce9a257aef494576e156283a628"
+      }
+    },
+    {
+      "status": "M",
+      "path": "src/keepsail/gates/decisions.py",
+      "old": {
+        "mode": "100644",
+        "blob": "c361943f97d1b18c42a7ae16a57cbc951d379b31"
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "cef915a341a3774d1c259472c267f48adcfe0a8c"
+      }
+    },
+    {
+      "status": "M",
+      "path": "src/keepsail/gates/pre_tool_use.py",
+      "old": {
+        "mode": "100644",
+        "blob": "9b5625703392509c129e489e32dbf1a253904646"
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "59e116624af27b012ad616a6660caa1ae3728065"
+      }
+    },
+    {
+      "status": "M",
+      "path": "tests/conftest.py",
+      "old": {
+        "mode": "100644",
+        "blob": "bb421e04d6e5cb9cc7019e72b4ce2a0013d8eb9a"
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "b23e0946b4f69db871f027d220a3bf2b4d0d14a5"
+      }
+    },
+    {
+      "status": "A",
+      "path": "tests/integration/adapter/test_claude_context.py",
+      "old": {
+        "mode": null,
+        "blob": null
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "dc4ddc2ac2cc75a20d5537b1e23b3195d697d53b"
+      }
+    },
+    {
+      "status": "A",
+      "path": "tests/integration/adapter/test_codex_context.py",
+      "old": {
+        "mode": null,
+        "blob": null
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "c8dbba7f732258d5e50e9c0ecd422b5743498ca4"
+      }
+    },
+    {
+      "status": "M",
+      "path": "tests/unit/adapters/test_claude_code.py",
+      "old": {
+        "mode": "100644",
+        "blob": "10dfda39b4e0b0d1671b9abde696e27f6897d2d8"
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "155a795e43dbb60ab678507c26e23134d91d8dc2"
+      }
+    },
+    {
+      "status": "M",
+      "path": "tests/unit/adapters/test_codex.py",
+      "old": {
+        "mode": "100644",
+        "blob": "b2b2555aa6a62d294c2c70d733c7fad110ccb6d2"
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "ba1564d04e0926a99194ad3c56339ea09a9c8bc7"
+      }
+    },
+    {
+      "status": "A",
+      "path": "tests/unit/core/test_context.py",
+      "old": {
+        "mode": null,
+        "blob": null
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "97d7619b7bfc8a46cd5580225ae2fb5777cade19"
+      }
+    },
+    {
+      "status": "M",
+      "path": "tests/unit/core/test_knowledge.py",
+      "old": {
+        "mode": "100644",
+        "blob": "a8abc0a8983f9dff3fc5cb9660a2ce69426f861a"
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "dd6e02398778445edeaee08cc34f0768a1168401"
+      }
+    },
+    {
+      "status": "M",
+      "path": "tests/unit/core/test_writer.py",
+      "old": {
+        "mode": "100644",
+        "blob": "78a876d30be16eb6a823e596f2e8bfbb967adb95"
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "62eb0f222c4fa633812bc516161edab73ca7760a"
+      }
+    },
+    {
+      "status": "A",
+      "path": "tests/unit/daemon/test_codex_context_hook.py",
+      "old": {
+        "mode": null,
+        "blob": null
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "6d1015aaa76291b2f6cb839156a7bf99befa7a27"
+      }
+    },
+    {
+      "status": "A",
+      "path": "tests/unit/daemon/test_context_hook.py",
+      "old": {
+        "mode": null,
+        "blob": null
+      },
+      "new": {
+        "mode": "100644",
+        "blob": "97eaec9afd1fba1eb1741729e31007bee99e8ca9"
+      }
+    }
+  ],
+  "knowledge_basis": {
+    "version": "knowledge-basis/v1",
+    "digest": "ed741fdd25c574ce3da95170edbe684c6720f412d612790c3672ab31d60e75e0"
+  },
+  "subject_id": "code:b8ab9e7f8d0d307ea50344c36be45cca2385df57ddf0ee2fb26b77cbfe1a42dd"
+}

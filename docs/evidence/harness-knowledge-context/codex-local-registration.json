@@ -1,0 +1,127 @@
+{
+  "native_commands_succeeded": [
+    "adapter install claude-code --no-knowledge-context",
+    "adapter install codex --knowledge-context"
+  ],
+  "configurations": {
+    "codex": {
+      "path": "E:\\Work\\keepsail\\.codex\\hooks.json",
+      "sha256": "3a0b66dd627623c062dd0a39c6ddcdd6f99bf8735403726a02e2c135060cac7b",
+      "native_replan_byte_identical": true,
+      "preview_difference_only_windows_exe_suffix_case": true,
+      "settings": {
+        "hooks": {
+          "PreToolUse": [
+            {
+              "matcher": "^(apply_patch|Edit|Write)$",
+              "hooks": [
+                {
+                  "type": "command",
+                  "command": "powershell.exe -NoProfile -NonInteractive -Command \"& 'E:/Work/keepsail/.venv/Scripts/keepsail-hook.EXE' --agent codex --context\"",
+                  "timeout": 10
+                }
+              ]
+            }
+          ],
+          "SessionStart": [
+            {
+              "hooks": [
+                {
+                  "type": "command",
+                  "command": "powershell.exe -NoProfile -NonInteractive -Command \"& 'E:/Work/keepsail/.venv/Scripts/keepsail-hook.EXE' --agent codex --event session-start --context --cli 'E:/Work/keepsail/.venv/Scripts/keepsail.EXE'\"",
+                  "timeout": 10
+                }
+              ]
+            }
+          ],
+          "Stop": [
+            {
+              "hooks": [
+                {
+                  "type": "command",
+                  "command": "powershell.exe -NoProfile -NonInteractive -Command \"& 'E:/Work/keepsail/.venv/Scripts/keepsail-hook.EXE' --agent codex --event stop\"",
+                  "timeout": 10
+                }
+              ]
+            }
+          ],
+          "UserPromptSubmit": [
+            {
+              "hooks": [
+                {
+                  "type": "command",
+                  "command": "powershell.exe -NoProfile -NonInteractive -Command \"& 'E:/Work/keepsail/.venv/Scripts/keepsail-hook.EXE' --agent codex --event user-prompt-submit --context\"",
+                  "timeout": 10
+                }
+              ]
+            }
+          ],
+          "PostToolUse": [
+            {
+              "matcher": "Bash",
+              "hooks": [
+                {
+                  "type": "command",
+                  "command": "powershell.exe -NoProfile -NonInteractive -Command \"& 'E:/Work/keepsail/.venv/Scripts/keepsail-hook.EXE' --agent codex --event post-tool-use --context\"",
+                  "timeout": 10
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "claude-optout": {
+      "path": "E:\\Work\\keepsail\\.claude\\settings.local.json",
+      "sha256": "0a9de19645610b36756fa0e6aa692ac4c40b420ccf6ad8e2d08ee62c7b11c14b",
+      "native_replan_byte_identical": true,
+      "preview_difference_only_windows_exe_suffix_case": true,
+      "settings": {
+        "hooks": {
+          "PreToolUse": [
+            {
+              "matcher": "Edit|Write|MultiEdit|NotebookEdit",
+              "hooks": [
+                {
+                  "type": "command",
+                  "command": "E:\\Work\\keepsail\\.venv\\Scripts\\keepsail-hook.EXE --agent claude-code",
+                  "timeout": 10
+                }
+              ]
+            }
+          ],
+          "SessionStart": [
+            {
+              "hooks": [
+                {
+                  "type": "command",
+                  "command": "E:\\Work\\keepsail\\.venv\\Scripts\\keepsail.EXE change resume",
+                  "timeout": 10
+                }
+              ]
+            }
+          ],
+          "Stop": [
+            {
+              "hooks": [
+                {
+                  "type": "command",
+                  "command": "E:\\Work\\keepsail\\.venv\\Scripts\\keepsail-hook.EXE --agent claude-code --event stop",
+                  "timeout": 10
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+  "verified_source_head": "4189c4d9122318caf55720892ddf1a3b3a6922fe",
+  "cli_executable": "E:\\Work\\keepsail\\.venv\\Scripts\\keepsail.EXE",
+  "hook_executable": "E:\\Work\\keepsail\\.venv\\Scripts\\keepsail-hook.EXE",
+  "same_repository_executables_verified": true,
+  "human_hook_trust_performed": false,
+  "actual_host_callbacks_observed": false,
+  "H7_complete": false,
+  "publication_or_merge": false
+}

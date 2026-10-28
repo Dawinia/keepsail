@@ -172,3 +172,20 @@ supplemental evidence. The PATH CLI 0.46.0 differs from the observed desktop
 0.164.0-alpha.11.1 binary; do not use one to assert the other's installed behavior.
 No shared authority/distribution, all-tool interception or semantic-recall promise
 is discharged by this revision. This dated snapshot does not narrow architecture.
+
+### 2026-10-28 source and registration checkpoint
+
+Source/test candidate `4189c4d` received independent preflight approval and passed
+the original native full verify: 2452 passed, 22 skipped, 9 warnings in 1126.62s,
+within the unchanged 1200s deadline. Earlier timeouts and the failed optional
+diagnostic observer remain retained, not converted to passing results. Test
+preparation now copies native-prepared independent fixtures; no cases/assertions
+or product source were removed to obtain that result. See the
+[evidence checkpoint](evidence/harness-knowledge-context/README.md#source-verification-and-local-registration-checkpoint-2026-10-28).
+
+The confirmed native Claude context opt-out and Codex context opt-in are now
+registered locally. This adds configured entry delivery/observation/edit surfaces
+to the source evidence for C1-C6; human trust and actual host use are still separate.
+The actual desktop was refreshed to 0.165.0-alpha.1.2. Real A/B, root attribution,
+native callback decoding, v1/v2 evolution/disposition and final exact acceptance
+remain outstanding. Registration and fixtures do not discharge those obligations.
