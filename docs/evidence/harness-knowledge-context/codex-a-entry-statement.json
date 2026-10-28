@@ -1,0 +1,10 @@
+{
+  "schema_version": "entry-statement/v1",
+  "entry_id": "ev_01M61RB2S36P4YXNEBAC532HCF",
+  "manifest_id": "2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b",
+  "actor": "codex-task-a",
+  "decision": "adopt",
+  "project_context": true,
+  "knowledge_versions": ["24276b8e081c3d297cb035d5cf868f974e6e8afbc349edf0312596b3acde52fe", "e7b60342f6b0ca752382050abcdb0f0a7172e048d4a4b0f429cd9f835c3c7699"],
+  "reason": "Adopt the current frozen Codex revision approval, retained original restrictions and ratified conventions for this real root resume entry. Adopt exact Codex v1 within Dawinia/keepsail AND this Change. Preserve the supplied Claude version verbatim and conditional on its Claude boundary; do not extend its recognition to Codex. Eight actual page returns and native finalization recorded two acquisitions. This declaration proves neither understanding nor compliance and recognizes neither v2 nor dispositions."
+}

@@ -7,6 +7,52 @@ def _completed_output(stdout, entry, page=1):
     return stdout + "__KEEPSAIL_CONTEXT_EXIT_V1__:" + entry["entry_id"] + ":" + str(page) + ":0\n"
 
 
+def test_finalize_rechecks_new_approval_and_requires_fresh_returns(tmp_path, context_workspace):
+    from keepsail.core.context import entry_command, read_entry
+    from keepsail.core.reducer import derive_state
+    from keepsail.daemon.codex_context_hook import observe_return, record_prompt, start_session
+    from tests.unit.core import test_knowledge as fixtures
+
+    w = context_workspace
+    w.recognize(fixtures.version())
+    identity = {"session_id": "fixture-approval-recovery", "cwd": str(tmp_path), "turn_id": "root"}
+    start = start_session(tmp_path, {**identity, "hook_event_name": "SessionStart",
+                                    "source": "startup"}, cli_executable="/tools/keepsail")
+    record_prompt(tmp_path, {**identity, "hook_event_name": "UserPromptSubmit"})
+    packet = w.cli("change", "context", "change-a", "--bind-startup", start["startup_id"])["data"]
+    entry = read_entry(tmp_path, packet["entry_id"])
+
+    def consume(tool):
+        result = w.runner.invoke(fixtures.main, ["--workspace", str(tmp_path), "--json",
+            "change", "context", "change-a", "--entry", entry["entry_id"]])
+        assert result.exit_code == 0, result.output
+        return observe_return(tmp_path, {**identity, "hook_event_name": "PostToolUse",
+            "tool_name": "Bash", "tool_use_id": tool,
+            "tool_input": {"command": entry_command(entry)},
+            "tool_response": _completed_output(result.stdout, entry)})
+
+    assert consume("old-approval")["complete"]
+    w.cli("plan", "redeclare", "change-a", "--plan", "plan.md", "--commitment",
+          "db=Use PostgreSQL under a new approval epoch")
+    subject = derive_state(tmp_path / ".harness/events.jsonl")["change-a"].pending_revision["subject"]
+    evidence = {"version": "review-evidence/v1", "evidence_id": "fixture-new-approval",
+        "kind": "plan", "subject_id": subject["subject_id"], "decision": "approve",
+        "issuer": "owner", "process": {"id": "owner-review", "version": "1"},
+        "original_evidence": {"decision": "approve", "source": "test fixture"},
+        "provenance": {"policy_digest": w.review["process"]["policy_digest"]}}
+    w.cli("review", "import", "change-a", "--evidence", str(w.write(evidence)))
+    w.cli("change", "context", "change-a", "--entry", entry["entry_id"],
+          "--finalize-acquisition", code=2)
+    assert w.cli("knowledge", "show")["data"]["observations"] == []
+    fresh = w.cli("change", "context", "change-a", "--entry", entry["entry_id"])["data"]
+    assert fresh["manifest_id"] != packet["manifest_id"]
+    w.cli("change", "context", "change-a", "--entry", entry["entry_id"],
+          "--finalize-acquisition", code=2)
+    assert consume("new-approval")["complete"]
+    assert w.cli("change", "context", "change-a", "--entry", entry["entry_id"],
+                 "--finalize-acquisition")["data"]["native_acquisition"] == "recorded"
+
+
 def test_cli_finalization_requires_actual_returns_and_prompt_reminds_pending_acquisition(
     tmp_path, monkeypatch, context_workspace,
 ):
@@ -86,6 +132,10 @@ def test_startup_binds_once_and_compact_invalidates_old_entry(tmp_path, context_
         read_entry(tmp_path, entry["entry_id"])
     workspace.cli("change", "context", "change-a", "--bind-startup",
                    startup["startup_id"], code=2)
+    # Public finalization must reject the replaced epoch, not revive its supply.
+    workspace.cli("change", "context", "change-a", "--entry", entry["entry_id"],
+                  "--finalize-acquisition", code=2)
+    assert workspace.cli("knowledge", "show")["data"]["observations"] == []
 
 
 def test_automatic_compact_keeps_root_turn_but_requires_new_entry_returns(

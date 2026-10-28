@@ -1,0 +1,293 @@
+{
+  "assessment": {
+    "approval_id": "approval:2026-10-28-harness-context-codex-revision-plan-01-84705107",
+    "affected_commitments": [
+      "H3",
+      "H4",
+      "H7",
+      "H8"
+    ],
+    "conclusion": "within_approval",
+    "reasons": [
+      "Real task A reacquired eight pages and finalized two native acquisitions; exported callbacks, exact returns and declaration separately.",
+      "Missing public CLI replaced-entry and approval-epoch finalize regressions pass existing implementation; no production fix or artificial red failure.",
+      "H7 overall, B, v2 decisions and final current-diff verification remain pending."
+    ],
+    "references": [
+      "docs/evidence/harness-knowledge-context/codex-a/summary.json",
+      "tests/unit/daemon/test_codex_context_hook.py"
+    ]
+  },
+  "coverage": [
+    {
+      "path": ".harness/adapters.yaml"
+    },
+    {
+      "path": "AGENTS.md"
+    },
+    {
+      "path": "docs/README.md"
+    },
+    {
+      "path": "docs/adapters/claude-code.md"
+    },
+    {
+      "path": "docs/adapters/codex.md"
+    },
+    {
+      "path": "docs/cli-reference.md"
+    },
+    {
+      "path": "docs/decisions/d-events-append-only.md"
+    },
+    {
+      "path": "docs/decisions/d-gate-governs-git-product.md"
+    },
+    {
+      "path": "docs/decisions/d-keepsail-single-gate-policy.md"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/README.md"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/assessment-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/assessment-review-fixes-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/candidate-code-review-01.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a-assessment-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a-entry-statement.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/current.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/entry.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/44b7aacba7fb4d5ad1a7234b0702439b2d979bfe4eefda0cfcc04945d796016c.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/6f8801145385f6e84ba647f70bb29f48a7b3d7ef675c5ef113633f44fe368932.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/8b5ecb28680f907cecbf253d3256b649dbd58dce9c88b7752e3125fe4868f1e2.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/ba5cf67d94bea2c312b9f7ce2d2ee5d96e90abdade1652f3978157982416a289.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/c170deb0d43de425d9f93659636e3ab7ad379839661f8ba125e8849a22197fd1.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/d3a4fa4b7344708c1133def005b60cfc1ff6fea19eb747eddca7ab8e57dd79a8.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/f6bc7bab60400c23bc0b65784449fa2bb19c8c59a7b2a64662982e192daf4769.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/f73b415afc60f6ec3c00077751d242a8d7962f9d816a834b0bb856254fc43a54.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/statements/6f6c93c359309b6b20fda8c4b9cd0c1e81b680efe115af68294f765c7e1e6208.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/startups/ev_01M61RB2S36P4YXNEBAC532HCF.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/summary.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-assessment-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-budget-fix-assessment-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-candidate-code-review-01.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-candidate-code-review-02.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-candidate-code-review-03.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-candidate-code-review-04.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-knowledge-test-prep-assessment-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-local-registration-assessment-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-local-registration.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-revision-plan-review-01.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-runtime-adjustment-assessment-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-source-subject-04.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-source-verify-05-summary.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-source-verify-05.stdout.txt"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-string-transport-assessment-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-string-transport-repair.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-v1-proposal-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-v1-recognition-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-verification-prep-assessment-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/original-candidate-code-review-01.md"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/original-codex-candidate-code-review-01.md"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/original-codex-candidate-code-review-02.md"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/original-codex-candidate-code-review-03.md"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/original-codex-candidate-code-review-04.md"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/original-codex-revision-plan-review-01.md"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/original-plan-review-01.md"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/plan-review-01.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/v1-proposal-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/v1-recognition-input.json"
+    },
+    {
+      "path": "docs/knowledge-context.md"
+    },
+    {
+      "path": "docs/knowledge.md"
+    },
+    {
+      "path": "docs/limitations.md"
+    },
+    {
+      "path": "docs/plans/2026-10-27-harness-knowledge-context-codex-revision.md"
+    },
+    {
+      "path": "docs/plans/2026-10-27-harness-knowledge-context.md"
+    },
+    {
+      "path": "docs/product-architecture-coverage.md"
+    },
+    {
+      "path": "src/keepsail/adapters/agent/_settings_merge.py"
+    },
+    {
+      "path": "src/keepsail/adapters/agent/claude_code.py"
+    },
+    {
+      "path": "src/keepsail/adapters/agent/codex.py"
+    },
+    {
+      "path": "src/keepsail/cli/adapter.py"
+    },
+    {
+      "path": "src/keepsail/cli/change.py"
+    },
+    {
+      "path": "src/keepsail/cli/gate.py"
+    },
+    {
+      "path": "src/keepsail/cli/knowledge.py"
+    },
+    {
+      "path": "src/keepsail/cli/output.py"
+    },
+    {
+      "path": "src/keepsail/core/context.py"
+    },
+    {
+      "path": "src/keepsail/core/writer.py"
+    },
+    {
+      "path": "src/keepsail/daemon/codex_context_hook.py"
+    },
+    {
+      "path": "src/keepsail/daemon/context_hook.py"
+    },
+    {
+      "path": "src/keepsail/daemon/hook_entry.py"
+    },
+    {
+      "path": "src/keepsail/gates/decisions.py"
+    },
+    {
+      "path": "src/keepsail/gates/pre_tool_use.py"
+    },
+    {
+      "path": "tests/conftest.py"
+    },
+    {
+      "path": "tests/integration/adapter/test_claude_context.py"
+    },
+    {
+      "path": "tests/integration/adapter/test_codex_context.py"
+    },
+    {
+      "path": "tests/unit/adapters/test_claude_code.py"
+    },
+    {
+      "path": "tests/unit/adapters/test_codex.py"
+    },
+    {
+      "path": "tests/unit/core/test_context.py"
+    },
+    {
+      "path": "tests/unit/core/test_knowledge.py"
+    },
+    {
+      "path": "tests/unit/core/test_writer.py"
+    },
+    {
+      "path": "tests/unit/daemon/test_codex_context_hook.py"
+    },
+    {
+      "path": "tests/unit/daemon/test_codex_string_transport.py"
+    },
+    {
+      "path": "tests/unit/daemon/test_context_hook.py"
+    }
+  ]
+}

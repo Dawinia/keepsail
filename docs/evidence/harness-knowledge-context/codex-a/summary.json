@@ -1,0 +1,126 @@
+{
+  "session_id": "01a181a7-5bb2-7f30-8811-5107e3b5ac0e",
+  "entry_id": "ev_01M61RB2S36P4YXNEBAC532HCF",
+  "manifest_id": "2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b",
+  "return_transport": "powershell-exit/v1",
+  "page_count": 8,
+  "context_utf8_bytes": 144699,
+  "token_estimate_method": "UTF8 bytes / 3 heuristic; not measured tokens",
+  "native_finalize": {
+    "native_acquisition": "recorded",
+    "version_count": 2,
+    "exit_code": 0
+  },
+  "statement_id": "6f6c93c359309b6b20fda8c4b9cd0c1e81b680efe115af68294f765c7e1e6208",
+  "checks": [
+    {
+      "command": "python -m pytest tests/unit/daemon/test_codex_context_hook.py tests/unit/daemon/test_codex_string_transport.py -q",
+      "result": "7 passed",
+      "seconds": 54.96
+    },
+    {
+      "command": "python -m pytest tests/unit/daemon/test_codex_context_hook.py::test_finalize_rechecks_new_approval_and_requires_fresh_returns -q",
+      "result": "1 passed on first run; no production fix warranted",
+      "seconds": 15.51
+    },
+    {
+      "command": "keepsail decision check --changed",
+      "result": "clean",
+      "exit_code": 0
+    }
+  ],
+  "latency_seconds": {
+    "bind_initial_shell_wait": 10.0064184,
+    "bind_poll_waits": [
+      5.0032563,
+      8.1e-06
+    ],
+    "pages_2_to_8": [
+      3.3268999,
+      3.3153084,
+      3.2853976,
+      3.4902006,
+      3.3280859,
+      3.5953622,
+      3.3128253
+    ],
+    "finalize_shell_waits": [
+      10.0041655,
+      2.8120853
+    ]
+  },
+  "limits": [
+    "Latencies are shell wait durations; hook and model scheduling overhead not measured.",
+    "No first-failing production regression: new assertions passed existing implementation.",
+    "H7, B, v2 recognition/disposition, full current-diff verify and final review remain pending.",
+    "No additional trust/configuration operation or page retry in this entry."
+  ],
+  "files": [
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b.json",
+      "sha256": "a0e2b1072f47eaf6e8187012f3a97612ec58d0fad04bb681462ed54d8e58fb92",
+      "bytes": 181374
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/current.json",
+      "sha256": "72c67e81f7d2d92606c7e3dcf7ec18bcedec73ba64215a20207d860ab6e8ee2a",
+      "bytes": 83
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/entry.json",
+      "sha256": "8acae9ae8b77d9c74ee641dfcd136de0130e22717b42bcfbb9491d035050dea3",
+      "bytes": 302
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/44b7aacba7fb4d5ad1a7234b0702439b2d979bfe4eefda0cfcc04945d796016c.json",
+      "sha256": "7b977bb2ff638d1ceb52c5bf3bd83124d516d2c7055b5a34ef4b194cb7628763",
+      "bytes": 29665
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/6f8801145385f6e84ba647f70bb29f48a7b3d7ef675c5ef113633f44fe368932.json",
+      "sha256": "db7beb74f4c5ae69cd27cb2f0df3880626cf6630eda78cf03e4a63534d341c9c",
+      "bytes": 24638
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/8b5ecb28680f907cecbf253d3256b649dbd58dce9c88b7752e3125fe4868f1e2.json",
+      "sha256": "a002a232f538ac444a7f4766f7244248412b63f51bb0f389cf293f2458f44e3b",
+      "bytes": 30909
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/ba5cf67d94bea2c312b9f7ce2d2ee5d96e90abdade1652f3978157982416a289.json",
+      "sha256": "dd76bbcfa78901ac38c9839522020764eb66010138dd9470899aebdf1b315371",
+      "bytes": 29750
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/c170deb0d43de425d9f93659636e3ab7ad379839661f8ba125e8849a22197fd1.json",
+      "sha256": "72e89085edcad6d5affae2b42b57f58e2bfc034731266eb66958eb1f1d6fb48b",
+      "bytes": 26277
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/d3a4fa4b7344708c1133def005b60cfc1ff6fea19eb747eddca7ab8e57dd79a8.json",
+      "sha256": "a7aa419641a923f821f4fc0143841c447a2d2bf37a5f2c9a1121c804e852c89a",
+      "bytes": 30289
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/f6bc7bab60400c23bc0b65784449fa2bb19c8c59a7b2a64662982e192daf4769.json",
+      "sha256": "f2d2a3f63069142b132ed2aa7c36b7dcaa2e74e644af7a1f1017745370105b76",
+      "bytes": 29666
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/f73b415afc60f6ec3c00077751d242a8d7962f9d816a834b0bb856254fc43a54.json",
+      "sha256": "89e468b4303ab1a6ad651da58482eb5b3b768da259db00f04a1ebdd6d4617ebb",
+      "bytes": 7238
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/statements/6f6c93c359309b6b20fda8c4b9cd0c1e81b680efe115af68294f765c7e1e6208.json",
+      "sha256": "abbcf48bfd234aa25aa4d6620ff0474ea8e9b42573e1e8d124021d4f0178f34e",
+      "bytes": 906
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/startups/ev_01M61RB2S36P4YXNEBAC532HCF.json",
+      "sha256": "4f40b06fad4f1cae5f632b9afac1cc91d234e3b1036d610a9dad2403e3a9cbdf",
+      "bytes": 418
+    }
+  ],
+  "token_estimate": 48233
+}

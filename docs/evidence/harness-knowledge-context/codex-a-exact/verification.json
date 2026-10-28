@@ -1,0 +1,167 @@
+{
+  "schema_version": "acceptance-evidence-verification/v1",
+  "session_id": "01a181a7-5bb2-7f30-8811-5107e3b5ac0e",
+  "entry_id": "ev_01M61RB2S36P4YXNEBAC532HCF",
+  "manifest_id": "2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b",
+  "real_native_pages_verified": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8
+  ],
+  "native_acquired_versions": [
+    "24276b8e081c3d297cb035d5cf868f974e6e8afbc349edf0312596b3acde52fe",
+    "e7b60342f6b0ca752382050abcdb0f0a7172e048d4a4b0f429cd9f835c3c7699"
+  ],
+  "statement_id": "6f6c93c359309b6b20fda8c4b9cd0c1e81b680efe115af68294f765c7e1e6208",
+  "correction": {
+    "old_summary": "docs/evidence/harness-knowledge-context/codex-a/summary.json",
+    "old_files_preserved": true,
+    "old_receipts_with_changed_payload": [
+      "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/44b7aacba7fb4d5ad1a7234b0702439b2d979bfe4eefda0cfcc04945d796016c.json",
+      "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/6f8801145385f6e84ba647f70bb29f48a7b3d7ef675c5ef113633f44fe368932.json",
+      "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/8b5ecb28680f907cecbf253d3256b649dbd58dce9c88b7752e3125fe4868f1e2.json",
+      "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/ba5cf67d94bea2c312b9f7ce2d2ee5d96e90abdade1652f3978157982416a289.json",
+      "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/c170deb0d43de425d9f93659636e3ab7ad379839661f8ba125e8849a22197fd1.json",
+      "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/d3a4fa4b7344708c1133def005b60cfc1ff6fea19eb747eddca7ab8e57dd79a8.json",
+      "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/f6bc7bab60400c23bc0b65784449fa2bb19c8c59a7b2a64662982e192daf4769.json"
+    ],
+    "diagnosis": "Seven prior exported tool_response strings differ from native originals. Old self-consistent export hashes do not establish original-return integrity. New export copies original bytes without JSON reserialization; native validation and acquisition were valid.",
+    "new_originals_byte_equal": true
+  },
+  "provenance": {
+    "source": "existing native immutable context records and exact native event lines",
+    "entry_attribution": "includes retained root UserPromptSubmit turn record",
+    "native_events": [
+      {
+        "source_line": 2603,
+        "event_id": "ev_01M61RBQG1PAD99F9397JF4KC9",
+        "type": "knowledge_delivered",
+        "sha256": "1e1f31d5669ca2bf7adcc1a4f8d0a587964d8ba71691659e108926d2a5206e60"
+      },
+      {
+        "source_line": 2604,
+        "event_id": "ev_01M61RESP11QKRE56HZ495E69X",
+        "type": "knowledge_operation_v2",
+        "sha256": "d89616a21d28ed3523147966e5beedbc26b265cf715a804366bab33fcc2f5603"
+      },
+      {
+        "source_line": 2605,
+        "event_id": "ev_01M61REZMHWX0RC2VCZZ2TBJ09",
+        "type": "knowledge_operation_v2",
+        "sha256": "12e420e14f42a5f2cc3ccdd4625801fbe5736aa1b9e7bea4c344417c16c30837"
+      },
+      {
+        "source_line": 2606,
+        "event_id": "ev_01M61RGZ1G73ME066G83RJKWB9",
+        "type": "knowledge_operation_v2",
+        "sha256": "99907cdb2d802f3c8ee9f837e0eac77d8930adf4c736855a3956b0d40efafa78"
+      },
+      {
+        "source_line": 2607,
+        "event_id": "ev_01M61RH50CK1Q5M0S645MV3TK0",
+        "type": "knowledge_operation_v2",
+        "sha256": "28b93e310d56c0f53bcf36fde5bc6b35af38a89080912fa66547b723854588ce"
+      }
+    ],
+    "note": "This is evidence retention/verification, not a reviewer conclusion or new authority."
+  },
+  "files": [
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a-exact/ev_01M61RB2S36P4YXNEBAC532HCF/entry.json",
+      "original": ".harness/operation-logs/context/ev_01M61RB2S36P4YXNEBAC532HCF/entry.json",
+      "sha256": "61e13152da52bdd8d9f41d9a89f3c50f870e14d0d62e0b0f55902e2640d66568",
+      "bytes": 301
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a-exact/ev_01M61RB2S36P4YXNEBAC532HCF/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b.json",
+      "original": ".harness/operation-logs/context/ev_01M61RB2S36P4YXNEBAC532HCF/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b.json",
+      "sha256": "de2695448f7f736ddcdb28d0b16af1a9c293ac46a90290c5cd02e273aa372cb4",
+      "bytes": 148306
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a-exact/startups/ev_01M61RB2S36P4YXNEBAC532HCF.json",
+      "original": ".harness/operation-logs/context/startups/ev_01M61RB2S36P4YXNEBAC532HCF.json",
+      "sha256": "df40d81b61677dbc3106757df46efe5a17cfc3200411c08e489de161f27bec2b",
+      "bytes": 417
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a-exact/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/44b7aacba7fb4d5ad1a7234b0702439b2d979bfe4eefda0cfcc04945d796016c.json",
+      "original": ".harness/operation-logs/context/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/44b7aacba7fb4d5ad1a7234b0702439b2d979bfe4eefda0cfcc04945d796016c.json",
+      "sha256": "f64d1af480bd847169e34144c276b6468f853b8b7a37482d07daeacf71af882a",
+      "bytes": 23490
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a-exact/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/6f8801145385f6e84ba647f70bb29f48a7b3d7ef675c5ef113633f44fe368932.json",
+      "original": ".harness/operation-logs/context/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/6f8801145385f6e84ba647f70bb29f48a7b3d7ef675c5ef113633f44fe368932.json",
+      "sha256": "fe1bb41871b5fe38686dc3f4ddcc27fc6f5e16c067a49dbd1978e51457b3ead6",
+      "bytes": 24583
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a-exact/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/8b5ecb28680f907cecbf253d3256b649dbd58dce9c88b7752e3125fe4868f1e2.json",
+      "original": ".harness/operation-logs/context/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/8b5ecb28680f907cecbf253d3256b649dbd58dce9c88b7752e3125fe4868f1e2.json",
+      "sha256": "0e3231599670368874a62e02df0d46039a83de618e09c91c4b427d63a449eb60",
+      "bytes": 23975
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a-exact/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/ba5cf67d94bea2c312b9f7ce2d2ee5d96e90abdade1652f3978157982416a289.json",
+      "original": ".harness/operation-logs/context/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/ba5cf67d94bea2c312b9f7ce2d2ee5d96e90abdade1652f3978157982416a289.json",
+      "sha256": "bb5bac6157c543643ce971e78a12c5f97077a8dc3ea1dbc90f829f629cac9b71",
+      "bytes": 23475
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a-exact/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/c170deb0d43de425d9f93659636e3ab7ad379839661f8ba125e8849a22197fd1.json",
+      "original": ".harness/operation-logs/context/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/c170deb0d43de425d9f93659636e3ab7ad379839661f8ba125e8849a22197fd1.json",
+      "sha256": "fa118eb1d5887481f94a56085e730da547401cc18c7d50125dc082481c9db12c",
+      "bytes": 25153
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a-exact/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/d3a4fa4b7344708c1133def005b60cfc1ff6fea19eb747eddca7ab8e57dd79a8.json",
+      "original": ".harness/operation-logs/context/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/d3a4fa4b7344708c1133def005b60cfc1ff6fea19eb747eddca7ab8e57dd79a8.json",
+      "sha256": "802746c7a32effc906ac32cf7251237bb5634c2bacbf8fdc6d5f01cce93bd507",
+      "bytes": 23939
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a-exact/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/f6bc7bab60400c23bc0b65784449fa2bb19c8c59a7b2a64662982e192daf4769.json",
+      "original": ".harness/operation-logs/context/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/f6bc7bab60400c23bc0b65784449fa2bb19c8c59a7b2a64662982e192daf4769.json",
+      "sha256": "a2883a58f6669bce8a550ffdbbd6d35be4970014955fd42eeeef630bf2a2ddfd",
+      "bytes": 23505
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a-exact/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/f73b415afc60f6ec3c00077751d242a8d7962f9d816a834b0bb856254fc43a54.json",
+      "original": ".harness/operation-logs/context/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/f73b415afc60f6ec3c00077751d242a8d7962f9d816a834b0bb856254fc43a54.json",
+      "sha256": "e9264d9b2f51d849359e2036d3c2a9fed6980601d5dbf8eb34ee56bb23f46809",
+      "bytes": 7237
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a-exact/ev_01M61RB2S36P4YXNEBAC532HCF/statements/6f6c93c359309b6b20fda8c4b9cd0c1e81b680efe115af68294f765c7e1e6208.json",
+      "original": ".harness/operation-logs/context/ev_01M61RB2S36P4YXNEBAC532HCF/statements/6f6c93c359309b6b20fda8c4b9cd0c1e81b680efe115af68294f765c7e1e6208.json",
+      "sha256": "6f6c93c359309b6b20fda8c4b9cd0c1e81b680efe115af68294f765c7e1e6208",
+      "bytes": 905
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a-exact/turns/e4b2c751c74a4916a83bf3e797420324e78b861665050aa20f4b9e4aec366c45.json",
+      "original": ".harness/operation-logs/context/turns/e4b2c751c74a4916a83bf3e797420324e78b861665050aa20f4b9e4aec366c45.json",
+      "sha256": "1e6b0ace824efa14490bbbac309490593b68d80f543b8324b699fe54015542b0",
+      "bytes": 353
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a-exact/native-events-excerpt.jsonl",
+      "original": ".harness/events.jsonl exact source lines",
+      "sha256": "aabb8be53a976047e1b3a616437928b2fb87ec09bc4ffd68d50c4d0d7e04e77a",
+      "bytes": 544711
+    }
+  ],
+  "tests": "A host command records separately corroborate seven prior scenario executions plus one new approval-epoch scenario execution; full current-diff validation pending.",
+  "remaining": [
+    "initial bind diagnostic overflow/operator cost",
+    "real B",
+    "exact v2 recognition and impact disposition",
+    "final current implementation verify/review/attestation"
+  ],
+  "H7_complete": false
+}
