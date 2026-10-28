@@ -5,15 +5,16 @@ ratified_by: dawinialo@163.com
 ratified_at: '2026-06-26T09:45:08.963090Z'
 ratified_text_hash: sha256:8db7275f6ea859c6e8ada8b4e77ec8a954024d45bffcc6a822ede1d62f69254b
 last_reconciled_by: dawinialo@163.com
-last_reconciled_at: '2026-10-27T05:49:14.823228Z'
+last_reconciled_at: '2026-10-28T05:12:13.194185Z'
 last_reconcile_kind: self
-last_reconcile_justification: Reviewed raw recovery record parsing and strict existing
-  JSON loader for journal metadata. Duplicate keys and Unicode extra separators fail
-  before appending; typed single-record envelope, preserved prefix and exact suffix
-  remain mandatory. No replacement or truncation; independent exact re-review required.
+last_reconcile_justification: 'Reviewed full writer: staged temp cleanup only retries
+  Windows 5/32/33 for at most 350ms; persistent failure preserves prefix and temp
+  before append. Validation, file lock, O_APPEND, fsync, strict recovery journal and
+  log-derived state remain unchanged. Transient/permanent lock regressions passed;
+  37 historical recovery tests passed. Exact independent code review remains required.'
 reconciled_anchors:
   src/keepsail/core/events.py: sha256:bef3a995d3f10d9537cdc07df82d2f6cf52f589c96c825091d8619ec4f66df78
-  src/keepsail/core/writer.py: sha256:0b446d9d9153f9519c7dc7f6b1e0edee7038b58549fab76ead553eb1dca94801
+  src/keepsail/core/writer.py: sha256:041af786a49ec5d1538e58f9c11084992a5ab011c4cf19661eca5d64d2c77f1c
 ---
 Events are append-only; the log is the source of truth, state is derived.
 

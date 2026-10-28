@@ -19,8 +19,10 @@ from keepsail.core.approval import (
     validate_approval,
 )
 from keepsail.core.decisions import compute_body_hash, load_decisions
+from keepsail.core.events import EventSchemaError, effective_event_lines, parse_event_line
+from keepsail.core.file_lock import exclusive_file_lock
 from keepsail.core.knowledge import KnowledgeError, check, load_ledger, load_policy, report
-from keepsail.core.paths import HarnessNotInitialized, find_harness_root
+from keepsail.core.paths import HarnessNotInitialized, canonical_relpath, find_harness_root
 from keepsail.core.reducer import derive_state
 from keepsail.core.scope_match import resolve_commit
 from keepsail.core.slug import validate_slug
@@ -32,7 +34,7 @@ PAGE_BYTES = 24 * 1024
 _ID = re.compile(r"[A-Za-z0-9_-]{1,128}\Z")
 _AUTHORITY_FIELDS = (
     "identity", "authorization", "policy_digest", "pending_revision",
-    "conventions", "knowledge", "problems",
+    "authorization_lineage", "conventions", "knowledge", "problems",
 )
 
 
@@ -116,7 +118,8 @@ def read_entry(root: Path, entry_id: str) -> dict[str, Any]:
     return entry
 
 
-def new_entry(root: Path, change: str, session: str, source: str, cli: str) -> dict[str, Any]:
+def new_entry(root: Path, change: str, session: str, source: str, cli: str, *,
+              entry_id: str | None = None, harness: str = "claude-code") -> dict[str, Any]:
     validate_slug(change)
     if not _ID.fullmatch(session) or source not in {
         "startup", "resume", "clear", "compact", "fork",
@@ -124,12 +127,73 @@ def new_entry(root: Path, change: str, session: str, source: str, cli: str) -> d
         raise KnowledgeError("invalid session-start identity", code="entry_unbound")
     # Validate the selected Change and current authority before binding a session.
     project_context(root, change)
-    entry = {"entry_id": new_event_id(), "change_id": change, "session_id": session,
+    entry = {"entry_id": entry_id or new_event_id(), "change_id": change, "session_id": session,
              "source": source, "root": root.resolve().as_posix(), "cli": cli.replace("\\", "/")}
+    if harness == "codex":
+        entry["harness"] = harness
     save_context_record(root, (entry["entry_id"], "entry.json"), entry)
     save_context_record(root, ("sessions", digest_record(session) + ".json"),
                         {"entry_id": entry["entry_id"]}, pointer=True)
     return entry
+
+
+def capture_codex_startup(root: Path, payload: dict[str, Any], cli: str) -> dict[str, Any]:
+    session, source = payload.get("session_id"), payload.get("source")
+    if (payload.get("hook_event_name") != "SessionStart" or payload.get("agent_id")
+            or not callback_matches_workspace(root, payload.get("cwd"))
+            or not isinstance(session, str) or not _ID.fullmatch(session)
+            or source not in {"startup", "resume", "clear", "compact", "fork"}):
+        raise KnowledgeError("invalid Codex startup", code="entry_unbound")
+    startup = {"startup_id": new_event_id(), "session_id": session, "source": source,
+               "root": root.resolve().as_posix(), "cli": cli.replace("\\", "/"),
+               "harness": "codex", "callback": {k: payload[k] for k in (
+                   "hook_event_name", "session_id", "source", "cwd", "model",
+               ) if k in payload}}
+    with exclusive_file_lock(context_path(root, "sessions", digest_record(session) + ".lock")):
+        continuing = None
+        pointer_path = context_path(root, "sessions", digest_record(session) + ".json")
+        turn_path = context_path(root, "sessions", digest_record(session) + "-turn.json")
+        if source == "compact" and pointer_path.exists() and turn_path.exists():
+            prior_pointer = load_json_record(pointer_path)
+            prior_turn = load_json_record(turn_path)
+            prior_startup = prior_pointer.get("startup_id", prior_pointer.get("entry_id"))
+            try:
+                if not isinstance(prior_startup, str):
+                    raise KnowledgeError("prior startup unavailable")
+                codex_root_turn(root, prior_startup, prior_turn)
+                continuing = prior_turn
+                startup["continuing_root_turn"] = prior_turn
+            except (ValueError, KeyError, TypeError, OSError):
+                pass  # Missing attribution cannot be repaired by assuming a root turn.
+        save_context_record(root, ("startups", startup["startup_id"] + ".json"), startup)
+        save_context_record(root, ("sessions", digest_record(session) + ".json"),
+                            {"startup_id": startup["startup_id"]}, pointer=True)
+        if continuing:
+            save_codex_root_turn(root, {**continuing, "startup_id": startup["startup_id"],
+                                        "attribution": "compact-continuation"})
+    return startup
+
+
+def bind_startup(root: Path, change: str, startup_id: str) -> dict[str, Any]:
+    if not _ID.fullmatch(startup_id):
+        raise KnowledgeError("invalid startup identity", code="entry_unbound")
+    startup = load_json_record(context_path(root, "startups", startup_id + ".json"))
+    if (startup.get("root") != root.resolve().as_posix()
+            or startup.get("startup_id") != startup_id or startup.get("harness") != "codex"):
+        raise KnowledgeError("startup workspace mismatch", code="entry_unbound")
+    session = startup["session_id"]
+    with exclusive_file_lock(context_path(root, "sessions", digest_record(session) + ".lock")):
+        pointer = load_json_record(context_path(root, "sessions", digest_record(session) + ".json"))
+        if pointer == {"entry_id": startup_id}:
+            entry = read_entry(root, startup_id)
+            if entry["change_id"] != change:
+                raise KnowledgeError("startup already bound to another Change",
+                                     code="entry_unbound")
+            return entry
+        if pointer != {"startup_id": startup_id}:
+            raise KnowledgeError("startup was replaced", code="context_stale")
+        return new_entry(root, change, session, startup["source"], startup["cli"],
+                         entry_id=startup_id, harness="codex")
 
 
 def session_entry(root: Path, session: str) -> dict[str, Any]:
@@ -139,11 +203,77 @@ def session_entry(root: Path, session: str) -> dict[str, Any]:
     return read_entry(root, value["entry_id"])
 
 
-def entry_command(entry: dict[str, Any], page: int = 1) -> str:
-    return " ".join(shlex.quote(str(arg)) for arg in (
+def entry_command(entry: dict[str, Any], page: int = 1, *, bind: bool = False) -> str:
+    args = (
         entry["cli"], "--workspace", entry["root"], "--json", "change", "context",
-        entry["change_id"], "--entry", entry["entry_id"], "--page", page,
-    ))
+        entry["change_id"], *( ("--bind-startup", entry["entry_id"]) if bind
+                            else ("--entry", entry["entry_id"], "--page", page)),
+    )
+    if entry.get("harness") == "codex":
+        quoted = " ".join("'" + str(arg).replace("'", "''") + "'" for arg in args)
+        return "$env:PYTHONUTF8='1'; $env:PYTHONDONTWRITEBYTECODE='1'; & " + quoted
+    return " ".join(shlex.quote(str(arg)) for arg in args)
+
+
+def context_invocation(entry: dict[str, Any], command: Any) -> bool:
+    prefix = entry_command(entry).rsplit(" ", 1)[0] + " "
+    return isinstance(command, str) and bool(
+        re.fullmatch(re.escape(prefix) + r"'?[1-9][0-9]*'?", command)
+        or (entry.get("harness") == "codex" and command == entry_command(entry, bind=True))
+    )
+
+
+def save_codex_root_turn(root: Path, value: dict[str, Any]) -> None:
+    """Caller holds the session lock; retain each epoch's attribution separately."""
+    key = digest_record([value["session_id"], value["turn_id"], value["startup_id"]])
+    save_context_record(root, ("turns", key + ".json"), value)
+    save_context_record(root, ("sessions", digest_record(value["session_id"]) + "-turn.json"),
+                        value, pointer=True)
+
+
+def codex_root_turn(root: Path, startup_id: str, payload: dict[str, Any], *,
+                     current: bool = True) -> None:
+    session, turn = payload.get("session_id"), payload.get("turn_id")
+    if (not isinstance(turn, str) or not _ID.fullmatch(turn) or payload.get("agent_id")
+            or not isinstance(session, str) or not _ID.fullmatch(session)):
+        raise KnowledgeError("Codex root turn unavailable")
+    key = digest_record([session, turn, startup_id])
+    record = load_json_record(context_path(root, "turns", key + ".json"))
+    if any(record.get(k) != v for k, v in {
+        "session_id": session, "turn_id": turn, "startup_id": startup_id,
+    }.items()):
+        raise KnowledgeError("Codex turn belongs to another startup")
+    callback = record.get("callback", {})
+    if (not isinstance(callback, dict) or callback.get("hook_event_name") != "UserPromptSubmit"
+            or callback.get("session_id") != session or callback.get("turn_id") != turn
+            or not callback_matches_workspace(root, callback.get("cwd"))):
+        raise KnowledgeError("Codex root prompt provenance unavailable")
+    if current and load_json_record(context_path(root, "sessions",
+                                                digest_record(session) + "-turn.json")) != record:
+        raise KnowledgeError("Codex callback is not the current observed root turn")
+
+
+def returned_stdout(entry: dict[str, Any], payload: dict[str, Any]) -> str:
+    response = payload.get("tool_response")
+    if entry.get("harness") == "codex":
+        # Candidate wire contract. Unknown native output remains not_observed;
+        # actual desktop callback/transport acceptance is separately required.
+        if (not isinstance(response, dict)
+                or not set(response).issubset({"output", "exit_code", "chunk_id",
+                                              "wall_time_seconds", "original_token_count"})
+                or type(response.get("exit_code")) is not int or response["exit_code"] != 0
+                or not isinstance(response.get("output"), str)):
+            raise KnowledgeError("incomplete or unknown Codex CLI return", code="page_incomplete")
+        return str(response["output"])
+    if (not isinstance(response, dict) or response.get("interrupted") is not False
+            or not isinstance(response.get("stdout"), str)
+            or not isinstance(response.get("stderr"), str)
+            or any(response.get(k) for k in (
+                "backgroundTaskId", "backgroundedByUser", "timedOutAfterMs", "isImage",
+                "rawOutputPath", "persistedOutputPath", "persistedOutputSize",
+            ))):
+        raise KnowledgeError("incomplete native CLI return", code="page_incomplete")
+    return str(response["stdout"])
 
 
 def make_manifest(projection: dict[str, Any], entry: dict[str, Any],
@@ -191,7 +321,8 @@ def _manifest_at(root: Path, entry: dict[str, Any], mid: str) -> dict[str, Any]:
     content = json.loads(text, object_pairs_hook=_unique_object)
     if (sha256(text.encode("utf-8")).hexdigest() != manifest["context_digest"]
             or content["entry"] != entry or content["delivery_id"] != manifest["delivery_id"]
-            or digest_record({k: content[k] for k in _AUTHORITY_FIELDS})
+            or digest_record({k: content[k] for k in _AUTHORITY_FIELDS
+                              if k != "authorization_lineage" or k in content})
             != manifest["authority_digest"]):
         raise KnowledgeError("manifest content does not match authority",
                              code="context_unavailable")
@@ -244,7 +375,7 @@ def page_data(manifest: dict[str, Any], page: int) -> dict[str, Any]:
     if not 1 <= page <= len(manifest["chunks"]):
         raise KnowledgeError("invalid context page")
     content = manifest["chunks"][page - 1]
-    return {k: manifest[k] for k in (
+    data = {k: manifest[k] for k in (
         "schema_version", "entry_id", "session_id", "change_id", "authority_digest",
         "delivery_id", "context_digest", "manifest_id",
     )} | {"page": page, "total_pages": len(manifest["chunks"]), "content": content,
@@ -253,6 +384,10 @@ def page_data(manifest: dict[str, Any], page: int) -> dict[str, Any]:
          "token_estimate": (len(content.encode("utf-8")) + 2) // 3,
          "token_estimate_method": "UTF8 bytes / 3 heuristic; not measured tokens",
          "next_page": page + 1 if page < len(manifest["chunks"]) else None}
+    entry = json.loads("".join(manifest["chunks"]))["entry"]
+    if entry.get("harness") == "codex":
+        data["next_command"] = entry_command(entry, page + 1) if data["next_page"] else None
+    return data
 
 
 def validate_return(root: Path, entry: dict[str, Any], manifest: dict[str, Any],
@@ -264,16 +399,10 @@ def validate_return(root: Path, entry: dict[str, Any], manifest: dict[str, Any],
             or not callback_matches_workspace(root, payload.get("cwd"))
             or not isinstance(payload.get("tool_use_id"), str) or not payload["tool_use_id"]):
         raise KnowledgeError("tool return identity mismatch", code="page_incomplete")
-    response = payload.get("tool_response")
-    if (not isinstance(response, dict) or response.get("interrupted") is not False
-            or not isinstance(response.get("stdout"), str)
-            or not isinstance(response.get("stderr"), str)
-            or any(response.get(k) for k in (
-                "backgroundTaskId", "backgroundedByUser", "timedOutAfterMs", "isImage",
-                "rawOutputPath", "persistedOutputPath", "persistedOutputSize",
-            ))):
-        raise KnowledgeError("incomplete native CLI return", code="page_incomplete")
-    envelope = json.loads(response["stdout"], object_pairs_hook=_unique_object)
+    if entry.get("harness") == "codex":
+        codex_root_turn(root, entry["entry_id"], payload, current=False)
+    stdout = returned_stdout(entry, payload)
+    envelope = json.loads(stdout, object_pairs_hook=_unique_object)
     if (not isinstance(envelope, dict)
             or set(envelope) != {"command", "version", "status", "exit_code", "data", "errors"}
             or envelope["command"] != "change context" or envelope["exit_code"] != 0
@@ -283,9 +412,14 @@ def validate_return(root: Path, entry: dict[str, Any], manifest: dict[str, Any],
     if not isinstance(data, dict):
         raise KnowledgeError("invalid context return data", code="page_incomplete")
     page = data.get("page")
-    if (type(page) is not int or data != page_data(manifest, page)
-            or payload.get("tool_input", {}).get("command") != entry_command(entry, page)
-            or len(response["stdout"].encode("utf-8")) > PAGE_BYTES):
+    if type(page) is not int:
+        raise KnowledgeError("invalid context page", code="page_incomplete")
+    commands = {entry_command(entry, page)}
+    if entry.get("harness") == "codex" and page == 1:
+        commands.add(entry_command(entry, bind=True))
+    if (data != page_data(manifest, page)
+            or payload.get("tool_input", {}).get("command") not in commands
+            or len(stdout.encode("utf-8")) > PAGE_BYTES):
         raise KnowledgeError("returned page differs from supplied content", code="page_incomplete")
     return page
 
@@ -304,7 +438,7 @@ def observed_pages(root: Path, entry: dict[str, Any],
 
 
 def entry_readiness(root: Path, change: str, session: str,
-                    action_path: str | None = None) -> dict[str, Any]:
+                    action_path: str | list[str] | None = None) -> dict[str, Any]:
     """Current supply, this epoch's complete returns and local dependencies separately."""
     reasons = []
     current: dict[str, Any] | None = None
@@ -339,8 +473,10 @@ def entry_readiness(root: Path, change: str, session: str,
                        and o.get("entry_id") == entry["entry_id"]
                        and o.get("session_id") == session for o in ledger["observations"]):
                 reasons.append(f"current entry acquisition missing: {version['knowledge_id']}")
-        if action_path:
-            action_knowledge = report(root, change, extra_paths=[action_path])
+        paths = (action_path if isinstance(action_path, list)
+                 else [action_path] if action_path else [])
+        if paths:
+            action_knowledge = report(root, change, extra_paths=paths)
             if action_knowledge["constraints"] != knowledge["constraints"] or any(
                 reason.startswith("unknown applicability:")
                 and reason not in (knowledge["blocking_reasons"] or [])
@@ -351,7 +487,7 @@ def entry_readiness(root: Path, change: str, session: str,
                 command = (f"keepsail implementation record {change} --assessment <path>; "
                            "then " + entry_command(entry))
         reasons.extend(current["problems"])
-        check(root, change, paths=[action_path] if action_path else None)
+        check(root, change, paths=paths or None)
     except (ValueError, KeyError, TypeError, OSError) as exc:
         reasons.append(str(exc))
     return {"ready": not reasons, "blocking_reasons": reasons, "next_command": command,
@@ -361,14 +497,15 @@ def entry_readiness(root: Path, change: str, session: str,
 
 
 def context_gate_inputs(root: Path, change: str, session: str,
-                        action_path: str | None) -> tuple[ChangeState | None, EntryReadiness]:
+                        action_path: str | list[str] | None
+                        ) -> tuple[ChangeState | None, EntryReadiness]:
     """The same current-state/readiness seam for the selected hook and gate CLI."""
     try:
         validate_slug(change)
         state = derive_state(root / ".harness/events.jsonl").get(change)
         value = entry_readiness(root, change, session, action_path)
         reasons = list(value["blocking_reasons"])
-        if action_path is None:
+        if not action_path:
             reasons.append("selected edit path unavailable")
         if state is None or value["current_state"] != state.current_state or (
             value["approval_id"] != (state.effective_approval or {}).get("approval_id")
@@ -378,6 +515,81 @@ def context_gate_inputs(root: Path, change: str, session: str,
     except (ValueError, KeyError, TypeError, OSError) as exc:
         return None, EntryReadiness((str(exc),),
                                     "Set KEEPSAIL_CHANGE_ID and start the task session.")
+
+
+def codex_patch_paths(root: Path, patch: Any) -> list[str]:
+    """Extract every file/move path from the selected native patch grammar."""
+    if not isinstance(patch, str):
+        raise KnowledgeError("patch text unavailable")
+    lines = patch.splitlines()
+    if len(lines) < 3 or lines[0] != "*** Begin Patch" or lines[-1] != "*** End Patch":
+        raise KnowledgeError("patch boundaries unavailable")
+    paths, i = [], 1
+
+    def add(raw: str) -> None:
+        if not raw or raw.strip() != raw or "\x00" in raw:
+            raise KnowledgeError("invalid patch path")
+        path = canonical_relpath(root, raw)
+        if path in {None, "."}:
+            raise KnowledgeError("patch path outside workspace or unresolved")
+        if path not in paths:
+            paths.append(path)
+
+    while i < len(lines) - 1:
+        header = re.fullmatch(r"\*\*\* (Add|Update|Delete) File: (.+)", lines[i])
+        if not header:
+            raise KnowledgeError("unrecognized patch file header")
+        mode = header[1]
+        add(header[2])
+        i += 1
+        if mode == "Update" and lines[i].startswith("*** Move to: "):
+            add(lines[i][13:])
+            i += 1
+        body = []
+        while i < len(lines) - 1 and not re.match(r"\*\*\* (Add|Update|Delete) File: ", lines[i]):
+            body.append(lines[i])
+            i += 1
+        if mode == "Delete" and body:
+            raise KnowledgeError("delete patch has unexpected body")
+        if mode == "Add" and any(not line.startswith("+") for line in body):
+            raise KnowledgeError("add patch body unavailable")
+        if mode == "Update" and (not body or any(
+            not (line.startswith(("@@", " ", "+", "-")) or line == "*** End of File")
+            for line in body
+        )):
+            raise KnowledgeError("update patch body unavailable")
+    if not paths:
+        raise KnowledgeError("patch paths unavailable")
+    return paths
+
+
+def _approval_lineage(root: Path, change: str, approval: dict[str, Any] | None
+                      ) -> list[dict[str, Any]]:
+    prior_id = (approval or {}).get("subject", {}).get("prior_approval")
+    if not prior_id:
+        return []
+    approvals = {}
+    for line in effective_event_lines((root / ".harness/events.jsonl").read_text(
+        encoding="utf-8",
+    ).splitlines()):
+        try:
+            event = parse_event_line(line)
+        except EventSchemaError:
+            continue  # Match the reducer's legacy tolerance; never infer approval from a skip.
+        if event.change_id == change and event.type == "plan_approved":
+            value = event.payload.get("approval")
+            if isinstance(value, dict):
+                checked = validate_approval(value, change_id=change)
+                approvals[checked["approval_id"]] = checked
+    result, seen = [], {(approval or {}).get("approval_id")}
+    while prior_id:
+        if prior_id in seen or prior_id not in approvals:
+            raise KnowledgeError("referenced prior approval missing or cyclic")
+        seen.add(prior_id)
+        prior = approvals[prior_id]
+        result.append(prior)
+        prior_id = prior["subject"].get("prior_approval")
+    return result
 
 
 def project_context(root: Path, change: str) -> dict[str, Any]:
@@ -424,6 +636,7 @@ def project_context(root: Path, change: str) -> dict[str, Any]:
     )}
     authority = {
         "identity": identity, "authorization": approval,
+        "authorization_lineage": _approval_lineage(root, change, approval),
         "policy_digest": policy["policy_digest"] if policy else None,
         "pending_revision": state.pending_revision,
         "conventions": conventions, "knowledge": current, "problems": problems,

@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import sys
 from hashlib import sha256
 from pathlib import Path
@@ -13,6 +12,7 @@ from keepsail.cli.knowledge import _submit, deliver_knowledge
 from keepsail.core.approval import digest_record, load_json_record
 from keepsail.core.context import (
     callback_matches_workspace,
+    context_invocation,
     context_path,
     entry_command,
     make_manifest,
@@ -22,6 +22,7 @@ from keepsail.core.context import (
     project_context,
     read_entry,
     read_manifest,
+    returned_stdout,
     save_context_record,
     session_entry,
     validate_return,
@@ -225,7 +226,7 @@ def _record_acquisition(root: Path, entry: dict[str, Any], manifest: dict[str, A
                 "session_id": entry["session_id"], "entry_id": entry["entry_id"],
                 "returned_content_digest": sha256(version["body"].encode("utf-8")).hexdigest(),
                 "original_receipt": {
-                    "boundary": "claude-code-native-cli-tool-return",
+                    "boundary": entry.get("harness", "claude-code") + "-native-cli-tool-return",
                     "manifest_id": manifest["manifest_id"],
                     "returned_context_digest": manifest["context_digest"], "callbacks": receipts,
                     "limits": ["local-observer-trust", "not-understanding-or-compliance"],
@@ -296,12 +297,9 @@ def record_statement(root: Path, change: str, entry_id: str, path: str) -> dict[
 def observe_return(root: Path, payload: dict[str, Any]) -> dict[str, Any]:
     """Only recognized context invocations are retained; unrelated Bash is ignored."""
     entry = session_entry(root, payload.get("session_id", ""))
-    prefix = entry_command(entry).rsplit(" ", 1)[0] + " "
     tool_input = payload.get("tool_input")
     command = tool_input.get("command", "") if isinstance(tool_input, dict) else ""
-    if not isinstance(command, str) or not re.fullmatch(
-        re.escape(prefix) + r"[1-9][0-9]*", command,
-    ):
+    if not context_invocation(entry, command):
         return {"ignored": True}
     policy = load_policy(root)
     if not policy or "keepsail-cli-observer" not in policy["observation_issuers"]:
@@ -310,7 +308,7 @@ def observe_return(root: Path, payload: dict[str, Any]) -> dict[str, Any]:
     # Retain only the necessary callback fields, not prompts or full transcripts.
     receipt: dict[str, Any] = {k: payload[k] for k in (
         "hook_event_name", "session_id", "cwd", "tool_name", "tool_use_id",
-        "tool_input", "tool_response", "agent_id",
+        "tool_input", "tool_response", "agent_id", "turn_id",
     ) if k in payload}
     try:
         page = validate_return(root, entry, manifest, receipt)
@@ -326,7 +324,7 @@ def observe_return(root: Path, payload: dict[str, Any]) -> dict[str, Any]:
     if len(by_page) != len(manifest["chunks"]):
         return {"observed_page": page, "complete": False}
     ordered = [by_page[i] for i in range(1, len(manifest["chunks"]) + 1)]
-    returned = "".join(json.loads(r["tool_response"]["stdout"])["data"]["content"] for r in ordered)
+    returned = "".join(json.loads(returned_stdout(entry, r))["data"]["content"] for r in ordered)
     if sha256(returned.encode("utf-8")).hexdigest() != manifest["context_digest"]:
         raise KnowledgeError("incomplete returned context", code="page_incomplete")
     content = json.loads(returned)

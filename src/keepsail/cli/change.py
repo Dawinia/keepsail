@@ -569,12 +569,14 @@ def resume(ctx: click.Context, slug: str | None) -> None:
 @click.argument("slug")
 @click.option("--preview", is_flag=True, help="Read current context without recording supply.")
 @click.option("--entry", "entry_id", help="SessionStart entry epoch to supply and retrieve.")
+@click.option("--bind-startup", help="Bind a real Codex startup once to the explicit Change.")
 @click.option("--page", type=click.IntRange(min=1), default=1, show_default=True)
 @click.option("--statement", type=click.Path(exists=True, dir_okay=False),
               help="Explicit entry-statement/v1 JSON; never auto-adopts knowledge.")
 @click.pass_context
 def context_command(ctx: click.Context, slug: str, preview: bool,
-                    entry_id: str | None, page: int, statement: str | None) -> None:
+                    entry_id: str | None, bind_startup: str | None,
+                    page: int, statement: str | None) -> None:
     """Retrieve the explicitly selected Change's current authority context."""
     from keepsail.cli.knowledge import _run
     from keepsail.core.context import PAGE_BYTES, project_context
@@ -584,15 +586,21 @@ def context_command(ctx: click.Context, slug: str, preview: bool,
     ctx.obj["unicode_output"] = True
 
     def action(root: Path) -> dict[str, Any]:
-        if preview and (entry_id or statement):
+        selected_entry = entry_id
+        if preview and (entry_id or statement or bind_startup):
             raise KnowledgeError("--preview and --entry/--statement are mutually exclusive")
         if preview:
             return project_context(root, slug)
-        if entry_id is None:
+        if bind_startup:
+            from keepsail.core.context import bind_startup as bind
+            if entry_id or statement or page != 1:
+                raise KnowledgeError("--bind-startup requires page 1 without --entry/--statement")
+            selected_entry = bind(root, slug, bind_startup)["entry_id"]
+        if selected_entry is None:
             raise KnowledgeError("explicit --entry or --preview required", code="entry_unbound")
         if statement:
-            return record_statement(root, slug, entry_id, statement)
-        data = retrieve_context(root, slug, entry_id, page)
+            return record_statement(root, slug, selected_entry, statement)
+        data = retrieve_context(root, slug, selected_entry, page)
         encoded = json_envelope(command="change context", status="pass", exit_code=0,
                                 data=data, ensure_ascii=False)
         if len(encoded.encode("utf-8")) + 1 > PAGE_BYTES:

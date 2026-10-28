@@ -48,3 +48,45 @@ were not recovered in replacement context. Both fixes stay within H1/H3/H4/H6 an
 have failing-then-passing regressions. Its unfinished verification was cancelled;
 it is not a current passing verification or imported final code approval. The
 corrected exact candidate requires fresh verification and independent review.
+
+## Codex revision (2026-10-28)
+
+Claude A/B was unavailable to the owner and never occurred. The confirmed revision
+selects current local Windows Codex desktop; it preserves original approval/test/
+review evidence. Exact `plan:84705107...` was independently approved and imported
+as `approval:2026-10-28-harness-context-codex-revision-plan-01-84705107`.
+
+The owner separately recognized `codex-context-evidence-boundary` v1 digest
+`e7b60342f6b0ca752382050abcdb0f0a7172e048d4a4b0f429cd9f835c3c7699`.
+Native proposal and exact recognition inputs are retained here. This does not
+recognize v2, a disposition, implementation compliance or final code authority.
+No actual desktop callback, root-turn attribution or A/B claim is established yet.
+
+Candidate tests use supplied callbacks, native Keepsail processes and the actual
+Windows PowerShell transport, including executable paths with spaces. The current
+decoder requires an explicit completed output/exit-code object; unknown actual
+host response shapes must remain unobserved and be diagnosed at real acceptance.
+The root-turn guard is a candidate attribution contract, not an authenticated
+producer identity. Fresh exact candidate verification/review remains required.
+
+The revised affected regression run passed **318 tests, 4 skipped** in 262.52s;
+the separate historical recovery regression passed **37 tests** in 167.72s.
+Ruff, mypy (128 source files), native decision and doc checks passed. These runs
+cover the working candidate; the subsequent frozen subject still requires native
+full verify and independent review. The skips are existing Windows symlink cases.
+
+Actual native supply initially failed before append when Windows held the staged
+transaction temporary file. A public writer regression failed for a transient lock
+before the fix; transient and persistent-lock cases now pass. Cleanup retries only
+this transaction's temp for at most 350ms on Windows sharing/access errors; permanent
+failure preserves the event prefix and temp. Validation, append locking, fsync and
+strict recovery are unchanged. Native supply then succeeded, including a fresh
+delivery after updated coverage. All failed temps and original diagnostics remain.
+The ratified append-only body is unchanged; its native reconciliation is self-review.
+
+An initial read-only cost measurement of this real Change projected 91,764
+characters in 7 bounded pages in 2.797s. Native supply attempts after the fix took
+9.86s and 12.406s under the recorded local load. This is not full session latency;
+actual hook budgets, complete-return latency and daily human cost require real A/B.
+The root agent's separate native v1 adoption is only a declaration, without an
+installed Codex-hook acquisition or compliance claim.

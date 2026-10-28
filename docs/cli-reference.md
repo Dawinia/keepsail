@@ -41,7 +41,7 @@ keepsail adapter install [OPTIONS] NAME
 | Param | Type | Default | Description |
 |-------|------|---------|-------------|
 | `NAME` | text | *required* |  |
-| `--knowledge-context` | flag | `False` | Opt in/out of Claude's session-bound knowledge delivery (otherwise preserve). |
+| `--knowledge-context` | flag | `False` | Opt in/out of Claude/Codex session-bound context (otherwise preserve). |
 
 **Exit codes:**
 
@@ -195,6 +195,7 @@ keepsail change context [OPTIONS] SLUG
 | `SLUG` | text | *required* |  |
 | `--preview` | flag | `False` | Read current context without recording supply. |
 | `--entry` | text | — | SessionStart entry epoch to supply and retrieve. |
+| `--bind-startup` | text | — | Bind a real Codex startup once to the explicit Change. |
 | `--page` | integer range | `1` |  |
 | `--statement` | file | — | Explicit entry-statement/v1 JSON; never auto-adopts knowledge. |
 
@@ -582,8 +583,10 @@ keepsail gate check [OPTIONS] {pre-tool-use|pre-commit|pre-push|pr-open|pr-merge
 | `--file` | text | — |  |
 | `--change-id` | text | — |  |
 | `--pr` | integer | — |  |
-| `--agent` | {claude-code} | — |  |
-| `--session-id` | text | — | Current explicitly bound Claude session. |
+| `--agent` | {claude-code\|codex} | — |  |
+| `--session-id` | text | — | Current explicitly bound harness session. |
+| `--turn-id` | text | — | Current observed Codex root turn. |
+| `--patch-file` | file | — | Codex apply_patch text to evaluate as one complete action. |
 
 **Exit codes:**
 

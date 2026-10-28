@@ -1,0 +1,29 @@
+{
+  "schema_version": "knowledge-operation/v1",
+  "operation_id": "codex-context-v1-proposal-20261028-01",
+  "expected_revision": "1b0d173131c1112d478e3772dfb198fe87f05e792356f2ceb4277f5adeb740c4",
+  "change_id": "2026-10-27-harness-knowledge-context",
+  "version": {
+    "schema_version": "knowledge-version/v1",
+    "product_id": "keepsail",
+    "knowledge_id": "codex-context-evidence-boundary",
+    "body": "在本 Change 的本机 Codex 桌面集成边界内，供应内容、实际 CLI 返回的可观察获取、执行者采用或异议声明、实际检查结果分别记录；开始、继续或恢复时交付当前有效批准、准确适用知识与未决事项，保留当时版本和批准依据。新 entry 不沿用旧 entry 的获取；无法确认完整返回或根任务归属时，不记录为已获取。获取不证明理解，执行者声明不证明合规；知识纠正不改变工作承诺授权。",
+    "rationale": "Bounded Codex desktop acceptance knowledge, preserving the separately recognized Claude version and independent work authorization.",
+    "sources": [
+      {
+        "origin": "git:bb69097dffee4e782568da4ea688d06b5773cbf4:docs/product-architecture.md#trace-and-guarantee-boundaries",
+        "content": "Supply, observable acquisition, executor declarations and actual checks are distinct; retained grounds and authorization remain separate."
+      }
+    ],
+    "selector": {
+      "repository_ids": [
+        "Dawinia/keepsail"
+      ],
+      "change_ids": [
+        "2026-10-27-harness-knowledge-context"
+      ]
+    },
+    "authority": "constraint",
+    "previous_version": null
+  }
+}

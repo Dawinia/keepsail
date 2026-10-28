@@ -148,3 +148,27 @@ Implementation fixtures are supplemental evidence, not actual Claude callback or
 replacement-session acceptance. No current claim of complete H7/A1–A12 acceptance,
 published package, merged integration, shared cross-repository authority, semantic
 recall, all-tool interception or model understanding/compliance is made here.
+
+## 2026-10-28 selected entry revision: local Codex desktop
+
+The owner confirmed the [Codex revision](plans/2026-10-27-harness-knowledge-context-codex-revision.md).
+Its exact `plan:84705107...` received retained external approval and was imported
+natively. The original Claude candidate at `fc783c1` passed 2442 tests with 22 skips;
+that result remains scoped to that implementation, not Codex activation/acceptance.
+
+The selected candidate reuses the knowledge/approval model, adds an actual-startup
+binding and retains referenced frozen prior approvals (C1/C2), preserves Codex raw
+return provenance and root-turn attribution without claiming understanding (C3/C6),
+and checks every file/move path through the same pure gate and action-local
+dependencies (C4/C5). Repeated receipts do not change authority or repeat full
+context injection. The body of the existing Claude knowledge stays conditional;
+the owner separately recognized exact Codex knowledge v1 `e7b60342...` in this
+repository AND Change. Neither recognition approves code or an impact disposition.
+
+Actual root-turn attribution, native return shape/completion, hook trust and
+failure/timeout behavior, A/B development, v1/v2 evolution/disposition and operating
+cost remain real acceptance obligations. CLI/process callback fixtures are only
+supplemental evidence. The PATH CLI 0.46.0 differs from the observed desktop
+0.164.0-alpha.11.1 binary; do not use one to assert the other's installed behavior.
+No shared authority/distribution, all-tool interception or semantic-recall promise
+is discharged by this revision. This dated snapshot does not narrow architecture.

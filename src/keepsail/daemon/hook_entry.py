@@ -54,6 +54,8 @@ from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
     from keepsail.adapters import AgentAdapter
+    from keepsail.core.state import ChangeState
+    from keepsail.gates import GateResult
 
 from keepsail.core.active_change import read_active_change_id
 from keepsail.core.paths import (
@@ -103,6 +105,11 @@ def main() -> None:  # console_script entry
             if event == "stop":
                 from keepsail.adapters.agent.codex import CodexAdapter
                 _run_stop(CodexAdapter())
+            elif "--context" in argv:
+                from keepsail.daemon.codex_context_hook import run_context_hook
+                cli_index = argv.index("--cli") + 1 if "--cli" in argv else len(argv)
+                cli = argv[cli_index] if cli_index < len(argv) else None
+                run_context_hook(event, cli)
             elif event == "pre-tool-use":
                 _run_codex_shim()
             return
@@ -191,6 +198,45 @@ def _run_codex_shim() -> None:
         )
         sys.exit(0)
     sys.exit(0)
+
+
+def decide_codex_patch(root: Path, session: str, turn: str, patch: str,
+                       change: str | None = None) -> tuple[GateResult, ChangeState | None]:
+    """One selected multi-path I/O seam, shared by the Codex hook and gate CLI."""
+    from keepsail.core.context import (
+        codex_patch_paths,
+        codex_root_turn,
+        context_gate_inputs,
+        session_entry,
+    )
+    from keepsail.core.plan_paths import patterns_for_state
+    from keepsail.gates import GateDecision, GateResult, ProposedAction
+    from keepsail.gates.decisions import PLAN_PATH_ALLOW_STATES
+    from keepsail.gates.pre_tool_use import PreToolUseGate
+
+    try:
+        if (root / ".harness/gate-disabled").exists():
+            _record_bypass(root, tool="apply_patch", file=None)
+            return GateResult(decision=GateDecision.ALLOW, reason="gate disabled (disclosed)"), None
+        entry = session_entry(root, session)
+        if entry.get("harness") != "codex" or (change and entry["change_id"] != change):
+            raise ValueError("selected Codex Change/session mismatch")
+        codex_root_turn(root, entry["entry_id"], {"session_id": session, "turn_id": turn})
+        paths = codex_patch_paths(root, patch)
+        state, readiness = context_gate_inputs(root, entry["change_id"], session, paths)
+        patterns = patterns_for_state(root, state, PLAN_PATH_ALLOW_STATES)
+        gate = PreToolUseGate(plan_path_patterns=patterns, entry_context=readiness)
+        for path in paths:
+            result = gate.decide(ProposedAction(kind="edit", file=path, resolved_path=path),
+                                 state, [])
+            if result.decision is GateDecision.BLOCK:
+                return result, state
+        return result, state
+    except (ValueError, KeyError, TypeError, OSError) as exc:
+        return GateResult(
+            decision=GateDecision.BLOCK, reason="Codex context unavailable: " + str(exc),
+            suggested_action="Retrieve the current explicitly bound task context.",
+        ), None
 
 
 def _run_stop(adapter: AgentAdapter) -> None:

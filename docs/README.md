@@ -22,7 +22,7 @@ Start here.
   and the boundary between the harness and external execution.
 - [Report semantics](reporting.md) — historical attempts, external conclusions,
   usage coverage and the limits of finding metrics.
-- [Claude knowledge context](knowledge-context.md) — explicit task binding,
+- [Knowledge context](knowledge-context.md) — selected Codex revision, task binding,
   bounded retrieval, observable returns, recovery and independent-work checks.
 - [Adopting](adopting.md) — apply it to your own project: discover which
   architecture rules to lock, then lock them.

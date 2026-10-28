@@ -21,6 +21,29 @@ def test_preview_restores_frozen_approval_without_recording_supply(tmp_path: Pat
     assert events.read_bytes() == before
 
 
+def test_revision_restores_referenced_frozen_approval_and_unreplaced_restrictions(tmp_path):
+    from keepsail.core.reducer import derive_state
+
+    workspace = Workspace(tmp_path)
+    (tmp_path / "revision.md").write_text("Change entry; preserve prior restrictions.\n")
+    workspace.cli("plan", "redeclare", "change-a", "--plan", "revision.md",
+                   "--commitment", "db=Use PostgreSQL")
+    pending = derive_state(tmp_path / ".harness/events.jsonl")["change-a"].pending_revision
+    subject = pending["subject"]
+    evidence = {"version": "review-evidence/v1", "evidence_id": "revision-review-1",
+                "kind": "plan", "subject_id": subject["subject_id"], "decision": "approve",
+                "process": {"id": "owner-review", "version": "1"}, "issuer": "owner",
+                "original_evidence": {"decision": "approve"},
+                "provenance": {"policy_digest": workspace.review["process"]["policy_digest"]}}
+    workspace.cli("review", "import", "change-a", "--evidence", str(workspace.write(evidence)))
+    (tmp_path / "plan.md").write_text("Unapproved disk text\n")
+    preview = workspace.cli("change", "context", "change-a", "--preview")["data"]
+    prior = preview["authorization_lineage"][0]
+    assert prior["approval_id"] == "approval:plan-1"
+    assert prior["subject"]["artifacts"][0]["content"] == "# Persist with PostgreSQL\n"
+    assert preview["authorization"]["subject"]["prior_approval"] == prior["approval_id"]
+
+
 def test_only_complete_actual_cli_returns_make_current_entry_ready(tmp_path, monkeypatch):
     from tests.unit.core import test_knowledge as fixtures
 

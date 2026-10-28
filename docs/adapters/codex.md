@@ -1,5 +1,21 @@
 # Codex adapter
 
+## Selected Windows desktop context revision (2026-10-28)
+
+The current Change selects local Codex desktop for actual context acceptance because
+Claude is unavailable to the owner. Optional `--knowledge-context` adds explicit
+startup binding, complete-return observation and a multi-path patch prerequisite.
+See [session context](../knowledge-context.md) for the exact workflow, current
+candidate wire contract, declarations and native opt-out. Default installation
+retains the legacy behavior described below. Actual desktop A/B callback and trust
+acceptance remain pending; process fixtures do not discharge them.
+
+Current host capabilities must be distinguished from the adapter's declared edit
+surface. Historical statements below about Codex exposing only shell/MCP tools are
+not a current host capability verdict. The context revision selects native
+`apply_patch`, parses all file/move paths and uses the same lifecycle allowances;
+the legacy shim still passes no resolved path.
+
 The Codex adapter wires the OpenAI Codex CLI to keepsail. It is the second
 agent adapter in v0.1 and is **experimental** (API stability may change). Claude
 Code remains the reference adapter — see [Claude Code adapter](claude-code.md).

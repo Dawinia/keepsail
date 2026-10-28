@@ -1,10 +1,83 @@
-# Session-bound Claude Code context
+# Session-bound knowledge context
 
 This integration connects existing approval and knowledge records to one harness.
-The [product architecture](product-architecture.md) remains normative. Claude
+The [product architecture](product-architecture.md) remains normative. The executor
 performs the work and semantic reasoning; Keepsail supplies and checks recorded
 relationships. [Coverage](product-architecture-coverage.md) distinguishes source,
 activation and real-session acceptance.
+
+## Selected entry: Windows Codex desktop revision
+
+The confirmed revision selects the current **local Codex desktop** for real
+acceptance. The earlier Claude candidate remains historical source/test evidence;
+Claude A/B acceptance did not occur. This is one selected integration effort, not
+a new cross-harness framework. The PATH CLI can differ from the desktop's bundled
+runtime; the audited versions were 0.46.0 and 0.164.0-alpha.11.1 respectively.
+
+```console
+keepsail adapter install codex --knowledge-context
+```
+
+Review and trust the exact new hooks using the current host's hook review UI.
+Installation does not trust or prove activation. Keep the pinned repository `.venv`
+CLI/hook executables. This Windows transport uses PowerShell; arbitrary platform
+or cloud orchestration compatibility is not claimed.
+
+SessionStart retains only required callback identity and issues an unbound startup
+hint. In a task explicitly identifying the Change, run its command with that slug:
+
+```console
+keepsail --json change context your-change --bind-startup STARTUP_FROM_ACTUAL_HINT
+```
+
+Use the **full exact command from the hint**, including pinned paths and transport
+settings; the short example only names the interface. Bind once; another Change
+requires another startup. No environment variable from a separate terminal is
+assumed to reach an already-running desktop. Retrieve every `next_command` and
+then use the explicit declaration schema below. No automatic latest-Change choice
+or adoption is performed.
+
+Current approval context also supplies referenced prior frozen approvals, preserving
+unreplaced restrictions. The current adopted revision defines precedence; retaining
+an old body does not reinstate an explicitly replaced harness target.
+
+Codex observations preserve the raw native callback and its root turn identity.
+The current candidate decoder accepts an explicit completed `output`/`exit_code`
+object; an unknown, running, truncated or failed native shape remains unobserved.
+This wire contract still requires actual desktop acceptance. Callback fixtures and
+PowerShell process tests cannot establish that the host delivered this shape.
+UserPromptSubmit records root turn identity without collecting prompt content;
+unverified subagent/other-turn callbacks cannot use that entry. Actual attribution
+is an acceptance requirement, not a cryptographic identity guarantee.
+An automatic compact may continue the same observed root turn without another
+prompt. Its actual startup callback retains the prior attribution reference;
+only root-turn continuity carries forward, while the new entry still reacquires
+every page and version. Old turn/entry records remain immutable.
+
+The selected edit gate extracts all add/update/delete/move paths from a native
+patch. Every path uses the same current context and pure lifecycle gate. An entire
+patch waits if any dependent edit waits; another proven-independent patch may
+continue. Malformed/unknown paths cannot become independent by omission. CLI
+diagnostics use the same complete-action seam:
+
+```console
+keepsail --json gate check pre-tool-use --agent codex --session-id SESSION --turn-id TURN --change-id your-change --patch-file candidate.patch
+keepsail adapter install codex --no-knowledge-context
+```
+
+Native opt-out withdraws this context boundary, retains history and restores the
+legacy adapter hooks while preserving unrelated settings. Hook trust/timeout/skip
+behavior, actual A/B development and separately recognized Codex v1/v2 evolution
+remain pending until retained real evidence says otherwise. The separately
+recognized Claude knowledge is delivered with its original conditional body;
+it is not silently rewritten into Codex authority.
+
+The [official hook contract](https://learn.chatgpt.com/docs/hooks) informs this
+adapter. Test actual callback connectivity and failure behavior before claiming
+protection. Raw complete-return acquisition remains separate from executor
+declarations, native checks and substantive code review.
+
+## Earlier Claude candidate
 
 ## Install and select the task
 

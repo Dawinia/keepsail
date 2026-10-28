@@ -114,8 +114,11 @@ def gate_list(ctx: click.Context) -> None:
 @click.option("--file")
 @click.option("--change-id")
 @click.option("--pr", type=int)
-@click.option("--agent", type=click.Choice(["claude-code"]))
-@click.option("--session-id", help="Current explicitly bound Claude session.")
+@click.option("--agent", type=click.Choice(["claude-code", "codex"]))
+@click.option("--session-id", help="Current explicitly bound harness session.")
+@click.option("--turn-id", help="Current observed Codex root turn.")
+@click.option("--patch-file", type=click.Path(exists=True, dir_okay=False),
+              help="Codex apply_patch text to evaluate as one complete action.")
 @click.pass_context
 def gate_check(
     ctx: click.Context,
@@ -126,6 +129,8 @@ def gate_check(
     pr: int | None,
     agent: str | None,
     session_id: str | None,
+    turn_id: str | None,
+    patch_file: str | None,
 ) -> None:
     """Check a gate decision (`pre-tool-use` decides in-process).
 
@@ -164,7 +169,16 @@ def gate_check(
 
     snapshot = load_state_snapshot(root, change_id_override=change_id)
     entry_context = None
-    if agent or session_id:
+    if agent == "codex":
+        from keepsail.core.state_snapshot import StateSnapshot
+        from keepsail.daemon.hook_entry import decide_codex_patch
+
+        result, state = decide_codex_patch(
+            root, session_id or "", turn_id or "",
+            Path(patch_file).read_text(encoding="utf-8") if patch_file else "", change_id,
+        )
+        snapshot = StateSnapshot(change_id=change_id, state=state)
+    elif agent or session_id:
         from keepsail.core.context import context_gate_inputs
         from keepsail.core.state_snapshot import StateSnapshot
 
@@ -177,13 +191,14 @@ def gate_check(
     # `patterns_for_state`'s docstring in `core/plan_paths.py` for the deferral
     # rationale.
     patterns = patterns_for_state(root, snapshot.state, PLAN_PATH_ALLOW_STATES)
-    result = PreToolUseGate(plan_path_patterns=patterns, entry_context=entry_context).decide(
-        ProposedAction(
-            kind="edit", file=file, resolved_path=canonical_relpath(root, file)
-        ),
-        snapshot.state,
-        [],
-    )
+    if agent != "codex":
+        result = PreToolUseGate(plan_path_patterns=patterns, entry_context=entry_context).decide(
+            ProposedAction(
+                kind="edit", file=file, resolved_path=canonical_relpath(root, file)
+            ),
+            snapshot.state,
+            [],
+        )
     allow = result.decision is GateDecision.ALLOW
     current_state = snapshot.state.current_state if snapshot.state is not None else None
 

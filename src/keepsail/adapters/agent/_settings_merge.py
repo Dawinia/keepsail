@@ -130,6 +130,7 @@ def plan_settings_merge(
     session_start_marker: str = _SESSION_OURS_MARKER,
     stop_marker: str = _STOP_OURS_MARKER,
     context_commands: dict[str, str] | None = None,
+    context_markers: dict[str, str] | None = None,
 ) -> SettingsMergePlan:
     """Purely compute the complete three-hook settings transaction."""
     _reject_symlink_settings(settings_path, workspace_root=workspace_root)
@@ -146,8 +147,9 @@ def plan_settings_merge(
 
     session_start = _ensure_event_list(hooks, "SessionStart")
     _strip_entries(session_start, session_start_marker)
+    markers = context_markers or _CONTEXT_MARKERS
     if context_commands is not None:
-        _strip_entries(session_start, _CONTEXT_MARKERS["SessionStart"])
+        _strip_entries(session_start, markers["SessionStart"])
     session_start.append(_session_start_entry(session_start_command))
 
     stop = _ensure_event_list(hooks, "Stop")
@@ -156,7 +158,7 @@ def plan_settings_merge(
     if context_commands is not None:
         for event in ("UserPromptSubmit", "PostToolUse"):
             entries = _ensure_event_list(hooks, event)
-            _strip_entries(entries, _CONTEXT_MARKERS[event])
+            _strip_entries(entries, markers[event])
             command = context_commands.get(event)
             if command:
                 entries.append(_hook_entry(command, "Bash") if event == "PostToolUse"
@@ -203,6 +205,7 @@ def restore_or_remove_managed_hooks(
     stop_marker: str,
     workspace_root: Path | None = None,
     context_events: bool = False,
+    context_markers: dict[str, str] | None = None,
 ) -> None:
     """Restore the pristine backup, or remove only marker-owned hook entries."""
     _reject_symlink_settings(settings_path, workspace_root=workspace_root)
@@ -232,7 +235,7 @@ def restore_or_remove_managed_hooks(
             ("Stop", stop_marker),
         ]
         if context_events:
-            markers.extend(_CONTEXT_MARKERS.items())
+            markers.extend((context_markers or _CONTEXT_MARKERS).items())
         for event, marker in markers:
             entries = hooks.get(event)
             if not isinstance(entries, list):

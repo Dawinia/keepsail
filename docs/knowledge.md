@@ -245,9 +245,11 @@ coverage=not_recorded. No historical event, decision or receipt is migrated or
 retroactively promoted into an observation. Damaged enabled-protocol records fail
 explicitly; absence is not substituted for corruption.
 
-## Claude session entry
+## Session entry
 
-The optional [session-bound context integration](knowledge-context.md) composes
+The optional [session-bound context integration](knowledge-context.md) selects
+the current Windows Codex desktop revision and preserves the earlier Claude
+candidate's evidence. It composes
 this protocol with frozen work approval and ratified decisions. It uses native
 supply and whole-version acquisition records, adding an outer paginated envelope
 and actual CLI tool-return receipts. Resume/show remain read-only. This does not

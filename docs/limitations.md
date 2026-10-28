@@ -140,7 +140,7 @@ No. `keepsail doc check` only regenerates docs that have a generator (the CLI
 reference, the state-machine diagram). Prose has no ground truth to diff against
 and is out of scope by design.
 
-**What does session-bound Claude context establish?**
+**What does session-bound context establish?**
 The [opt-in integration](knowledge-context.md) supplies recorded current approval,
 conventions and finite knowledge constraints, and observes complete CLI tool
 returns in the selected entry. It separately checks current supply, this epoch's
