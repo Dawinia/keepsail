@@ -25,3 +25,7 @@ is only an unrecognized candidate; it grants neither current authority nor an
 impact disposition. Real B and exact owner decisions remain pending. Initial-bind
 repeated diagnostics can exceed the 24 KiB return budget; native page retry can
 recover, and the open defect/cost is not hidden by the source/test pass.
+
+The local `.gitattributes` disables Git newline conversion for the native event
+excerpt only. Its original CRLF record terminators are evidence bytes covered by
+the manifest hashes; Git blobs must retain them as well as the working copy.

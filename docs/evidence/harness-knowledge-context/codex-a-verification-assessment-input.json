@@ -9,6 +9,7 @@
     ],
     "conclusion": "within_approval",
     "reasons": [
+      "Preserve the native event excerpt's original CRLF bytes in Git using a directory-local attribute for that one file; no global Git configuration, historical native event or other repository is changed.",
       "Independently verified A native originals: eight valid returns, two original native acquisitions and explicit adoption. App command records corroborate seven previous scenario executions plus one new public approval-epoch test; actual diff adds 50 test lines with no production fix.",
       "Preserve the first export unchanged: seven tool_response strings were re-encoded and fail exact original-content validation. Add byte-identical copies, root prompt attribution and unchanged native event lines, plus a correction manifest and retained app check results. No native receipt, historical event or review conclusion is edited.",
       "Prepare exact Codex v2 candidate 68d822477101506d5bd39b1597e5f5819f04f85f2bd24495139b3b710d3dd00a for the approved bounded evolution scenario. Candidate has no authority; owner recognition and impact disposition remain separate. Known initial-bind diagnostic overflow and operating cost remain open, as do real B and final verification/review."
@@ -21,6 +22,9 @@
     ]
   },
   "coverage": [
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a-exact/.gitattributes"
+    },
     {
       "path": ".harness/adapters.yaml"
     },
