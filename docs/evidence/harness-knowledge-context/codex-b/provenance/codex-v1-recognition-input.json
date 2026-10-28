@@ -1,0 +1,43 @@
+{
+  "schema_version": "knowledge-operation/v1",
+  "operation_id": "codex-context-v1-recognition-20261028-01",
+  "expected_revision": "f9d4aaf07ab2e283b72eb8e2d7b8f00a1f77d9b2f8cf7ec7ab8357797632300b",
+  "change_id": "2026-10-27-harness-knowledge-context",
+  "evidence": {
+    "schema_version": "knowledge-evidence/v1",
+    "evidence_id": "codex-context-owner-recognition-v1-20261028-01",
+    "kind": "recognition",
+    "subject_id": "e7b60342f6b0ca752382050abcdb0f0a7172e048d4a4b0f429cd9f835c3c7699",
+    "decision": "recognize",
+    "process": {
+      "id": "keepsail-owner-knowledge",
+      "version": "1"
+    },
+    "issuer": "keepsail-product-owner",
+    "authorization_effect": "unchanged",
+    "original_evidence": {
+      "source": "owner-response-to-explicit-exact-recognition-question",
+      "thread_id": "01a17d4a-2fff-7cc0-9558-39ce65fb006d",
+      "question_call_id": "call_2005ecee03fe4a37a0a4ca99f8587eba",
+      "quoted_response": "认可该确切 Codex v1 为上述范围内的约束",
+      "object_presented": {
+        "knowledge_id": "codex-context-evidence-boundary",
+        "version_digest": "e7b60342f6b0ca752382050abcdb0f0a7172e048d4a4b0f429cd9f835c3c7699",
+        "body": "在本 Change 的本机 Codex 桌面集成边界内，供应内容、实际 CLI 返回的可观察获取、执行者采用或异议声明、实际检查结果分别记录；开始、继续或恢复时交付当前有效批准、准确适用知识与未决事项，保留当时版本和批准依据。新 entry 不沿用旧 entry 的获取；无法确认完整返回或根任务归属时，不记录为已获取。获取不证明理解，执行者声明不证明合规；知识纠正不改变工作承诺授权。",
+        "selector": {
+          "repository_ids": [
+            "Dawinia/keepsail"
+          ],
+          "change_ids": [
+            "2026-10-27-harness-knowledge-context"
+          ]
+        },
+        "authority": "constraint"
+      },
+      "boundary": "Only this exact Codex v1/scope; no changed work commitments, implementation compliance claim, v2 recognition or impact disposition."
+    },
+    "provenance": {
+      "policy_digest": "8837f4d7a4fede285eef7d8a15ab450ee70ea779e0580ac90f27cf9efbb86337"
+    }
+  }
+}

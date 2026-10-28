@@ -7,6 +7,21 @@ def _completed_output(stdout, entry, page=1):
     return stdout + "__KEEPSAIL_CONTEXT_EXIT_V1__:" + entry["entry_id"] + ":" + str(page) + ":0\n"
 
 
+def test_unbound_startup_ignores_tool_returns_without_claiming_acquisition(tmp_path):
+    from keepsail.core.context import context_path
+    from keepsail.daemon.codex_context_hook import observe_return, start_session
+
+    (tmp_path / ".harness").mkdir()
+    identity = {"session_id": "unbound-root", "cwd": str(tmp_path)}
+    startup = start_session(tmp_path, {**identity, "hook_event_name": "SessionStart",
+                                     "source": "startup"}, cli_executable="/tools/keepsail")
+    assert observe_return(tmp_path, {
+        **identity, "hook_event_name": "PostToolUse", "tool_name": "Bash",
+        "tool_input": {"command": "git status --short"},
+    }) == {"ignored": True}
+    assert not context_path(tmp_path, startup["startup_id"], "receipts").exists()
+
+
 def test_finalize_rechecks_new_approval_and_requires_fresh_returns(tmp_path, context_workspace):
     from keepsail.core.context import entry_command, read_entry
     from keepsail.core.reducer import derive_state
@@ -34,7 +49,8 @@ def test_finalize_rechecks_new_approval_and_requires_fresh_returns(tmp_path, con
     assert consume("old-approval")["complete"]
     w.cli("plan", "redeclare", "change-a", "--plan", "plan.md", "--commitment",
           "db=Use PostgreSQL under a new approval epoch")
-    subject = derive_state(tmp_path / ".harness/events.jsonl")["change-a"].pending_revision["subject"]
+    pending = derive_state(tmp_path / ".harness/events.jsonl")["change-a"].pending_revision
+    subject = pending["subject"]
     evidence = {"version": "review-evidence/v1", "evidence_id": "fixture-new-approval",
         "kind": "plan", "subject_id": subject["subject_id"], "decision": "approve",
         "issuer": "owner", "process": {"id": "owner-review", "version": "1"},

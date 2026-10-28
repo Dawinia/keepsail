@@ -1,0 +1,28 @@
+{
+  "codex-v1-recognition-input.json": {
+    "source": "docs/evidence/harness-knowledge-context/codex-v1-recognition-input.json",
+    "sha256": "545857ba9908a19943a7ee9fb3c86c3e627de69e20461d5d6f953a8ace3847d2",
+    "bytes": 2235
+  },
+  "codex-v2-proposal-input.json": {
+    "source": "docs/evidence/harness-knowledge-context/codex-v2-proposal-input.json",
+    "sha256": "c1c3c60ece71427a241f3b94b7e0ba3ee4392082deb83f849ede3d9fe2a487fd",
+    "bytes": 2118
+  },
+  "codex-v2-recognition-input.json": {
+    "source": ".harness/scratch/2026-10-27-harness-knowledge-context/codex-v2-recognition-input-20261029.json",
+    "sha256": "39cce0a4374f6ee10e789a299e135383e06895e3d88388883a674b39518ecc10",
+    "bytes": 2697
+  },
+  "codex-v2-disposition-input.json": {
+    "source": ".harness/scratch/2026-10-27-harness-knowledge-context/codex-v2-disposition-input-20261029.json",
+    "sha256": "310e70d85935ac2862c65a06b876f8a5f3428eb72896104665427f6b73bad7c7",
+    "bytes": 3211
+  },
+  "selected-native-events.jsonl": {
+    "source": ".harness/events.jsonl exact matching original lines",
+    "sha256": "cc0412af3d05a9969fab962a2edf33bd651fc225ad1af0739e9a100b1648e4f5",
+    "bytes": 1245940,
+    "event_count": 9
+  }
+}

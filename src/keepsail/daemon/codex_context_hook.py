@@ -57,7 +57,11 @@ def record_prompt(root: Path, payload: dict[str, Any]) -> dict[str, Any]:
 def observe_return(root: Path, payload: dict[str, Any]) -> dict[str, Any]:
     from keepsail.daemon.context_hook import observe_return as observe
 
-    entry = session_entry(root, payload.get("session_id", ""))
+    session = payload.get("session_id", "")
+    pointer = load_json_record(context_path(root, "sessions", digest_record(session) + ".json"))
+    if set(pointer) == {"startup_id"}:
+        return {"ignored": True}  # An unbound startup cannot have a context return yet.
+    entry = session_entry(root, session)
     if entry.get("harness") != "codex":
         raise KnowledgeError("Codex session entry unavailable")
     tool_input = payload.get("tool_input")

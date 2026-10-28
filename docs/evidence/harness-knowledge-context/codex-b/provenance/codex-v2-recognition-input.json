@@ -1,0 +1,44 @@
+{
+  "schema_version": "knowledge-operation/v1",
+  "operation_id": "codex-context-v2-recognition-20261029-01",
+  "expected_revision": "426c112c4dba0b7fb6f8648e5fcace59f30c2a0b38baea8eb2056c527935448f",
+  "change_id": "2026-10-27-harness-knowledge-context",
+  "evidence": {
+    "schema_version": "knowledge-evidence/v1",
+    "evidence_id": "codex-context-owner-recognition-v2-20261029-01",
+    "kind": "recognition",
+    "subject_id": "68d822477101506d5bd39b1597e5f5819f04f85f2bd24495139b3b710d3dd00a",
+    "decision": "recognize",
+    "process": {
+      "id": "keepsail-owner-knowledge",
+      "version": "1"
+    },
+    "issuer": "keepsail-product-owner",
+    "authorization_effect": "unchanged",
+    "original_evidence": {
+      "source": "owner-response-to-explicit-exact-recognition-question",
+      "thread_id": "01a17d4a-2fff-7cc0-9558-39ce65fb006d",
+      "question_call_id": "call_5a7b5a18ad67471bbc33417a21c97e27",
+      "quoted_response": "认可该确切 Codex v2 为上述范围内的约束",
+      "object_presented": {
+        "knowledge_id": "codex-context-evidence-boundary",
+        "version_digest": "68d822477101506d5bd39b1597e5f5819f04f85f2bd24495139b3b710d3dd00a",
+        "previous_version": "e7b60342f6b0ca752382050abcdb0f0a7172e048d4a4b0f429cd9f835c3c7699",
+        "body": "在本 Change 的本机 Codex 桌面集成边界内，供应内容、实际 CLI 返回的可观察获取、执行者采用或异议声明、实际检查结果分别记录；开始、继续或恢复时交付当前有效批准、准确适用知识与未决事项，保留当时版本和批准依据。新 entry 不沿用旧 entry 的获取；无法确认完整返回或根任务归属时，不记录为已获取。获取不证明理解，执行者声明不证明合规；知识纠正不改变工作承诺授权。当前知识或批准变化后，历史获取仍保留当时版本、manifest 和批准依据，但不自动满足当前动作前置条件；未决知识影响与已认可裁定分别交付，相关动作按精确裁定处理，符合现行规则的独立工作可继续。",
+        "selector": {
+          "change_ids": [
+            "2026-10-27-harness-knowledge-context"
+          ],
+          "repository_ids": [
+            "Dawinia/keepsail"
+          ]
+        },
+        "authority": "constraint"
+      },
+      "boundary": "Only this exact v2 and Dawinia/keepsail AND this Change. No work-commitment change, implementation compliance claim, automatic impact resolution or impact disposition; the resulting exact impact is a separate owner decision."
+    },
+    "provenance": {
+      "policy_digest": "8837f4d7a4fede285eef7d8a15ab450ee70ea779e0580ac90f27cf9efbb86337"
+    }
+  }
+}

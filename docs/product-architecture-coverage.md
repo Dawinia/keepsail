@@ -208,3 +208,22 @@ and independent preflight apply to the new frozen subject. The maintenance closu
 record must show native restoration before reporting the local boundary restored.
 Fresh real A/B, v1/v2 recognition/disposition, actual edits/checks and operating
 cost remain outstanding. No architecture obligation is reduced by this repair.
+
+### 2026-10-29 real Codex recovery and development checkpoint
+
+This later [A/B evidence checkpoint](evidence/harness-knowledge-context/README.md#real-ab-development-checkpoint-2026-10-29)
+supersedes the preceding pending-status observations for the cases actually run.
+It does not turn historical source tests into current final verification.
+
+| Obligation | Current observed evidence | Remaining boundary |
+|---|---|---|
+| C1/C2: restore applicable knowledge and effective work authorization | Real resumed A and separate real B received complete frozen approval/context through eight and nine observed pages. Work approval remained unchanged during the separately recognized Codex v1-to-v2 evolution. | Only the observed local Windows Codex paths; no assertion that every harness or entry mode works. |
+| C3/C6: distinguish supply, retrieval, executor statement and checks | Exact manifests/raw callbacks, native per-version acquisition, separate adopt statements and actual test/doc-check command records. A's first export error is retained and corrected by byte-identical native copies. | Acquisition does not prove understanding; declarations do not prove compliance. |
+| C4: historical grounds and current impact | A's v1/manifest/approval remain; B received current v2 plus the exact resolved continue disposition with unchanged authorization. Owner recognition and disposition inputs are separately retained. | This is one explicit bounded evolution and recognized disposition, not automatic semantic impact classification. |
+| C5: failure and independent work | Missing-root B attempts remained unacquired. Direct human continuation produced actual root attribution before successful retrieval. Public hook/CLI tests cover stale approval/entry, root identity, complete moves and local independent work. | B's owner-requested automatic creation and programmatic continuation alone did not establish native root attribution. Original gate coverage and 24 KiB/10s hook limits remain. |
+| Cost and operation | B records page/return bytes, CLI latencies, failed attempts and the direct human continuation; a narrow regression guards the observed unbound-callback error. | CLI time is not hook time. Timeout/skip reliability, all-tool coverage and general operating cost are not established by this sample. |
+
+Final current-object verification, exact external code conclusion and attestation
+remain separate closure evidence at this checkpoint. Product continuity through
+shared cross-repository authority/distribution and the architecture's broader
+obligations remain outstanding; this integration does not narrow them.

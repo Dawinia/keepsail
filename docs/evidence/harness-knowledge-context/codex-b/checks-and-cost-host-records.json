@@ -1,0 +1,186 @@
+{
+  "source": "first-party read_thread actual host command records",
+  "session_id": "01a183ab-9dad-7290-b609-aa79a90d5a2b",
+  "turns": [
+    {
+      "turn_id": "01a183b3-31af-7e41-aa60-4b8d38b2cefe",
+      "duration_ms": 176933,
+      "status": "completed"
+    },
+    {
+      "turn_id": "01a183b1-369a-7492-8884-e3b31953c047",
+      "duration_ms": 23287,
+      "status": "completed"
+    },
+    {
+      "turn_id": "01a183ab-a06b-7322-b1a8-e84a5292352a",
+      "duration_ms": 70336,
+      "status": "completed"
+    }
+  ],
+  "commands": [
+    {
+      "id": "exec-68fd6969-1fe4-4274-a7fc-3cdfaa1dc279",
+      "turn_id": "01a183b3-31af-7e41-aa60-4b8d38b2cefe",
+      "command": "\"C:\\\\Users\\\\DawiniaLo\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"rg -l '01a183ab-9dad-7290-b609-aa79a90d5a2b' .harness/operation-logs/context/turns; Get-Content src/keepsail/daemon/codex_context_hook.py -TotalCount 125\"",
+      "exit_code": 0,
+      "duration_ms": 465,
+      "output": null
+    },
+    {
+      "id": "exec-62fe8d57-eaca-4d40-a128-88cd9992047e",
+      "turn_id": "01a183b3-31af-7e41-aa60-4b8d38b2cefe",
+      "command": "\"C:\\\\Users\\\\DawiniaLo\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$env:PYTHONUTF8='\"'1'; \"'$env:PYTHONDONTWRITEBYTECODE='\"'1'; \"'$LASTEXITCODE=$null; & '\"'E:/Work/keepsail/.venv/Scripts/keepsail.EXE' '--workspace' 'E:/Work/keepsail' '--json' 'change' 'context' '2026-10-27-harness-knowledge-context' '--entry' 'ev_01M61TQKEXFK74WB77F618PYG4' '--page' '1'; \"'$keepsailContextExit=$LASTEXITCODE; if($null -eq $keepsailContextExit){$keepsailContextExit=1}; [Console]::Out.WriteLine('\"'__KEEPSAIL_CONTEXT_EXIT_V1__:ev_01M61TQKEXFK74WB77F618PYG4:1:' + \"'$keepsailContextExit); exit $keepsailContextExit'",
+      "exit_code": 0,
+      "duration_ms": 3596,
+      "output": null
+    },
+    {
+      "id": "exec-3739e6dc-abe3-49aa-b2c5-320bf15fdffe",
+      "turn_id": "01a183b3-31af-7e41-aa60-4b8d38b2cefe",
+      "command": "\"C:\\\\Users\\\\DawiniaLo\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$env:PYTHONUTF8='\"'1'; \"'$env:PYTHONDONTWRITEBYTECODE='\"'1'; \"'$LASTEXITCODE=$null; & '\"'E:/Work/keepsail/.venv/Scripts/keepsail.EXE' '--workspace' 'E:/Work/keepsail' '--json' 'change' 'context' '2026-10-27-harness-knowledge-context' '--entry' 'ev_01M61TQKEXFK74WB77F618PYG4' '--page' '2'; \"'$keepsailContextExit=$LASTEXITCODE; if($null -eq $keepsailContextExit){$keepsailContextExit=1}; [Console]::Out.WriteLine('\"'__KEEPSAIL_CONTEXT_EXIT_V1__:ev_01M61TQKEXFK74WB77F618PYG4:2:' + \"'$keepsailContextExit); exit $keepsailContextExit'",
+      "exit_code": 0,
+      "duration_ms": 3623,
+      "output": null
+    },
+    {
+      "id": "exec-576289a9-5a41-44c4-ab7f-095cd8aa1fcf",
+      "turn_id": "01a183b3-31af-7e41-aa60-4b8d38b2cefe",
+      "command": "\"C:\\\\Users\\\\DawiniaLo\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$env:PYTHONUTF8='\"'1'; \"'$env:PYTHONDONTWRITEBYTECODE='\"'1'; \"'$LASTEXITCODE=$null; & '\"'E:/Work/keepsail/.venv/Scripts/keepsail.EXE' '--workspace' 'E:/Work/keepsail' '--json' 'change' 'context' '2026-10-27-harness-knowledge-context' '--entry' 'ev_01M61TQKEXFK74WB77F618PYG4' '--page' '3'; \"'$keepsailContextExit=$LASTEXITCODE; if($null -eq $keepsailContextExit){$keepsailContextExit=1}; [Console]::Out.WriteLine('\"'__KEEPSAIL_CONTEXT_EXIT_V1__:ev_01M61TQKEXFK74WB77F618PYG4:3:' + \"'$keepsailContextExit); exit $keepsailContextExit'",
+      "exit_code": 0,
+      "duration_ms": 3472,
+      "output": null
+    },
+    {
+      "id": "exec-6216c67b-606e-4159-ae27-e505afa1e4d4",
+      "turn_id": "01a183b3-31af-7e41-aa60-4b8d38b2cefe",
+      "command": "\"C:\\\\Users\\\\DawiniaLo\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$env:PYTHONUTF8='\"'1'; \"'$env:PYTHONDONTWRITEBYTECODE='\"'1'; \"'$LASTEXITCODE=$null; & '\"'E:/Work/keepsail/.venv/Scripts/keepsail.EXE' '--workspace' 'E:/Work/keepsail' '--json' 'change' 'context' '2026-10-27-harness-knowledge-context' '--entry' 'ev_01M61TQKEXFK74WB77F618PYG4' '--page' '4'; \"'$keepsailContextExit=$LASTEXITCODE; if($null -eq $keepsailContextExit){$keepsailContextExit=1}; [Console]::Out.WriteLine('\"'__KEEPSAIL_CONTEXT_EXIT_V1__:ev_01M61TQKEXFK74WB77F618PYG4:4:' + \"'$keepsailContextExit); exit $keepsailContextExit'",
+      "exit_code": 0,
+      "duration_ms": 3564,
+      "output": null
+    },
+    {
+      "id": "exec-a91c5911-a182-438d-9209-80b47f4eccf4",
+      "turn_id": "01a183b3-31af-7e41-aa60-4b8d38b2cefe",
+      "command": "\"C:\\\\Users\\\\DawiniaLo\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$env:PYTHONUTF8='\"'1'; \"'$env:PYTHONDONTWRITEBYTECODE='\"'1'; \"'$LASTEXITCODE=$null; & '\"'E:/Work/keepsail/.venv/Scripts/keepsail.EXE' '--workspace' 'E:/Work/keepsail' '--json' 'change' 'context' '2026-10-27-harness-knowledge-context' '--entry' 'ev_01M61TQKEXFK74WB77F618PYG4' '--page' '5'; \"'$keepsailContextExit=$LASTEXITCODE; if($null -eq $keepsailContextExit){$keepsailContextExit=1}; [Console]::Out.WriteLine('\"'__KEEPSAIL_CONTEXT_EXIT_V1__:ev_01M61TQKEXFK74WB77F618PYG4:5:' + \"'$keepsailContextExit); exit $keepsailContextExit'",
+      "exit_code": 0,
+      "duration_ms": 3515,
+      "output": null
+    },
+    {
+      "id": "exec-3da5e12e-6a5a-4eef-84c8-b5e538b2e8f6",
+      "turn_id": "01a183b3-31af-7e41-aa60-4b8d38b2cefe",
+      "command": "\"C:\\\\Users\\\\DawiniaLo\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$env:PYTHONUTF8='\"'1'; \"'$env:PYTHONDONTWRITEBYTECODE='\"'1'; \"'$LASTEXITCODE=$null; & '\"'E:/Work/keepsail/.venv/Scripts/keepsail.EXE' '--workspace' 'E:/Work/keepsail' '--json' 'change' 'context' '2026-10-27-harness-knowledge-context' '--entry' 'ev_01M61TQKEXFK74WB77F618PYG4' '--page' '6'; \"'$keepsailContextExit=$LASTEXITCODE; if($null -eq $keepsailContextExit){$keepsailContextExit=1}; [Console]::Out.WriteLine('\"'__KEEPSAIL_CONTEXT_EXIT_V1__:ev_01M61TQKEXFK74WB77F618PYG4:6:' + \"'$keepsailContextExit); exit $keepsailContextExit'",
+      "exit_code": 0,
+      "duration_ms": 3568,
+      "output": null
+    },
+    {
+      "id": "exec-23bd8481-8ee8-4b13-83f8-0fc3b9d61f10",
+      "turn_id": "01a183b3-31af-7e41-aa60-4b8d38b2cefe",
+      "command": "\"C:\\\\Users\\\\DawiniaLo\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$env:PYTHONUTF8='\"'1'; \"'$env:PYTHONDONTWRITEBYTECODE='\"'1'; \"'$LASTEXITCODE=$null; & '\"'E:/Work/keepsail/.venv/Scripts/keepsail.EXE' '--workspace' 'E:/Work/keepsail' '--json' 'change' 'context' '2026-10-27-harness-knowledge-context' '--entry' 'ev_01M61TQKEXFK74WB77F618PYG4' '--page' '7'; \"'$keepsailContextExit=$LASTEXITCODE; if($null -eq $keepsailContextExit){$keepsailContextExit=1}; [Console]::Out.WriteLine('\"'__KEEPSAIL_CONTEXT_EXIT_V1__:ev_01M61TQKEXFK74WB77F618PYG4:7:' + \"'$keepsailContextExit); exit $keepsailContextExit'",
+      "exit_code": 0,
+      "duration_ms": 3570,
+      "output": null
+    },
+    {
+      "id": "exec-38d011c9-fb6b-401b-bd5e-be51735b06f6",
+      "turn_id": "01a183b3-31af-7e41-aa60-4b8d38b2cefe",
+      "command": "\"C:\\\\Users\\\\DawiniaLo\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$env:PYTHONUTF8='\"'1'; \"'$env:PYTHONDONTWRITEBYTECODE='\"'1'; \"'$LASTEXITCODE=$null; & '\"'E:/Work/keepsail/.venv/Scripts/keepsail.EXE' '--workspace' 'E:/Work/keepsail' '--json' 'change' 'context' '2026-10-27-harness-knowledge-context' '--entry' 'ev_01M61TQKEXFK74WB77F618PYG4' '--page' '8'; \"'$keepsailContextExit=$LASTEXITCODE; if($null -eq $keepsailContextExit){$keepsailContextExit=1}; [Console]::Out.WriteLine('\"'__KEEPSAIL_CONTEXT_EXIT_V1__:ev_01M61TQKEXFK74WB77F618PYG4:8:' + \"'$keepsailContextExit); exit $keepsailContextExit'",
+      "exit_code": 0,
+      "duration_ms": 3579,
+      "output": null
+    },
+    {
+      "id": "exec-1549c30f-c3a6-40e3-a884-2d123bb74c69",
+      "turn_id": "01a183b3-31af-7e41-aa60-4b8d38b2cefe",
+      "command": "\"C:\\\\Users\\\\DawiniaLo\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$env:PYTHONUTF8='\"'1'; \"'$env:PYTHONDONTWRITEBYTECODE='\"'1'; \"'$LASTEXITCODE=$null; & '\"'E:/Work/keepsail/.venv/Scripts/keepsail.EXE' '--workspace' 'E:/Work/keepsail' '--json' 'change' 'context' '2026-10-27-harness-knowledge-context' '--entry' 'ev_01M61TQKEXFK74WB77F618PYG4' '--page' '9'; \"'$keepsailContextExit=$LASTEXITCODE; if($null -eq $keepsailContextExit){$keepsailContextExit=1}; [Console]::Out.WriteLine('\"'__KEEPSAIL_CONTEXT_EXIT_V1__:ev_01M61TQKEXFK74WB77F618PYG4:9:' + \"'$keepsailContextExit); exit $keepsailContextExit'",
+      "exit_code": 0,
+      "duration_ms": 3546,
+      "output": null
+    },
+    {
+      "id": "exec-1e7fccc0-b328-4994-be05-f08d1c5cd0df",
+      "turn_id": "01a183b3-31af-7e41-aa60-4b8d38b2cefe",
+      "command": "\"C:\\\\Users\\\\DawiniaLo\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$env:PYTHONUTF8='\"'1'; \"'$env:PYTHONDONTWRITEBYTECODE='\"'1'; & 'E:/Work/keepsail/.venv/Scripts/keepsail.EXE' '--workspace' 'E:/Work/keepsail' '--json' 'change' 'context' '2026-10-27-harness-knowledge-context' '--entry' 'ev_01M61TQKEXFK74WB77F618PYG4' '--finalize-acquisition'\"",
+      "exit_code": 0,
+      "duration_ms": 19489,
+      "output": null
+    },
+    {
+      "id": "exec-fbd30c31-66c8-415b-9828-5cd20cfcd8b3",
+      "turn_id": "01a183b3-31af-7e41-aa60-4b8d38b2cefe",
+      "command": "\"C:\\\\Users\\\\DawiniaLo\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '& .venv/Scripts/keepsail.exe --json change context 2026-10-27-harness-knowledge-context --entry ev_01M61TQKEXFK74WB77F618PYG4 --statement .harness/scratch/2026-10-27-harness-knowledge-context/codex-b-statement.json'",
+      "exit_code": 0,
+      "duration_ms": 14161,
+      "output": null
+    },
+    {
+      "id": "exec-deed4be0-86a6-47a3-a0e6-fd286f9144e1",
+      "turn_id": "01a183b3-31af-7e41-aa60-4b8d38b2cefe",
+      "command": "\"C:\\\\Users\\\\DawiniaLo\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"rg -n 'independent|impact|root|finalize' tests/unit/daemon/test_codex_context_hook.py tests/integration/adapter/test_codex_context.py; git rev-parse HEAD; .venv/Scripts/python.exe -c \\\"import keepsail; print(keepsail.__file__)\\\"\"",
+      "exit_code": 0,
+      "duration_ms": 562,
+      "output": null
+    },
+    {
+      "id": "exec-40019e77-56aa-4eca-9782-e87ac5687834",
+      "turn_id": "01a183b3-31af-7e41-aa60-4b8d38b2cefe",
+      "command": "\"C:\\\\Users\\\\DawiniaLo\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$env:PYTHONDONTWRITEBYTECODE='\"'1'; & .venv/Scripts/keepsail.exe decision check --changed; & .venv/Scripts/keepsail.exe doc check\"",
+      "exit_code": 0,
+      "duration_ms": 2797,
+      "output": {
+        "text": "hard:context = 3:9 (25% hard)\r\ndecision check: clean\r\ndoc check: clean\r\n",
+        "truncated": false
+      }
+    },
+    {
+      "id": "exec-5875cbe1-c68e-4c1d-9763-95df26f7f9eb",
+      "turn_id": "01a183b3-31af-7e41-aa60-4b8d38b2cefe",
+      "command": "\"C:\\\\Users\\\\DawiniaLo\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$env:PYTHONDONTWRITEBYTECODE='\"'1'; @'\nfrom pathlib import Path\nimport shutil,json,hashlib\nroot=Path.cwd(); src=root/'.harness/operation-logs/context'; out=root/'docs/evidence/harness-knowledge-context/codex-b'; entry='ev_01M61TQKEXFK74WB77F618PYG4'\nout.mkdir(exist_ok=True)\nshutil.copytree(src/entry,out/entry,dirs_exist_ok=True)\nfor folder in ['startups','turns']:\n for p in (src/folder).glob('*.json'):\n  if b'01a183ab-9dad-7290-b609-aa79a90d5a2b' in p.read_bytes():\n   (out/folder).mkdir(exist_ok=True); shutil.copyfile(p,out/folder/p.name)\nevents=(root/'.harness/events.jsonl').read_bytes().splitlines(keepends=True)\nselected=[x for x in events if b'01a183ab-9dad-7290-b609-aa79a90d5a2b' in x or b'codex-context-owner-' in x]\n(out/'native-events-excerpt.jsonl').write_bytes(b''.join(selected))\n(out/'.gitattributes').write_text('native-events-excerpt.jsonl -text\\\\n',encoding='utf8')\nfiles={str(p.relative_to(out)):hashlib.sha256(p.read_bytes()).hexdigest() for p in out.rglob('*') if p.is_file()}\n(out/'byte-manifest.json').write_text(json.dumps(files,indent=2),encoding='utf8')\nprint('Copied original bytes:',len(files),'files')\n'@ | .venv/Scripts/python.exe\n git diff --stat\"",
+      "exit_code": 0,
+      "duration_ms": 600,
+      "output": null
+    },
+    {
+      "id": "exec-6bda57d6-087f-430a-9016-70c014b6e30e",
+      "turn_id": "01a183b1-369a-7492-8884-e3b31953c047",
+      "command": "\"C:\\\\Users\\\\DawiniaLo\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-ChildItem .harness/operation-logs/context/turns | Sort-Object LastWriteTime -Descending | Select-Object -First 3 Name,LastWriteTime; rg -n '01a183ab-9dad-7290-b609-aa79a90d5a2b|ev_01M61TQKEXFK74WB77F618PYG4' .harness/operation-logs/context/turns\"",
+      "exit_code": 1,
+      "duration_ms": 517,
+      "output": null
+    },
+    {
+      "id": "exec-e94c37fe-6ca6-41cb-9c09-d6bae3e6bf4b",
+      "turn_id": "01a183b1-369a-7492-8884-e3b31953c047",
+      "command": "\"C:\\\\Users\\\\DawiniaLo\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content .harness/operation-logs/context/turns/299f5dd9b3b960634b6d831a87ed7d980f51d1ec5ade8dca2f97dbbf355f6a6a.json; rg -n 'def .*turn|turns|root_turn|readiness' src/keepsail/daemon/codex_context_hook.py src/keepsail/core/context.py\"",
+      "exit_code": 0,
+      "duration_ms": 429,
+      "output": null
+    },
+    {
+      "id": "exec-8360b0f0-9a47-43a7-8d11-0d43c37db86d",
+      "turn_id": "01a183ab-a06b-7322-b1a8-e84a5292352a",
+      "command": "\"C:\\\\Users\\\\DawiniaLo\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command \"Get-Content AGENTS.md; Get-Content docs/product-architecture.md; Get-Content docs/knowledge-context.md; Get-Content docs/plans/2026-10-27-harness-knowledge-context-codex-revision.md; git status --short; rg -n 'harness-knowledge-context' C:/Users/DawiniaLo/.codex/memories/MEMORY.md\"",
+      "exit_code": 1,
+      "duration_ms": 805,
+      "output": null
+    },
+    {
+      "id": "exec-1376e37a-75fa-42a2-80f4-b9e90ce52596",
+      "turn_id": "01a183ab-a06b-7322-b1a8-e84a5292352a",
+      "command": "\"C:\\\\Users\\\\DawiniaLo\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$env:PYTHONUTF8='\"'1'; \"'$env:PYTHONDONTWRITEBYTECODE='\"'1'; \"'$LASTEXITCODE=$null; & '\"'E:/Work/keepsail/.venv/Scripts/keepsail.EXE' '--workspace' 'E:/Work/keepsail' '--json' 'change' 'context' '2026-10-27-harness-knowledge-context' '--bind-startup' 'ev_01M61TQKEXFK74WB77F618PYG4'; \"'$keepsailContextExit=$LASTEXITCODE; if($null -eq $keepsailContextExit){$keepsailContextExit=1}; [Console]::Out.WriteLine('\"'__KEEPSAIL_CONTEXT_EXIT_V1__:ev_01M61TQKEXFK74WB77F618PYG4:1:' + \"'$keepsailContextExit); exit $keepsailContextExit'",
+      "exit_code": 0,
+      "duration_ms": 20933,
+      "output": null
+    },
+    {
+      "id": "exec-937b77ae-4c7a-4753-8fad-bcb874462743",
+      "turn_id": "01a183ab-a06b-7322-b1a8-e84a5292352a",
+      "command": "\"C:\\\\Users\\\\DawiniaLo\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '& .venv/Scripts/keepsail.exe --json status; & .venv/Scripts/keepsail.exe change context --help'",
+      "exit_code": 0,
+      "duration_ms": 1565,
+      "output": null
+    }
+  ]
+}

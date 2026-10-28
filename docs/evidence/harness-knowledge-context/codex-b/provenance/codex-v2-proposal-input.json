@@ -1,0 +1,29 @@
+{
+  "schema_version": "knowledge-operation/v1",
+  "operation_id": "codex-context-v2-proposal-20261029-01",
+  "expected_revision": "5f3c87b04eed6e6d9ed76ef97472b630763fd9e38d02af6af8ac79850f5c5395",
+  "change_id": "2026-10-27-harness-knowledge-context",
+  "version": {
+    "authority": "constraint",
+    "body": "在本 Change 的本机 Codex 桌面集成边界内，供应内容、实际 CLI 返回的可观察获取、执行者采用或异议声明、实际检查结果分别记录；开始、继续或恢复时交付当前有效批准、准确适用知识与未决事项，保留当时版本和批准依据。新 entry 不沿用旧 entry 的获取；无法确认完整返回或根任务归属时，不记录为已获取。获取不证明理解，执行者声明不证明合规；知识纠正不改变工作承诺授权。当前知识或批准变化后，历史获取仍保留当时版本、manifest 和批准依据，但不自动满足当前动作前置条件；未决知识影响与已认可裁定分别交付，相关动作按精确裁定处理，符合现行规则的独立工作可继续。",
+    "knowledge_id": "codex-context-evidence-boundary",
+    "previous_version": "e7b60342f6b0ca752382050abcdb0f0a7172e048d4a4b0f429cd9f835c3c7699",
+    "product_id": "keepsail",
+    "rationale": "Bounded v1-to-v2 acceptance evolution: clarify historical acquisition versus current action eligibility and unresolved impacts, preserving independent approved work and existing commitment authorization. This is a candidate clarification, not a claim of a new production discovery.",
+    "schema_version": "knowledge-version/v1",
+    "selector": {
+      "change_ids": [
+        "2026-10-27-harness-knowledge-context"
+      ],
+      "repository_ids": [
+        "Dawinia/keepsail"
+      ]
+    },
+    "sources": [
+      {
+        "content": "Supply, observable acquisition, executor declarations and actual checks are distinct; retained grounds and authorization remain separate.",
+        "origin": "git:bb69097dffee4e782568da4ea688d06b5773cbf4:docs/product-architecture.md#trace-and-guarantee-boundaries"
+      }
+    ]
+  }
+}

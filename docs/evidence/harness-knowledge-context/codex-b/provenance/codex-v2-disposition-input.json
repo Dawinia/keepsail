@@ -1,0 +1,55 @@
+{
+  "schema_version": "knowledge-operation/v1",
+  "operation_id": "codex-context-v2-disposition-20261029-01",
+  "expected_revision": "e04d410f19707188f93156782de703a21f90375a934250c81e9e38290cef757e",
+  "change_id": "2026-10-27-harness-knowledge-context",
+  "evidence": {
+    "schema_version": "knowledge-evidence/v1",
+    "evidence_id": "codex-context-owner-disposition-v2-20261029-01",
+    "kind": "disposition",
+    "subject_id": "a2e2c8ab806c0eb3f88a77c0c70369c687a475331a3d5ae7e06194a02a8bebee",
+    "decision": "continue",
+    "use_version": "68d822477101506d5bd39b1597e5f5819f04f85f2bd24495139b3b710d3dd00a",
+    "impact": {
+      "change_id": "2026-10-27-harness-knowledge-context",
+      "knowledge_id": "codex-context-evidence-boundary",
+      "old_version": "e7b60342f6b0ca752382050abcdb0f0a7172e048d4a4b0f429cd9f835c3c7699",
+      "new_version": "68d822477101506d5bd39b1597e5f5819f04f85f2bd24495139b3b710d3dd00a",
+      "basis_digest": "ded9776866e40707873404274d5a081568a85179612233fa13eb20d5427fe2a0",
+      "approval_id": "approval:2026-10-28-harness-context-codex-revision-plan-01-84705107",
+      "trigger": "version-or-applicability-changed"
+    },
+    "process": {
+      "id": "keepsail-owner-knowledge",
+      "version": "1"
+    },
+    "issuer": "keepsail-product-owner",
+    "authorization_effect": "unchanged",
+    "original_evidence": {
+      "source": "owner-response-to-exact-impact-disposition-question",
+      "thread_id": "01a17d4a-2fff-7cc0-9558-39ce65fb006d",
+      "question_call_id": "call_6544283905404d59bb78f540aebc2cf3",
+      "quoted_response": "认可该精确影响：采用 v2 继续",
+      "object_presented": {
+        "impact_id": "a2e2c8ab806c0eb3f88a77c0c70369c687a475331a3d5ae7e06194a02a8bebee",
+        "impact": {
+          "change_id": "2026-10-27-harness-knowledge-context",
+          "knowledge_id": "codex-context-evidence-boundary",
+          "old_version": "e7b60342f6b0ca752382050abcdb0f0a7172e048d4a4b0f429cd9f835c3c7699",
+          "new_version": "68d822477101506d5bd39b1597e5f5819f04f85f2bd24495139b3b710d3dd00a",
+          "basis_digest": "ded9776866e40707873404274d5a081568a85179612233fa13eb20d5427fe2a0",
+          "approval_id": "approval:2026-10-28-harness-context-codex-revision-plan-01-84705107",
+          "trigger": "version-or-applicability-changed"
+        },
+        "decision": "continue",
+        "use_version": "68d822477101506d5bd39b1597e5f5819f04f85f2bd24495139b3b710d3dd00a",
+        "authorization_effect": "unchanged"
+      },
+      "reason": "The recognized v2 clarifies existing historical-basis/current-eligibility and action-local dependency obligations within the unchanged approved plan. Continue under exact v2 while preserving old A evidence; real B and final current verification/review remain required.",
+      "boundary": "Only this exact impact: continue using exact v2 within unchanged approved commitments/restrictions, retain old A grounds and reacquire current knowledge/approval. Not real B or H7 acceptance, test/compliance evidence, final review, publication or merge authorization."
+    },
+    "provenance": {
+      "policy_digest": "8837f4d7a4fede285eef7d8a15ab450ee70ea779e0580ac90f27cf9efbb86337"
+    }
+  }
+}

@@ -195,3 +195,31 @@ H7/code-review/attestation remain pending. Neither this repair nor its process
 fixtures constitute real-session acceptance. Native full verify and independent
 preflight will refer to the frozen repair subject; the earlier 4189c4d result
 continues to apply only to the earlier implementation.
+
+## Real A/B development checkpoint (2026-10-29)
+
+The preceding paragraphs are dated historical checkpoints. Real resumed A now has
+eight observed pages, native acquisitions under Codex v1 and explicit adoption;
+it added public CLI tests for stale entries and changed approval. Its first export
+re-encoded seven return strings; [the exact export](codex-a-exact/verification.json)
+preserves byte-identical native originals and the correction without rewriting
+the original export or native records.
+
+[Real B](codex-b/README.md) has nine observed pages, native acquisitions under
+Codex v2, explicit adoption and a real documentation improvement. B was created
+through native create_thread after the owner explicitly requested it; usable
+native root attribution appeared only after a direct human continuation. It is
+not claimed as manual creation acceptance. The original chat independently
+revalidated the raw pages, versions and export hashes. The exact v2 recognition
+and continue disposition are retained separately under codex-b/provenance/;
+the existing work approval is unchanged and A's old grounds remain intact.
+
+An additional regression reproduced KeyError entry_id for an ordinary callback
+before startup binding. The narrow observer guard now ignores an unbound startup
+without recording any acquisition. The regression failed before the fix; the
+seven-test Codex hook suite passed after it (60.53s). Product gating, callback
+root provenance, native finalization and original budgets are unchanged.
+
+This checkpoint includes coverage and operating-cost evidence, not a final code
+conclusion. The current committed subject still requires its native full verify,
+external exact review and attestation; older passing results cannot substitute.

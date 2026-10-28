@@ -204,6 +204,34 @@ release the constraint or commitment.
 
 ## Blocking, independent work and diagnostics
 
+### Recovering a Codex entry without replacing its evidence
+
+A successful startup binding is supply, even when its CLI process takes longer
+than ten seconds. The ten-second hook budget is separate from CLI elapsed time.
+Keep the actual completion marker and complete return; diagnostics count toward
+the return budget. An unobserved page remains unobserved until a normal retry is
+accepted. Use the current native entry hint's exact page command, retrieve every
+missing page, then run its `--finalize-acquisition` command. Do not trim a return,
+raise the budget or manufacture a receipt to make the entry ready.
+
+An app-created task may have SessionStart without a usable root UserPromptSubmit
+record. A message sent from another chat does not by itself establish that record.
+If native diagnostics report missing root attribution, retain the failure and
+wait for a normal input that actually produces this task's root callback. Verify
+that callback before retrying; never borrow the sending chat's turn identity.
+
+Historical v1 acquisition keeps its original entry, manifest and approval. It
+does not satisfy a new entry's current v2 requirements. Retrieve current approval,
+exact knowledge and unresolved impacts again; handle an impact using its exact
+recognized disposition. A `continue` disposition with unchanged authorization
+does not change approved commitments or prove implementation compliance. Local
+independent work still requires the existing action-specific dependency and
+authorization checks; it is not a general exemption from current acquisition.
+
+Record failed attempts, successful retries, page bytes and CLI/hook latency
+separately. Native acquisition, explicit adoption and actual checks remain three
+separate results, including after recovery.
+
 The selected editor gate separately evaluates exact current supply, this epoch's
 complete returns, local knowledge dependence and original lifecycle authority.
 Unknown/global dependence stays unresolved; a path-dependent challenge can wait
