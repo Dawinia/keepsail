@@ -51,10 +51,26 @@ unreplaced restrictions. The current adopted revision defines precedence; retain
 an old body does not reinstate an explicitly replaced harness target.
 
 Codex observations preserve the raw native callback and its root turn identity.
-The current candidate decoder accepts an explicit completed `output`/`exit_code`
-object; an unknown, running, truncated or failed native shape remains unobserved.
-This wire contract still requires actual desktop acceptance. Callback fixtures and
-PowerShell process tests cannot establish that the host delivered this shape.
+Real task A exposed a string-valued Bash return, instead of the previously tested
+completed output/exit-code object. Old rejected records remain rejected; they are
+not upgraded to acquisition by this repair.
+
+New Codex entries pin the powershell-exit/v1 transport. Their exact retrieval
+command resets LASTEXITCODE, runs the pinned native CLI, writes the entry/page
+completion marker only after the process returns, and exits with that status.
+A string return needs that exact successful terminal marker and the entire exact
+native page. A completed output/exit-code object must also contain the marker for
+a new entry. Unknown/running/failed/truncated returns stay unobserved. The complete
+raw return, including the marker and any diagnostics, stays within 24 KiB.
+
+Only the observed legacy reducer warning prefix for l1_update_completed is
+accepted before the single native JSON line; other prefixes require investigation.
+The raw warnings remain retained. This is a local process-completion witness,
+not proof of understanding, compliance, or a cryptographic identity guarantee.
+Old entries keep their original interpretation and evidence. Resume the actual
+task for a fresh real SessionStart entry and retrieve all new commands; do not
+invent a startup or borrow another task's entry. Process tests and supplied
+callbacks remain supplemental until actual desktop acceptance.
 UserPromptSubmit records root turn identity without collecting prompt content;
 unverified subagent/other-turn callbacks cannot use that entry. Actual attribution
 is an acceptance requirement, not a cryptographic identity guarantee.

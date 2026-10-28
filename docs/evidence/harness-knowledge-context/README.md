@@ -162,3 +162,36 @@ historical. Local source resources expose a Hooks settings page; this is not a U
 activation observation. **Human trust, actual callbacks and real A/B remain pending.**
 No real entry acquisition/adoption, v2 recognition/disposition, H7 completion,
 final code-review import, done/attestation, publication or merge is claimed.
+
+## Actual Codex return failure and repair (2026-10-28)
+
+Real user task A returned the first three of seven pages as strings. The previous
+decoder rejected them because it expected completed output/exit-code objects.
+The [repair record](codex-string-transport-repair.json) retains the exact old
+entry/manifest, original rejected receipt locators/hashes, protocol limits,
+owner-authorized maintenance window and remaining acceptance matrix. Old strings
+remain rejected, including under the new decoder's historical interpretation.
+
+The owner replied “开始吧” to the concrete maintenance proposal: native local
+context opt-out, prepared repair, verification/review and native restoration.
+No global setting, gate-disabled marker or historical authority record was edited.
+The standard lifecycle adapter remains registered; trust/activation and the
+temporary context coverage withdrawal are explicitly separate facts. The external
+maintenance-window.json retains the closing native transaction and final hashes;
+this open-window source checkpoint alone does not prove restoration.
+
+The exact applied six-file candidate matches the retained isolated patch. The
+real-checkout focused run passed 18 tests in 136.42s, including Windows PowerShell
+and pwsh actual processes with supplied callbacks. Decision/doc checks passed.
+New Codex entries use powershell-exit/v1: the pinned command captures actual
+LASTEXITCODE and adds the entry/page terminal witness. Complete exact native pages
+and observed root identity are still required. The 24 KiB return and 10s hook
+budgets remain unchanged. Only the actually observed legacy reducer warning
+prefix is accepted before the JSON, while the raw prefix remains retained.
+
+Fresh real SessionStart and complete task A retrieval, replacement task B,
+actual development/checks, separately recognized v2/impact disposition and final
+H7/code-review/attestation remain pending. Neither this repair nor its process
+fixtures constitute real-session acceptance. Native full verify and independent
+preflight will refer to the frozen repair subject; the earlier 4189c4d result
+continues to apply only to the earlier implementation.

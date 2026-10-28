@@ -3,11 +3,16 @@
 import pytest
 
 
+def _completed_output(stdout, entry, page=1):
+    return stdout + "__KEEPSAIL_CONTEXT_EXIT_V1__:" + entry["entry_id"] + ":" + str(page) + ":0\n"
+
+
 def test_cli_finalization_requires_actual_returns_and_prompt_reminds_pending_acquisition(
     tmp_path, monkeypatch, context_workspace,
 ):
     import json
 
+    from keepsail.core.context import entry_command, read_entry
     from keepsail.daemon.codex_context_hook import observe_return, record_prompt, start_session
     from tests.unit.core import test_knowledge as fixtures
 
@@ -23,15 +28,14 @@ def test_cli_finalization_requires_actual_returns_and_prompt_reminds_pending_acq
     ])
     packet = json.loads(response.stdout)["data"]
     assert packet["total_pages"] == 1
+    entry = read_entry(tmp_path, packet["entry_id"])
     workspace.cli("change", "context", "change-a", "--entry", packet["entry_id"],
                    "--finalize-acquisition", code=2)  # Supply alone cannot acknowledge itself.
     observed = observe_return(tmp_path, {
         **identity, "hook_event_name": "PostToolUse", "turn_id": "root", "tool_name": "Bash",
-        "tool_use_id": "fixture-bind", "tool_input": {"command": (
-            "$env:PYTHONUTF8='1'; $env:PYTHONDONTWRITEBYTECODE='1'; & '/tools/keepsail' "
-            f"'--workspace' '{tmp_path.as_posix()}' '--json' 'change' 'context' 'change-a' "
-            f"'--bind-startup' '{startup['startup_id']}'"
-        )}, "tool_response": {"output": response.stdout, "exit_code": 0},
+        "tool_use_id": "fixture-bind", "tool_input": {"command": entry_command(entry, bind=True)},
+        "tool_response": {"output": _completed_output(response.stdout, entry),
+                                                       "exit_code": 0},
     })
     assert observed["complete"] is True
     assert observed["native_acquisition"] == "pending"
@@ -112,7 +116,9 @@ def test_automatic_compact_keeps_root_turn_but_requires_new_entry_returns(
                                      "turn_id": "turn-a", "tool_name": "Bash",
                                      "tool_use_id": "fixture-after-compact",
                                      "tool_input": {"command": entry_command(entry)},
-                                     "tool_response": {"output": result.stdout, "exit_code": 0}})[
+                                     "tool_response": {
+                                         "output": _completed_output(result.stdout, entry),
+                                         "exit_code": 0}})[
         "complete"]
     assert entry_readiness(tmp_path, "change-a", "codex-a")["ready"]
 
@@ -143,7 +149,8 @@ def test_codex_complete_cli_returns_require_observed_root_turn(tmp_path, context
                     "turn_id": "root-turn-a", "cwd": str(tmp_path), "tool_name": "Bash",
                     "tool_use_id": f"fixture-codex-tool-{page}",
                     "tool_input": {"command": entry_command(entry, page)},
-                    "tool_response": {"output": result.stdout, "exit_code": 0}}
+                    "tool_response": {"output": _completed_output(result.stdout, entry, page),
+                                                       "exit_code": 0}}
         for change in ({"turn_id": "child-turn"},
                        {"tool_response": {"output": result.stdout, "session_id": 123}},
                        {"tool_response": {"output": result.stdout, "exit_code": 1}}):
@@ -193,7 +200,8 @@ def test_patch_gate_checks_entire_move_and_preserves_independent_work(tmp_path, 
                              "turn_id": "root-turn", "cwd": str(tmp_path), "tool_name": "Bash",
                              "tool_use_id": "fixture-refreshed",
                              "tool_input": {"command": entry_command(entry)},
-                             "tool_response": {"output": response.stdout, "exit_code": 0}})
+                             "tool_response": {"output": _completed_output(response.stdout, entry),
+                                                       "exit_code": 0}})
     workspace.cli("change", "context", "change-a", "--entry", entry["entry_id"],
                    "--finalize-acquisition")
 

@@ -15,7 +15,10 @@ from tests.unit.core import test_knowledge as fixtures
 
 
 @pytest.mark.skipif(os.name != "nt", reason="selected Windows Codex desktop transport")
-def test_native_powershell_hook_and_cli_roundtrip_from_space_paths(tmp_path, monkeypatch):
+@pytest.mark.parametrize("shell", ["powershell.exe", "pwsh.exe"])
+def test_native_powershell_hook_and_cli_roundtrip_from_space_paths(tmp_path, monkeypatch, shell):
+    if not shutil.which(shell):
+        pytest.skip("optional PowerShell executable unavailable: " + shell)
     policy = fixtures.policy()
     policy["observation_issuers"].append("keepsail-cli-observer")
     policy["policy_digest"] = fixtures.policy_digest(policy)
@@ -56,18 +59,21 @@ def test_native_powershell_hook_and_cli_roundtrip_from_space_paths(tmp_path, mon
     page = 1
     while page:
         command = entry_command(entry, page)
-        result = subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive",
+        result = subprocess.run([shell, "-NoProfile", "-NonInteractive",
                                  "-Command", command], cwd=tmp_path, env=env,
                                 capture_output=True, text=True, encoding="utf-8", timeout=15)
         assert result.returncode == 0, result.stderr
-        data = json.loads(result.stdout)["data"]
+        lines = result.stdout.rstrip("\n").split("\n")
+        assert lines[-1] == (
+            "__KEEPSAIL_CONTEXT_EXIT_V1__:" + entry["entry_id"] + ":" + str(page) + ":0")
+        data = json.loads(lines[-2])["data"]
         callback("PostToolUse", {**identity, "hook_event_name": "PostToolUse",
                                   "turn_id": "fixture-root-turn", "tool_name": "Bash",
                                   "tool_use_id": f"fixture-tool-{page}",
                                   "tool_input": {"command": command},
-                                  "tool_response": {"output": result.stdout, "exit_code": 0}})
+                                  "tool_response": result.stdout})
         page = data["next_page"]
-    finalization = subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive",
+    finalization = subprocess.run([shell, "-NoProfile", "-NonInteractive",
                                    "-Command", data["next_command"]], cwd=tmp_path, env=env,
                                   capture_output=True, text=True, encoding="utf-8", timeout=30)
     assert finalization.returncode == 0, finalization.stderr
@@ -81,7 +87,7 @@ def test_native_powershell_hook_and_cli_roundtrip_from_space_paths(tmp_path, mon
                               "turn_id": "fixture-root-turn", "tool_name": "Bash",
                               "tool_use_id": "fixture-repeat-last-page",
                               "tool_input": {"command": command},
-                              "tool_response": {"output": result.stdout, "exit_code": 0}})
+                              "tool_response": result.stdout})
     assert callback("UserPromptSubmit", {**identity, "hook_event_name": "UserPromptSubmit",
                                          "turn_id": "fixture-next-root-turn"}) is None
     callback("SessionStart", {**identity, "hook_event_name": "SessionStart", "source": "compact"})

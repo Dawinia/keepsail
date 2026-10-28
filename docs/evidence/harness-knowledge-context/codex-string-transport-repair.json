@@ -1,0 +1,143 @@
+{
+  "version": "codex-string-transport-repair/v1",
+  "change_id": "2026-10-27-harness-knowledge-context",
+  "status": "implementation-applied; maintenance window open; real acceptance pending",
+  "authoritative_approval_id": "approval:2026-10-28-harness-context-codex-revision-plan-01-84705107",
+  "baseline_commit": "d82cc4260c6dd97773fd032382dc0b3fcf77adca",
+  "candidate_patch_sha256": "a7334522414fc1410817f3e46503df98396f7190844e3df48881ce9a4647c862",
+  "implementation_files": [
+    {
+      "path": "src/keepsail/core/context.py",
+      "baseline_sha256": "7cedf17acbeda157fd435796cb509149fd91f939ba0fd2fd2b2d4879dff214c4",
+      "candidate_sha256": "0039006afb5bab71e510f33053c23b9948bc6220f5bd6bda358484ed6a1692d2",
+      "baseline_bytes": 36133,
+      "candidate_bytes": 38892
+    },
+    {
+      "path": "src/keepsail/daemon/codex_context_hook.py",
+      "baseline_sha256": "195d55386ce22dc8b9cb6a47d6941aa62a77eab6a2035d984a695205a8274b5f",
+      "candidate_sha256": "8572b5cb72a8cc624db7595a6aa2a1fc5d93d9c049e2b0bc74cfc38d41f96020",
+      "baseline_bytes": 9135,
+      "candidate_bytes": 9467
+    },
+    {
+      "path": "tests/integration/adapter/test_codex_context.py",
+      "baseline_sha256": "9d9fdcb6e18a5686a862172a551859f38f6b41603a34ebb911474f17ce1bc8f5",
+      "candidate_sha256": "bf088c2d15b8826cc59a0a438e5b7372d26c4e1d309fe7fa178c6f1b41dc2d0e",
+      "baseline_bytes": 5313,
+      "candidate_bytes": 5587
+    },
+    {
+      "path": "tests/unit/daemon/test_codex_context_hook.py",
+      "baseline_sha256": "bbb421319586d985e62ccb6b2a74104a51b0dd7502728b8c6f4dab057e35c841",
+      "candidate_sha256": "83c03a67fd752d361ec913847e3f62f173a3295557cf49ea23960d01be77d6da",
+      "baseline_bytes": 12659,
+      "candidate_bytes": 13068
+    },
+    {
+      "path": "tests/unit/daemon/test_codex_string_transport.py",
+      "baseline_sha256": null,
+      "candidate_sha256": "d143e94cd92b0f962bfd67a88d7abb03f9f100a9f57ca3be30eb4613ce5183c2",
+      "baseline_bytes": 0,
+      "candidate_bytes": 3555
+    },
+    {
+      "path": "docs/knowledge-context.md",
+      "baseline_sha256": "113ba0327817385118bdf4e0102d1016f25d814251ae5c113a65a9b2eef3cd57",
+      "candidate_sha256": "43a657e351d4b08bead0cb0b411aec2101cb261bc37c342910df65b06950fd26",
+      "baseline_bytes": 13108,
+      "candidate_bytes": 14163
+    }
+  ],
+  "actual_failed_task": {
+    "session_id": "01a181a7-5bb2-7f30-8811-5107e3b5ac0e",
+    "entry_id": "ev_01M60TF8KTCT29GNFYAH675K7S",
+    "manifest_id": "472a470f633438c927ce0a178f48b1fbd6a8be944cacc7db0f340be0e0740ea4",
+    "pages_returned": 3,
+    "total_pages": 7,
+    "complete_acquisition": false,
+    "product_edits": false,
+    "raw_receipt_location": ".harness/operation-logs/context/ev_01M60TF8KTCT29GNFYAH675K7S/rejected/",
+    "receipts": [
+      {
+        "path": "02c888d8c123480da8a0a5b10c9820b546844fb278e18f36d661b4b6e41fe9df.json",
+        "sha256": "b8dfd8b5b3b6de777072aff43657dd1154dd158dde1f1ff381223f088a9f79a2",
+        "candidate_legacy_result": "incomplete or unknown Codex CLI return"
+      },
+      {
+        "path": "93841d602ce52c8b8bcdf4d6db4993552063cf89fd041ad02a09b64b1a351501.json",
+        "sha256": "2841ca6f0d136bcea59002a54f7cb78be3cd3a3e6f2bccb92a7a7a58c58232e8",
+        "candidate_legacy_result": "incomplete or unknown Codex CLI return"
+      },
+      {
+        "path": "c842b1008595d68c1db6b83459038722a669da4931540ece19f789228a33a807.json",
+        "sha256": "f617f522cb168aef3b9c1e30dcb26cf0668f9b65a3ce6e5969cc0361f9a61132",
+        "candidate_legacy_result": "incomplete or unknown Codex CLI return"
+      }
+    ],
+    "diagnosis": "Actual callback tool_response is string; old decoder required completed output/exit_code object. PostToolUse itself does not establish successful completion."
+  },
+  "repair": {
+    "transport": "powershell-exit/v1",
+    "new_entries_only": true,
+    "full_raw_return_limit_bytes": 24576,
+    "known_prefix": "line [1-9][0-9]*: unknown event type 'l1_update_completed'; skipping",
+    "requirements": [
+      "exact pinned native CLI command",
+      "entry/page-bound terminal actual PowerShell LASTEXITCODE 0",
+      "complete exact native page and current authority",
+      "current observed root-turn attribution",
+      "every page plus native finalization"
+    ],
+    "history": "Old entries/commands keep their original decoder; old rejected strings are not upgraded. Fresh actual SessionStart required."
+  },
+  "maintenance": {
+    "authorization": {
+      "source_thread": "01a17d4a-2fff-7cc0-9558-39ce65fb006d",
+      "exact_reply": "开始吧",
+      "scope": "bounded native context opt-out, prepared repair, verification/review and native restore",
+      "plan": "repair-plan.md",
+      "patch_sha256": "a7334522414fc1410817f3e46503df98396f7190844e3df48881ce9a4647c862"
+    },
+    "started_at": "2026-10-28T09:32:33.312073+00:00",
+    "withdrawn_at": "2026-10-28T09:32:34.144012+00:00",
+    "native_opt_out_exit": 0,
+    "before": {
+      ".codex/hooks.json": "3a0b66dd627623c062dd0a39c6ddcdd6f99bf8735403726a02e2c135060cac7b",
+      ".harness/adapters.yaml": "f9262befb4ea72331187ad677b3afe2e56856c9e77d512d5b55f60da33b0d330",
+      "AGENTS.md": "a3c13c00d10a74eb1cc34a1e1ec67b42d56df7be8313a4d35ae07d0a3e2a91b7"
+    },
+    "after_withdrawal": {
+      ".codex/hooks.json": "0c2a181ad38a7bac10473d6e4b33fe8077b0800f6fbc0a43d6eae7a3c47a7985",
+      ".harness/adapters.yaml": "f9262befb4ea72331187ad677b3afe2e56856c9e77d512d5b55f60da33b0d330",
+      "AGENTS.md": "a3c13c00d10a74eb1cc34a1e1ec67b42d56df7be8313a4d35ae07d0a3e2a91b7"
+    },
+    "coverage_caveat": "Context precondition temporarily withdrawn by explicit owner decision. Legacy lifecycle adapter remains registered; activation/trust is a separate human action. No gate-disabled marker or hand-edited state/approval/review evidence.",
+    "closure": "Native restore and final hashes will be retained in the external maintenance-window.json; verify that record before claiming closed."
+  },
+  "validation": {
+    "isolated": "18 passed in 137.84s; supplied callbacks and two real PowerShell processes, not real A/B",
+    "real_checkout_focused": "18 passed in 136.42s",
+    "checks": "decision check --changed and doc check clean; full native verification and independent exact-subject preflight pending",
+    "hypothetical_budget": [
+      22340,
+      22341,
+      22339,
+      22340,
+      22341,
+      22341,
+      21678
+    ],
+    "scope": "Budget rendering and callback fixtures do not create real acquisition.",
+    "pending": [
+      "fresh real task A complete acquisition/adoption/product edits/check",
+      "user-created real replacement task B",
+      "separate v2 recognition and exact impact disposition",
+      "operating cost report",
+      "final current implementation verification/review/attestation"
+    ]
+  },
+  "external_evidence_root": "C:\\Users\\DawiniaLo\\.codex\\visualizations\\2026\\10\\27\\01a17d4a-2fff-7cc0-9558-39ce65fb006d\\keepsail-context-plan\\codex-string-return-repair",
+  "policy_or_commitment_change": false,
+  "publication_or_merge": false
+}

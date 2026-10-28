@@ -189,3 +189,22 @@ to the source evidence for C1-C6; human trust and actual host use are still sepa
 The actual desktop was refreshed to 0.165.0-alpha.1.2. Real A/B, root attribution,
 native callback decoding, v1/v2 evolution/disposition and final exact acceptance
 remain outstanding. Registration and fixtures do not discharge those obligations.
+
+### 2026-10-28 actual return failure and bounded repair
+
+Actual user task A `01a181a7-5bb2-7f30-8811-5107e3b5ac0e` produced three of
+seven pages through real callbacks. The host returned a string; the candidate
+decoder required a completed output/exit-code object. No complete acquisition,
+adoption or product editing occurred. This confirms callback connectivity and a
+protocol defect, not successful C1-C6 entry acceptance.
+
+The [repair record](evidence/harness-knowledge-context/codex-string-transport-repair.json)
+preserves original rejected receipt hashes and the owner-authorized local native
+maintenance withdrawal. New entries pin a PowerShell completion witness and still
+require full exact pages, current authority, root attribution and native
+finalization. Old return interpretation is retained. Eighteen real-checkout
+regressions passed; process/callback fixtures remain supplemental. Full verification
+and independent preflight apply to the new frozen subject. The maintenance closure
+record must show native restoration before reporting the local boundary restored.
+Fresh real A/B, v1/v2 recognition/disposition, actual edits/checks and operating
+cost remain outstanding. No architecture obligation is reduced by this repair.

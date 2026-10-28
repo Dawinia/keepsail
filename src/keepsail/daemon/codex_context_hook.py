@@ -6,6 +6,7 @@ from typing import Any
 
 from keepsail.core.approval import digest_record, load_json_record
 from keepsail.core.context import (
+    CODEX_RETURN_TRANSPORT,
     acquired_versions,
     callback_matches_workspace,
     capture_codex_startup,
@@ -85,6 +86,10 @@ def _hint(root: Path, session: str) -> dict[str, Any] | None:
                                 "Bind once, then retrieve every returned next_command. "
                                 "Declare adoption/challenge separately. Supply is not acquisition."}
     entry = session_entry(root, session)
+    if entry.get("return_transport") != CODEX_RETURN_TRANSPORT:
+        return {"entry_id": entry["entry_id"], "instructions":
+                "Codex return transport changed. Resume the actual task for a fresh "
+                "SessionStart entry, then retrieve every page; old returns are retained."}
     projection = project_context(root, entry["change_id"])
     try:
         manifest = read_manifest(root, entry)

@@ -30,6 +30,7 @@ from keepsail.core.state import ChangeState
 from keepsail.core.ulid import new_event_id
 
 SCHEMA = "agent-context/v1"
+CODEX_RETURN_TRANSPORT = "powershell-exit/v1"
 PAGE_BYTES = 24 * 1024
 _ID = re.compile(r"[A-Za-z0-9_-]{1,128}\Z")
 _AUTHORITY_FIELDS = (
@@ -131,6 +132,7 @@ def new_entry(root: Path, change: str, session: str, source: str, cli: str, *,
              "source": source, "root": root.resolve().as_posix(), "cli": cli.replace("\\", "/")}
     if harness == "codex":
         entry["harness"] = harness
+        entry["return_transport"] = CODEX_RETURN_TRANSPORT
     save_context_record(root, (entry["entry_id"], "entry.json"), entry)
     save_context_record(root, ("sessions", digest_record(session) + ".json"),
                         {"entry_id": entry["entry_id"]}, pointer=True)
@@ -146,7 +148,8 @@ def capture_codex_startup(root: Path, payload: dict[str, Any], cli: str) -> dict
         raise KnowledgeError("invalid Codex startup", code="entry_unbound")
     startup = {"startup_id": new_event_id(), "session_id": session, "source": source,
                "root": root.resolve().as_posix(), "cli": cli.replace("\\", "/"),
-               "harness": "codex", "callback": {k: payload[k] for k in (
+               "harness": "codex", "return_transport": CODEX_RETURN_TRANSPORT,
+               "callback": {k: payload[k] for k in (
                    "hook_event_name", "session_id", "source", "cwd", "model",
                ) if k in payload}}
     with exclusive_file_lock(context_path(root, "sessions", digest_record(session) + ".lock")):
@@ -181,6 +184,8 @@ def bind_startup(root: Path, change: str, startup_id: str) -> dict[str, Any]:
     if (startup.get("root") != root.resolve().as_posix()
             or startup.get("startup_id") != startup_id or startup.get("harness") != "codex"):
         raise KnowledgeError("startup workspace mismatch", code="entry_unbound")
+    if startup.get("return_transport") != CODEX_RETURN_TRANSPORT:
+        raise KnowledgeError("Codex transport changed; resume for a fresh real SessionStart")
     session = startup["session_id"]
     with exclusive_file_lock(context_path(root, "sessions", digest_record(session) + ".lock")):
         pointer = load_json_record(context_path(root, "sessions", digest_record(session) + ".json"))
@@ -216,16 +221,29 @@ def entry_command(entry: dict[str, Any], page: int = 1, *, bind: bool = False,
     )
     if entry.get("harness") == "codex":
         quoted = " ".join("'" + str(arg).replace("'", "''") + "'" for arg in args)
-        return "$env:PYTHONUTF8='1'; $env:PYTHONDONTWRITEBYTECODE='1'; & " + quoted
+        command = "$env:PYTHONUTF8='1'; $env:PYTHONDONTWRITEBYTECODE='1'; & " + quoted
+        if entry.get("return_transport") == CODEX_RETURN_TRANSPORT and not finalize:
+            if type(page) is not int or page < 1:
+                raise KnowledgeError("invalid transport page")
+            command = command.replace("; & ", "; $LASTEXITCODE=$null; & ", 1)
+            command += (
+                "; $keepsailContextExit=$LASTEXITCODE; "
+                "if($null -eq $keepsailContextExit){$keepsailContextExit=1}; "
+                "[Console]::Out.WriteLine('__KEEPSAIL_CONTEXT_EXIT_V1__:"
+                + entry["entry_id"] + ":" + str(page) + ":' + $keepsailContextExit); "
+                "exit $keepsailContextExit"
+            )
+        return command
     return " ".join(shlex.quote(str(arg)) for arg in args)
 
 
 def context_invocation(entry: dict[str, Any], command: Any) -> bool:
-    prefix = entry_command(entry).rsplit(" ", 1)[0] + " "
-    return isinstance(command, str) and bool(
-        re.fullmatch(re.escape(prefix) + r"'?[1-9][0-9]*'?", command)
-        or (entry.get("harness") == "codex" and command == entry_command(entry, bind=True))
-    )
+    if not isinstance(command, str):
+        return False
+    if entry.get("harness") == "codex" and command == entry_command(entry, bind=True):
+        return True
+    pages = list(re.finditer(r"(?:^| )'?--page'? '?([1-9][0-9]*)'?(?=;| |$)", command))
+    return bool(pages and command == entry_command(entry, int(pages[-1][1])))
 
 
 def save_codex_root_turn(root: Path, value: dict[str, Any]) -> None:
@@ -261,15 +279,40 @@ def codex_root_turn(root: Path, startup_id: str, payload: dict[str, Any], *,
 def returned_stdout(entry: dict[str, Any], payload: dict[str, Any]) -> str:
     response = payload.get("tool_response")
     if entry.get("harness") == "codex":
-        # Candidate wire contract. Unknown native output remains not_observed;
-        # actual desktop callback/transport acceptance is separately required.
-        if (not isinstance(response, dict)
-                or not set(response).issubset({"output", "exit_code", "chunk_id",
-                                              "wall_time_seconds", "original_token_count"})
-                or type(response.get("exit_code")) is not int or response["exit_code"] != 0
-                or not isinstance(response.get("output"), str)):
+        current = entry.get("return_transport") == CODEX_RETURN_TRANSPORT
+        if isinstance(response, dict):
+            if (not set(response).issubset({"output", "exit_code", "chunk_id",
+                                           "wall_time_seconds", "original_token_count"})
+                    or type(response.get("exit_code")) is not int or response["exit_code"] != 0
+                    or not isinstance(response.get("output"), str)):
+                raise KnowledgeError("incomplete or unknown Codex CLI return",
+                                     code="page_incomplete")
+            stdout: str = response["output"]
+        elif current and isinstance(response, str):
+            stdout = response
+        else:
             raise KnowledgeError("incomplete or unknown Codex CLI return", code="page_incomplete")
-        return str(response["output"])
+        if not current:
+            return str(stdout)  # Preserve historical structured-return interpretation.
+        if len(stdout.encode("utf-8")) > PAGE_BYTES:
+            raise KnowledgeError("Codex transport exceeds return budget", code="page_incomplete")
+        lines = stdout.replace("\r\n", "\n").split("\n")
+        if lines and lines[-1] == "":
+            lines.pop()
+        if len(lines) < 2:
+            raise KnowledgeError("Codex CLI completion witness missing", code="page_incomplete")
+        envelope = json.loads(lines[-2], object_pairs_hook=_unique_object)
+        data = envelope.get("data") if isinstance(envelope, dict) else None
+        page = data.get("page") if isinstance(data, dict) else None
+        expected = "__KEEPSAIL_CONTEXT_EXIT_V1__:" + entry["entry_id"] + ":" + str(page) + ":0"
+        if (type(page) is not int or page < 1 or lines[-1] != expected or any(
+            not re.fullmatch(
+                r"line [1-9][0-9]*: unknown event type 'l1_update_completed'; skipping", line)
+            for line in lines[:-2]
+        )):
+            raise KnowledgeError("unknown or unsuccessful Codex CLI completion",
+                                 code="page_incomplete")
+        return lines[-2]
     if (not isinstance(response, dict) or response.get("interrupted") is not False
             or not isinstance(response.get("stdout"), str)
             or not isinstance(response.get("stderr"), str)
@@ -452,6 +495,10 @@ def entry_readiness(root: Path, change: str, session: str,
     try:
         entry = session_entry(root, session)
         command = entry_command(entry)
+        if (entry.get("harness") == "codex"
+                and entry.get("return_transport") != CODEX_RETURN_TRANSPORT):
+            command = "Resume the actual Codex task for a fresh SessionStart entry."
+            raise KnowledgeError("Codex return transport changed; fresh real startup required")
         if entry["change_id"] != change:
             raise KnowledgeError("session is bound to another Change", code="entry_unbound")
         current = project_context(root, change)
