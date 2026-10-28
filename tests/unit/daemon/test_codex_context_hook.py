@@ -2,22 +2,16 @@
 
 import pytest
 
-from tests.unit.core.test_knowledge import Workspace
-
 
 def test_cli_finalization_requires_actual_returns_and_prompt_reminds_pending_acquisition(
-    tmp_path, monkeypatch,
+    tmp_path, monkeypatch, context_workspace,
 ):
     import json
 
     from keepsail.daemon.codex_context_hook import observe_return, record_prompt, start_session
     from tests.unit.core import test_knowledge as fixtures
 
-    policy = fixtures.policy()
-    policy["observation_issuers"].append("keepsail-cli-observer")
-    policy["policy_digest"] = fixtures.policy_digest(policy)
-    monkeypatch.setattr(fixtures, "policy", lambda: policy)
-    workspace = Workspace(tmp_path)
+    workspace = context_workspace
     workspace.recognize(fixtures.version())
     identity = {"session_id": "codex-a", "cwd": str(tmp_path)}
     startup = start_session(tmp_path, {**identity, "hook_event_name": "SessionStart",
@@ -65,11 +59,11 @@ def test_cli_finalization_requires_actual_returns_and_prompt_reminds_pending_acq
     assert len(workspace.cli("knowledge", "show")["data"]["observations"]) == 1
 
 
-def test_startup_binds_once_and_compact_invalidates_old_entry(tmp_path):
+def test_startup_binds_once_and_compact_invalidates_old_entry(tmp_path, context_workspace):
     from keepsail.core.context import read_entry
     from keepsail.daemon.codex_context_hook import start_session
 
-    workspace = Workspace(tmp_path)
+    workspace = context_workspace
     callback = {"hook_event_name": "SessionStart", "session_id": "codex-a",
                 "cwd": str(tmp_path), "source": "startup"}
     startup = start_session(tmp_path, callback, cli_executable="C:/tools/keepsail.exe")
@@ -90,16 +84,14 @@ def test_startup_binds_once_and_compact_invalidates_old_entry(tmp_path):
                    startup["startup_id"], code=2)
 
 
-def test_automatic_compact_keeps_root_turn_but_requires_new_entry_returns(tmp_path, monkeypatch):
+def test_automatic_compact_keeps_root_turn_but_requires_new_entry_returns(
+    tmp_path, context_workspace,
+):
     from keepsail.core.context import entry_command, entry_readiness, read_entry
     from keepsail.daemon.codex_context_hook import observe_return, record_prompt, start_session
     from tests.unit.core import test_knowledge as fixtures
 
-    policy = fixtures.policy()
-    policy["observation_issuers"].append("keepsail-cli-observer")
-    policy["policy_digest"] = fixtures.policy_digest(policy)
-    monkeypatch.setattr(fixtures, "policy", lambda: policy)
-    workspace = Workspace(tmp_path)
+    workspace = context_workspace
     identity = {"session_id": "codex-a", "cwd": str(tmp_path)}
     start_session(tmp_path, {**identity, "hook_event_name": "SessionStart", "source": "startup"},
                   cli_executable="/tools/keepsail")
@@ -125,17 +117,13 @@ def test_automatic_compact_keeps_root_turn_but_requires_new_entry_returns(tmp_pa
     assert entry_readiness(tmp_path, "change-a", "codex-a")["ready"]
 
 
-def test_codex_complete_cli_returns_require_observed_root_turn(tmp_path, monkeypatch):
+def test_codex_complete_cli_returns_require_observed_root_turn(tmp_path, context_workspace):
     from keepsail.core.context import entry_command, entry_readiness, read_entry
     from keepsail.daemon.codex_context_hook import observe_return, record_prompt, start_session
     from tests.unit.core import test_knowledge as fixtures
 
-    policy = fixtures.policy()
-    policy["observation_issuers"].append("keepsail-cli-observer")
-    policy["policy_digest"] = fixtures.policy_digest(policy)
-    monkeypatch.setattr(fixtures, "policy", lambda: policy)
-    workspace = Workspace(tmp_path)
-    version = workspace.recognize(fixtures.version(body="完整知识 " * 6000))
+    workspace = context_workspace
+    version = workspace.recognize(fixtures.version(body="完整知识 " * 2500))
     startup = start_session(tmp_path, {"hook_event_name": "SessionStart", "session_id": "codex-a",
                                       "cwd": str(tmp_path), "source": "startup"},
                             cli_executable="C:/tools/keepsail.exe")
@@ -144,6 +132,7 @@ def test_codex_complete_cli_returns_require_observed_root_turn(tmp_path, monkeyp
     packet = workspace.cli("change", "context", "change-a", "--bind-startup",
                            startup["startup_id"])["data"]
     entry = read_entry(tmp_path, packet["entry_id"])
+    assert packet["total_pages"] > 1
     assert "PYTHONUTF8" in entry_command(entry)
     for page in range(1, packet["total_pages"] + 1):
         result = workspace.runner.invoke(fixtures.main, [
@@ -176,16 +165,12 @@ def test_codex_complete_cli_returns_require_observed_root_turn(tmp_path, monkeyp
     ).glob("*.json"))
 
 
-def test_patch_gate_checks_entire_move_and_preserves_independent_work(tmp_path, monkeypatch):
+def test_patch_gate_checks_entire_move_and_preserves_independent_work(tmp_path, context_workspace):
     from keepsail.core.context import entry_command, read_entry
     from keepsail.daemon.codex_context_hook import observe_return, record_prompt, start_session
     from tests.unit.core import test_knowledge as fixtures
 
-    policy = fixtures.policy()
-    policy["observation_issuers"].append("keepsail-cli-observer")
-    policy["policy_digest"] = fixtures.policy_digest(policy)
-    monkeypatch.setattr(fixtures, "policy", lambda: policy)
-    workspace = Workspace(tmp_path)
+    workspace = context_workspace
     version = workspace.recognize(fixtures.version(selector={"paths": ["src/db"]}))
     startup = start_session(tmp_path, {"hook_event_name": "SessionStart", "session_id": "codex-a",
                                       "source": "startup", "cwd": str(tmp_path)},

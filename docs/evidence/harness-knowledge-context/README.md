@@ -101,3 +101,18 @@ The correction preserves the hook deadline: callbacks retain actual pages, while
 an explicit CLI finalization reconstructs those pages and performs native writes
 outside the hook. Reminders remain active and product edits unready until native
 acquisition succeeds. Exact new-object measurements/review/verify remain required.
+
+Corrected source `e85b320` / `code:f194cc81...` received independent source-candidate
+approval (original retained here). Its native full verify subsequently **timed out**
+in pytest at 1200.341s; ruff, mypy and lifecycle ordering passed. No installation or
+completion was performed on that result. The native runner retained its timeout
+summary but not partial pytest output.
+
+Test preparation now copies isolated directories/Git/ledgers from one fixture
+prepared through native public operations. Eleven context tests passed in 80.83s;
+all cases and behavior assertions remain, including explicit multiple-page Chinese
+returns. Payload repetition was reduced; no test was removed/skipped and neither
+the 10s hook deadline nor 1200s verification limit was enlarged. Product source is
+unchanged from the reviewed correction. A metadata-only external pytest observer
+retains test names/durations/outcomes for the new full run without changing test
+selection or outcomes. Fresh full verification and exact-object review are required.

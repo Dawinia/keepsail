@@ -2,11 +2,11 @@
 import json
 from pathlib import Path
 
-from tests.unit.core.test_knowledge import Workspace
 
-
-def test_preview_restores_frozen_approval_without_recording_supply(tmp_path: Path):
-    workspace = Workspace(tmp_path)
+def test_preview_restores_frozen_approval_without_recording_supply(
+    tmp_path: Path, context_workspace,
+):
+    workspace = context_workspace
     (tmp_path / "plan.md").write_text("Changed candidate, not approved\n", encoding="utf-8")
     events = tmp_path / ".harness/events.jsonl"
     before = events.read_bytes()
@@ -21,10 +21,12 @@ def test_preview_restores_frozen_approval_without_recording_supply(tmp_path: Pat
     assert events.read_bytes() == before
 
 
-def test_revision_restores_referenced_frozen_approval_and_unreplaced_restrictions(tmp_path):
+def test_revision_restores_referenced_frozen_approval_and_unreplaced_restrictions(
+    tmp_path, context_workspace,
+):
     from keepsail.core.reducer import derive_state
 
-    workspace = Workspace(tmp_path)
+    workspace = context_workspace
     (tmp_path / "revision.md").write_text("Change entry; preserve prior restrictions.\n")
     workspace.cli("plan", "redeclare", "change-a", "--plan", "revision.md",
                    "--commitment", "db=Use PostgreSQL")
@@ -44,15 +46,11 @@ def test_revision_restores_referenced_frozen_approval_and_unreplaced_restriction
     assert preview["authorization"]["subject"]["prior_approval"] == prior["approval_id"]
 
 
-def test_only_complete_actual_cli_returns_make_current_entry_ready(tmp_path, monkeypatch):
+def test_only_complete_actual_cli_returns_make_current_entry_ready(tmp_path, context_workspace):
     from tests.unit.core import test_knowledge as fixtures
 
-    policy = fixtures.policy()
-    policy["observation_issuers"].append("keepsail-cli-observer")
-    policy["policy_digest"] = fixtures.policy_digest(policy)
-    monkeypatch.setattr(fixtures, "policy", lambda: policy)
-    workspace = Workspace(tmp_path)
-    version = workspace.recognize(fixtures.version(body="知识原文 " * 6000))
+    workspace = context_workspace
+    version = workspace.recognize(fixtures.version(body="知识原文 " * 2500))
     from keepsail.core.context import entry_command, entry_readiness
     from keepsail.daemon.context_hook import observe_return, start_session
 
@@ -101,16 +99,12 @@ def test_only_complete_actual_cli_returns_make_current_entry_ready(tmp_path, mon
     assert denied["data"]["decision"] == "block"
 
 
-def test_action_path_exposes_constraints_beyond_estimated_scope(tmp_path, monkeypatch):
+def test_action_path_exposes_constraints_beyond_estimated_scope(tmp_path, context_workspace):
     from keepsail.core.context import entry_command, entry_readiness
     from keepsail.daemon.context_hook import observe_return, start_session
     from tests.unit.core import test_knowledge as fixtures
 
-    policy = fixtures.policy()
-    policy["observation_issuers"].append("keepsail-cli-observer")
-    policy["policy_digest"] = fixtures.policy_digest(policy)
-    monkeypatch.setattr(fixtures, "policy", lambda: policy)
-    workspace = Workspace(tmp_path)
+    workspace = context_workspace
     workspace.recognize(fixtures.version(selector={"paths": ["docs/new"]}))
     entry = start_session(tmp_path, {"hook_event_name": "SessionStart", "session_id": "executor-a",
                                     "source": "startup", "cwd": str(tmp_path)},
@@ -131,16 +125,14 @@ def test_action_path_exposes_constraints_beyond_estimated_scope(tmp_path, monkey
     assert "coverage" in " ".join(exposed["blocking_reasons"])
 
 
-def test_dependent_challenge_waits_while_independent_approved_work_continues(tmp_path, monkeypatch):
+def test_dependent_challenge_waits_while_independent_approved_work_continues(
+    tmp_path, context_workspace,
+):
     from keepsail.core.context import entry_command, entry_readiness
     from keepsail.daemon.context_hook import observe_return, start_session
     from tests.unit.core import test_knowledge as fixtures
 
-    policy = fixtures.policy()
-    policy["observation_issuers"].append("keepsail-cli-observer")
-    policy["policy_digest"] = fixtures.policy_digest(policy)
-    monkeypatch.setattr(fixtures, "policy", lambda: policy)
-    workspace = Workspace(tmp_path)
+    workspace = context_workspace
     version = workspace.recognize(fixtures.version(selector={"paths": ["src/db"]}))
     entry = start_session(tmp_path, {"hook_event_name": "SessionStart", "session_id": "executor-a",
                                     "source": "startup", "cwd": str(tmp_path)},
@@ -173,10 +165,12 @@ def test_dependent_challenge_waits_while_independent_approved_work_continues(tmp
     assert not entry_readiness(tmp_path, "change-a", "executor-a", "src/db/file.py")["ready"]
 
 
-def test_project_only_declarations_recover_as_self_reports_in_new_epoch(tmp_path):
+def test_project_only_declarations_recover_as_self_reports_in_new_epoch(
+    tmp_path, context_workspace,
+):
     from keepsail.daemon.context_hook import start_session
 
-    workspace = Workspace(tmp_path)
+    workspace = context_workspace
     callback = {"hook_event_name": "SessionStart", "session_id": "executor-a",
                 "source": "startup", "cwd": str(tmp_path)}
     entry = start_session(tmp_path, callback, cli_executable="/tools/keepsail", change="change-a")
