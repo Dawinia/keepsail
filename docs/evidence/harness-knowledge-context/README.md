@@ -116,3 +116,18 @@ the 10s hook deadline nor 1200s verification limit was enlarged. Product source 
 unchanged from the reviewed correction. A metadata-only external pytest observer
 retains test names/durations/outcomes for the new full run without changing test
 selection or outcomes. Fresh full verification and exact-object review are required.
+
+The optional external timing observer in attempt 03 was **not safe under fault
+injection**: `test_gate_blocks` temporarily replaced `Path.open` to raise a
+simulated disk-full error, and the observer also called it from a pytest hook.
+This caused pytest INTERNALERROR; that run is failed, not product disk exhaustion
+or a passing verification. The observer was removed. The next original-environment
+attempt at `d4ccfbe` still timed out at 1200.424s. Both failures remain retained;
+no local installation or completion was performed on them.
+
+The knowledge-unit fixture now also uses a module-local native-prepared template
+with independent copied Git/log/helper state for each scenario. The unchanged
+40-case module passed in 151.98s. The bootstrap constructor and dedicated policy
+bootstrap integration tests remain unchanged, as do product source, test selection,
+assertions, skips and deadlines. A fresh uninstrumented full verify and exact
+source/test-candidate review are required before local installation.

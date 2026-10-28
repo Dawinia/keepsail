@@ -6,6 +6,7 @@ import json
 import subprocess
 from copy import deepcopy
 from pathlib import Path
+from shutil import copytree
 
 import pytest
 import yaml
@@ -206,9 +207,18 @@ class Workspace:
         }
 
 
+@pytest.fixture(scope="module")
+def _workspace_template(tmp_path_factory) -> Workspace:
+    return Workspace(tmp_path_factory.mktemp("approved-knowledge-template"))
+
+
 @pytest.fixture
-def workspace(tmp_path: Path) -> Workspace:
-    return Workspace(tmp_path)
+def workspace(tmp_path: Path, _workspace_template: Workspace) -> Workspace:
+    # Native bootstrap is tested directly elsewhere; every scenario owns its copy.
+    copytree(_workspace_template.root, tmp_path, dirs_exist_ok=True)
+    result = deepcopy(_workspace_template)
+    result.root = tmp_path
+    return result
 
 
 def test_candidate_has_no_authority_and_rejection_cannot_activate(workspace: Workspace):
