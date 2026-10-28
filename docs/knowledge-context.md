@@ -37,6 +37,15 @@ assumed to reach an already-running desktop. Retrieve every `next_command` and
 then use the explicit declaration schema below. No automatic latest-Change choice
 or adoption is performed.
 
+The final page's `next_command` runs `--finalize-acquisition` outside the fixed
+10-second hook budget. The hook first retains and validates the actual complete
+returns; the CLI reconstructs them and performs the slower native per-version
+writes. Missing pages, stale authority or another entry cannot be acknowledged.
+Until those writes succeed, prompts keep the finalization command and selected
+edits remain unready. Retry uses native operation identity/CAS and does not reread
+unchanged pages or duplicate observations. No background worker is introduced.
+An empty set retains outer receipt evidence without inventing a native version.
+
 Current approval context also supplies referenced prior frozen approvals, preserving
 unreplaced restrictions. The current adopted revision defines precedence; retaining
 an old body does not reinstate an explicitly replaced harness target.

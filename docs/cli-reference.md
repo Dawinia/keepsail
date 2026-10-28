@@ -196,6 +196,7 @@ keepsail change context [OPTIONS] SLUG
 | `--preview` | flag | `False` | Read current context without recording supply. |
 | `--entry` | text | — | SessionStart entry epoch to supply and retrieve. |
 | `--bind-startup` | text | — | Bind a real Codex startup once to the explicit Change. |
+| `--finalize-acquisition` | flag | `False` | Record native acquisitions from retained complete Codex tool returns. |
 | `--page` | integer range | `1` |  |
 | `--statement` | file | — | Explicit entry-statement/v1 JSON; never auto-adopts knowledge. |
 

@@ -6,6 +6,7 @@ from typing import Any
 
 from keepsail.core.approval import digest_record, load_json_record
 from keepsail.core.context import (
+    acquired_versions,
     callback_matches_workspace,
     capture_codex_startup,
     codex_root_turn,
@@ -21,7 +22,7 @@ from keepsail.core.context import (
     validate_return,
 )
 from keepsail.core.file_lock import exclusive_file_lock
-from keepsail.core.knowledge import KnowledgeError
+from keepsail.core.knowledge import KnowledgeError, load_ledger, load_policy
 
 
 def start_session(root: Path, payload: dict[str, Any], *, cli_executable: str) -> dict[str, Any]:
@@ -90,7 +91,14 @@ def _hint(root: Path, session: str) -> dict[str, Any] | None:
         if (manifest["authority_digest"] == projection["authority_digest"]
                 and len({validate_return(root, entry, manifest, r) for r in
                          observed_pages(root, entry, manifest)}) == len(manifest["chunks"])):
-            return None
+            ledger, _ = load_ledger(root / ".harness/events.jsonl", load_policy(root))
+            required = {v["version_digest"] for v in projection["knowledge"]["constraints"]}
+            if required.issubset(acquired_versions(ledger, entry, manifest)):
+                return None
+            return {"entry_id": entry["entry_id"], "native_acquisition": "pending",
+                    "next_command": entry_command(entry, finalize=True),
+                    "instructions": "Complete native acquisition from the retained actual returns. "
+                                    "Outer pages alone do not make product edits ready."}
     except (ValueError, KeyError, OSError):
         pass
     return {"entry_id": entry["entry_id"], "change_id": entry["change_id"],

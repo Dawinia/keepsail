@@ -203,11 +203,16 @@ def session_entry(root: Path, session: str) -> dict[str, Any]:
     return read_entry(root, value["entry_id"])
 
 
-def entry_command(entry: dict[str, Any], page: int = 1, *, bind: bool = False) -> str:
+def entry_command(entry: dict[str, Any], page: int = 1, *, bind: bool = False,
+                  finalize: bool = False) -> str:
+    selection: tuple[str | int, ...] = ("--entry", entry["entry_id"], "--page", page)
+    if bind:
+        selection = ("--bind-startup", entry["entry_id"])
+    elif finalize:
+        selection = ("--entry", entry["entry_id"], "--finalize-acquisition")
     args = (
         entry["cli"], "--workspace", entry["root"], "--json", "change", "context",
-        entry["change_id"], *( ("--bind-startup", entry["entry_id"]) if bind
-                            else ("--entry", entry["entry_id"], "--page", page)),
+        entry["change_id"], *selection,
     )
     if entry.get("harness") == "codex":
         quoted = " ".join("'" + str(arg).replace("'", "''") + "'" for arg in args)
@@ -386,7 +391,8 @@ def page_data(manifest: dict[str, Any], page: int) -> dict[str, Any]:
          "next_page": page + 1 if page < len(manifest["chunks"]) else None}
     entry = json.loads("".join(manifest["chunks"]))["entry"]
     if entry.get("harness") == "codex":
-        data["next_command"] = entry_command(entry, page + 1) if data["next_page"] else None
+        data["next_command"] = (entry_command(entry, page + 1) if data["next_page"]
+                                else entry_command(entry, finalize=True))
     return data
 
 
@@ -467,12 +473,12 @@ def entry_readiness(root: Path, change: str, session: str,
         if (delivery is None or delivery["basis_digest"] != knowledge["basis_digest"]
                 or delivery["constraints"] != knowledge["constraints"]):
             reasons.append("current constraints require an exact retained delivery")
+        acquired = acquired_versions(ledger, entry, manifest)
         for version in knowledge["constraints"] or []:
-            if not any(o.get("delivery_id") == manifest["delivery_id"]
-                       and o.get("version_digest") == version["version_digest"]
-                       and o.get("entry_id") == entry["entry_id"]
-                       and o.get("session_id") == session for o in ledger["observations"]):
+            if version["version_digest"] not in acquired:
                 reasons.append(f"current entry acquisition missing: {version['knowledge_id']}")
+                if not missing and entry.get("harness") == "codex":
+                    command = entry_command(entry, finalize=True)
         paths = (action_path if isinstance(action_path, list)
                  else [action_path] if action_path else [])
         if paths:
@@ -494,6 +500,15 @@ def entry_readiness(root: Path, change: str, session: str,
             "current_state": current["identity"]["current_state"] if current else None,
             "approval_id": (current.get("authorization") or {}).get("approval_id")
             if current else None}
+
+
+def acquired_versions(ledger: dict[str, Any], entry: dict[str, Any],
+                       manifest: dict[str, Any]) -> set[str]:
+    """Only native observations for this exact supplied entry, never outer receipts."""
+    return {o["version_digest"] for o in ledger["observations"]
+            if o.get("delivery_id") == manifest["delivery_id"]
+            and o.get("entry_id") == entry["entry_id"]
+            and o.get("session_id") == entry["session_id"]}
 
 
 def context_gate_inputs(root: Path, change: str, session: str,

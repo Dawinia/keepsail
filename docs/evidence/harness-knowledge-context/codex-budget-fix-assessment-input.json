@@ -1,0 +1,192 @@
+{
+  "assessment": {
+    "approval_id": "approval:2026-10-28-harness-context-codex-revision-plan-01-84705107",
+    "affected_commitments": [
+      "H3",
+      "H6",
+      "H8"
+    ],
+    "conclusion": "within_approval",
+    "reasons": [
+      "Within H3/H6/H8: exact preflight reject demonstrated synchronous native writes exceed the fixed10s selected hook budget. Preserve raw callbacks in the hook and finalize native per-version acquisition using retained complete returns through the existing context CLI, outside that deadline. Keep10s registration and1200s verification limits; no background worker, new authority/state, self-acknowledgment, changed commitments or relaxed restriction.",
+      "Selected edits and reminders still require current native acquisition; partial/missing/stale returns and idempotent retry preserve existing validation/CAS/append-only semantics. Original exact reject and cancelled verification retained; fresh measured process regression, exact review and full verify required. H7 remains pending."
+    ],
+    "references": [
+      "docs/plans/2026-10-27-harness-knowledge-context-codex-revision.md",
+      "docs/knowledge-context.md",
+      "docs/evidence/harness-knowledge-context/README.md",
+      "src/keepsail/core/writer.py",
+      "docs/evidence/harness-knowledge-context/original-codex-candidate-code-review-01.md"
+    ]
+  },
+  "coverage": [
+    {
+      "path": ".harness/adapters.yaml"
+    },
+    {
+      "path": "AGENTS.md"
+    },
+    {
+      "path": "docs/README.md"
+    },
+    {
+      "path": "docs/adapters/claude-code.md"
+    },
+    {
+      "path": "docs/adapters/codex.md"
+    },
+    {
+      "path": "docs/cli-reference.md"
+    },
+    {
+      "path": "docs/decisions/d-gate-governs-git-product.md"
+    },
+    {
+      "path": "docs/decisions/d-keepsail-single-gate-policy.md"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/README.md"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/assessment-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/assessment-review-fixes-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/candidate-code-review-01.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-assessment-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-revision-plan-review-01.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-v1-proposal-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-v1-recognition-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/original-candidate-code-review-01.md"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/original-codex-revision-plan-review-01.md"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/original-plan-review-01.md"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/plan-review-01.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/v1-proposal-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/v1-recognition-input.json"
+    },
+    {
+      "path": "docs/knowledge-context.md"
+    },
+    {
+      "path": "docs/knowledge.md"
+    },
+    {
+      "path": "docs/limitations.md"
+    },
+    {
+      "path": "docs/plans/2026-10-27-harness-knowledge-context-codex-revision.md"
+    },
+    {
+      "path": "docs/plans/2026-10-27-harness-knowledge-context.md"
+    },
+    {
+      "path": "docs/product-architecture-coverage.md"
+    },
+    {
+      "path": "src/keepsail/adapters/agent/_settings_merge.py"
+    },
+    {
+      "path": "src/keepsail/adapters/agent/claude_code.py"
+    },
+    {
+      "path": "src/keepsail/adapters/agent/codex.py"
+    },
+    {
+      "path": "src/keepsail/cli/adapter.py"
+    },
+    {
+      "path": "src/keepsail/cli/change.py"
+    },
+    {
+      "path": "src/keepsail/cli/gate.py"
+    },
+    {
+      "path": "src/keepsail/cli/knowledge.py"
+    },
+    {
+      "path": "src/keepsail/cli/output.py"
+    },
+    {
+      "path": "src/keepsail/core/context.py"
+    },
+    {
+      "path": "src/keepsail/daemon/codex_context_hook.py"
+    },
+    {
+      "path": "src/keepsail/daemon/context_hook.py"
+    },
+    {
+      "path": "src/keepsail/daemon/hook_entry.py"
+    },
+    {
+      "path": "src/keepsail/gates/decisions.py"
+    },
+    {
+      "path": "src/keepsail/gates/pre_tool_use.py"
+    },
+    {
+      "path": "tests/integration/adapter/test_claude_context.py"
+    },
+    {
+      "path": "tests/integration/adapter/test_codex_context.py"
+    },
+    {
+      "path": "tests/unit/adapters/test_claude_code.py"
+    },
+    {
+      "path": "tests/unit/adapters/test_codex.py"
+    },
+    {
+      "path": "tests/unit/core/test_context.py"
+    },
+    {
+      "path": "tests/unit/daemon/test_codex_context_hook.py"
+    },
+    {
+      "path": "tests/unit/daemon/test_context_hook.py"
+    },
+    {
+      "path": "src/keepsail/core/writer.py"
+    },
+    {
+      "path": "tests/unit/core/test_writer.py"
+    },
+    {
+      "path": "docs/decisions/d-events-append-only.md"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-runtime-adjustment-assessment-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/original-codex-candidate-code-review-01.md"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-candidate-code-review-01.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-budget-fix-assessment-input.json"
+    }
+  ]
+}

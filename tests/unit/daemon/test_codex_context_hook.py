@@ -5,6 +5,66 @@ import pytest
 from tests.unit.core.test_knowledge import Workspace
 
 
+def test_cli_finalization_requires_actual_returns_and_prompt_reminds_pending_acquisition(
+    tmp_path, monkeypatch,
+):
+    import json
+
+    from keepsail.daemon.codex_context_hook import observe_return, record_prompt, start_session
+    from tests.unit.core import test_knowledge as fixtures
+
+    policy = fixtures.policy()
+    policy["observation_issuers"].append("keepsail-cli-observer")
+    policy["policy_digest"] = fixtures.policy_digest(policy)
+    monkeypatch.setattr(fixtures, "policy", lambda: policy)
+    workspace = Workspace(tmp_path)
+    workspace.recognize(fixtures.version())
+    identity = {"session_id": "codex-a", "cwd": str(tmp_path)}
+    startup = start_session(tmp_path, {**identity, "hook_event_name": "SessionStart",
+                                      "source": "startup"}, cli_executable="/tools/keepsail")
+    record_prompt(tmp_path, {**identity, "hook_event_name": "UserPromptSubmit", "turn_id": "root"})
+    response = workspace.runner.invoke(fixtures.main, [
+        "--workspace", str(tmp_path), "--json", "change", "context", "change-a",
+        "--bind-startup", startup["startup_id"],
+    ])
+    packet = json.loads(response.stdout)["data"]
+    assert packet["total_pages"] == 1
+    workspace.cli("change", "context", "change-a", "--entry", packet["entry_id"],
+                   "--finalize-acquisition", code=2)  # Supply alone cannot acknowledge itself.
+    observed = observe_return(tmp_path, {
+        **identity, "hook_event_name": "PostToolUse", "turn_id": "root", "tool_name": "Bash",
+        "tool_use_id": "fixture-bind", "tool_input": {"command": (
+            "$env:PYTHONUTF8='1'; $env:PYTHONDONTWRITEBYTECODE='1'; & '/tools/keepsail' "
+            f"'--workspace' '{tmp_path.as_posix()}' '--json' 'change' 'context' 'change-a' "
+            f"'--bind-startup' '{startup['startup_id']}'"
+        )}, "tool_response": {"output": response.stdout, "exit_code": 0},
+    })
+    assert observed["complete"] is True
+    assert observed["native_acquisition"] == "pending"
+    assert "--finalize-acquisition" in observed["next_command"]
+    assert workspace.cli("knowledge", "show")["data"]["observations"] == []
+    # Exercise the real prompt dispatch: complete outer pages must not silence this hint.
+    from io import StringIO
+
+    from keepsail.daemon.codex_context_hook import run_context_hook
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("sys.stdin", StringIO(json.dumps({
+        **identity, "hook_event_name": "UserPromptSubmit", "turn_id": "next-root",
+    })))
+    output = StringIO()
+    monkeypatch.setattr("sys.stdout", output)
+    run_context_hook("user-prompt-submit", None)
+    assert "--finalize-acquisition" in output.getvalue()
+    result = workspace.cli("change", "context", "change-a", "--entry", packet["entry_id"],
+                            "--finalize-acquisition")["data"]
+    assert result["native_acquisition"] == "recorded"
+    assert len(workspace.cli("knowledge", "show")["data"]["observations"]) == 1
+    workspace.cli("change", "context", "change-a", "--entry", packet["entry_id"],
+                   "--finalize-acquisition")
+    assert len(workspace.cli("knowledge", "show")["data"]["observations"]) == 1
+
+
 def test_startup_binds_once_and_compact_invalidates_old_entry(tmp_path):
     from keepsail.core.context import read_entry
     from keepsail.daemon.codex_context_hook import start_session
@@ -102,6 +162,9 @@ def test_codex_complete_cli_returns_require_observed_root_turn(tmp_path, monkeyp
                 observe_return(tmp_path, {**callback, **change})
         observed = observe_return(tmp_path, callback)
         assert observed["complete"] == (page == packet["total_pages"])
+    assert not entry_readiness(tmp_path, "change-a", "codex-a", "src/db/file.py")["ready"]
+    workspace.cli("change", "context", "change-a", "--entry", entry["entry_id"],
+                   "--finalize-acquisition")
     assert entry_readiness(tmp_path, "change-a", "codex-a", "src/db/file.py")["ready"]
     observations = workspace.cli("knowledge", "show")["data"]["observations"]
     assert observations[-1]["version_digest"] == version
@@ -146,6 +209,8 @@ def test_patch_gate_checks_entire_move_and_preserves_independent_work(tmp_path, 
                              "tool_use_id": "fixture-refreshed",
                              "tool_input": {"command": entry_command(entry)},
                              "tool_response": {"output": response.stdout, "exit_code": 0}})
+    workspace.cli("change", "context", "change-a", "--entry", entry["entry_id"],
+                   "--finalize-acquisition")
 
     def decide(body, expected=0):
         path = tmp_path / "candidate.patch"

@@ -67,6 +67,11 @@ def test_native_powershell_hook_and_cli_roundtrip_from_space_paths(tmp_path, mon
                                   "tool_input": {"command": command},
                                   "tool_response": {"output": result.stdout, "exit_code": 0}})
         page = data["next_page"]
+    finalization = subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive",
+                                   "-Command", data["next_command"]], cwd=tmp_path, env=env,
+                                  capture_output=True, text=True, encoding="utf-8", timeout=30)
+    assert finalization.returncode == 0, finalization.stderr
+    assert json.loads(finalization.stdout)["data"]["native_acquisition"] == "not_applicable"
     allowed = callback("PreToolUse", {**identity, "hook_event_name": "PreToolUse",
                                       "turn_id": "fixture-root-turn", "tool_name": "apply_patch",
                                       "tool_input": {"command": "*** Begin Patch\n"

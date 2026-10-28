@@ -323,6 +323,21 @@ def observe_return(root: Path, payload: dict[str, Any]) -> dict[str, Any]:
     by_page = {validate_return(root, entry, manifest, r): r for r in observed}
     if len(by_page) != len(manifest["chunks"]):
         return {"observed_page": page, "complete": False}
+    if entry.get("harness") == "codex":
+        # Never perform slow ledger transactions within the fixed hook budget.
+        # The CLI consumes these actual immutable returns, not a self-reported hash.
+        return {"observed_page": page, "complete": True, "native_acquisition": "pending",
+                "next_command": entry_command(entry, finalize=True)}
+    _record_complete_returns(root, entry, manifest, by_page)
+    return {"observed_page": page, "complete": True, "boundary": "cli-tool-return",
+            "empty_set_observed": not json.loads("".join(manifest["chunks"]))[
+                "knowledge"]["constraints"]}
+
+
+def _record_complete_returns(root: Path, entry: dict[str, Any], manifest: dict[str, Any],
+                             by_page: dict[int, dict[str, Any]]) -> int:
+    if set(by_page) != set(range(1, len(manifest["chunks"]) + 1)):
+        raise KnowledgeError("complete actual tool returns required", code="page_incomplete")
     ordered = [by_page[i] for i in range(1, len(manifest["chunks"]) + 1)]
     returned = "".join(json.loads(returned_stdout(entry, r))["data"]["content"] for r in ordered)
     if sha256(returned.encode("utf-8")).hexdigest() != manifest["context_digest"]:
@@ -330,5 +345,25 @@ def observe_return(root: Path, payload: dict[str, Any]) -> dict[str, Any]:
     content = json.loads(returned)
     for version in content["knowledge"]["constraints"]:
         _record_acquisition(root, entry, manifest, version, ordered)
-    return {"observed_page": page, "complete": True, "boundary": "cli-tool-return",
-            "empty_set_observed": not content["knowledge"]["constraints"]}
+    return len(content["knowledge"]["constraints"])
+
+
+def finalize_acquisition(root: Path, change: str, entry_id: str) -> dict[str, Any]:
+    """Native writes outside Codex's hook deadline; preserved raw returns are mandatory."""
+    entry = read_entry(root, entry_id)
+    if entry.get("harness") != "codex" or entry["change_id"] != change:
+        raise KnowledgeError("finalization requires the selected Codex entry")
+    manifest = read_manifest(root, entry)
+    if project_context(root, change)["authority_digest"] != manifest["authority_digest"]:
+        raise KnowledgeError("current authority requires context refresh", code="context_stale")
+    by_page = {validate_return(root, entry, manifest, r): r
+               for r in observed_pages(root, entry, manifest)}
+    count = _record_complete_returns(root, entry, manifest, by_page)
+    read_entry(root, entry_id)
+    if project_context(root, change)["authority_digest"] != manifest["authority_digest"]:
+        raise KnowledgeError("authority changed during acquisition; refresh", code="context_stale")
+    return {"entry_id": entry_id, "manifest_id": manifest["manifest_id"],
+            "native_acquisition": "recorded" if count else "not_applicable",
+            "version_count": count, "empty_set_observed": count == 0,
+            "boundary": "retained-cli-tool-returns",
+            "understanding": "not_observed", "compliance": "not_checked"}

@@ -90,3 +90,14 @@ characters in 7 bounded pages in 2.797s. Native supply attempts after the fix to
 actual hook budgets, complete-return latency and daily human cost require real A/B.
 The root agent's separate native v1 adoption is only a declaration, without an
 installed Codex-hook acquisition or compliance claim.
+
+Exact Codex candidate `ff221d4` / `code:35235a73...` received an independent
+**reject**: its last page synchronously recorded two native acquisitions in
+16.875s on an isolated copy of the current ledger, exceeding the registered 10s
+hook budget. The ready edit-gate probe took 6.703s. These are supplied-callback
+process measurements, not desktop acceptance. The full verify attempt was
+cancelled before code fixes; its partial artifacts are not a passing verification.
+The correction preserves the hook deadline: callbacks retain actual pages, while
+an explicit CLI finalization reconstructs those pages and performs native writes
+outside the hook. Reminders remain active and product edits unready until native
+acquisition succeeds. Exact new-object measurements/review/verify remain required.
