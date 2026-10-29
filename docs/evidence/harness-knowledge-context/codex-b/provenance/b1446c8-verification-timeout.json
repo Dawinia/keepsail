@@ -1,0 +1,73 @@
+{
+  "verdict": "failed",
+  "generated_at": "2026-10-29T06:47:49.960410Z",
+  "checks_run": 5,
+  "results": [
+    {
+      "id": "lifecycle-ordering",
+      "status": "pass",
+      "exit_code": 0,
+      "duration_ms": 1275,
+      "must_pass": true,
+      "command": "builtin:lifecycle-ordering",
+      "output_path": null
+    },
+    {
+      "id": "scope-vs-plan-final",
+      "status": "fail",
+      "exit_code": 1,
+      "duration_ms": 1886,
+      "must_pass": false,
+      "command": "builtin:scope-vs-plan-final",
+      "output_path": "E:\\Work\\keepsail\\.harness\\verification-results\\2026-10-27-harness-knowledge-context\\2026-10-29T06-27-44.224556Z\\scope-vs-plan-final.txt"
+    },
+    {
+      "id": "ruff",
+      "status": "pass",
+      "exit_code": 0,
+      "duration_ms": 1958,
+      "must_pass": true,
+      "command": [
+        "python",
+        "-m",
+        "scripts.run_project_check",
+        "ruff",
+        "check",
+        "src",
+        "tests",
+        "scripts"
+      ],
+      "output_path": "E:\\Work\\keepsail\\.harness\\verification-results\\2026-10-27-harness-knowledge-context\\2026-10-29T06-27-44.224556Z"
+    },
+    {
+      "id": "mypy",
+      "status": "pass",
+      "exit_code": 0,
+      "duration_ms": 13901,
+      "must_pass": true,
+      "command": [
+        "python",
+        "-m",
+        "scripts.run_project_check",
+        "mypy",
+        "src"
+      ],
+      "output_path": "E:\\Work\\keepsail\\.harness\\verification-results\\2026-10-27-harness-knowledge-context\\2026-10-29T06-27-44.224556Z"
+    },
+    {
+      "id": "pytest",
+      "status": "timeout",
+      "exit_code": -1,
+      "duration_ms": 1200620,
+      "must_pass": true,
+      "command": [
+        "python",
+        "-m",
+        "scripts.run_project_check",
+        "pytest",
+        "-q"
+      ],
+      "output_path": null
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "measurement_scope": "Current committed hook executable through Windows PowerShell in isolated native test workspace; synthetic fixture PreToolUse callbacks, not desktop dispatch latency or real-session acquisition. First/second means process order, not a cleared OS cache.",
+  "source_head": "b1446c82838b51869757de3fcfaf704bae99d28f",
+  "command": [
+    "powershell.exe",
+    "-NoProfile",
+    "-NonInteractive",
+    "-Command",
+    "& 'E:/Work/keepsail/.venv/Scripts/keepsail-hook.EXE' --agent codex --context"
+  ],
+  "timeout_seconds": 10,
+  "fixture_test_exit": 0,
+  "samples": [
+    {
+      "sample": "first-fresh-process",
+      "seconds": 2.0372586000000297,
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "",
+      "timed_out": false
+    },
+    {
+      "sample": "second-fresh-process",
+      "seconds": 1.9015229999999974,
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "",
+      "timed_out": false
+    }
+  ],
+  "callback_input": {
+    "hook_event_name": "PreToolUse",
+    "cwd": "C:\\Users\\DawiniaLo\\AppData\\Local\\Temp\\pytest-of-DawiniaLo\\pytest-266\\test_patch_gate_checks_entire_0",
+    "session_id": "codex-a",
+    "turn_id": "root-turn",
+    "tool_name": "apply_patch",
+    "tool_input": {
+      "command": "*** Begin Patch\n*** Add File: docs/independent.md\n+safe\n*** End Patch\n"
+    }
+  },
+  "actual_event_log_unchanged": true
+}

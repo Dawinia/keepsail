@@ -223,3 +223,15 @@ root provenance, native finalization and original budgets are unchanged.
 This checkpoint includes coverage and operating-cost evidence, not a final code
 conclusion. The current committed subject still requires its native full verify,
 external exact review and attestation; older passing results cannot substitute.
+
+## Complete-check timeout and baseline lookup repair (2026-10-29)
+
+The b1446c8 candidate did not complete final verification: one abnormal process
+exit and a later 1200s pytest timeout remain failed results. Its independent
+candidate conclusion is explicitly reject. The
+[performance repair record](base-resolution-performance-repair.md) identifies
+the unchanged deadline, exact failed summaries, repeated Git-resolution cost and
+the current fresh-ref batch query. It also records the canonical-branch and
+non-symbolic-origin/HEAD regressions; candidate tags do not become trusted bases.
+The current focused run passed 23 cases without reducing assertions. A new exact
+subject must complete the original full checks and external review before closure.

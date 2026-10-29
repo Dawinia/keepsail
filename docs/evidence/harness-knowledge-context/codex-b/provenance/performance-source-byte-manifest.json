@@ -1,0 +1,42 @@
+{
+  "original-candidate-review-20261029-rejected.md": {
+    "source": "C:\\Users\\DawiniaLo\\.codex\\visualizations\\2026\\10\\27\\01a17d4a-2fff-7cc0-9558-39ce65fb006d\\keepsail-context-plan\\original-final-code-review-20261029.md",
+    "sha256": "a88fe1aab39763891eeca5069263451f89a7203529a3fb868fbbcaf06043874d",
+    "bytes": 9745
+  },
+  "a-original-pytest-host-records.json": {
+    "source": "C:\\Users\\DawiniaLo\\.codex\\visualizations\\2026\\10\\27\\01a17d4a-2fff-7cc0-9558-39ce65fb006d\\keepsail-context-plan\\a-original-pytest-host-records-20261029.json",
+    "sha256": "c71128f872e3703ecd2459e241c5a8a76d9dd1b54e38a43db9b2c0b22149b8bc",
+    "bytes": 2526
+  },
+  "b1446c8-isolated-hook-cost.json": {
+    "source": "C:\\Users\\DawiniaLo\\.codex\\visualizations\\2026\\10\\27\\01a17d4a-2fff-7cc0-9558-39ce65fb006d\\keepsail-context-plan\\current-isolated-hook-cost-20261029.json",
+    "sha256": "42b133badc2ce00fbcbcde3db97a40437a51c40588deb92bfb5c80b063dfd37b",
+    "bytes": 1423
+  },
+  "b1446c8-isolated-hook-cost-attempt-00-failed.json": {
+    "source": "C:\\Users\\DawiniaLo\\.codex\\visualizations\\2026\\10\\27\\01a17d4a-2fff-7cc0-9558-39ce65fb006d\\keepsail-context-plan\\current-isolated-hook-cost-20261029-attempt-00-failed.json",
+    "sha256": "532946ebc71c25b2450774f325906cacf50493c91d2ee52f28d3351a1123d97a",
+    "bytes": 645
+  },
+  "b1446c8-readonly-gate-cost.json": {
+    "source": "C:\\Users\\DawiniaLo\\.codex\\visualizations\\2026\\10\\27\\01a17d4a-2fff-7cc0-9558-39ce65fb006d\\keepsail-context-plan\\current-workspace-readonly-gate-cost-20261029.json",
+    "sha256": "5142bbd24588b7ec0b04cd53f948c1e292ed0e3a391f517757d9f3231c56cdea",
+    "bytes": 3944
+  },
+  "base-resolution-focused.stdout.txt": {
+    "source": "C:\\Users\\DawiniaLo\\.codex\\visualizations\\2026\\10\\27\\01a17d4a-2fff-7cc0-9558-39ce65fb006d\\keepsail-context-plan\\final-base-resolution-focused-20261029.stdout.txt",
+    "sha256": "b6eab11b52d69935884cb1610ba785a81d3aa020560f3a3bc13ca3b87cccefb2",
+    "bytes": 653
+  },
+  "b1446c8-first-verification-failed.json": {
+    "source": "E:\\Work\\keepsail\\.harness\\verification-results\\2026-10-27-harness-knowledge-context\\2026-10-28T18-25-17.700656Z\\summary.json",
+    "sha256": "5ef7a495bd575c423c4eb0752640348ec493ab478df568dbf02a03166cd507d5",
+    "bytes": 2027
+  },
+  "b1446c8-verification-timeout.json": {
+    "source": "E:\\Work\\keepsail\\.harness\\verification-results\\2026-10-27-harness-knowledge-context\\2026-10-29T06-27-44.224556Z\\summary.json",
+    "sha256": "135ccb51463f2ba14272d9b0f4b96a322e6431840cceefb529008278f95da313",
+    "bytes": 1909
+  }
+}

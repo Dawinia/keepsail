@@ -430,19 +430,28 @@ def load_recognition(root: Path, *, ref: str | None = None) -> Recognition:
     return _recognition_from_mapping(raw)
 
 
-def _contract_base_refs(root: Path) -> tuple[str, ...]:
-    """Return local candidates for the repository's trusted default base."""
-    refs: list[str] = []
+def _contract_base_candidates(root: Path) -> tuple[tuple[str, str, str], ...]:
+    """Read current trusted refs and their object identities in one Git query."""
+    refs = ("refs/remotes/origin/HEAD", "refs/remotes/origin/main", "refs/heads/main")
     try:
-        default_ref = _git(root, "symbolic-ref", "--short", "refs/remotes/origin/HEAD").strip()
+        output = _git(root, "for-each-ref",
+                      "--format=%(refname)%09%(objectname)%09%(objecttype)%09%(symref)", *refs)
     except GitScopeError:
-        default_ref = ""
-    if default_ref:
-        refs.append(default_ref)
-    for ref in ("origin/main", "main"):
-        if ref not in refs:
-            refs.append(ref)
-    return tuple(refs)
+        return ()
+    records: dict[str, tuple[str, str]] = {}
+    for line in output.splitlines():
+        fields = line.split("\t")
+        if len(fields) < 3 or fields[0] not in refs:
+            continue
+        # Only a symbolic origin/HEAD names the remote's default branch.
+        if fields[0] == refs[0] and (len(fields) < 4 or not fields[3]):
+            continue
+        records[fields[0]] = (fields[1], fields[2])
+    return tuple((ref, records[ref][0], records[ref][1]) for ref in refs if ref in records)
+
+
+def _contract_base_refs(root: Path) -> tuple[str, ...]:
+    return tuple(ref for ref, _, _ in _contract_base_candidates(root))
 
 
 def recognition_contract_active(root: Path) -> bool:
@@ -625,11 +634,14 @@ def _git(root: Path, *args: str) -> str:
 
 def resolve_contract_base(root: Path) -> str:
     """Resolve the new contract's default base without old review policy."""
-    for candidate in _contract_base_refs(root):
-        try:
-            return resolve_commit(root, candidate)
-        except GitScopeError:
-            continue
+    for ref, oid, kind in _contract_base_candidates(root):
+        if kind == "commit":
+            return oid
+        if kind == "tag":
+            try:
+                return resolve_commit(root, ref)
+            except GitScopeError:
+                continue
     raise ApprovalError("new-contract code subjects require a reachable trusted baseline")
 
 

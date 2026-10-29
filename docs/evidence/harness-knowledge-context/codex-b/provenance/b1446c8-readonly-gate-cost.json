@@ -1,0 +1,67 @@
+{
+  "scope": "actual read-only public gate diagnostic against current workspace, current original root turn and freshly acquired entry; patch file is inspected only, never applied. This is CLI/policy latency, not desktop hook dispatch timing.",
+  "command": [
+    "E:\\Work\\keepsail\\.venv\\Scripts\\keepsail.exe",
+    "--workspace",
+    "E:\\Work\\keepsail",
+    "--json",
+    "gate",
+    "check",
+    "pre-tool-use",
+    "--agent",
+    "codex",
+    "--change-id",
+    "2026-10-27-harness-knowledge-context",
+    "--session-id",
+    "01a17d4a-2fff-7cc0-9558-39ce65fb006d",
+    "--turn-id",
+    "01a18656-a965-7771-b713-c91cc154ca46",
+    "--patch-file",
+    "C:\\Users\\DawiniaLo\\.codex\\visualizations\\2026\\10\\27\\01a17d4a-2fff-7cc0-9558-39ce65fb006d\\keepsail-context-plan\\current-gate-diagnostic-only.patch"
+  ],
+  "head": "b1446c82838b51869757de3fcfaf704bae99d28f",
+  "real_ledger_bytes": 13445458,
+  "actual_ledger_unchanged": true,
+  "samples": [
+    {
+      "sample": "first-current-workspace-process",
+      "seconds": 7.86316439999996,
+      "exit_code": 0,
+      "result": {
+        "command": "gate check",
+        "version": "0.1.0",
+        "status": "pass",
+        "exit_code": 0,
+        "data": {
+          "gate_name": "pre-tool-use",
+          "decision": "allow",
+          "current_state": "IMPLEMENTATION_IN_PROGRESS",
+          "reason": "IMPLEMENTATION_IN_PROGRESS",
+          "suggested_action": null
+        },
+        "errors": []
+      },
+      "stderr": "line 31: unknown event type 'l1_update_completed'; skipping\nline 40: unknown event type 'l1_update_completed'; skipping\nline 49: unknown event type 'l1_update_completed'; skipping\nline 31: unknown event type 'l1_update_completed'; skipping\nline 40: unknown event type 'l1_update_completed'; skipping\nline 49: unknown event type 'l1_update_completed'; skipping\nline 31: unknown event type 'l1_update_completed'; skipping\nline 40: unknown event type 'l1_update_completed'; skipping\nline 49: unknown event type 'l1_update_completed'; skipping\nline 31: unknown event type 'l1_update_completed'; skipping\nline 40: unknown event type 'l1_update_completed'; skipping\nline 49: unknown event type 'l1_update_completed'; skipping\nline 31: unknown event type 'l1_update_completed'; skipping\nline 40: unknown event type 'l1_update_completed'; skipping\nline 49: unknown event type 'l1_update_completed'; skipping\n"
+    },
+    {
+      "sample": "second-current-workspace-process",
+      "seconds": 8.191598200000044,
+      "exit_code": 0,
+      "result": {
+        "command": "gate check",
+        "version": "0.1.0",
+        "status": "pass",
+        "exit_code": 0,
+        "data": {
+          "gate_name": "pre-tool-use",
+          "decision": "allow",
+          "current_state": "IMPLEMENTATION_IN_PROGRESS",
+          "reason": "IMPLEMENTATION_IN_PROGRESS",
+          "suggested_action": null
+        },
+        "errors": []
+      },
+      "stderr": "line 31: unknown event type 'l1_update_completed'; skipping\nline 40: unknown event type 'l1_update_completed'; skipping\nline 49: unknown event type 'l1_update_completed'; skipping\nline 31: unknown event type 'l1_update_completed'; skipping\nline 40: unknown event type 'l1_update_completed'; skipping\nline 49: unknown event type 'l1_update_completed'; skipping\nline 31: unknown event type 'l1_update_completed'; skipping\nline 40: unknown event type 'l1_update_completed'; skipping\nline 49: unknown event type 'l1_update_completed'; skipping\nline 31: unknown event type 'l1_update_completed'; skipping\nline 40: unknown event type 'l1_update_completed'; skipping\nline 49: unknown event type 'l1_update_completed'; skipping\nline 31: unknown event type 'l1_update_completed'; skipping\nline 40: unknown event type 'l1_update_completed'; skipping\nline 49: unknown event type 'l1_update_completed'; skipping\n"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "measurement_scope": "Current committed hook executable through Windows PowerShell in isolated native test workspace; synthetic fixture PreToolUse callbacks, not desktop dispatch latency or real-session acquisition. First/second means process order, not a cleared OS cache.",
+  "source_head": "b1446c82838b51869757de3fcfaf704bae99d28f",
+  "command": [
+    "powershell.exe",
+    "-NoProfile",
+    "-NonInteractive",
+    "-Command",
+    "& 'E:/Work/keepsail/.venv/Scripts/keepsail-hook.EXE' --agent codex --context"
+  ],
+  "timeout_seconds": 10,
+  "fixture_test_exit": 1,
+  "samples": [],
+  "actual_event_log_unchanged": true
+}

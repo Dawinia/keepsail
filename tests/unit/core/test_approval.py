@@ -213,6 +213,56 @@ def test_new_contract_base_ignores_legacy_review_governance(tmp_path: Path) -> N
     assert len(resolve_contract_base(tmp_path)) == 40
 
 
+def test_base_lookup_is_bounded_and_tracks_live_ref_priority(tmp_path, monkeypatch):
+    def git(*args):
+        return subprocess.check_output(["git", *args], cwd=tmp_path, text=True).strip()
+
+    git("init", "-q", "-b", "main")
+    git("config", "user.email", "test@example.com")
+    git("config", "user.name", "Test")
+    git("commit", "--allow-empty", "-qm", "first")
+    first = git("rev-parse", "HEAD")
+    git("commit", "--allow-empty", "-qm", "second")
+    second = git("rev-parse", "HEAD")
+    git("update-ref", "refs/heads/main", first)
+    git("tag", "main", second)
+    git("tag", "origin/main", second)
+    git("update-ref", "--no-deref", "refs/remotes/origin/HEAD", second)
+    original_run = subprocess.run
+
+    def resolve(max_calls=1):
+        calls = []
+
+        def tracked(*args, **kwargs):
+            calls.append(args[0])
+            return original_run(*args, **kwargs)
+
+        with monkeypatch.context() as patch:
+            patch.setattr(subprocess, "run", tracked)
+            value = resolve_contract_base(tmp_path)
+        assert 1 <= len(calls) <= max_calls, calls
+        return value
+
+    assert resolve() == first
+    git("update-ref", "refs/remotes/origin/main", second)
+    assert resolve() == second
+    git("update-ref", "refs/remotes/origin/trunk", first)
+    git("symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/trunk")
+    assert resolve() == first
+    git("update-ref", "refs/remotes/origin/trunk", second)
+    assert resolve() == second
+    git("tag", "-a", "authority-base", "-m", "annotated", first)
+    git("update-ref", "refs/remotes/origin/trunk", git("rev-parse", "refs/tags/authority-base"))
+    assert resolve(max_calls=2) == first
+    # A non-commit preferred ref must not become authority or hide the valid fallback.
+    git("update-ref", "refs/remotes/origin/trunk", git("rev-parse", first + "^{tree}"))
+    assert resolve() == second
+    for ref in ("refs/remotes/origin/trunk", "refs/remotes/origin/main", "refs/heads/main"):
+        git("update-ref", "-d", ref)
+    with pytest.raises(ApprovalError, match="reachable trusted baseline"):
+        resolve_contract_base(tmp_path)
+
+
 def test_recognition_contract_activation_fails_closed(tmp_path: Path) -> None:
     harness = tmp_path / ".harness"
     harness.mkdir()

@@ -1,0 +1,6 @@
+.......................                                                  [100%]
+============================= slowest 3 durations =============================
+19.45s call     tests/integration/lifecycle/test_knowledge_delivery.py::test_postgresql_adjustment_cross_change_attestation_and_new_session[False-adjust]
+15.18s call     tests/integration/lifecycle/test_knowledge_policy_bootstrap.py::test_first_candidate_completes_normal_delivery_without_authority[True]
+13.46s call     tests/integration/lifecycle/test_knowledge_policy_bootstrap.py::test_first_candidate_completes_normal_delivery_without_authority[False]
+23 passed in 62.49s (0:01:02)

@@ -1,0 +1,48 @@
+{
+  "source": "first-party read_thread directly retrieved 2026-10-29; no test rerun",
+  "session_id": "01a181a7-5bb2-7f30-8811-5107e3b5ac0e",
+  "records": [
+    {
+      "turn_id": "01a18385-7490-7a82-b999-c3150a9b07cb",
+      "type": "commandExecution",
+      "id": "exec-4b69e446-a6f1-4e9a-b51a-beade136e3f3",
+      "command": "\"C:\\\\Users\\\\DawiniaLo\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$env:PYTHONDONTWRITEBYTECODE='\"'1'; \"'$env:PYTHONUTF8='\"'1'; \"'$env:CI='\"'1'; & .venv/Scripts/python.exe -m pytest tests/unit/daemon/test_codex_context_hook.py tests/unit/daemon/test_codex_string_transport.py -q\"",
+      "cwd": "E:\\Work\\keepsail",
+      "status": "completed",
+      "exitCode": 0,
+      "durationMs": 58010,
+      "output": {
+        "text": ".......                                                                  [100%]\r\n7 passed in 54.96s\r\n",
+        "truncated": false
+      }
+    },
+    {
+      "turn_id": "01a18385-7490-7a82-b999-c3150a9b07cb",
+      "type": "commandExecution",
+      "id": "exec-d69b40c7-aacd-407a-818a-6119467a351f",
+      "command": "\"C:\\\\Users\\\\DawiniaLo\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$env:PYTHONDONTWRITEBYTECODE='\"'1'; \"'$env:CI='\"'1'; & .venv/Scripts/python.exe -m pytest tests/unit/daemon/test_codex_context_hook.py::test_finalize_rechecks_new_approval_and_requires_fresh_returns -q\"",
+      "cwd": "E:\\Work\\keepsail",
+      "status": "completed",
+      "exitCode": 0,
+      "durationMs": 16534,
+      "output": {
+        "text": ".                                                                        [100%]\r\n1 passed in 15.51s\r\n",
+        "truncated": false
+      }
+    },
+    {
+      "turn_id": "01a18385-7490-7a82-b999-c3150a9b07cb",
+      "type": "commandExecution",
+      "id": "exec-5b4c38e9-7c9d-4fc2-a050-98efee27d7c5",
+      "command": "\"C:\\\\Users\\\\DawiniaLo\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\native\\\\powershell\\\\pwsh.exe\" -Command '$env:PYTHONDONTWRITEBYTECODE='\"'1'; & .venv/Scripts/keepsail.EXE decision check --changed\"",
+      "cwd": "E:\\Work\\keepsail",
+      "status": "completed",
+      "exitCode": 0,
+      "durationMs": 2940,
+      "output": {
+        "text": "hard:context = 3:9 (25% hard)\r\ndecision check: clean\r\n",
+        "truncated": false
+      }
+    }
+  ]
+}
