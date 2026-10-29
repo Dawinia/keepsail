@@ -285,6 +285,7 @@ def test_recognition_contract_activation_fails_closed(tmp_path: Path) -> None:
     policy["process"]["policy_digest"] = recognition_policy_digest(policy)
     path.write_text(yaml.safe_dump(policy, sort_keys=False), encoding="utf-8")
     assert recognition_contract_active(tmp_path) is True
+
     assert load_recognition(tmp_path).requirements == {"substantive": ["scope", "tests"]}
 
     path.write_text("version: review-recognition/v1\nenabled: true\n", encoding="utf-8")
@@ -348,6 +349,15 @@ def test_recognition_contract_uses_default_remote_head_and_skips_disabled_ref(
     subprocess.run(["git", "update-ref", "refs/heads/main", main_commit], cwd=tmp_path, check=True)
 
     assert recognition_contract_active(tmp_path) is True
+
+    # Enumeration can fail on a corrupt ref while the trusted main stays readable.
+    (tmp_path / ".git/refs/remotes/origin/HEAD").write_text("f" * 40 + "\n")
+    assert subprocess.check_output(
+        ["git", "rev-parse", "--verify", "refs/heads/main^{commit}"],
+        cwd=tmp_path, text=True,
+    ).strip() == main_commit
+    with pytest.raises(ApprovalError, match="trusted baseline refs"):
+        recognition_contract_active(tmp_path)
 
 
 def test_implementation_assessment_requires_auditable_references(tmp_path: Path) -> None:

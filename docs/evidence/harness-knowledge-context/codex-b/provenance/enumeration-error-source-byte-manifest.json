@@ -1,0 +1,17 @@
+{
+  "original-candidate-review-20261029-02-rejected.md": {
+    "source": "C:\\Users\\DawiniaLo\\.codex\\visualizations\\2026\\10\\27\\01a17d4a-2fff-7cc0-9558-39ce65fb006d\\keepsail-context-plan\\original-final-code-review-20261029-02.md",
+    "sha256": "cf7d5cd75187f0ee7e9757357304929553b9db5fb5818b0c7247624a8839062f",
+    "bytes": 7914
+  },
+  "6dab09e-verification-controller-stop.json": {
+    "source": "C:\\Users\\DawiniaLo\\.codex\\visualizations\\2026\\10\\27\\01a17d4a-2fff-7cc0-9558-39ce65fb006d\\keepsail-context-plan\\batched-base-01-verification-stopped.json",
+    "sha256": "2ecd31c5fbeec374170b43c48f8c160e817b923aae36443b6a79aaf533194c68",
+    "bytes": 424
+  },
+  "base-error-failclosed-focused.stdout.txt": {
+    "source": "C:\\Users\\DawiniaLo\\.codex\\visualizations\\2026\\10\\27\\01a17d4a-2fff-7cc0-9558-39ce65fb006d\\keepsail-context-plan\\base-error-failclosed-focused-20261029.stdout.txt",
+    "sha256": "a1826b775f310e97aee76fca7ddd9b4e032c6be2eab9bb0cb8b92392d59f4750",
+    "bytes": 643
+  }
+}

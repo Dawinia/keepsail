@@ -58,6 +58,30 @@ approval; its prior entry's acquisition was not inherited. Final native return
 validation and current-source checks must accompany the retained historical A/B
 facts rather than relabelling their source commits.
 
+## Enumeration-error review and correction
+
+The subsequent exact candidate 6dab09e,
+`code:799477163f44c219a0d59122150628089b0f2ea0e7a32a0021dc9c8d90a05b71`,
+was rejected for a real error-path defect: treating a failed Git enumeration as
+an empty candidate set could make recognition_contract_active return false when
+a disabled working copy coexisted with an enabled trusted main. A corrupt,
+non-symbolic remote HEAD reproduced it while main was still readable. The new
+candidate's complete check was stopped after that independent finding, not
+reported as a test pass or a pytest assertion failure.
+
+The correction distinguishes Git metadata/configuration from an uninitialized
+workspace only on the error path. Detected Git metadata (including worktree
+markers, bare metadata and explicit Git directory configuration) makes failed
+enumeration an ApprovalError; metadata inspection errors also remain errors.
+The existing no-Git initialization case remains inactive. The real-Git regression
+first reproduced the erroneous downgrade and now expects an explicit failure.
+Normal successful lookup still uses one fresh Git query and no persistent cache.
+
+The corrected focused run passed 23 cases in 57.76s; Ruff/mypy and decision/doc
+checks passed. Previous candidate conclusions and controller-stop evidence remain
+retained. The next exact subject requires independent source confirmation before
+its full check, then the actual complete result before any final approval.
+
 Exact failed native summaries, candidate rejection, A's directly retrieved pytest
 host records, focused output and cost reports are retained under
 codex-b/provenance/. Costs recorded on b1446c8 remain historical to that source;

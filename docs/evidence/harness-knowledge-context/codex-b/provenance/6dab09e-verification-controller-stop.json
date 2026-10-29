@@ -1,0 +1,19 @@
+{
+  "stoppedAtUtc": "2026-10-29T07:20:53.3494715Z",
+  "rootPid": 32276,
+  "processIds": [
+    33124,
+    32472,
+    1464,
+    32692,
+    34144,
+    23752,
+    33996,
+    32880,
+    12520,
+    7068,
+    32276
+  ],
+  "reason": "Stop this exact verification candidate after independent blocking review; no pass claimed",
+  "subject": "code:799477163f44c219a0d59122150628089b0f2ea0e7a32a0021dc9c8d90a05b71"
+}

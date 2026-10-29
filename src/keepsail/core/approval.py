@@ -19,6 +19,7 @@ introducing a second persistence format.
 from __future__ import annotations
 
 import json
+import os
 import posixpath
 import subprocess
 from collections.abc import Iterable
@@ -430,13 +431,40 @@ def load_recognition(root: Path, *, ref: str | None = None) -> Recognition:
     return _recognition_from_mapping(raw)
 
 
+def _git_metadata_present(root: Path) -> bool:
+    """Distinguish an uninitialized workspace from unreadable Git authority."""
+    if any(os.environ.get(key) for key in ("GIT_DIR", "GIT_COMMON_DIR", "GIT_WORK_TREE")):
+        return True
+    resolved = root.resolve()
+    for directory in (resolved, *resolved.parents):
+        try:
+            (directory / ".git").lstat()
+        except FileNotFoundError:
+            pass
+        else:
+            return True  # Includes linked worktrees and broken metadata links.
+        try:
+            (directory / "HEAD").stat()
+            (directory / "objects").stat()
+        except FileNotFoundError:
+            continue
+        return True  # Bare repositories have no .git directory.
+    return False
+
+
 def _contract_base_candidates(root: Path) -> tuple[tuple[str, str, str], ...]:
     """Read current trusted refs and their object identities in one Git query."""
     refs = ("refs/remotes/origin/HEAD", "refs/remotes/origin/main", "refs/heads/main")
     try:
         output = _git(root, "for-each-ref",
                       "--format=%(refname)%09%(objectname)%09%(objecttype)%09%(symref)", *refs)
-    except GitScopeError:
+    except GitScopeError as exc:
+        try:
+            configured = _git_metadata_present(root)
+        except OSError as metadata_error:
+            raise ApprovalError("cannot inspect trusted baseline refs") from metadata_error
+        if configured:
+            raise ApprovalError("cannot inspect trusted baseline refs") from exc
         return ()
     records: dict[str, tuple[str, str]] = {}
     for line in output.splitlines():

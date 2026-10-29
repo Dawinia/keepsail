@@ -1,0 +1,498 @@
+{
+  "assessment": {
+    "approval_id": "approval:2026-10-28-harness-context-codex-revision-plan-01-84705107",
+    "affected_commitments": [
+      "H2",
+      "H3",
+      "H6",
+      "H8"
+    ],
+    "conclusion": "within_approval",
+    "reasons": [
+      "Independent review rejected the previous exact candidate for an enumeration-error downgrade. Stop only its owned verifier process tree and preserve the exact rejection/controller stop; no approval or completed native result is inferred.",
+      "Keep one fresh Git lookup on the successful path, but distinguish detected Git metadata/configuration from a non-Git initialization when enumeration fails. Raise ApprovalError for unreadable repository authority rather than selecting legacy/inactive recognition.",
+      "Extend the existing real-Git enabled-main/disabled-candidate test with an unreadable remote ref: the trusted main remains readable and the recognition query must raise, not return false. The uninitialized no-Git case and valid branch-priority/commit checks remain covered.",
+      "Corrected targeted validation passes 23 cases in 57.76s with unchanged assertions/check selections and deadlines. Preserve prior source-specific operating cost evidence and require independent source confirmation plus current complete checks before final acceptance."
+    ],
+    "references": [
+      "src/keepsail/core/approval.py",
+      "tests/unit/core/test_approval.py",
+      "docs/evidence/harness-knowledge-context/base-resolution-performance-repair.md",
+      "docs/evidence/harness-knowledge-context/codex-b/provenance/original-candidate-review-20261029-02-rejected.md",
+      "docs/evidence/harness-knowledge-context/codex-b/provenance/base-error-failclosed-focused.stdout.txt"
+    ]
+  },
+  "coverage": [
+    {
+      "path": ".harness/adapters.yaml"
+    },
+    {
+      "path": "AGENTS.md"
+    },
+    {
+      "path": "docs/README.md"
+    },
+    {
+      "path": "docs/adapters/claude-code.md"
+    },
+    {
+      "path": "docs/adapters/codex.md"
+    },
+    {
+      "path": "docs/cli-reference.md"
+    },
+    {
+      "path": "docs/decisions/d-events-append-only.md"
+    },
+    {
+      "path": "docs/decisions/d-gate-governs-git-product.md"
+    },
+    {
+      "path": "docs/decisions/d-keepsail-single-gate-policy.md"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/README.md"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/assessment-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/assessment-review-fixes-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/base-enumeration-error-assessment-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/base-resolution-assessment-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/base-resolution-performance-repair.md"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/candidate-code-review-01.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a-assessment-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a-entry-statement.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a-exact/.gitattributes"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a-exact/README.md"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a-exact/checks-host-records.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a-exact/ev_01M61RB2S36P4YXNEBAC532HCF/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a-exact/ev_01M61RB2S36P4YXNEBAC532HCF/entry.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a-exact/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/44b7aacba7fb4d5ad1a7234b0702439b2d979bfe4eefda0cfcc04945d796016c.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a-exact/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/6f8801145385f6e84ba647f70bb29f48a7b3d7ef675c5ef113633f44fe368932.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a-exact/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/8b5ecb28680f907cecbf253d3256b649dbd58dce9c88b7752e3125fe4868f1e2.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a-exact/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/ba5cf67d94bea2c312b9f7ce2d2ee5d96e90abdade1652f3978157982416a289.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a-exact/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/c170deb0d43de425d9f93659636e3ab7ad379839661f8ba125e8849a22197fd1.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a-exact/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/d3a4fa4b7344708c1133def005b60cfc1ff6fea19eb747eddca7ab8e57dd79a8.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a-exact/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/f6bc7bab60400c23bc0b65784449fa2bb19c8c59a7b2a64662982e192daf4769.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a-exact/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/f73b415afc60f6ec3c00077751d242a8d7962f9d816a834b0bb856254fc43a54.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a-exact/ev_01M61RB2S36P4YXNEBAC532HCF/statements/6f6c93c359309b6b20fda8c4b9cd0c1e81b680efe115af68294f765c7e1e6208.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a-exact/native-events-excerpt.jsonl"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a-exact/startups/ev_01M61RB2S36P4YXNEBAC532HCF.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a-exact/turns/e4b2c751c74a4916a83bf3e797420324e78b861665050aa20f4b9e4aec366c45.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a-exact/verification.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a-verification-assessment-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/current.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/entry.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/44b7aacba7fb4d5ad1a7234b0702439b2d979bfe4eefda0cfcc04945d796016c.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/6f8801145385f6e84ba647f70bb29f48a7b3d7ef675c5ef113633f44fe368932.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/8b5ecb28680f907cecbf253d3256b649dbd58dce9c88b7752e3125fe4868f1e2.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/ba5cf67d94bea2c312b9f7ce2d2ee5d96e90abdade1652f3978157982416a289.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/c170deb0d43de425d9f93659636e3ab7ad379839661f8ba125e8849a22197fd1.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/d3a4fa4b7344708c1133def005b60cfc1ff6fea19eb747eddca7ab8e57dd79a8.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/f6bc7bab60400c23bc0b65784449fa2bb19c8c59a7b2a64662982e192daf4769.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/receipts/2a9fae963511783a2438466702bfd730ec9e174d5710fca357a862ece9b5cd1b/f73b415afc60f6ec3c00077751d242a8d7962f9d816a834b0bb856254fc43a54.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/ev_01M61RB2S36P4YXNEBAC532HCF/statements/6f6c93c359309b6b20fda8c4b9cd0c1e81b680efe115af68294f765c7e1e6208.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/startups/ev_01M61RB2S36P4YXNEBAC532HCF.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-a/summary.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-assessment-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/.gitattributes"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/README.md"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/byte-manifest.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/checks-and-cost-host-records.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/ev_01M61TQKEXFK74WB77F618PYG4/c9a953c7eecb283e49b22823d928d86cd89255414d658730989fb8148b249068.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/ev_01M61TQKEXFK74WB77F618PYG4/current.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/ev_01M61TQKEXFK74WB77F618PYG4/entry.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/ev_01M61TQKEXFK74WB77F618PYG4/receipts/c9a953c7eecb283e49b22823d928d86cd89255414d658730989fb8148b249068/316d9c25920caa76c82762188f7403c2347e52b12160e4c0d8b22b272f47bc02.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/ev_01M61TQKEXFK74WB77F618PYG4/receipts/c9a953c7eecb283e49b22823d928d86cd89255414d658730989fb8148b249068/36c12bec9b683a824f3b39faaf5077fb8c2150e1adfcd9164f56c0df06a26313.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/ev_01M61TQKEXFK74WB77F618PYG4/receipts/c9a953c7eecb283e49b22823d928d86cd89255414d658730989fb8148b249068/4b8d6c9f25b1e8c090553abc3ce09de03bb234d926058255de444ee378884697.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/ev_01M61TQKEXFK74WB77F618PYG4/receipts/c9a953c7eecb283e49b22823d928d86cd89255414d658730989fb8148b249068/64694ec10832f6241e9a039ee0f8bbaa12136293a34f5afedb1f352d93a9f8bc.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/ev_01M61TQKEXFK74WB77F618PYG4/receipts/c9a953c7eecb283e49b22823d928d86cd89255414d658730989fb8148b249068/66342065cd0e84efe28283dc3baebe71c9f1868012c6e6ca105bf403629a1f22.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/ev_01M61TQKEXFK74WB77F618PYG4/receipts/c9a953c7eecb283e49b22823d928d86cd89255414d658730989fb8148b249068/908f8c599d041f441c6d151d06925b6acbccf16ab66c383fb5e25f50a2169429.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/ev_01M61TQKEXFK74WB77F618PYG4/receipts/c9a953c7eecb283e49b22823d928d86cd89255414d658730989fb8148b249068/c861920f0dc84986e9de62f737d9c58d514e5ccd4c80428c0f34da56dc6b9c04.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/ev_01M61TQKEXFK74WB77F618PYG4/receipts/c9a953c7eecb283e49b22823d928d86cd89255414d658730989fb8148b249068/de07df5d55b1035e0acc3cf773db9cdb6933fa4c1dac61442e43ff87dce7a580.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/ev_01M61TQKEXFK74WB77F618PYG4/receipts/c9a953c7eecb283e49b22823d928d86cd89255414d658730989fb8148b249068/faeaf5da28d2f8ff8d6a34a8344680b33262a5f34f09321ec66d21a5d7e3cfb3.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/ev_01M61TQKEXFK74WB77F618PYG4/rejected/16c3f6a0607a29b0ef01cbbfafbeff3688d6cc88ed8863b69a5ec24167496eca.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/ev_01M61TQKEXFK74WB77F618PYG4/statements/2af4a6ea3de1dffeece3c1b8db2e2a7f92652958b5524e9cc8f7f1f3d414b18f.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/native-events-excerpt.jsonl"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/provenance/.gitattributes"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/provenance/6dab09e-verification-controller-stop.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/provenance/a-original-pytest-host-records.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/provenance/b1446c8-first-verification-failed.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/provenance/b1446c8-isolated-hook-cost-attempt-00-failed.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/provenance/b1446c8-isolated-hook-cost.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/provenance/b1446c8-readonly-gate-cost.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/provenance/b1446c8-verification-timeout.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/provenance/base-error-failclosed-focused.stdout.txt"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/provenance/base-resolution-focused.stdout.txt"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/provenance/codex-v1-recognition-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/provenance/codex-v2-disposition-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/provenance/codex-v2-proposal-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/provenance/codex-v2-recognition-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/provenance/enumeration-error-source-byte-manifest.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/provenance/original-candidate-review-20261029-02-rejected.md"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/provenance/original-candidate-review-20261029-rejected.md"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/provenance/performance-source-byte-manifest.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/provenance/selected-native-events.jsonl"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/provenance/source-byte-manifest.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/startups/ev_01M61TQKEXFK74WB77F618PYG4.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-b/turns/ad008412245eede058e2860d8b8584028353e804dd0fa9795337146c0e67ad28.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-budget-fix-assessment-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-candidate-code-review-01.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-candidate-code-review-02.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-candidate-code-review-03.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-candidate-code-review-04.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-closeout-assessment-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-knowledge-test-prep-assessment-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-local-registration-assessment-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-local-registration.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-revision-plan-review-01.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-runtime-adjustment-assessment-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-source-subject-04.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-source-verify-05-summary.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-source-verify-05.stdout.txt"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-string-transport-assessment-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-string-transport-repair.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-v1-proposal-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-v1-recognition-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-v2-proposal-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/codex-verification-prep-assessment-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/original-candidate-code-review-01.md"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/original-codex-candidate-code-review-01.md"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/original-codex-candidate-code-review-02.md"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/original-codex-candidate-code-review-03.md"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/original-codex-candidate-code-review-04.md"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/original-codex-revision-plan-review-01.md"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/original-plan-review-01.md"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/plan-review-01.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/v1-proposal-input.json"
+    },
+    {
+      "path": "docs/evidence/harness-knowledge-context/v1-recognition-input.json"
+    },
+    {
+      "path": "docs/knowledge-context.md"
+    },
+    {
+      "path": "docs/knowledge.md"
+    },
+    {
+      "path": "docs/limitations.md"
+    },
+    {
+      "path": "docs/plans/2026-10-27-harness-knowledge-context-codex-revision.md"
+    },
+    {
+      "path": "docs/plans/2026-10-27-harness-knowledge-context.md"
+    },
+    {
+      "path": "docs/product-architecture-coverage.md"
+    },
+    {
+      "path": "src/keepsail/adapters/agent/_settings_merge.py"
+    },
+    {
+      "path": "src/keepsail/adapters/agent/claude_code.py"
+    },
+    {
+      "path": "src/keepsail/adapters/agent/codex.py"
+    },
+    {
+      "path": "src/keepsail/cli/adapter.py"
+    },
+    {
+      "path": "src/keepsail/cli/change.py"
+    },
+    {
+      "path": "src/keepsail/cli/gate.py"
+    },
+    {
+      "path": "src/keepsail/cli/knowledge.py"
+    },
+    {
+      "path": "src/keepsail/cli/output.py"
+    },
+    {
+      "path": "src/keepsail/core/approval.py"
+    },
+    {
+      "path": "src/keepsail/core/context.py"
+    },
+    {
+      "path": "src/keepsail/core/writer.py"
+    },
+    {
+      "path": "src/keepsail/daemon/codex_context_hook.py"
+    },
+    {
+      "path": "src/keepsail/daemon/context_hook.py"
+    },
+    {
+      "path": "src/keepsail/daemon/hook_entry.py"
+    },
+    {
+      "path": "src/keepsail/gates/decisions.py"
+    },
+    {
+      "path": "src/keepsail/gates/pre_tool_use.py"
+    },
+    {
+      "path": "tests/conftest.py"
+    },
+    {
+      "path": "tests/integration/adapter/test_claude_context.py"
+    },
+    {
+      "path": "tests/integration/adapter/test_codex_context.py"
+    },
+    {
+      "path": "tests/unit/adapters/test_claude_code.py"
+    },
+    {
+      "path": "tests/unit/adapters/test_codex.py"
+    },
+    {
+      "path": "tests/unit/core/test_approval.py"
+    },
+    {
+      "path": "tests/unit/core/test_context.py"
+    },
+    {
+      "path": "tests/unit/core/test_knowledge.py"
+    },
+    {
+      "path": "tests/unit/core/test_writer.py"
+    },
+    {
+      "path": "tests/unit/daemon/test_codex_context_hook.py"
+    },
+    {
+      "path": "tests/unit/daemon/test_codex_string_transport.py"
+    },
+    {
+      "path": "tests/unit/daemon/test_context_hook.py"
+    }
+  ]
+}
