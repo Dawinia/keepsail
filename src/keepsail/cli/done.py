@@ -311,10 +311,7 @@ def done_cmd(
                 err=True,
             )
             sys.exit(EXIT_VALIDATION)
-        # Initial scope is an estimate. The approval-bound actual manifest is the
-        # completion subject; preserved/unrelated files outside it stay outside.
-        declared = [row["path"] for row in current_change.coverage_manifest
-                    if isinstance(row.get("path"), str)]
+        declared = [path for path in current_change.scope.get("files", []) if isinstance(path, str)]
         try:
             dirty = working_tree_dirty(root, declared)
         except GitScopeError as exc:

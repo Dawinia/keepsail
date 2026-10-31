@@ -28,8 +28,7 @@ from keepsail.cli.errors import format_error
 from keepsail.cli.output import json_envelope
 from keepsail.core.approval import (
     ApprovalError,
-    implementation_coverage,
-    load_json_input,
+    load_json_record,
     recognition_contract_active,
     validate_implementation_assessment,
 )
@@ -44,7 +43,6 @@ from keepsail.core.paths import (
 )
 from keepsail.core.post_emit import refresh_state_after_emit
 from keepsail.core.reducer import derive_state
-from keepsail.core.scope_match import GitScopeError
 from keepsail.core.ulid import new_event_id
 from keepsail.core.writer import EventWriter
 from keepsail.exit_codes import EXIT_NO_CONFIG, EXIT_OK, EXIT_VALIDATION
@@ -299,13 +297,9 @@ def reopen(ctx: click.Context, slug: str, reason: str) -> None:
 
 @implementation_group.command("record")
 @click.argument("slug")
-@click.option("--assessment", required=True,
-              type=click.Path(exists=True, dir_okay=False, allow_dash=True),
-              help="Explicit reasoning JSON; use - for stdin, without committing an input file.")
-@click.option("--include-path", "include_paths", multiple=True,
-              help="Explicit untracked file to include in automatic coverage; repeatable.")
+@click.option("--assessment", required=True, type=click.Path(exists=True, dir_okay=False))
 @click.pass_context
-def record(ctx: click.Context, slug: str, assessment: str, include_paths: tuple[str, ...]) -> None:
+def record(ctx: click.Context, slug: str, assessment: str) -> None:
     """Record implementation reasoning and the actual coverage manifest."""
     subcommand = "implementation record"
     try:
@@ -326,22 +320,12 @@ def record(ctx: click.Context, slug: str, assessment: str, include_paths: tuple[
         )
         sys.exit(EXIT_VALIDATION)
     try:
-        value = load_json_input(assessment)
+        value = load_json_record(Path(assessment))
     except ApprovalError as exc:
         click.echo(format_error(subcommand=subcommand, message=str(exc)), err=True)
         sys.exit(EXIT_VALIDATION)
     assessment_value = value.get("assessment", value)
-    basis = None
-    try:
-        if "coverage" in value or "coverage_manifest" in value:
-            if include_paths:
-                raise ApprovalError("--include-path requires omitted, automatic coverage")
-            coverage = value.get("coverage", value.get("coverage_manifest"))
-        else:
-            coverage, basis = implementation_coverage(root, include_paths=include_paths)
-    except (ApprovalError, GitScopeError) as exc:
-        click.echo(format_error(subcommand=subcommand, message=str(exc)), err=True)
-        sys.exit(EXIT_VALIDATION)
+    coverage = value.get("coverage", value.get("coverage_manifest", []))
     if not isinstance(assessment_value, dict) or not isinstance(coverage, list):
         click.echo(
             format_error(
@@ -393,8 +377,6 @@ def record(ctx: click.Context, slug: str, assessment: str, include_paths: tuple[
         },
         "coverage": [dict(item) for item in coverage],
     }
-    if basis is not None:
-        payload["coverage_basis"] = basis
     ev = Event(
         event_id=new_event_id(),
         type="implementation_recorded",

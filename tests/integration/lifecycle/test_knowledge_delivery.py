@@ -59,57 +59,6 @@ def review(w: Workspace, slug: str, kind: str, subject: str, eid: str) -> None:
     w.cli("review", "import", slug, "--evidence", str(w.write(evidence)))
 
 
-def test_three_native_changes_export_only_new_knowledge_facts(tmp_path):
-    from keepsail.core.knowledge import load_policy
-    from keepsail.core.knowledge_checkpoint import resolve_facts
-    from keepsail.engineering.attestation import write_attestation
-
-    w = Workspace(tmp_path)
-    previous_ids = set()
-    for index, slug in enumerate(("change-a", "change-b", "change-c")):
-        if index:
-            w.cli("change", "start", slug, "--framework", "plain")
-            w.cli("plan", "ready", slug, "--plan", "plan.md", "--scope", "[plan.md]",
-                  "--commitment", "db=Use PostgreSQL")
-            pending = derive_state(w.root / ".harness/events.jsonl")[slug].pending_revision
-            review(w, slug, "plan", pending["subject"]["subject_id"], "plan-" + slug)
-            w.cli("knowledge", "deliver", slug, "--operation-id", "initial-" + slug,
-                  "--expected-revision", w.revision())
-            w.cli("implementation", "start", slug)
-        proposed = version(body=f"Distinct fixture constraint {index}",
-                           selector={"change_ids": [slug]})
-        proposed["knowledge_id"] = "database-" + slug
-        digest = w.submit("propose", w.operation(change_id=slug, version=proposed))[
-            "version_digest"]
-        w.submit("import", w.operation(change_id=slug, evidence=w.evidence(
-            "recognition", digest, "recognize")))
-        delivery = w.cli("knowledge", "deliver", slug, "--operation-id", "delivery-" + slug,
-                         "--expected-revision", w.revision())["data"]
-        log = w.root / ".harness/events.jsonl"
-        out = write_attestation(log, w.root / ".harness/attestations", slug)
-        original = out.read_bytes()
-        length = log.stat().st_size
-        assert write_attestation(log, out.parent.parent, slug).read_bytes() == original
-        assert log.stat().st_size == length
-        retained = json.loads(original)
-        checkpoint = retained["knowledge_checkpoint"]
-        current_ids = {f["source_event_id"] for f in checkpoint["delta"]}
-        assert not current_ids & previous_ids
-        facts = resolve_facts(w.root, checkpoint, load_policy(w.root))
-        assert {f["source_event_id"] for f in facts} == previous_ids | current_ids
-        assert "events" not in checkpoint and "view" not in checkpoint
-        assert b"original_receipt" not in original
-        if index:
-            assert checkpoint["baseline"]["checkpoints"]
-            assert len(checkpoint["delta"]) == 4
-            assert f"Distinct fixture constraint {index - 1}".encode() not in original
-        previous_ids |= current_ids
-        assert delivery["constraints"][0]["version_digest"] == digest
-        git(w.root, "add", str(out.relative_to(w.root)))
-        git(w.root, "commit", "-qm", "trusted native checkpoint fixture " + slug)
-        git(w.root, "branch", "-f", "main", "HEAD")
-
-
 @pytest.mark.parametrize(
     "selector", [{"global": True}, {"repository_ids": ["test-repo"], "change_ids": ["change-a"]}]
 )
@@ -329,23 +278,18 @@ def test_postgresql_adjustment_cross_change_attestation_and_new_session(
     execution["outcome"] = "verified"
     w.submit("record", w.operation(record=execution))
     w.deliver()
-    exported = w.cli("attest", "write", "change-a")["data"]["attestation_path"]
-    att = w.root / exported
+    w.cli("attest", "write", "change-a")
+    att = w.root / ".harness/attestations/change-a.jsonl"
     assert not any(
-        json.loads(line)["change_id"] == "change-b"
-        for line in att.read_text(encoding="utf-8").splitlines()
+        json.loads(line)["change_id"] == "change-b" for line in att.read_text().splitlines()
     )
-    from keepsail.core.knowledge import load_policy
-    from keepsail.core.knowledge_checkpoint import replay_facts, resolve_facts
-    retained = json.loads(att.read_text(encoding="utf-8"))
-    facts = resolve_facts(w.root, retained["knowledge_checkpoint"], load_policy(w.root))
-    retained_ledger = replay_facts(facts, load_policy(w.root))
+    retained = [json.loads(line) for line in att.read_text(encoding="utf-8").splitlines()]
     assert any(
         v["body"] == "持久化统一 PostgreSQL"
-        for delivery in retained_ledger["deliveries"].values() for v in delivery["constraints"]
+        for v in retained[-1]["payload"]["view"]["supply_history"]
     )
     # No local event/state cache is needed by the pure Git verifier.
-    git(w.root, "add", exported)
+    git(w.root, "add", ".harness/attestations/change-a.jsonl")
     git(w.root, "commit", "-qm", "retain cross-change knowledge evidence")
     before = log.read_bytes()
     snapshot = json.loads(process(w, "change", "resume", "change-a").stdout)["data"]["knowledge"]

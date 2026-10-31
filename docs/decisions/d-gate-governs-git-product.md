@@ -5,15 +5,15 @@ ratified_by: dawinialo@163.com
 ratified_at: '2026-07-29T13:14:27.000496Z'
 ratified_text_hash: sha256:5614ab4fe81201905d53b409478e0e56c63af05ff01b2d5c7b0b3a0ca8f7692b
 last_reconciled_by: dawinialo@163.com
-last_reconciled_at: '2026-10-27T14:35:43.836165Z'
+last_reconciled_at: '2026-10-23T14:04:08.436116Z'
 last_reconcile_kind: self
-last_reconcile_justification: Reviewed full gate diff and canonical whitelist branches.
-  Existing scratch/plan path allowances are unchanged, canonicalized, disjoint and
-  independent of gitignore. Optional entry prerequisites only tighten otherwise allowed
-  product edits; no new product/config path allowance. 96 gate tests passed; independent
-  exact code review remains required.
+last_reconcile_justification: Compared the complete anchored modules with 9442ba0
+  after normalizing only namespace, environment and product names. No behavior changed;
+  decision_check only repoints its sentinel to the ratified successor. Event append-only/frozen
+  semantics, pure fold, transition matrix, integrity verdicts, record lifecycle and
+  canonical hard-coded gate allowances remain intact. Re-stamp anchors at src/keepsail.
 reconciled_anchors:
-  src/keepsail/gates/pre_tool_use.py: sha256:cdfb8ef62c1e4018899c2871c50b9fa77130a68e67c219970c712896813822b5
+  src/keepsail/gates/pre_tool_use.py: sha256:f7db7262e268611dcacfb1897a8ff516e4bd4913e97b724e4e8181b7fdf08b33
 ---
 The pre-tool-use gate governs files that will enter git as product; its allowances are hard-coded path whitelists, never derived from gitignore status.
 

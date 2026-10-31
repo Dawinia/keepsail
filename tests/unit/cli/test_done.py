@@ -740,39 +740,3 @@ def test_done_failure_json_mode_no_rich_text_leak(tmp_path: Path) -> None:
     assert payload["status"] == "fail"
     assert "boom" not in r.stderr
     assert "full summary:" not in r.stderr
-
-
-def test_done_checks_actual_coverage_and_keeps_old_untracked_scope(
-    tmp_path, context_workspace,
-):
-    import yaml
-
-    from tests.unit.core.test_knowledge import git
-
-    w = context_workspace
-    config = {"layers": {"baseline": {"enabled": False},
-                         "framework_adapter": {"enabled": False},
-                         "user_checks": {"enabled": False}}}
-    (tmp_path / ".harness/verification.yaml").write_text(yaml.safe_dump(config), encoding="utf-8")
-    answer = tmp_path / "answer.txt"
-    answer.write_text("PostgreSQL\n", encoding="utf-8")
-    git(tmp_path, "add", "answer.txt", ".harness/verification.yaml")
-    git(tmp_path, "commit", "-qm", "approved fixture implementation")
-    payload = {"affected_commitments": ["db"], "conclusion": "within_approval",
-               "reasons": ["Implement persistence fixture"], "references": ["answer.txt"]}
-    recorded = w.runner.invoke(main, ["--workspace", str(tmp_path), "--json", "implementation",
-        "record", "change-a", "--assessment", "-"], input=json.dumps(payload))
-    assert recorded.exit_code == 0, recorded.output
-    w.deliver()
-    archive = tmp_path / "src/db/old-local.txt"
-    archive.parent.mkdir(parents=True, exist_ok=True)
-    archive.write_text("Original local evidence\n", encoding="utf-8")
-    for source in (answer, tmp_path / ".harness/verification.yaml"):
-        original = source.read_bytes()
-        source.write_text("Uncommitted change\n", encoding="utf-8")
-        blocked = w.runner.invoke(main, ["--workspace", str(tmp_path), "done", "change-a"])
-        assert blocked.exit_code == 2 and "uncommitted" in blocked.output, blocked.output
-        source.write_bytes(original)
-    completed = w.runner.invoke(main, ["--workspace", str(tmp_path), "done", "change-a"])
-    assert completed.exit_code == 0, (completed.output, completed.exception)
-    assert archive.read_text(encoding="utf-8") == "Original local evidence\n"

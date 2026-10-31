@@ -37,7 +37,6 @@ def json_envelope(
     exit_code: int,
     data: dict[str, Any] | None = None,
     errors: list[dict[str, Any]] | None = None,
-    ensure_ascii: bool = True,
 ) -> str:
     """Render a single-line JSON envelope.
 
@@ -60,4 +59,4 @@ def json_envelope(
         "data": data or {},
         "errors": errors or [],
     }
-    return json.dumps(payload, separators=(",", ":"), sort_keys=False, ensure_ascii=ensure_ascii)
+    return json.dumps(payload, separators=(",", ":"), sort_keys=False)

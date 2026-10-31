@@ -43,37 +43,6 @@ def test_writer_appends_one_event(tmp_path: Path):
     assert parsed["type"] == "intent_declared"
 
 
-@pytest.mark.parametrize("release", [True, False])
-def test_staged_windows_sharing_lock_retries_or_preserves_prefix(tmp_path, monkeypatch, release):
-    events = tmp_path / "events.jsonl"
-    writer = EventWriter(events)
-    writer.emit(_make_event("existing"))
-    before = events.read_bytes()
-    original = Path.unlink
-    attempts = []
-
-    def unlink(path, *args, **kwargs):
-        if path.name.startswith(".events-"):
-            attempts.append(path)
-            if not release or len(attempts) == 1:
-                error = PermissionError("fixture Windows sharing lock")
-                error.winerror = 32
-                raise error
-        return original(path, *args, **kwargs)
-
-    monkeypatch.setattr(Path, "unlink", unlink)
-    if release:
-        writer.emit(_make_event("next"))
-        assert len(attempts) > 1
-        assert events.read_bytes().startswith(before)
-        assert len(events.read_text().splitlines()) == 2
-    else:
-        with pytest.raises(PermissionError):
-            writer.emit(_make_event("next"))
-        assert events.read_bytes() == before
-        assert list(tmp_path.glob(".events-*.tmp"))  # Retain failure evidence; no append.
-
-
 def test_writer_appends_multiple_events(tmp_path: Path):
     events_file = tmp_path / "events.jsonl"
     w = EventWriter(events_file)

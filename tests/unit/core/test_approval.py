@@ -43,68 +43,6 @@ def test_plan_text_digest_normalizes_line_endings() -> None:
     assert artifact_digest("a\r\nb\r\n") == artifact_digest("a\nb\n")
 
 
-def test_automatic_coverage_tracks_git_and_workspace_without_unrelated_untracked(tmp_path):
-    from keepsail.core.approval import implementation_coverage, validate_generated_coverage
-
-    def git(*args):
-        return subprocess.check_output(["git", *args], cwd=tmp_path, text=True).strip()
-
-    git("init", "-q", "-b", "main")
-    git("config", "user.email", "test@example.com")
-    git("config", "user.name", "Test")
-    for name in ("old.py", "delete.py", "space file.py", "源 文件.py", "cancel.py"):
-        (tmp_path / name).write_text("original\n", encoding="utf-8")
-    git("add", ".")
-    git("commit", "-qm", "base")
-    git("switch", "-qc", "candidate")
-    git("mv", "old.py", "new.py")
-    (tmp_path / "delete.py").unlink()
-    (tmp_path / "源 文件.py").write_text("committed\n", encoding="utf-8")
-    git("add", "-u")
-    git("commit", "-qm", "committed rename, deletion and unicode change")
-    (tmp_path / "space file.py").write_text("unstaged\n", encoding="utf-8")
-    (tmp_path / "cancel.py").write_text("staged change\n", encoding="utf-8")
-    git("add", "cancel.py")
-    (tmp_path / "cancel.py").write_text("original\n", encoding="utf-8")
-    assert "cancel.py" not in git("diff", "HEAD", "--name-only")
-    assert "cancel.py" in git("diff", "--cached", "--name-only")
-    assert "cancel.py" in git("diff", "--name-only")
-    for name in ("staged.py", "include me.py", "other task.py"):
-        (tmp_path / name).write_text("new\n", encoding="utf-8")
-    attestations = tmp_path / ".harness/attestations"
-    attestations.mkdir(parents=True)
-    (attestations / "a.jsonl").write_text("{}\n")
-    (attestations / "tool.py").write_text("pass\n")
-    git("add", "staged.py", ".harness/attestations")
-    coverage, basis = implementation_coverage(tmp_path, include_paths=["include me.py"])
-    assert {row["path"] for row in coverage} == {
-        "old.py", "new.py", "delete.py", "源 文件.py", "space file.py", "staged.py",
-        "include me.py", ".harness/attestations/tool.py", "cancel.py",
-    }
-    validate_generated_coverage(tmp_path, {"coverage": coverage, "coverage_basis": basis})
-    (tmp_path / "space file.py").write_text("concurrent change\n", encoding="utf-8")
-    with pytest.raises(ApprovalError, match="inputs changed"):
-        validate_generated_coverage(tmp_path, {"coverage": coverage, "coverage_basis": basis})
-    with pytest.raises(ApprovalError, match="outside the workspace"):
-        implementation_coverage(tmp_path, include_paths=["../outside.py"])
-
-
-def test_automatic_coverage_does_not_turn_git_failure_into_empty_coverage(tmp_path, monkeypatch):
-    import keepsail.core.approval as approval
-    from keepsail.core.scope_match import GitScopeError
-
-    for args in (("init", "-q", "-b", "main"), ("config", "user.email", "test@example.com"),
-                 ("config", "user.name", "Test"), ("commit", "-qm", "base", "--allow-empty")):
-        subprocess.run(["git", *args], cwd=tmp_path, check=True)
-
-    def failed(*args):
-        raise GitScopeError("test Git failure")
-
-    monkeypatch.setattr(approval, "_git", failed)
-    with pytest.raises((ApprovalError, GitScopeError)):
-        approval.implementation_coverage(tmp_path)
-
-
 def test_recognition_can_be_loaded_from_a_trusted_git_ref(tmp_path: Path) -> None:
     subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
     subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=tmp_path, check=True)
@@ -275,56 +213,6 @@ def test_new_contract_base_ignores_legacy_review_governance(tmp_path: Path) -> N
     assert len(resolve_contract_base(tmp_path)) == 40
 
 
-def test_base_lookup_is_bounded_and_tracks_live_ref_priority(tmp_path, monkeypatch):
-    def git(*args):
-        return subprocess.check_output(["git", *args], cwd=tmp_path, text=True).strip()
-
-    git("init", "-q", "-b", "main")
-    git("config", "user.email", "test@example.com")
-    git("config", "user.name", "Test")
-    git("commit", "--allow-empty", "-qm", "first")
-    first = git("rev-parse", "HEAD")
-    git("commit", "--allow-empty", "-qm", "second")
-    second = git("rev-parse", "HEAD")
-    git("update-ref", "refs/heads/main", first)
-    git("tag", "main", second)
-    git("tag", "origin/main", second)
-    git("update-ref", "--no-deref", "refs/remotes/origin/HEAD", second)
-    original_run = subprocess.run
-
-    def resolve(max_calls=1):
-        calls = []
-
-        def tracked(*args, **kwargs):
-            calls.append(args[0])
-            return original_run(*args, **kwargs)
-
-        with monkeypatch.context() as patch:
-            patch.setattr(subprocess, "run", tracked)
-            value = resolve_contract_base(tmp_path)
-        assert 1 <= len(calls) <= max_calls, calls
-        return value
-
-    assert resolve() == first
-    git("update-ref", "refs/remotes/origin/main", second)
-    assert resolve() == second
-    git("update-ref", "refs/remotes/origin/trunk", first)
-    git("symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/trunk")
-    assert resolve() == first
-    git("update-ref", "refs/remotes/origin/trunk", second)
-    assert resolve() == second
-    git("tag", "-a", "authority-base", "-m", "annotated", first)
-    git("update-ref", "refs/remotes/origin/trunk", git("rev-parse", "refs/tags/authority-base"))
-    assert resolve(max_calls=2) == first
-    # A non-commit preferred ref must not become authority or hide the valid fallback.
-    git("update-ref", "refs/remotes/origin/trunk", git("rev-parse", first + "^{tree}"))
-    assert resolve() == second
-    for ref in ("refs/remotes/origin/trunk", "refs/remotes/origin/main", "refs/heads/main"):
-        git("update-ref", "-d", ref)
-    with pytest.raises(ApprovalError, match="reachable trusted baseline"):
-        resolve_contract_base(tmp_path)
-
-
 def test_recognition_contract_activation_fails_closed(tmp_path: Path) -> None:
     harness = tmp_path / ".harness"
     harness.mkdir()
@@ -347,7 +235,6 @@ def test_recognition_contract_activation_fails_closed(tmp_path: Path) -> None:
     policy["process"]["policy_digest"] = recognition_policy_digest(policy)
     path.write_text(yaml.safe_dump(policy, sort_keys=False), encoding="utf-8")
     assert recognition_contract_active(tmp_path) is True
-
     assert load_recognition(tmp_path).requirements == {"substantive": ["scope", "tests"]}
 
     path.write_text("version: review-recognition/v1\nenabled: true\n", encoding="utf-8")
@@ -411,15 +298,6 @@ def test_recognition_contract_uses_default_remote_head_and_skips_disabled_ref(
     subprocess.run(["git", "update-ref", "refs/heads/main", main_commit], cwd=tmp_path, check=True)
 
     assert recognition_contract_active(tmp_path) is True
-
-    # Enumeration can fail on a corrupt ref while the trusted main stays readable.
-    (tmp_path / ".git/refs/remotes/origin/HEAD").write_text("f" * 40 + "\n")
-    assert subprocess.check_output(
-        ["git", "rev-parse", "--verify", "refs/heads/main^{commit}"],
-        cwd=tmp_path, text=True,
-    ).strip() == main_commit
-    with pytest.raises(ApprovalError, match="trusted baseline refs"):
-        recognition_contract_active(tmp_path)
 
 
 def test_implementation_assessment_requires_auditable_references(tmp_path: Path) -> None:

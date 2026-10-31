@@ -23,29 +23,6 @@ from keepsail.core.writer import EventWriter
 from keepsail.exit_codes import EXIT_NO_CONFIG, EXIT_OK, EXIT_VALIDATION
 
 
-def test_automatic_coverage_rechecks_inputs_before_native_append(context_workspace, monkeypatch):
-    import keepsail.cli.implementation as implementation
-
-    w = context_workspace
-    generate = implementation.implementation_coverage
-
-    def changed_after_snapshot(root, **kwargs):
-        result = generate(root, **kwargs)
-        (root / "plan.md").write_text("concurrent workspace change\n", encoding="utf-8")
-        return result
-
-    monkeypatch.setattr(implementation, "implementation_coverage", changed_after_snapshot)
-    path = w.root / ".harness/events.jsonl"
-    before = path.read_bytes()
-    value = {"affected_commitments": ["db"], "conclusion": "within_approval",
-             "reasons": ["Same approved persistence"], "references": ["plan.md"]}
-    result = w.runner.invoke(main, ["--workspace", str(w.root), "implementation", "record",
-                                    "change-a", "--assessment", "-"], input=json.dumps(value))
-    assert result.exit_code == EXIT_VALIDATION, (result.output, result.exception)
-    assert "inputs changed before append" in result.output
-    assert path.read_bytes() == before
-
-
 def _seed(ws: Path, slug: str, *types: str) -> None:
     (ws / ".harness").mkdir(parents=True, exist_ok=True)
     w = EventWriter(events_path(ws))

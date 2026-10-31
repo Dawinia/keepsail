@@ -41,7 +41,6 @@ keepsail adapter install [OPTIONS] NAME
 | Param | Type | Default | Description |
 |-------|------|---------|-------------|
 | `NAME` | text | *required* |  |
-| `--knowledge-context` | flag | `False` | Opt in/out of Claude/Codex session-bound context (otherwise preserve). |
 
 **Exit codes:**
 
@@ -146,7 +145,7 @@ keepsail attest write [OPTIONS] SLUG
 | Param | Type | Default | Description |
 |-------|------|---------|-------------|
 | `SLUG` | text | *required* |  |
-| `--format` | {v2\|v1-bootstrap} | — | Output version; v1-bootstrap is limited to reader-first upgrades. |
+| `--format` | {v1-bootstrap} | — | Output version; v1-bootstrap is limited to reader-first upgrades. |
 | `--disclose-gate-bypass` | text | — | Disclose+justify that the gate was bypassed during this change (clears the merge-gate blocker). |
 
 **Exit codes:**
@@ -182,29 +181,6 @@ keepsail change abandon [OPTIONS] SLUG
 - `1` generic error
 - `3` no `.harness/`
 - `5` lock contention
-
-## keepsail change context
-
-Retrieve the explicitly selected Change's current authority context.
-
-```
-keepsail change context [OPTIONS] SLUG
-```
-
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| `SLUG` | text | *required* |  |
-| `--preview` | flag | `False` | Read current context without recording supply. |
-| `--entry` | text | — | SessionStart entry epoch to supply and retrieve. |
-| `--bind-startup` | text | — | Bind a real Codex startup once to the explicit Change. |
-| `--finalize-acquisition` | flag | `False` | Record native acquisitions from retained complete Codex tool returns. |
-| `--page` | integer range | `1` |  |
-| `--statement` | file | — | Explicit entry-statement/v1 JSON: - or workspace file; never auto-adopts. |
-
-**Exit codes:**
-
-- `0` success
-- `1` generic error
 
 ## keepsail change list
 
@@ -585,10 +561,6 @@ keepsail gate check [OPTIONS] {pre-tool-use|pre-commit|pre-push|pr-open|pr-merge
 | `--file` | text | — |  |
 | `--change-id` | text | — |  |
 | `--pr` | integer | — |  |
-| `--agent` | {claude-code\|codex} | — |  |
-| `--session-id` | text | — | Current explicitly bound harness session. |
-| `--turn-id` | text | — | Current observed Codex root turn. |
-| `--patch-file` | file | — | Codex apply_patch text to evaluate as one complete action. |
 
 **Exit codes:**
 
@@ -629,8 +601,7 @@ keepsail implementation record [OPTIONS] SLUG
 | Param | Type | Default | Description |
 |-------|------|---------|-------------|
 | `SLUG` | text | *required* |  |
-| `--assessment` | file | *required* | Explicit reasoning JSON; use - for stdin, without committing an input file. |
-| `--include-path` | text (repeatable) | — | Explicit untracked file to include in automatic coverage; repeatable. |
+| `--assessment` | file | *required* |  |
 
 **Exit codes:**
 
@@ -763,7 +734,7 @@ keepsail knowledge import [OPTIONS]
 
 | Param | Type | Default | Description |
 |-------|------|---------|-------------|
-| `--evidence` | text | *required* | JSON operation with original conclusion: - or workspace file. |
+| `--evidence` | text | *required* | Workspace JSON operation with original conclusion. |
 
 **Exit codes:**
 
@@ -784,7 +755,7 @@ keepsail knowledge propose [OPTIONS]
 
 | Param | Type | Default | Description |
 |-------|------|---------|-------------|
-| `--record` | text | *required* | JSON knowledge operation: - for stdin or workspace file. |
+| `--record` | text | *required* | Workspace JSON knowledge operation. |
 
 **Exit codes:**
 
@@ -805,7 +776,7 @@ keepsail knowledge record [OPTIONS]
 
 | Param | Type | Default | Description |
 |-------|------|---------|-------------|
-| `--record` | text | *required* | JSON observation or statement: - or workspace file. |
+| `--record` | text | *required* | Workspace JSON observation or agent statement. |
 
 **Exit codes:**
 
@@ -1173,7 +1144,7 @@ keepsail review import [OPTIONS] CHANGE
 | Param | Type | Default | Description |
 |-------|------|---------|-------------|
 | `CHANGE` | text | *required* |  |
-| `--evidence` | file | *required* | Recognized external JSON conclusion; use - for stdin. No input file need be committed. |
+| `--evidence` | file | *required* | JSON conclusion produced by a user-recognized external process. |
 
 **Exit codes:**
 

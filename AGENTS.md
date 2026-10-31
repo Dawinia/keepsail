@@ -83,8 +83,8 @@ For each review epoch:
    original evidence; the core does not infer approval from a model, failed call,
    empty result, or skip.
 3. Import that exact record with `keepsail review import <change>
-   --evidence -` using JSON on stdin (or a workspace file). Review execution,
-   retries, and judgment stay outside keepsail.
+   --evidence <path>`. Review execution, retries, and substantive judgment stay
+   outside keepsail.
 4. Batch code-only fixes after `implementation reopen <change> --reason "<why>"`;
    if approved commitments change or explicit restrictions are relaxed, require a
    new plan candidate and review. Within-approval file additions and implementation
@@ -94,108 +94,7 @@ For each review epoch:
 The imported evidence must cover the exact frozen subject. A reviewer may read
 unchanged repository material as supporting context, but a finding never widens
 the target implicitly. Do not edit while an external review is pending.
-
-Use stdin for review/assessment/knowledge/entry-statement JSON. Import the necessary
-facts once; temporary input files and copied tool returns are not deliverables.
-For implementation record, omit coverage to enumerate the full Git/workspace diff;
-git add intended new files or name --include-path. Supply the semantic reasons and
-commitment links explicitly. See docs/knowledge.md for the input and export formats.
-
-#### Optional session-bound context
-
-When installed with `adapter install claude-code --knowledge-context`, follow the
-SessionStart hint before product edits: run its exact Bash command and retrieve
-every context page. Bind the intended task with `KEEPSAIL_CHANGE_ID`; a resumed or
-compacted session requires the new entry's retrieval. Declare adoption or challenge
-explicitly. See [context delivery](docs/knowledge-context.md) for statements,
-refresh, independent-work checks, evidence boundaries and opt-out.
 <!-- /keepsail agent: claude-code -->
-
-<!-- keepsail agent: codex -->
-### keepsail (Codex)
-
-A **PreToolUse** hook gates this workspace. `apply_patch` edits are blocked by
-keepsail when the current change state forbids the mutation (deterministic
-gate enforcement). `Bash` is never gated (see the coverage caveat below).
-
-**REQUIRED trust step:** after `adapter install codex`, the gate is INACTIVE
-until you run `/hooks` in Codex and trust the keepsail hook. Codex skips
-new/changed hooks until trusted (trust is keyed to the hook's hash); if you
-reinstall or relocate the binary, re-trust it. On a pre-existing repo also run
-`keepsail sync --gitignore` so `.codex/hooks.json` is ignored.
-
-**Coverage caveat:** keepsail selects `apply_patch` edits for this adapter's gate.
-It does not gate arbitrary shell, MCP or other local writes. Current host hook
-capability and keepsail's selected coverage are separate; CI/check evidence also
-has its own scope and does not prove every action was observed. Hosted WebSearch
-is outside this integration's observation boundary.
-
-**Authoring-space caveat:** keepsail also allows the change's plan document in
-`INTENT_DECLARED` (any path matching `.harness/plan-paths.yaml`) and scratch notes in
-`.harness/scratch/<slug>/` in every state — but both key off the edited file's path,
-and the legacy Codex shim passes no resolved file path. In that legacy mode those
-carve-outs cannot fire. The optional context mode parses all native patch paths
-and applies the same lawful allowances to each path; it requires a bound task.
-
-#### Optional session-bound context (Windows local desktop)
-
-When installed with `adapter install codex --knowledge-context`, follow the real
-SessionStart hint: bind its startup once to the task's explicit Change and retrieve
-every returned context command before product edits. New resume/compact entries
-require fresh retrieval. Declare adoption or challenge explicitly. Never borrow a
-root entry for an unverified subagent. See [context delivery](docs/knowledge-context.md)
-for current transport limits, declarations, refresh and native opt-out.
-
-When a tool call is blocked:
-- Run `keepsail status` to see the change, its state, and the next step.
-- Resume context with `keepsail change resume <change_id>`.
-- If the gate blocks a tool call, stop and surface the block plus the next valid
-  step (`keepsail status`) to the human. Do **not** try to disable or work
-  around the gate yourself — overriding it is a **human-only** decision, and any
-  bypass is recorded and disclosed at the merge gate. Whether to override is the
-  human's call.
-
-#### Review protocol
-
-keepsail does NOT start, spawn, or host reviewers. It records the exact
-conclusion from an external or human process. The active recognition contract is
-`.harness/review-recognition.yaml`; `.harness/review-governance.yaml` and the
-gitignored `.harness/review-profiles.local.yaml` are historical data and do not
-select a reviewer or explicit model.
-
-For each review epoch:
-
-1. Commit the exact in-scope change and preserve the complete plan/code subject.
-2. Obtain a conclusion from the owner-recognized external process. The conclusion
-   must identify the current subject, explicit decision, provenance, and retained
-   original evidence; the core does not infer approval from a model, failed call,
-   empty result, or skip.
-3. Import that exact record with `keepsail review import <change>
-   --evidence -` using JSON on stdin (or a workspace file). Review execution,
-   retries, and judgment stay outside keepsail.
-4. Batch code-only fixes after `implementation reopen <change> --reason "<why>"`;
-   if approved commitments change or explicit restrictions are relaxed, require a
-   new plan candidate and review. Within-approval file additions and implementation
-   adjustments update assessment/coverage with `implementation record` instead.
-   A skipped review is disclosure, not approval.
-
-The imported evidence must cover the exact frozen subject. A reviewer may read
-unchanged repository material as supporting context, but a finding never widens
-the target implicitly. Do not edit while an external review is pending.
-
-Use stdin for review/assessment/knowledge/entry-statement JSON. Import the necessary
-facts once; temporary input files and copied tool returns are not deliverables.
-For implementation record, omit coverage to enumerate the full Git/workspace diff;
-git add intended new files or name --include-path. Supply the semantic reasons and
-commitment links explicitly. See docs/knowledge.md for the input and export formats.
-
-#### Turn-end authoring check
-
-A **Stop** hook runs a turn-end authoring-time conformance check: when you finish a
-turn, any ratified decision that opted in (`authoring_time: true`) has its check run
-once; a failure is fed back as a non-blocking advisory so you self-correct next turn.
-Like the PreToolUse gate, the Stop hook is INACTIVE until you `/hooks`-trust it.
-<!-- /keepsail agent: codex -->
 
 ### Before opening PR
 

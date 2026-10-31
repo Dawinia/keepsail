@@ -114,11 +114,6 @@ def gate_list(ctx: click.Context) -> None:
 @click.option("--file")
 @click.option("--change-id")
 @click.option("--pr", type=int)
-@click.option("--agent", type=click.Choice(["claude-code", "codex"]))
-@click.option("--session-id", help="Current explicitly bound harness session.")
-@click.option("--turn-id", help="Current observed Codex root turn.")
-@click.option("--patch-file", type=click.Path(exists=True, dir_okay=False),
-              help="Codex apply_patch text to evaluate as one complete action.")
 @click.pass_context
 def gate_check(
     ctx: click.Context,
@@ -127,10 +122,6 @@ def gate_check(
     file: str | None,
     change_id: str | None,
     pr: int | None,
-    agent: str | None,
-    session_id: str | None,
-    turn_id: str | None,
-    patch_file: str | None,
 ) -> None:
     """Check a gate decision (`pre-tool-use` decides in-process).
 
@@ -167,39 +158,19 @@ def gate_check(
     from keepsail.core.state_snapshot import load_state_snapshot
     from keepsail.gates.decisions import PLAN_PATH_ALLOW_STATES
 
-    entry_context = None
-    if agent == "codex":
-        from keepsail.core.state_snapshot import StateSnapshot
-        from keepsail.daemon.hook_entry import decide_codex_patch
-
-        result, state = decide_codex_patch(
-            root, session_id or "", turn_id or "",
-            Path(patch_file).read_text(encoding="utf-8") if patch_file else "", change_id,
-        )
-        snapshot = StateSnapshot(change_id=change_id, state=state)
-    elif agent or session_id:
-        from keepsail.core.context import context_gate_inputs
-        from keepsail.core.state_snapshot import StateSnapshot
-
-        state, entry_context = context_gate_inputs(
-            root, change_id or "", session_id or "", canonical_relpath(root, file),
-        )
-        snapshot = StateSnapshot(change_id=change_id, state=state)
-    else:
-        snapshot = load_state_snapshot(root, change_id_override=change_id)
+    snapshot = load_state_snapshot(root, change_id_override=change_id)
     # Shared helper with `hook_entry._decide` (d-keepsail-single-gate-policy: one policy,
     # all readers — `gate check` and the hook can never disagree). See
     # `patterns_for_state`'s docstring in `core/plan_paths.py` for the deferral
     # rationale.
     patterns = patterns_for_state(root, snapshot.state, PLAN_PATH_ALLOW_STATES)
-    if agent != "codex":
-        result = PreToolUseGate(plan_path_patterns=patterns, entry_context=entry_context).decide(
-            ProposedAction(
-                kind="edit", file=file, resolved_path=canonical_relpath(root, file)
-            ),
-            snapshot.state,
-            [],
-        )
+    result = PreToolUseGate(plan_path_patterns=patterns).decide(
+        ProposedAction(
+            kind="edit", file=file, resolved_path=canonical_relpath(root, file)
+        ),
+        snapshot.state,
+        [],
+    )
     allow = result.decision is GateDecision.ALLOW
     current_state = snapshot.state.current_state if snapshot.state is not None else None
 

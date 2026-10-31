@@ -121,42 +121,5 @@ The product identity is stable but the ledger is local to one repository. Shared
 product authority across repositories, broad knowledge formation, universal
 semantic applicability, full agent-loop ownership and all-tool enforcement remain
 unimplemented obligations/boundaries as specified by the normative architecture.
-At the 2026-10-24 slice above, this repository's policy had not been activated.
-The following dated update records the later trusted-base activation; source,
-installed hooks, package publication and actual CI/session evidence remain separate.
-
-## 2026-10-31 local Codex context and evidence revision
-
-The [current frozen revision](plans/2026-10-27-harness-knowledge-context-evidence-revision.md)
-continues the earlier work under the same Change. Its recognized approval is
-approval:2026-10-30-evidence-revision-plan-02-37381990. The trusted knowledge and
-review policies retain their existing activation and issuer boundaries.
-The independently checked remote/main baseline is bb69097dffee4e782568da4ea688d06b5773cbf4.
-
-| Obligation | Current implementation and bounded evidence |
-|---|---|
-| C1/C2 current working authority | Explicit Change/session/entry binding; complete current frozen approval, ratified text and knowledge. Reviewed structured continuation can index fully covered prior approvals; missing or partial continuation retains the full earlier approval. |
-| C3/C6 supply versus acquisition | Strict actual complete-return validation precedes one context-acquisition/v2 fact and per-version links. Current real root acquisition and a real new epoch are recorded; temporary v2 returns can be removed after successful native persistence. Acquisition does not establish understanding or compliance. |
-| C4 historical grounds and impacts | Original versions, recognitions and the bounded v1-to-v2 continue disposition preserve their meaning. Current constraints and unresolved concerns remain in the execution projection. |
-| C5 selected edits and independent work | All native patch add/update/delete/move paths use the same current lifecycle/knowledge predicates. Root identity is not borrowed for subagents. Shell/MCP/external writes remain outside the selected editor boundary. |
-| Input and evidence cost | JSON stdin, generated mechanical coverage, single retained review conclusions and versioned derived exports remove input copies and callback duplication. Exact Git-baseline references supply historical knowledge; repeated exports append no equivalent checkpoint. |
-| Currentness and operation | One action shares fresh replay inputs and rechecks the revision. Working authority is independent of HEAD/display/coverage bookkeeping; actual approval, selected knowledge/applicability and unresolved changes require refresh. A new mechanical basis needs native supply without claiming another acquisition. No cross-call cache or increased host timeout is introduced. |
-
-Historical real A/B development and separately recognized Codex knowledge evolution
-occurred on the earlier candidate. Original callbacks, unsuccessful attempts,
-review conclusions and acceptance material remain on the preserved local source
-branch; the new candidate does not reproduce that archive or claim it as new
-validation. The earlier Claude implementation has source/process evidence only,
-not real Claude A/B acceptance. Its conditional knowledge body remains conditional.
-
-The [acceptance and cost note](harness-context-acceptance.md) separates historical
-facts, the changed observer's actual local observations, fixture checks and limits.
-The [entry guide](knowledge-context.md) describes the interface. Current-object
-verification, recognized external code review and the Git attestation must agree
-on the exact subject; old test counts are not current verification.
-Historical merged-Change recovery v1 does not import knowledge-bearing v2 snapshots.
-
-This implementation does not establish all-tool observation, semantic recall,
-model understanding/compliance, cross-repository shared authority/distribution,
-universal hook timeout reliability, package publication or deployed behavior.
-The normative product architecture is unchanged.
+This repository's knowledge policy is not activated; these are local source and
+isolated test capabilities, not published-package, active-hook or remote-CI proof.

@@ -1,23 +1,5 @@
 # Codex adapter
 
-## Selected Windows desktop context revision (2026-10-28)
-
-The current Change selects local Codex desktop for actual context acceptance because
-Claude is unavailable to the owner. Optional `--knowledge-context` adds explicit
-startup binding, complete-return observation and a multi-path patch prerequisite.
-See [session context](../knowledge-context.md) for the exact workflow, current
-candidate wire contract, declarations and native opt-out. Default installation
-retains the legacy behavior described below. Historical desktop A/B facts and the
-current compact observer's acceptance have separate scopes; see the
-[acceptance note](../harness-context-acceptance.md). Process fixtures do not
-establish actual host activation.
-
-Current host capabilities must be distinguished from the adapter's declared edit
-surface. Historical statements below about Codex exposing only shell/MCP tools are
-not a current host capability verdict. The context revision selects native
-`apply_patch`, parses all file/move paths and uses the same lifecycle allowances;
-the legacy shim still passes no resolved path.
-
 The Codex adapter wires the OpenAI Codex CLI to keepsail. It is the second
 agent adapter in v0.1 and is **experimental** (API stability may change). Claude
 Code remains the reference adapter — see [Claude Code adapter](claude-code.md).
@@ -89,8 +71,7 @@ implementation assessments/coverage; and the turn-end authoring check.
 
 The owner configures `.harness/review-recognition.yaml`. An external process
 produces a conclusion with exact subject, explicit approve/reject, original
-evidence and provenance. Import JSON directly using
-`review import <change> --evidence -`, or use a workspace file.
+evidence and provenance. Import it using `review import <change> --evidence <path>`.
 The core does not spawn Codex, select models, prepare invocations, authorize
 retries or confirm human nonces. Failure, empty output and skip do not approve.
 

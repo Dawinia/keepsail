@@ -54,7 +54,6 @@ def _output(
                 ]
                 if error
                 else [],
-                ensure_ascii=not ctx.obj.get("unicode_output", False),
             )
         )
     elif error:
@@ -130,8 +129,7 @@ def _submit(root: Path, event_type: str, request: dict[str, Any]) -> dict[str, A
 
 
 @knowledge_group.command("propose")
-@click.option("--record", required=True,
-              help="JSON knowledge operation: - for stdin or workspace file.")
+@click.option("--record", required=True, help="Workspace JSON knowledge operation.")
 @click.pass_context
 def propose(ctx: click.Context, record: str) -> None:
     """Retain an immutable candidate; this does not grant authority."""
@@ -144,8 +142,7 @@ def propose(ctx: click.Context, record: str) -> None:
 
 @knowledge_group.command("import")
 @click.option(
-    "--evidence", required=True,
-    help="JSON operation with original conclusion: - or workspace file."
+    "--evidence", required=True, help="Workspace JSON operation with original conclusion."
 )
 @click.pass_context
 def import_evidence(ctx: click.Context, evidence: str) -> None:
@@ -158,7 +155,7 @@ def import_evidence(ctx: click.Context, evidence: str) -> None:
 
 
 @knowledge_group.command("record")
-@click.option("--record", required=True, help="JSON observation or statement: - or workspace file.")
+@click.option("--record", required=True, help="Workspace JSON observation or agent statement.")
 @click.pass_context
 def record_evidence(ctx: click.Context, record: str) -> None:
     """Record acquisition, statement, challenge or execution, preserving its category."""
@@ -177,55 +174,50 @@ def record_evidence(ctx: click.Context, record: str) -> None:
 def deliver(ctx: click.Context, change: str, operation_id: str, expected_revision: str) -> None:
     """Persist the exact finite constraint set before writing it to stdout."""
 
-    _run(ctx, "knowledge deliver", lambda root: deliver_knowledge(
-        root, change, operation_id, expected_revision,
-    ))
+    def action(root: Path) -> dict[str, Any]:
+        policy = load_policy(root)
+        ledger, _ = load_ledger(events_path(root), policy)
+        prior = ledger["operations"].get(operation_id)
+        if prior:
+            request = prior["request"]
+            if (
+                request["change_id"] != change
+                or request["expected_revision"] != expected_revision
+                or "delivery" not in request
+            ):
+                raise KnowledgeError("operation ID reused for a different delivery", exit_code=5)
+        else:
+            view = report(root, change)
+            if view["coverage"] == "not_recorded":
+                raise KnowledgeError("no owner-activated knowledge policy", exit_code=3)
+            request = {
+                "schema_version": PROTOCOL,
+                "operation_id": operation_id,
+                "expected_revision": expected_revision,
+                "change_id": change,
+                "delivery": {
+                    k: view[k]
+                    for k in (
+                        "change_id",
+                        "constraints",
+                        "basis_digest",
+                        "evaluated",
+                        "context",
+                        "recognition_evidence",
+                    )
+                },
+            }
+        result = _submit(root, "knowledge_delivered", request)
+        current = report(root, change)
+        result["stale"] = (
+            result["basis_digest"] != current["basis_digest"]
+            or result["constraints"] != current["constraints"]
+        )
+        result["missing_observations"] = ["recipient-acquisition", "understanding", "compliance"]
+        result["limits"] = ["explicit-rules-only", "single-repository"]
+        return result
 
-
-def deliver_knowledge(root: Path, change: str, operation_id: str,
-                      expected_revision: str) -> dict[str, Any]:
-    """Shared native supply operation; preserves CAS and replay semantics."""
-    policy = load_policy(root)
-    ledger, _ = load_ledger(events_path(root), policy)
-    prior = ledger["operations"].get(operation_id)
-    if prior:
-        request = prior["request"]
-        if (
-            request["change_id"] != change
-            or request["expected_revision"] != expected_revision
-            or "delivery" not in request
-        ):
-            raise KnowledgeError("operation ID reused for a different delivery", exit_code=5)
-    else:
-        view = report(root, change)
-        if view["coverage"] == "not_recorded":
-            raise KnowledgeError("no owner-activated knowledge policy", exit_code=3)
-        request = {
-            "schema_version": PROTOCOL,
-            "operation_id": operation_id,
-            "expected_revision": expected_revision,
-            "change_id": change,
-            "delivery": {
-                k: view[k]
-                for k in (
-                    "change_id",
-                    "constraints",
-                    "basis_digest",
-                    "evaluated",
-                    "context",
-                    "recognition_evidence",
-                )
-            },
-        }
-    result = _submit(root, "knowledge_delivered", request)
-    current = report(root, change)
-    result["stale"] = (
-        result["basis_digest"] != current["basis_digest"]
-        or result["constraints"] != current["constraints"]
-    )
-    result["missing_observations"] = ["recipient-acquisition", "understanding", "compliance"]
-    result["limits"] = ["explicit-rules-only", "single-repository"]
-    return result
+    _run(ctx, "knowledge deliver", action)
 
 
 @knowledge_group.command("show")
@@ -266,7 +258,6 @@ def show(ctx: click.Context, identifier: str | None, version_digest: str | None)
             "challenges": ledger["challenges"],
             "statements": ledger["statements"],
             "observations": ledger["observations"],
-            "context_observations": list(ledger["context_observations"].values()),
         }
 
     _run(ctx, "knowledge show", action)

@@ -12,10 +12,8 @@ from __future__ import annotations
 
 import glob
 from fnmatch import fnmatchcase
-from typing import TYPE_CHECKING, ClassVar
+from typing import ClassVar
 
-if TYPE_CHECKING:
-    from keepsail.core.context import EntryReadiness
 from keepsail.core.events import Event
 from keepsail.core.plan_paths import SLUG_PLACEHOLDER
 from keepsail.core.state import ChangeState
@@ -32,7 +30,6 @@ from keepsail.gates.decisions import (
     PRE_TOOL_USE_DECISIONS,
     SCRATCH_ROOT,
     SUGGESTIONS,
-    entry_context_block,
 )
 
 
@@ -50,8 +47,7 @@ class PreToolUseGate(Gate):
     version: ClassVar[str] = "0.1.0"
     fires_on: ClassVar[GateFiresOn] = "pre_tool_use"
 
-    def __init__(self, plan_path_patterns: list[str] | None = None,
-                 entry_context: EntryReadiness | None = None) -> None:
+    def __init__(self, plan_path_patterns: list[str] | None = None) -> None:
         """`plan_path_patterns` come from `core.plan_paths.load_plan_paths` (already
         validated: each contains `{slug}` and ends in `.md`). Injected rather than
         read here so the gate stays pure and testable. Default `None` keeps every
@@ -66,7 +62,6 @@ class PreToolUseGate(Gate):
         self._plan_path_patterns = (
             list(plan_path_patterns) if isinstance(plan_path_patterns, list) else []
         )
-        self._entry_context = entry_context
 
     def decide(
         self,
@@ -75,13 +70,6 @@ class PreToolUseGate(Gate):
         events: list[Event],
     ) -> GateResult:
         if state is None:
-            if self._entry_context is not None:
-                return GateResult(
-                    decision=GateDecision.BLOCK,
-                    reason=entry_context_block(self._entry_context.blocking_reasons,
-                                               state_available=False) or "",
-                    suggested_action=self._entry_context.next_command,
-                )
             return GateResult(decision=GateDecision.ALLOW, reason="no active change")
         # Plan-artifact carve-out (HG-PLAN-AUTHORING), read from the single policy
         # module. In a PLAN_ARTIFACT_ALLOW_STATES state, an edit to one of the
@@ -179,13 +167,6 @@ class PreToolUseGate(Gate):
             GateDecision.ALLOW if decision_str == "allow" else GateDecision.BLOCK
         )
         blocked = f"{action.kind} {action.file or ''}".strip() or None
-        if decision is GateDecision.ALLOW and self._entry_context is not None:
-            context_reason = entry_context_block(self._entry_context.blocking_reasons)
-            if context_reason:
-                return GateResult(
-                    decision=GateDecision.BLOCK, reason=context_reason, blocked_action=blocked,
-                    suggested_action=self._entry_context.next_command,
-                )
         return GateResult(
             decision=decision,
             reason=reason,
