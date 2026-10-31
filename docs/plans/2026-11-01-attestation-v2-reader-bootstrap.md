@@ -31,7 +31,9 @@ context evidence revision. This closed slice includes the context module used by
 the exporter for approval lineage; it does not install or activate any context
 adapter, change gate policy, choose reviewers or recognize knowledge. Keep the
 existing native CLI producers for the bootstrap; the following release alone
-enables v2 output. There is no runtime switch or extra user evidence workflow.
+enables v2 output. Normal work has no extra evidence step. The explicit native
+`attest write --format v1-bootstrap` is reserved for this bounded reader-first
+upgrade; it selects a data representation, never a verifier or trust policy.
 
 Native preparation uses an isolated checkout sharing the existing append-only
 native ledger and lock, not a forked/rebased copy of governance history. Normal
