@@ -21,6 +21,16 @@ from keepsail.daemon import supervisor
 def ws(tmp_path: Path) -> Path:
     (tmp_path / ".harness").mkdir()
     yield tmp_path
+    log = tmp_path / ".harness" / "daemon.log"
+    if log.exists():
+        print("[DEBUG-observer-ci]", log.read_text(encoding="utf-8"))
+    else:
+        import subprocess
+
+        startup = subprocess.run(
+            [supervisor._observer_binary(), "--help"], capture_output=True, text=True, timeout=5
+        )
+        print("[DEBUG-observer-ci startup]", startup.returncode, startup.stderr)
     supervisor.stop(tmp_path)  # best-effort cleanup
 
 
