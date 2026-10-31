@@ -139,3 +139,21 @@ automatically from their artifacts (OpenSpec from `tasks.md`).
 No. `keepsail doc check` only regenerates docs that have a generator (the CLI
 reference, the state-machine diagram). Prose has no ground truth to diff against
 and is out of scope by design.
+
+**What does session-bound context establish?**
+The [opt-in integration](knowledge-context.md) supplies recorded current approval,
+conventions and finite knowledge constraints, and observes complete CLI tool
+returns in the selected entry. It separately checks current supply, this epoch's
+returns, local dependencies and lifecycle authority. It cannot prove understanding,
+semantic compliance or complete recall. Shell/MCP/external writes remain outside
+its live editor boundary. Actual host callbacks, two real sessions and recognized
+knowledge evolution require their own acceptance evidence; process fixtures do
+not prove those facts. Missing symlink privileges can leave platform tests skipped.
+
+New v2 exports retain accepted facts with explicit source digests and local Git
+baseline references; they do not publish the original callback bytes or prove
+cryptographic identity. Compact observation relies on strict validation at the
+local observer boundary. Legacy originals retain their former meaning. Loss of
+unfinished v2 retry material can require reacquisition; successful persistence
+allows readiness without those temporary callbacks. See
+[knowledge formats](knowledge.md#inputs-coverage-and-derived-exports).

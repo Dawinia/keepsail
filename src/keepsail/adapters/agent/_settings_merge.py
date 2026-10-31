@@ -81,6 +81,11 @@ _STOP_OURS_MARKER = "--agent claude-code --event stop"
 # Per-hook timeout (seconds) for the Stop authoring-check command; matches the
 # PreToolUse/SessionStart budget shape and is the OUTER bound the inner check must beat.
 _STOP_TIMEOUT = 10
+_CONTEXT_MARKERS = {
+    "SessionStart": "--agent claude-code --event session-start",
+    "UserPromptSubmit": "--agent claude-code --event user-prompt-submit",
+    "PostToolUse": "--agent claude-code --event post-tool-use",
+}
 # A crash can leave the O_EXCL lock empty or partially written. Refuse such
 # locks while fresh; only reclaim after this conservative grace period.
 _CORRUPT_LOCK_STALE_SECONDS = 5 * 60
@@ -124,6 +129,8 @@ def plan_settings_merge(
     pre_tool_use_marker: str = _OURS_MARKER,
     session_start_marker: str = _SESSION_OURS_MARKER,
     stop_marker: str = _STOP_OURS_MARKER,
+    context_commands: dict[str, str] | None = None,
+    context_markers: dict[str, str] | None = None,
 ) -> SettingsMergePlan:
     """Purely compute the complete three-hook settings transaction."""
     _reject_symlink_settings(settings_path, workspace_root=workspace_root)
@@ -140,11 +147,24 @@ def plan_settings_merge(
 
     session_start = _ensure_event_list(hooks, "SessionStart")
     _strip_entries(session_start, session_start_marker)
+    markers = context_markers or _CONTEXT_MARKERS
+    if context_commands is not None:
+        _strip_entries(session_start, markers["SessionStart"])
     session_start.append(_session_start_entry(session_start_command))
 
     stop = _ensure_event_list(hooks, "Stop")
     _strip_entries(stop, stop_marker)
     stop.append(_stop_entry(stop_command))
+    if context_commands is not None:
+        for event in ("UserPromptSubmit", "PostToolUse"):
+            entries = _ensure_event_list(hooks, event)
+            _strip_entries(entries, markers[event])
+            command = context_commands.get(event)
+            if command:
+                entries.append(_hook_entry(command, "Bash") if event == "PostToolUse"
+                               else _session_start_entry(command))
+            if not entries:
+                hooks.pop(event, None)
 
     changed = settings != original
     desired_bytes = (
@@ -184,6 +204,8 @@ def restore_or_remove_managed_hooks(
     session_start_marker: str = _SESSION_OURS_MARKER,
     stop_marker: str,
     workspace_root: Path | None = None,
+    context_events: bool = False,
+    context_markers: dict[str, str] | None = None,
 ) -> None:
     """Restore the pristine backup, or remove only marker-owned hook entries."""
     _reject_symlink_settings(settings_path, workspace_root=workspace_root)
@@ -195,7 +217,7 @@ def restore_or_remove_managed_hooks(
             settings_path.parent.glob(f"{settings_path.name}.keepsail-backup.*"),
             key=_backup_sort_key,
         )
-        if backups:
+        if backups and not context_events:
             _atomic_replace_bytes(settings_path, backups[0].read_bytes())
             return
         if not settings_path.exists():
@@ -207,11 +229,14 @@ def restore_or_remove_managed_hooks(
         if not isinstance(hooks, dict):
             return
         changed = False
-        for event, marker in (
+        markers = [
             ("PreToolUse", pre_tool_use_marker),
             ("SessionStart", session_start_marker),
             ("Stop", stop_marker),
-        ):
+        ]
+        if context_events:
+            markers.extend((context_markers or _CONTEXT_MARKERS).items())
+        for event, marker in markers:
             entries = hooks.get(event)
             if not isinstance(entries, list):
                 continue
@@ -223,6 +248,15 @@ def restore_or_remove_managed_hooks(
                 hooks.pop(event, None)
         if not changed:
             return
+        if context_events and backups:
+            baseline = _parse_settings_bytes(backups[0], backups[0].read_bytes())
+            for event in {event for event, _ in markers}:
+                for old_entry in baseline.get("hooks", {}).get(event, []):
+                    managed = [h for h in old_entry.get("hooks", []) if any(
+                        _command_contains(h, marker) for ev, marker in markers if ev == event
+                    )]
+                    if managed:
+                        hooks.setdefault(event, []).append({**old_entry, "hooks": managed})
         if not hooks:
             settings.pop("hooks", None)
         if not settings:

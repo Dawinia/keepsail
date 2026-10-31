@@ -37,11 +37,14 @@ env KEEPSAIL_CHANGE_ID  optional override (all modes); default derives
                               the active (most recently active non-terminal) change
                               from the `changes` map in .harness/state.yaml.
 
-Fail-open everywhere (Axiom 1: prevent, don't punish — never block on a call
+Legacy modes fail open (Axiom 1: prevent, don't punish — never block on a call
 shape we don't understand): empty argv, no .harness/, malformed stdin, corrupt
 state, and an unknown --agent ALL ALLOW. The decision is pure and in-process
 (design 2026-07-03): one state.yaml snapshot → the pure PreToolUseGate; there is
-no daemon on the decision path.
+no daemon on the decision path. The explicit Claude `--context` mode instead
+reports unavailable selected edit prerequisites as exit 2; read/diagnostic events
+remain nonblocking. Host-skipped hooks or host-enforced timeouts are outside the
+process's control and require separate activation/latency evidence.
 """
 from __future__ import annotations
 
@@ -51,6 +54,8 @@ from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
     from keepsail.adapters import AgentAdapter
+    from keepsail.core.state import ChangeState
+    from keepsail.gates import GateResult
 
 from keepsail.core.active_change import read_active_change_id
 from keepsail.core.paths import (
@@ -88,14 +93,24 @@ def main() -> None:  # console_script entry
             if event == "stop":
                 from keepsail.adapters.agent.claude_code import ClaudeCodeAdapter
                 _run_stop(ClaudeCodeAdapter())
-            else:
+            elif "--context" in argv:
+                from keepsail.daemon.context_hook import run_context_hook
+                cli_index = argv.index("--cli") + 1 if "--cli" in argv else len(argv)
+                cli = argv[cli_index] if cli_index < len(argv) else None
+                run_context_hook(event, cli)
+            elif event == "pre-tool-use":
                 _run_claude_code_shim()
             return
         if agent == "codex":
             if event == "stop":
                 from keepsail.adapters.agent.codex import CodexAdapter
                 _run_stop(CodexAdapter())
-            else:
+            elif "--context" in argv:
+                from keepsail.daemon.codex_context_hook import run_context_hook
+                cli_index = argv.index("--cli") + 1 if "--cli" in argv else len(argv)
+                cli = argv[cli_index] if cli_index < len(argv) else None
+                run_context_hook(event, cli)
+            elif event == "pre-tool-use":
                 _run_codex_shim()
             return
         # Fail-open: never block on a shim contract we don't understand.
@@ -185,6 +200,45 @@ def _run_codex_shim() -> None:
     sys.exit(0)
 
 
+def decide_codex_patch(root: Path, session: str, turn: str, patch: str,
+                       change: str | None = None) -> tuple[GateResult, ChangeState | None]:
+    """One selected multi-path I/O seam, shared by the Codex hook and gate CLI."""
+    from keepsail.core.context import (
+        codex_patch_paths,
+        codex_root_turn,
+        context_gate_inputs,
+        session_entry,
+    )
+    from keepsail.core.plan_paths import patterns_for_state
+    from keepsail.gates import GateDecision, GateResult, ProposedAction
+    from keepsail.gates.decisions import PLAN_PATH_ALLOW_STATES
+    from keepsail.gates.pre_tool_use import PreToolUseGate
+
+    try:
+        if (root / ".harness/gate-disabled").exists():
+            _record_bypass(root, tool="apply_patch", file=None)
+            return GateResult(decision=GateDecision.ALLOW, reason="gate disabled (disclosed)"), None
+        entry = session_entry(root, session)
+        if entry.get("harness") != "codex" or (change and entry["change_id"] != change):
+            raise ValueError("selected Codex Change/session mismatch")
+        codex_root_turn(root, entry["entry_id"], {"session_id": session, "turn_id": turn})
+        paths = codex_patch_paths(root, patch)
+        state, readiness = context_gate_inputs(root, entry["change_id"], session, paths)
+        patterns = patterns_for_state(root, state, PLAN_PATH_ALLOW_STATES)
+        gate = PreToolUseGate(plan_path_patterns=patterns, entry_context=readiness)
+        for path in paths:
+            result = gate.decide(ProposedAction(kind="edit", file=path, resolved_path=path),
+                                 state, [])
+            if result.decision is GateDecision.BLOCK:
+                return result, state
+        return result, state
+    except (ValueError, KeyError, TypeError, OSError) as exc:
+        return GateResult(
+            decision=GateDecision.BLOCK, reason="Codex context unavailable: " + str(exc),
+            suggested_action="Retrieve the current explicitly bound task context.",
+        ), None
+
+
 def _run_stop(adapter: AgentAdapter) -> None:
     """Agent-agnostic turn-end (Stop) authoring-check orchestrator. ALWAYS exits 0 (the
     turn's edits stand). The adapter owns the agent-specific Stop protocol: the
@@ -222,7 +276,8 @@ def _run_stop(adapter: AgentAdapter) -> None:
 
 
 def _decide(
-    tool: str, file: str | None
+    tool: str, file: str | None, *, context_session: str | None = None,
+    context_change: str | None = None,
 ) -> tuple[Literal["allow", "block"], str, str | None]:
     """Shared in-process decision core for all invocation modes (design 2026-07-03).
 
@@ -253,12 +308,22 @@ def _decide(
     from keepsail.gates.pre_tool_use import PreToolUseGate
 
     override = os.environ.get("KEEPSAIL_CHANGE_ID")
-    snapshot = load_state_snapshot(root, change_id_override=override)
+    entry_context = None
+    if context_session is None:
+        snapshot = load_state_snapshot(root, change_id_override=override)
+    else:
+        from keepsail.core.context import context_gate_inputs
+        from keepsail.core.state_snapshot import StateSnapshot
+
+        state, entry_context = context_gate_inputs(
+            root, context_change or "", context_session, canonical_relpath(root, file),
+        )
+        snapshot = StateSnapshot(change_id=context_change, state=state)
     # Deferral (design 2026-07-29) lives inside `patterns_for_state` — see its
     # docstring in `core/plan_paths.py` for the rationale and the
     # d-keepsail-single-gate-policy note on why `cli/gate.py` calls the same helper.
     patterns = patterns_for_state(root, snapshot.state, PLAN_PATH_ALLOW_STATES)
-    result = PreToolUseGate(plan_path_patterns=patterns).decide(
+    result = PreToolUseGate(plan_path_patterns=patterns, entry_context=entry_context).decide(
         ProposedAction(
             kind="edit", file=file, resolved_path=canonical_relpath(root, file)
         ),
