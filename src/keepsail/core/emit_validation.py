@@ -35,10 +35,12 @@ from keepsail.core.approval import (
     make_code_subject,
     missing_coverage,
     recognition_contract_active,
+    resolve_review_reference,
     validate_approval,
     validate_code_subject,
     validate_evidence,
     validate_evidence_supersession,
+    validate_generated_coverage,
     validate_implementation_assessment,
     validate_plan_subject,
 )
@@ -201,6 +203,8 @@ def _validate_authority(events_file: Path, new_event: Event) -> None:
             recognition_loader=lambda: load_recognition(root),
             check_git=lambda subject: _validate_git_subject(events_file, subject),
         )
+        if new_event.type == "implementation_recorded" and "coverage_basis" in new_event.payload:
+            validate_generated_coverage(root, new_event.payload)
     except (ApprovalError, GitScopeError, TypeError, KeyError) as exc:
         raise EmitPreconditionError(str(exc)) from exc
 
@@ -223,6 +227,7 @@ def validate_authority_context(
             or payload.get("approval")
             or payload.get("evidence")
             or payload.get("code_subject")
+            or payload.get("review_reference_version") is not None
             or (
                 current is not None
                 and (
@@ -298,6 +303,11 @@ def validate_authority_context(
             if pending.get("candidate_id") != approval.get("subject_id"):
                 raise ApprovalError("plan approval does not match the current plan candidate")
             approved_evidence = _find_evidence(current, str(approval["evidence_id"]))
+            if payload.get("review_reference_version") is not None:
+                approved_evidence = resolve_review_reference(
+                    payload, current.evidence_references, change_id=new_event.change_id,
+                    kind="plan", decision="approve", subject_id=str(approval["subject_id"]),
+                )
             if approved_evidence is None or approved_evidence.get("decision") != "approve":
                 raise ApprovalError("plan approval requires its imported approving evidence")
             if evidence_digest(approved_evidence) != approval.get("evidence_digest"):
@@ -305,7 +315,14 @@ def validate_authority_context(
         elif new_event.type == "plan_rejected":
             if not new_contract:
                 return
-            evidence = validate_evidence(payload.get("evidence"), change_id=new_event.change_id)
+            if payload.get("review_reference_version") is not None:
+                evidence = resolve_review_reference(
+                    payload, current.evidence_references if current else [],
+                    change_id=new_event.change_id, kind="plan", decision="reject",
+                    subject_id=str(payload.get("candidate_id", "")),
+                )
+            else:
+                evidence = validate_evidence(payload.get("evidence"), change_id=new_event.change_id)
             if evidence.get("decision") != "reject":
                 raise ApprovalError("plan rejection requires rejecting evidence")
             if current is None or not isinstance(current.pending_revision, dict):
@@ -432,6 +449,13 @@ def validate_authority_context(
                         expected_decision = (
                             "approve" if new_event.type == "code_review_passed" else "reject"
                         )
+                        if payload.get("review_reference_version") is not None:
+                            review_evidence = resolve_review_reference(
+                                payload, current.evidence_references,
+                                change_id=new_event.change_id, kind="code",
+                                decision=expected_decision,
+                                subject_id=str(validated_subject["subject_id"]),
+                            )
                         if (
                             review_evidence is None
                             or review_evidence.get("kind") != "code"
@@ -520,7 +544,8 @@ def is_new_contract_event(events_file: Path, event: Event) -> bool:
         return True
     if any(
         payload.get(key) is not None
-        for key in ("plan_subject", "approval", "evidence", "code_subject")
+        for key in ("plan_subject", "approval", "evidence", "code_subject",
+                    "review_reference_version")
     ):
         return True
     current = derive_state(events_file).get(event.change_id)

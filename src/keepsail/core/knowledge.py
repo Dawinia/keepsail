@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 from copy import deepcopy
+from dataclasses import dataclass
 from functools import lru_cache
 from hashlib import sha256
 from pathlib import Path, PurePosixPath
@@ -19,13 +20,23 @@ from keepsail.core.approval import (
     ApprovalError,
     canonical_json,
     digest_record,
-    load_json_record,
+    load_json_input,
     resolve_contract_base,
 )
-from keepsail.core.events import KNOWLEDGE_EVENT_TYPES, Event, parse_event_line
+from keepsail.core.events import (
+    KNOWLEDGE_EVENT_TYPES,
+    Event,
+    _event_from_object,
+    effective_event_lines,
+    parse_event_line,
+)
 from keepsail.core.scope_match import GitScopeError, covered_by_scope, file_text_at_commit
 
 PROTOCOL = "knowledge-operation/v1"
+CONTEXT_OBSERVATION_SCHEMA = "context-acquisition/v2"
+ACQUISITION_OBSERVATION_SCHEMA = "acquisition-observation/v2"
+CODEX_RETURN_TRANSPORT = "powershell-exit/v1"
+CLAUDE_RETURN_TRANSPORT = "claude-bash-output/v1"
 TRIGGER_EVENT = "knowledge_operation_v2"
 TRIGGER_READER = "knowledge-trigger/v2"
 POLICY_PATH = ".harness/knowledge-recognition.yaml"
@@ -80,13 +91,12 @@ def _path(value: str) -> str:
 
 
 def read_record(root: Path, raw: str) -> dict[str, Any]:
-    """Only explicitly supplied files inside this workspace may be retained."""
+    """Retain explicit stdin or workspace input, hashing the exact bytes read."""
+    if raw == "-":
+        return load_json_input(raw, input_digest=True)
     path = (root / raw).resolve()
     _need(path.is_relative_to(root.resolve()), "record path escapes workspace")
-    record = load_json_record(path)
-    # Preserve byte evidence separately from canonical subject identity.
-    record["_input_digest"] = sha256(path.read_bytes()).hexdigest()
-    return record
+    return load_json_input(path, input_digest=True)
 
 
 def policy_digest(policy: dict[str, Any]) -> str:
@@ -305,6 +315,7 @@ def _empty() -> dict[str, Any]:
         "deliveries": {},
         "statements": [],
         "observations": [],
+        "context_observations": {},
         "challenges": {},
         "dispositions": {},
         "executions": {},
@@ -317,14 +328,72 @@ def _empty() -> dict[str, Any]:
     }
 
 
-def load_ledger(path: Path, policy: dict[str, Any] | None) -> tuple[dict[str, Any], str]:
+def validate_context_observation(
+    record: dict[str, Any], policy: dict[str, Any], change: str, delivery: dict[str, Any],
+) -> None:
+    """Validate a recognized observer's compact conclusion, not understanding/compliance."""
+    required = {
+        "schema_version", "kind", "observation_id", "producer", "observer_version",
+        "product_id", "repository_id", "change_id", "delivery_id", "session_id", "entry_id",
+        "manifest_id", "authority_digest", "context_digest", "harness", "return_transport",
+        "pages", "versions", "status", "limits",
+    }
+    _need(set(record) == required, "context observation has missing or unknown fields")
+    _need(record["schema_version"] == CONTEXT_OBSERVATION_SCHEMA
+          and record["kind"] == "context-acquisition", "unknown context observation version")
+    _need(record["producer"] in policy["observation_issuers"]
+          and record["observer_version"] == "native-cli-observer/v2",
+          "context observation requires a recognized observer interpretation")
+    _need(record["product_id"] == policy["product_id"]
+          and record["repository_id"] == policy["repository_id"]
+          and record["change_id"] == change and delivery["change_id"] == change,
+          "context observation belongs to another product/repository/Change")
+    for key in ("session_id", "entry_id", "delivery_id"):
+        _need(_text(record[key]), f"context observation needs {key}")
+    for key in ("manifest_id", "authority_digest", "context_digest"):
+        _need(isinstance(record[key], str) and len(record[key]) == 64
+              and all(c in "0123456789abcdef" for c in record[key]),
+              f"context observation needs an exact {key}")
+    _need(record["observation_id"] == "context-observation-" + digest_record(
+        [record["entry_id"], record["manifest_id"]]), "context observation identity mismatch")
+    _need(record["return_transport"] == {
+        "codex": CODEX_RETURN_TRANSPORT, "claude-code": CLAUDE_RETURN_TRANSPORT,
+    }.get(record["harness"]), "unsupported observation transport")
+    _need(record["status"] == "complete" and record["limits"] == [
+        "local-observer-trust", "not-understanding-or-compliance",
+    ], "context observation must retain its completion and guarantee boundaries")
+    pages = record["pages"]
+    _need(isinstance(pages, list) and bool(pages), "context observation needs complete pages")
+    tools = set()
+    for number, page in enumerate(pages, 1):
+        _need(isinstance(page, dict) and set(page) == {
+            "page", "total_pages", "content_digest", "tool_use_id", "root_turn_id",
+        }, "invalid context page observation")
+        _need(type(page["page"]) is int and page["page"] == number
+              and type(page["total_pages"]) is int and page["total_pages"] == len(pages)
+              and _text(page["tool_use_id"]) and page["tool_use_id"] not in tools,
+              "incomplete or ambiguous observed page set")
+        digest = page["content_digest"]
+        _need(isinstance(digest, str) and len(digest) == 64
+              and all(c in "0123456789abcdef" for c in digest), "invalid observed page digest")
+        _need(_text(page["root_turn_id"]) if record["harness"] == "codex"
+              else page["root_turn_id"] is None, "observed root relationship missing")
+        tools.add(page["tool_use_id"])
+    expected = [{"version_digest": v["version_digest"],
+                 "returned_content_digest": sha256(v["body"].encode("utf-8")).hexdigest()}
+                for v in sorted(delivery["constraints"], key=lambda v: v["version_digest"])]
+    _need(record["versions"] == expected, "observed versions differ from exact delivery")
+
+
+def load_ledger(path: Path, policy: dict[str, Any] | None, *,
+                _content: bytes | None = None) -> tuple[dict[str, Any], str]:
     """Strict new-protocol replay; unrelated historic unknown types remain visible elsewhere."""
     ledger = _empty()
     if policy and not path.exists():
         raise KnowledgeError(
             "knowledge_corrupt: activated event ledger is missing", code="knowledge_corrupt"
         )
-    content = path.read_bytes() if path.exists() else b""
+    content = _content if _content is not None else (path.read_bytes() if path.exists() else b"")
     if policy and content and not content.endswith(b"\n"):
         raise KnowledgeError("knowledge_corrupt: unterminated event log", code="knowledge_corrupt")
     prefix = sha256()
@@ -336,7 +405,7 @@ def load_ledger(path: Path, policy: dict[str, Any] | None) -> tuple[dict[str, An
             continue
         try:
             raw = json.loads(line, object_pairs_hook=_unique_pairs)
-            event = parse_event_line(line)
+            event = _event_from_object(raw)
         except (ValueError, TypeError, KeyError) as exc:
             if policy or "knowledge_" in line:
                 raise KnowledgeError(
@@ -542,7 +611,15 @@ def _apply(
         assert isinstance(record, dict)
         kind = record.get("kind")
         _need(isinstance(kind, str), "knowledge record kind must be a string")
-        if kind in {"statement", "challenge", "acquisition", "emitted"}:
+        if kind == "context-acquisition":
+            delivery = ledger["deliveries"].get(record.get("delivery_id"))
+            _need(delivery is not None, "context observation needs an exact delivery")
+            validate_context_observation(record, policy, request["change_id"], delivery)
+            identifier = record["observation_id"]
+            _need(identifier not in ledger["context_observations"],
+                  "context observation already recorded by another operation")
+            ledger["context_observations"][identifier] = deepcopy(record)
+        elif kind in {"statement", "challenge", "acquisition", "emitted"}:
             delivery = ledger["deliveries"].get(record.get("delivery_id"))
             _need(
                 delivery is not None and delivery["change_id"] == request["change_id"],
@@ -575,12 +652,30 @@ def _apply(
                         request["change_id"],
                     )
             elif kind == "acquisition":
-                _need(
-                    record.get("producer") in policy.get("observation_issuers", [])
-                    and record.get("original_receipt")
-                    and _text(record.get("returned_content_digest")),
-                    "acquisition needs a recognized observer and original receipt",
-                )
+                _need(record.get("producer") in policy.get("observation_issuers", []),
+                      "acquisition needs a recognized observer")
+                if record.get("schema_version") == ACQUISITION_OBSERVATION_SCHEMA:
+                    _need(set(record) == {
+                        "schema_version", "kind", "producer", "delivery_id", "version_digest",
+                        "session_id", "entry_id", "returned_content_digest", "observation_id",
+                    }, "v2 acquisition has missing or unknown fields")
+                    observed = ledger["context_observations"].get(record["observation_id"])
+                    _need(observed is not None, "v2 acquisition lacks its context observation")
+                    _need(all(record[k] == observed[k] for k in (
+                        "producer", "delivery_id", "session_id", "entry_id",
+                    )) and observed["change_id"] == request["change_id"],
+                          "v2 acquisition observation belongs to another object")
+                    _need({"version_digest": record["version_digest"],
+                           "returned_content_digest": record["returned_content_digest"]}
+                          in observed["versions"], "v2 acquisition version is not observed")
+                    _need(not any(o.get("observation_id") == record["observation_id"]
+                                  and o["version_digest"] == record["version_digest"]
+                                  for o in ledger["observations"]),
+                          "v2 acquisition already recorded by another operation")
+                else:
+                    _need(record.get("schema_version") is None and record.get("original_receipt")
+                          and _text(record.get("returned_content_digest")),
+                          "legacy acquisition needs original receipt; unknown schema is not v1")
                 body = ledger["versions"][record["version_digest"]]["body"]
                 _need(
                     record["returned_content_digest"] == sha256(body.encode("utf-8")).hexdigest(),
@@ -1048,6 +1143,8 @@ def _view(
         "blocking_reasons": blockers,
         "statements": [s for s in ledger["statements"] if s["change_id"] == change],
         "observations": [s for s in ledger["observations"] if s["change_id"] == change],
+        "context_observations": [s for s in ledger["context_observations"].values()
+                                 if s["change_id"] == change],
         "missing_observations": ["understanding", "compliance"]
         + (
             []
@@ -1076,18 +1173,44 @@ def _context(state: Any, extra_paths: list[str] | None = None) -> dict[str, Any]
     }
 
 
+@dataclass(frozen=True)
+class KnowledgeInputs:
+    """One action's replay inputs. Never retained or reused by a later action."""
+
+    policy: dict[str, Any] | None
+    candidate: dict[str, Any] | None
+    ledger: dict[str, Any]
+    revision: str
+    states: dict[str, Any]
+    lines: list[str]
+    effective_lines: list[str]
+
+
+def read_inputs(root: Path, *, events_file: Path | None = None) -> KnowledgeInputs:
+    from keepsail.core.reducer import derive_state_from_lines
+
+    path = events_file or root / ".harness/events.jsonl"
+    policy, candidate = policy_configuration(root)
+    content = path.read_bytes() if path.exists() else b""
+    ledger, revision = load_ledger(path, policy, _content=content)
+    lines = content.decode("utf-8").splitlines()
+    effective_lines = list(effective_event_lines(lines))
+    return KnowledgeInputs(policy, candidate, ledger, revision,
+                           derive_state_from_lines(effective_lines, _effective=True),
+                           lines, effective_lines)
+
+
 def report(
     root: Path,
     change: str,
     *,
     events_file: Path | None = None,
     extra_paths: list[str] | None = None,
+    inputs: KnowledgeInputs | None = None,
 ) -> dict[str, Any]:
-    from keepsail.core.reducer import derive_state
-
-    path = events_file or root / ".harness/events.jsonl"
-    policy, candidate = policy_configuration(root)
-    ledger, revision = load_ledger(path, policy)
+    replay = inputs or read_inputs(root, events_file=events_file)
+    policy, candidate = replay.policy, replay.candidate
+    ledger, revision = replay.ledger, replay.revision
     if policy is None:
         view: dict[str, Any] = {"coverage": "not_recorded", "revision": revision}
         if candidate is not None:
@@ -1096,7 +1219,7 @@ def report(
                 "policy_digest": candidate["policy_digest"],
             }
         return view
-    state = derive_state(path).get(change)
+    state = replay.states.get(change)
     _need(state is not None, "unknown Change")
     assert state is not None
     verified = (
@@ -1254,10 +1377,27 @@ def _validate_execution(
 def validate_event(events_file: Path, event: Event) -> None:
     root = events_file.parent.parent
     if event.type == "knowledge_checkpointed":
-        expected = checkpoint(root, event.change_id, events_file=events_file)
+        if event.payload.get("schema_version") == "knowledge-checkpoint/v2":
+            from keepsail.core.knowledge_checkpoint import make_checkpoint
+            inputs = read_inputs(root, events_file=events_file)
+            expected = make_checkpoint(root, event.change_id, inputs, resolve_contract_base(root))
+            blocking = report(root, event.change_id, inputs=inputs)["blocking_reasons"]
+        elif event.payload.get("representation") == (
+            "legacy-bootstrap-derived-not-original-event-bytes"
+        ):
+            from keepsail.core.knowledge_checkpoint import legacy_bootstrap_checkpoint
+            inputs = read_inputs(root, events_file=events_file)
+            expected = legacy_bootstrap_checkpoint(root, event.change_id, inputs,
+                                                   resolve_contract_base(root))
+            blocking = report(root, event.change_id, inputs=inputs)["blocking_reasons"]
+        else:
+            expected = checkpoint(root, event.change_id, events_file=events_file)
+            blocking = expected["view"]["blocking_reasons"]
         _need(event.payload == expected, "knowledge checkpoint does not match the recorded facts")
-        _need(not expected["view"]["blocking_reasons"], "unresolved knowledge obligations")
+        _need(not blocking, "unresolved knowledge obligations")
     elif event.type in EVENT_TYPES:
+        _need((event.framework_state or {}).get("schema_version")
+              != "legacy-bootstrap-operation/v1", "derived bootstrap operations are export-only")
         from keepsail.core.reducer import derive_state
 
         state = derive_state(events_file).get(event.change_id)
@@ -1330,17 +1470,31 @@ def checkpoint(root: Path, change: str, *, events_file: Path | None = None) -> d
     return {**record, "digest": digest_record(record)}
 
 
-def retain_checkpoint(events_file: Path, change: str) -> None:
+def retain_checkpoint(events_file: Path, change: str, *, compact: bool = True,
+                      bootstrap: bool = False) -> None:
     """Called by attestation export, through the normal strict writer."""
     root = events_file.parent.parent
     if load_policy(root) is None:
         return
     from keepsail.core.clock import utc_now_iso
     from keepsail.core.events import Actor
+    from keepsail.core.knowledge_checkpoint import legacy_bootstrap_checkpoint, make_checkpoint
     from keepsail.core.ulid import new_event_id
     from keepsail.core.writer import EventWriter
 
-    payload = checkpoint(root, change, events_file=events_file)
+    inputs = read_inputs(root, events_file=events_file)
+    if compact:
+        payload = make_checkpoint(root, change, inputs, resolve_contract_base(root))
+    elif bootstrap:
+        payload = legacy_bootstrap_checkpoint(root, change, inputs, resolve_contract_base(root))
+    else:
+        payload = checkpoint(root, change, events_file=events_file)
+    for line in reversed(inputs.lines):
+        raw = json.loads(line)
+        if raw.get("change_id") == change and raw.get("type") == "knowledge_checkpointed":
+            if raw.get("payload", {}).get("digest") == payload["digest"]:
+                return
+            break
     EventWriter(events_file).emit(
         Event(
             event_id=new_event_id(),
@@ -1360,19 +1514,38 @@ def validate_checkpoint(
     state: Any,
     *,
     required_events: list[dict[str, Any]] | None = None,
+    retained_facts: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Pure retained-evidence validation. No local events/state/policy are consulted.
 
     CAS prefix receipts are retained here; their byte-level validation belongs to
     the live ledger. This snapshot revalidates recognized subjects and conclusions.
     """
-    _need(
-        payload.get("schema_version") == "knowledge-checkpoint/v1", "missing knowledge checkpoint"
-    )
+    compact = payload.get("schema_version") == "knowledge-checkpoint/v2"
+    _need(compact or payload.get("schema_version") == "knowledge-checkpoint/v1",
+          "missing knowledge checkpoint")
     _need(
         payload.get("digest") == digest_record({k: v for k, v in payload.items() if k != "digest"}),
         "knowledge checkpoint digest mismatch",
     )
+    if compact:
+        from keepsail.core.knowledge_checkpoint import compact_facts, replay_facts
+        _need(payload.get("policy_digest") == policy["policy_digest"],
+              "checkpoint does not use the trusted knowledge policy")
+        _need(retained_facts is not None, "compact checkpoint lacks its Git-resolved fact closure")
+        assert retained_facts is not None
+        ledger = replay_facts(retained_facts, policy)
+        indexed_facts = {f["source_event_id"]: f for f in retained_facts}
+        for expected in compact_facts(required_events or []):
+            _need(indexed_facts.get(expected["source_event_id"]) == expected,
+                  "checkpoint omits or changes trusted historical knowledge")
+    else:
+        ledger = _replay_v1_checkpoint(payload, policy, required_events=required_events)
+    return _validate_checkpoint_view(payload, policy, state, ledger, compact=compact)
+
+
+def _replay_v1_checkpoint(payload: dict[str, Any], policy: dict[str, Any], *,
+                          required_events: list[dict[str, Any]] | None) -> dict[str, Any]:
     _need(payload.get("policy") == policy, "checkpoint does not use the trusted knowledge policy")
     ledger = _empty()
     events = payload.get("events")
@@ -1397,6 +1570,11 @@ def validate_checkpoint(
             indexed.get(required["event_id"]) == required,
             "checkpoint omits or changes trusted historical knowledge",
         )
+    return ledger
+
+
+def _validate_checkpoint_view(payload: dict[str, Any], policy: dict[str, Any], state: Any,
+                              ledger: dict[str, Any], *, compact: bool) -> dict[str, Any]:
     verified = (
         (state.current_code_subject or {}).get("subject_id")
         if (
@@ -1406,13 +1584,18 @@ def validate_checkpoint(
         else None
     )
     view = _view(ledger, policy, state.change_id, _context(state), verified)
-    retained = payload.get("view", {})
-    _need(
-        view["basis_digest"] == retained.get("basis_digest")
-        and view["constraints"] == retained.get("constraints")
-        and view["impacts"] == retained.get("impacts"),
-        "knowledge checkpoint basis changed",
-    )
+    if compact:
+        from keepsail.core.knowledge_checkpoint import view_digest
+        _need(view_digest(view) == payload.get("expected_view_digest"),
+              "knowledge checkpoint basis changed")
+    else:
+        retained = payload.get("view", {})
+        _need(
+            view["basis_digest"] == retained.get("basis_digest")
+            and view["constraints"] == retained.get("constraints")
+            and view["impacts"] == retained.get("impacts"),
+            "knowledge checkpoint basis changed",
+        )
     _need(not view["blocking_reasons"], "unresolved retained knowledge obligations")
     _need(
         any(
@@ -1453,8 +1636,10 @@ def validate_checkpoint(
     return view
 
 
-def check(root: Path, change: str, *, paths: list[str] | None = None) -> dict[str, Any]:
-    view = report(root, change)
+def check(root: Path, change: str, *, paths: list[str] | None = None,
+          inputs: KnowledgeInputs | None = None) -> dict[str, Any]:
+    replay = inputs or read_inputs(root)
+    view = report(root, change, inputs=replay)
     if view["coverage"] == "not_recorded":
         return view
     if paths:
@@ -1481,7 +1666,7 @@ def check(root: Path, change: str, *, paths: list[str] | None = None) -> dict[st
         if unknown_constraints:
             view["blocking_reasons"].append("unknown applicability cannot establish independence")
     if not paths:
-        ledger, _ = load_ledger(root / ".harness/events.jsonl", load_policy(root))
+        ledger = replay.ledger
         if not any(
             d["change_id"] == change
             and d["basis_digest"] == view["basis_digest"]

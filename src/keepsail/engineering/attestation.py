@@ -29,6 +29,7 @@ from keepsail.core.approval import (
     load_recognition,
     make_code_subject,
     missing_coverage,
+    resolve_review_reference,
     validate_approval,
     validate_code_subject,
     validate_evidence,
@@ -39,6 +40,9 @@ from keepsail.core.reducer import derive_state
 from keepsail.core.scope_match import GitScopeError, resolve_commit, tracked_files_at_commit
 
 ATTESTATIONS_DIRNAME = ".harness/attestations"
+# Reader-only rollout keeps this at v1 until the decoder is in the trusted base.
+# The subsequent producer release enables v2 without changing verifier selection.
+ATTESTATION_FORMAT = "v1"
 PLACEHOLDER_IDENTITY = "cli"
 MILESTONE_EVENTS: frozenset[str] = frozenset(
     {"plan_approved", "implementation_complete", "code_review_passed"}
@@ -124,12 +128,69 @@ def extract_change_events(events_file: Path, slug: str) -> list[str]:
     return out
 
 
-def write_attestation(events_file: Path, attestations_dir: Path, slug: str) -> Path:
+def write_attestation(events_file: Path, attestations_dir: Path, slug: str, *,
+                      format_version: str | None = None) -> Path:
     """Snapshot the per-change event slice to ``<attestations_dir>/<slug>.jsonl``
     (idempotent overwrite)."""
-    from keepsail.core.knowledge import retain_checkpoint
-    retain_checkpoint(events_file, slug)
+    from keepsail.core.knowledge import load_policy, read_inputs, retain_checkpoint
+    selected = format_version or ATTESTATION_FORMAT
+    if selected not in {"v1", "v2", "v1-bootstrap"}:
+        raise ValueError("unsupported attestation output format")
+    retain_checkpoint(events_file, slug, compact=selected == "v2",
+                       bootstrap=selected == "v1-bootstrap")
+    root = events_file.parent.parent
+    if load_policy(root) is not None and selected == "v2":
+        from keepsail.core.approval import resolve_contract_base
+        from keepsail.core.attestation_format import make_attestation
+        from keepsail.core.context import _approval_lineage
+        from keepsail.core.knowledge_checkpoint import make_checkpoint
+        inputs = read_inputs(root, events_file=events_file)
+        state = inputs.states[slug]
+        record = make_attestation(slug, inputs, make_checkpoint(
+            root, slug, inputs, resolve_contract_base(root)), _approval_lineage(
+                root, slug, state.effective_approval, lines=inputs.effective_lines, effective=True))
+        out_path = attestations_dir / "v2" / f"{slug}.jsonl"
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        content = json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n"
+        if not out_path.exists() or out_path.read_text(encoding="utf-8") != content:
+            out_path.write_text(content, encoding="utf-8")
+        return out_path
     lines = extract_change_events(events_file, slug)
+    if selected == "v1-bootstrap" and load_policy(root) is not None:
+        # Old readers require inline review conclusions. This explicit one-time
+        # compatibility projection never changes the retained native originals.
+        preceding: list[dict[str, Any]] = []
+        projected = []
+        for line in lines:
+            event = parse_event_line(line)
+            if event.payload.get("review_reference_version"):
+                from keepsail.core.approval import digest_record
+                from keepsail.core.events import Actor, serialize_event
+                payload = dict(event.payload)
+                kind = "plan" if event.type.startswith("plan_") else "code"
+                decision = "approve" if event.type.endswith(("approved", "passed")) else "reject"
+                subject = (payload.get("approval") or payload.get("code_subject") or {}).get(
+                    "subject_id", payload.get("candidate_id"))
+                if not isinstance(subject, str):
+                    raise ValueError("bootstrap review reference lacks its exact subject")
+                payload["evidence"] = resolve_review_reference(
+                    payload, preceding, change_id=slug, kind=kind, decision=decision,
+                    subject_id=subject)
+                payload.pop("review_reference_version")
+                event = Event(
+                    event_id="derived-" + digest_record([event.event_id, payload]),
+                    type=event.type, change_id=event.change_id, timestamp=event.timestamp,
+                    actor=Actor(event.actor.type, event.actor.identifier),
+                    framework=event.framework,
+                    payload=payload, framework_state={
+                        "representation": "legacy-bootstrap-derived-not-original-event-bytes",
+                        "source_event_id": event.event_id,
+                    })
+                line = serialize_event(event)
+            projected.append(line)
+            if event.type == "review_evidence_imported":
+                preceding.append(event.payload["evidence"])
+        lines = projected
     attestations_dir.mkdir(parents=True, exist_ok=True)
     out_path = attestations_dir / f"{slug}.jsonl"
     out_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -181,6 +242,36 @@ def check_attestation(
             events.append(event)
     if recognition is None:
         blockers.extend(_review_receipt_blockers(events, slug))
+        blockers.extend(_review_reference_blockers(events, slug))
+    return blockers
+
+
+def _review_reference_blockers(events: list[Event], slug: str) -> list[str]:
+    """A reference can use only the exact conclusion imported before its milestone."""
+    available: list[dict[str, Any]] = []
+    blockers = []
+    for event in events:
+        payload = event.payload
+        if event.type == "review_evidence_imported":
+            if isinstance(payload.get("evidence"), dict) and not payload.get("historical_only"):
+                available.append(payload["evidence"])
+        if payload.get("review_reference_version") is None:
+            continue
+        try:
+            if event.type not in {
+                "plan_approved", "plan_rejected", "code_review_passed", "code_review_failed",
+            }:
+                raise ApprovalError("review reference on an unsupported lifecycle event")
+            kind = "plan" if event.type.startswith("plan_") else "code"
+            decision = ("approve" if event.type in {"plan_approved", "code_review_passed"}
+                        else "reject")
+            subject = payload.get("approval" if kind == "plan" else "code_subject", {})
+            subject_id = (payload.get("candidate_id") if event.type == "plan_rejected"
+                          else subject.get("subject_id") if isinstance(subject, dict) else None)
+            resolve_review_reference(payload, available, change_id=slug, kind=kind,
+                                     decision=decision, subject_id=str(subject_id or ""))
+        except (ApprovalError, TypeError, KeyError) as exc:
+            blockers.append(f"attestation {slug}: invalid review reference: {exc}")
     return blockers
 
 
@@ -262,6 +353,7 @@ class AttestationVerdict:
     subjects: list[str] = field(default_factory=list)
     covered: list[str] = field(default_factory=list)
     attestations: list[str] = field(default_factory=list)
+    attestation_paths: dict[str, str] = field(default_factory=dict)
 
 
 def _is_attestation_path(canonical: str) -> bool:
@@ -300,7 +392,7 @@ def verify_attestations(
 
     # Attestation files must be ADD-only (closes the "edit a trusted attestation
     # to fabricate" vector). Collect the slugs of newly-added attestations.
-    added_slugs: list[str] = []
+    added_attestations: list[tuple[str, str]] = []
     for e in attestation_entries:
         if e.status != "A":
             blockers.append(
@@ -310,12 +402,16 @@ def verify_attestations(
             continue
         for p in e.paths:
             if _is_attestation_path(p) and p.endswith(".jsonl"):
-                added_slugs.append(posixpath.basename(p)[: -len(".jsonl")])
+                added_attestations.append((posixpath.basename(p)[: -len(".jsonl")], p))
 
     covered: set[str] = set()
     validated: list[str] = []
-    for slug in added_slugs:
-        att_path = root / ATTESTATIONS_DIRNAME / f"{slug}.jsonl"
+    validated_paths: dict[str, str] = {}
+    for slug, relative in added_attestations:
+        if sum(s == slug for s, _ in added_attestations) != 1:
+            blockers.append(f"attestation {slug}: ambiguous duplicate slug in the diff")
+            continue
+        att_path = root / relative
         if not att_path.exists():
             blockers.append(f"attestation file for {slug!r} not found at head")
             continue
@@ -351,6 +447,7 @@ def verify_attestations(
                 recognition=recognition,
                 base=base,
                 head=head,
+                attestation_path=att_path,
             )
             blockers.extend(att_blockers)
             if att_blockers:
@@ -371,6 +468,7 @@ def verify_attestations(
             continue
         covered |= this_covered
         validated.append(slug)
+        validated_paths[slug] = relative
         disclosure = independence_for_attestation(att_path)
         # Both roles, same bar. Plan review joined on the cut that made a plan-reviewer
         # skip reachable after a rejection; leaving it off would have shipped the escape
@@ -399,6 +497,7 @@ def verify_attestations(
         subjects=sorted(subjects),
         covered=sorted(covered),
         attestations=validated,
+        attestation_paths=validated_paths,
     )
 
 
@@ -411,6 +510,7 @@ def _new_contract_blockers(
     recognition: Recognition,
     base: str | None,
     head: str | None,
+    attestation_path: Path | None = None,
 ) -> list[str]:
     """Check authority and subjects for a new-contract attestation."""
     blockers: list[str] = []
@@ -500,7 +600,7 @@ def _new_contract_blockers(
     elif verification.get("outcome") != "passed":
         blockers.append(f"attestation {slug}: current verification did not pass")
 
-    attestation_events = events_from_stateful_attestation(root, slug)
+    attestation_events = events_from_stateful_attestation(root, slug, path=attestation_path)
     code_review = next(
         (event for event in reversed(attestation_events) if event.type == "code_review_passed"),
         None,
@@ -545,6 +645,7 @@ def _new_contract_blockers(
         missing = ["<invalid code subject>"]
     if missing:
         blockers.append(f"attestation {slug}: implementation coverage omits a changed file")
+    blockers.extend(_review_reference_blockers(attestation_events, slug))
     return blockers
 
 
@@ -556,7 +657,7 @@ def _knowledge_attestation(
         root, ref=base, candidate_ref=head or ("HEAD" if base else None)
     )
     checkpoints = []
-    for line in att_path.read_text(encoding="utf-8").splitlines():
+    for line in effective_event_lines(att_path.read_text(encoding="utf-8").splitlines()):
         if not line.strip():
             continue
         try:
@@ -577,6 +678,15 @@ def _knowledge_attestation(
         return
     if not checkpoints:
         raise ApprovalError("activated knowledge protocol requires a retained checkpoint")
+    if checkpoints[-1].get("schema_version") == "knowledge-checkpoint/v2":
+        from keepsail.core.approval import resolve_contract_base
+        from keepsail.core.knowledge_checkpoint import resolve_facts
+        trusted = resolve_commit(root, base) if base else resolve_contract_base(root)
+        if checkpoints[-1].get("baseline", {}).get("commit") != trusted:
+            raise ApprovalError("checkpoint baseline is not the trusted Git base")
+        facts = resolve_facts(root, checkpoints[-1], policy)
+        validate_checkpoint(checkpoints[-1], policy, state, retained_facts=facts)
+        return
     required: list[dict[str, Any]] = []
     if base:
         from keepsail.core.scope_match import file_text_at_commit
@@ -584,14 +694,19 @@ def _knowledge_attestation(
             if path.startswith(ATTESTATIONS_DIRNAME + "/") and path.endswith(".jsonl"):
                 for line in file_text_at_commit(root, base, path).splitlines():
                     raw = json.loads(line)
+                    if raw.get("schema_version") == "attestation/v2":
+                        raise ApprovalError("legacy checkpoint cannot omit a trusted v2 baseline")
                     if raw.get("type") == "knowledge_checkpointed":
+                        if raw["payload"].get("schema_version") != "knowledge-checkpoint/v1":
+                            raise ApprovalError("legacy checkpoint requires the v2 baseline reader")
                         required.extend(raw["payload"]["events"])
     validate_checkpoint(checkpoints[-1], policy, state, required_events=required)
 
 
-def events_from_stateful_attestation(root: Path, slug: str) -> list[Event]:
+def events_from_stateful_attestation(root: Path, slug: str, *,
+                                    path: Path | None = None) -> list[Event]:
     """Read one attestation's valid event lines for new-contract checks."""
-    path = root / ATTESTATIONS_DIRNAME / f"{slug}.jsonl"
+    path = path or root / ATTESTATIONS_DIRNAME / f"{slug}.jsonl"
     events: list[Event] = []
     try:
         lines = path.read_text(encoding="utf-8").splitlines()
@@ -657,6 +772,8 @@ def _classify_review(events: list[Event], milestone: str, author: str | None) ->
             if (evidence["kind"] != kind or evidence["decision"] != "approve"
                     or imported.payload.get("historical_only") is True
                     or imported.payload.get("evidence_digest") != evidence_digest(evidence)
+                    or (r.payload.get("review_reference_version") is not None
+                        and r.payload.get("evidence_digest") != evidence_digest(evidence))
                     or not isinstance(subject, dict)
                     or subject.get("subject_id") != evidence["subject_id"]):
                 break

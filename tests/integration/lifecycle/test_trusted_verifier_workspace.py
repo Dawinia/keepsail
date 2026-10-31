@@ -53,7 +53,8 @@ def test_required_verifier_rejects_unsuccessful_candidate_acceptance(outcome):
     assert (result.returncode == 0) == (outcome == "success")
 
 
-@pytest.mark.parametrize("case", ["valid", "missing-object", "symlink", "wrong-base"])
+@pytest.mark.parametrize("case", ["valid", "v2", "unknown-directory", "deep-directory",
+                                  "missing-object", "symlink", "wrong-base"])
 def test_workflow_projects_only_regular_target_evidence(tmp_path, case):
     source = tmp_path / "source"
     source.mkdir()
@@ -65,7 +66,11 @@ def test_workflow_projects_only_regular_target_evidence(tmp_path, case):
     git(source, "add", ".")
     git(source, "commit", "-qm", "trusted base")
     base = git(source, "rev-parse", "HEAD")
-    attest = source / ".harness/attestations/probe.jsonl"
+    relative = {"v2": ".harness/attestations/v2/probe.jsonl",
+                "unknown-directory": ".harness/attestations/unknown/probe.jsonl",
+                "deep-directory": ".harness/attestations/v2/deep/probe.jsonl"}.get(
+                    case, ".harness/attestations/probe.jsonl")
+    attest = source / relative
     attest.parent.mkdir(parents=True)
     original = b'{"fixture":"exact original bytes"}\n'
     attest.write_bytes(original)
@@ -101,12 +106,12 @@ def test_workflow_projects_only_regular_target_evidence(tmp_path, case):
             "HEAD_SHA": "0" * 40 if case == "missing-object" else head,
         },
     )
-    assert (result.returncode == 0) == (case == "valid"), result.stderr
+    assert (result.returncode == 0) == (case in {"valid", "v2"}), result.stderr
     assert (trusted / "source.py").read_text() == "trusted source\n"
     assert not (trusted / ".harness/knowledge-recognition.yaml").exists()
     assert git(trusted, "rev-parse", "HEAD") == base
-    target = trusted / ".harness/attestations/probe.jsonl"
-    if case == "valid":
+    target = trusted / relative
+    if case in {"valid", "v2"}:
         assert target.read_bytes() == original
     else:
         assert not target.exists()

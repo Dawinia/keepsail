@@ -26,6 +26,7 @@ from keepsail.core.approval import (
     load_recognition,
     make_code_subject,
     missing_coverage,
+    resolve_review_reference,
     validate_approval,
     validate_code_subject,
     validate_evidence,
@@ -170,9 +171,17 @@ def retained_history(payload: dict[str, Any], change: str) -> list[Event]:
     _need(isinstance(code, dict), "missing retained code review")
     assert isinstance(code, dict)
     validate_evidence(code, change_id=change)
+    retained_code = review.payload.get("evidence")
+    if review.payload.get("review_reference_version") is not None:
+        retained_code = resolve_review_reference(
+            review.payload, [e.payload["evidence"] for e in events[:events.index(review)]
+                             if e.type == "review_evidence_imported"
+                             and not e.payload.get("historical_only")],
+            change_id=change, kind="code", decision="approve", subject_id=subject["subject_id"],
+        )
     _need(code.get("decision") == "approve" and code.get("kind") == "code" and
           code.get("subject_id") == subject["subject_id"] and
-          review.payload.get("evidence") == code, "code review mismatch")
+          retained_code == code, "code review mismatch")
     count = payload.get("prefix_count")
     _need(type(count) is int and 0 <= count <= len(events), "invalid source prefix count")
     fact = payload.get("merge_fact", {})
