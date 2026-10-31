@@ -171,6 +171,20 @@ def test_reader_bootstrap_cannot_drop_target_knowledge_or_acquisition(
     assert log.read_bytes() == before
 
 
+def test_reader_only_release_rejects_explicit_v2_before_append(tmp_path, monkeypatch):
+    from keepsail.engineering import attestation
+
+    w = Workspace(tmp_path)
+    log = w.root / ".harness/events.jsonl"
+    before = log.read_bytes()
+    monkeypatch.setattr(attestation, "ATTESTATION_FORMAT", "v1")
+    with pytest.raises(ValueError, match="reader-only release"):
+        write_attestation(log, w.root / ".harness/attestations", "change-a",
+                           format_version="v2")
+    assert log.read_bytes() == before
+    assert not (w.root / ".harness/attestations/v2/change-a.jsonl").exists()
+
+
 def test_reader_bootstrap_preserves_other_task_statement_source_without_rehash(
     tmp_path,
 ):

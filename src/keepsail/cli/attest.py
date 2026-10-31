@@ -29,6 +29,7 @@ from keepsail.core.paths import (
     find_harness_root,
 )
 from keepsail.engineering.attestation import (
+    ATTESTATION_FORMAT,
     ATTESTATIONS_DIRNAME,
     gate_bypass_for_attestation,
     independence_for_attestation,
@@ -96,7 +97,9 @@ def attest_group() -> None:
 
 @attest_group.command("write")
 @click.argument("slug")
-@click.option("--format", "output_format", type=click.Choice(["v2", "v1-bootstrap"]),
+@click.option("--format", "output_format",
+              type=click.Choice(["v2", "v1-bootstrap"] if ATTESTATION_FORMAT == "v2"
+                                else ["v1-bootstrap"]),
               default=None,
               help="Output version; v1-bootstrap is limited to reader-first upgrades.")
 @click.option(

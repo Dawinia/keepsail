@@ -136,6 +136,8 @@ def write_attestation(events_file: Path, attestations_dir: Path, slug: str, *,
     selected = format_version or ATTESTATION_FORMAT
     if selected not in {"v1", "v2", "v1-bootstrap"}:
         raise ValueError("unsupported attestation output format")
+    if ATTESTATION_FORMAT == "v1" and selected == "v2":
+        raise ValueError("reader-only release cannot produce v2; upgrade the producer first")
     retain_checkpoint(events_file, slug, compact=selected == "v2",
                        bootstrap=selected == "v1-bootstrap")
     root = events_file.parent.parent
