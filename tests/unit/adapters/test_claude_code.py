@@ -38,6 +38,68 @@ _RESOLVED_CLI = "/abs/bin/keepsail"
 _EXPECTED_SESSION_COMMAND = f"{_RESOLVED_CLI} change resume"
 
 
+def test_context_opt_in_is_one_transaction_and_survives_reinstall(tmp_path):
+    from keepsail.adapters.agent._settings_merge import apply_settings_merge_plan
+
+    path = tmp_path / ".claude/settings.local.json"
+    path.parent.mkdir()
+    original = {"custom": "preserve", "hooks": {
+        "SessionStart": [{"hooks": [{"type": "command", "command": "user-start"}]},
+                         {"hooks": [{"type": "command", "command": "old-keepsail change resume"}]}],
+        "PostToolUse": [{"matcher": "Bash", "hooks": [
+            {"type": "command", "command": "user-after"},
+        ]}],
+    }}
+    path.write_text(json.dumps(original), encoding="utf-8")
+    adapter = ClaudeCodeAdapter()
+    adapter.knowledge_context = True
+    plan = adapter.plan_hook_install(tmp_path, hook_executable="/env space/keepsail-hook",
+                                     cli_executable="/env space/keepsail")
+    desired = json.loads(plan.desired_bytes)
+    assert desired["custom"] == "preserve"
+    commands = _session_commands(desired)
+    assert "user-start" in commands
+    assert sum("--event session-start" in command for command in commands) == 1
+    assert not any("change resume" in command for command in commands)
+    assert "UserPromptSubmit" in desired["hooks"]
+    assert len(desired["hooks"]["PostToolUse"]) == 2
+    apply_settings_merge_plan(plan)
+    repeated = ClaudeCodeAdapter().plan_hook_install(
+        tmp_path, hook_executable="/env space/keepsail-hook", cli_executable="/env space/keepsail",
+    )
+    assert not repeated.changed
+    current = json.loads(path.read_text(encoding="utf-8"))
+    current["user_added_later"] = {"preserve": True}
+    path.write_text(json.dumps(current), encoding="utf-8")
+    adapter.on_uninstall(tmp_path)
+    assert json.loads(path.read_text(encoding="utf-8"))["user_added_later"] == {"preserve": True}
+    adapter.knowledge_context = False
+    disabled = adapter.plan_hook_install(tmp_path, hook_executable="/env space/keepsail-hook",
+                                         cli_executable="/env space/keepsail")
+    restored = json.loads(disabled.desired_bytes)
+    assert restored["hooks"]["PostToolUse"] == original["hooks"]["PostToolUse"]
+    assert "UserPromptSubmit" not in restored["hooks"]
+
+
+def test_permission_prose_does_not_opt_in_to_context(tmp_path):
+    path = tmp_path / ".claude/settings.local.json"
+    path.parent.mkdir()
+    path.write_text(json.dumps({
+        "permissions": {"allow": [
+            "Bash(keepsail-hook --agent claude-code --event session-start *)",
+        ]},
+        "hooks": {"SessionStart": [{"hooks": [
+            {"type": "command", "command": 'echo "user-owned'},
+        ]}]},
+    }), encoding="utf-8")
+    planned = ClaudeCodeAdapter().plan_hook_install(
+        tmp_path, hook_executable="/env/keepsail-hook", cli_executable="/env/keepsail",
+    )
+    settings = json.loads(planned.desired_bytes)
+    assert _commands(settings) == ["/env/keepsail-hook --agent claude-code"]
+    assert "PostToolUse" not in settings["hooks"]
+
+
 def _which_both(name: str) -> str | None:
     """Resolve both binaries install_hooks needs (PreToolUse + SessionStart)."""
     return {
