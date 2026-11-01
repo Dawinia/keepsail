@@ -285,9 +285,14 @@ def test_codex_complete_cli_returns_require_observed_root_turn(tmp_path, context
         before = (tmp_path / ".harness/events.jsonl").read_bytes()
         workspace.submit("record", workspace.operation(record={**original, **mutation}), code=2)
         assert (tmp_path / ".harness/events.jsonl").read_bytes() == before
-    assert "private" not in "".join(p.read_text(encoding="utf-8") for p in (
-        tmp_path / ".harness/operation-logs/context/turns"
-    ).glob("*.json"))
+    turns = list((tmp_path / ".harness/operation-logs/context/turns").glob("*.json"))
+    assert len(turns) == 1
+    assert json.loads(turns[0].read_text(encoding="utf-8")) == {
+        "attribution": "user-prompt", "session_id": "codex-a",
+        "startup_id": startup["startup_id"], "turn_id": "root-turn-a",
+        "callback": {"hook_event_name": "UserPromptSubmit", "session_id": "codex-a",
+                     "turn_id": "root-turn-a", "cwd": str(tmp_path)},
+    }
 
 
 def test_patch_gate_checks_entire_move_and_preserves_independent_work(tmp_path, context_workspace):
