@@ -5,14 +5,15 @@ ratified_by: dawinialo@163.com
 ratified_at: '2026-06-22T19:25:38.517675Z'
 ratified_text_hash: sha256:8a106295b2f00df8c9f657c22e02af8cf6b37cee29ee005e772647d62be48ed0
 last_reconciled_by: dawinialo@163.com
-last_reconciled_at: '2026-10-26T18:34:39.833751Z'
+last_reconciled_at: '2026-10-30T18:11:25.181720Z'
 last_reconcile_kind: self
-last_reconcile_justification: Reducer remains a fresh deterministic fold. Shared recovery
-  expansion uses only retained source/recognition/merge facts and validates exact
-  prefix; no mutable state or external calls influence replay. Invalid envelopes fail
-  closed. Independent exact review remains required.
+last_reconcile_justification: 'Reviewed the reducer and shared per-action replay:
+  effective event expansion is validated once, then the same deterministic fold constructs
+  fresh state from immutable input lines. No persistent state/cache or global mutation
+  was introduced; unsupported/corrupt derived envelopes fail closed. Independent exact
+  code review remains required.'
 reconciled_anchors:
-  src/keepsail/core/reducer.py: sha256:0509ed83e75a95b72d05191c5a56a8c8e7395e056087c1dff289ff56416003ae
+  src/keepsail/core/reducer.py: sha256:b71f5832b077fb63158f6020a66e8d22427b5ed3b5e301dd66f07b3cd39978fa
 ---
 State is a pure left-fold over the event log; never mutated in place.
 

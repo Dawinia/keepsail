@@ -19,8 +19,10 @@ introducing a second persistence format.
 from __future__ import annotations
 
 import json
+import os
 import posixpath
 import subprocess
+import sys
 from collections.abc import Iterable
 from dataclasses import dataclass
 from hashlib import sha256
@@ -39,6 +41,7 @@ from keepsail.core.scope_match import (
 PLAN_SUBJECT_VERSION = "plan-authority/v1"
 CODE_SUBJECT_VERSION = "code-subject/v1"
 EVIDENCE_VERSION = "review-evidence/v1"
+REVIEW_REFERENCE_VERSION = "review-reference/v2"
 RECOGNITION_VERSION = "review-recognition/v1"
 
 
@@ -61,12 +64,24 @@ def _pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 def load_json_record(path: Path) -> dict[str, Any]:
     """Read one JSON object with duplicate-key rejection."""
+    return load_json_input(path)
+
+
+def load_json_input(source: str | Path, *, input_digest: bool = False) -> dict[str, Any]:
+    """Read a file or explicit CLI stdin once, using the same strict object parser.
+
+    Path objects always name files, including Path('-'); only the CLI string '-'
+    selects stdin. Callers retain responsibility for their existing path boundary.
+    """
     try:
-        value = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=_pairs)
+        data = sys.stdin.buffer.read() if source == "-" else Path(source).read_bytes()
+        value = json.loads(data.decode("utf-8"), object_pairs_hook=_pairs)
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise ApprovalError(f"cannot read JSON record {path}: {exc}") from exc
+        raise ApprovalError(f"cannot read JSON record {source}: {exc}") from exc
     if not isinstance(value, dict):
-        raise ApprovalError(f"JSON record {path} must be an object")
+        raise ApprovalError(f"JSON record {source} must be an object")
+    if input_digest:
+        value["_input_digest"] = sha256(data).hexdigest()
     return value
 
 
@@ -299,6 +314,172 @@ def validate_approval(value: object, *, change_id: str | None = None) -> dict[st
     return dict(value)
 
 
+def continued_approval_lineage(
+    approval: dict[str, Any], lineage: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Project only explicitly continued frozen artifacts; uncertainty keeps full text.
+
+    This validates the reviewed declaration's bindings, not its substantive claim
+    of completeness. Neither a disk file nor a heading can replace an obligation.
+    """
+    import re
+
+    subject = validate_approval(approval)["subject"]
+    declarations: list[tuple[str, str]] = []
+    for artifact in subject["artifacts"]:
+        blocks = re.findall(
+            r"^```keepsail-obligation-continuation\s*\n(.*?)^```\s*$",
+            artifact["content"], re.MULTILINE | re.DOTALL,
+        )
+        declarations.extend((artifact["path"], block) for block in blocks)
+    if len(declarations) != 1:
+        return lineage
+    try:
+        path, text = declarations[0]
+        declaration = json.loads(text, object_pairs_hook=_pairs)
+        if not isinstance(declaration, dict) or set(declaration) != {
+            "schema_version", "current_artifact", "scope", "prior_approval", "fallback",
+            "prior_approvals",
+        }:
+            return lineage
+        if (declaration["schema_version"] != "obligation-continuation/v1"
+                or declaration["current_artifact"] != path
+                or declaration["scope"] != (
+                    "all-current-obligations-with-explicit-historical-replacements")
+                or declaration["fallback"] != "retain-full-uncovered-lineage"
+                or declaration["prior_approval"] != subject.get("prior_approval")):
+            return lineage
+        current = {a["path"]: a for a in subject["artifacts"]}
+        prior = {a["approval_id"]: validate_approval(a) for a in lineage}
+        covered: dict[tuple[str, str], dict[str, Any]] = {}
+        rows = declaration["prior_approvals"]
+        if not isinstance(rows, list):
+            return lineage
+        seen = set()
+        for row in rows:
+            if set(row) != {"approval_id", "subject_id", "artifacts"}:
+                return lineage
+            aid = row["approval_id"]
+            if aid in seen or aid not in prior or row["subject_id"] != prior[aid]["subject_id"]:
+                return lineage
+            seen.add(aid)
+            originals = {a["path"]: a for a in prior[aid]["subject"]["artifacts"]}
+            if not isinstance(row["artifacts"], list):
+                return lineage
+            for item in row["artifacts"]:
+                origin, target = originals.get(item["path"]), current.get(item["continued_in"])
+                if (origin is None or target is None or item["digest"] != origin["digest"]
+                        or (aid, item["path"]) in covered):
+                    return lineage
+                if item["coverage"] == "entire-artifact-unchanged":
+                    if (set(item) != {"path", "digest", "continued_in", "coverage"}
+                            or target["digest"] != origin["digest"]):
+                        return lineage
+                elif item["coverage"] == "all-current-obligations":
+                    expected = {c["id"] for c in subject["commitments"]
+                                if c["artifact_path"] == target["path"]}
+                    if (set(item) != {"path", "digest", "continued_in", "coverage", "commitments"}
+                            or not expected or not isinstance(item["commitments"], list)
+                            or len(set(item["commitments"])) != len(item["commitments"])
+                            or set(item["commitments"]) != expected):
+                        return lineage
+                else:
+                    return lineage
+                covered[aid, item["path"]] = item
+        if any((previous["approval_id"], artifact["path"]) not in covered
+               for previous in lineage for artifact in previous["subject"]["artifacts"]):
+            return lineage
+        result = []
+        for previous in lineage:
+            aid = previous["approval_id"]
+            artifacts = []
+            for artifact in previous["subject"]["artifacts"]:
+                binding = covered.get((aid, artifact["path"]))
+                artifacts.append({**{k: v for k, v in artifact.items() if k != "content"},
+                                  "continuation": binding} if binding else artifact)
+            result.append({
+                "schema_version": "approval-lineage-projection/v1",
+                "approval_id": aid, "subject_id": previous["subject_id"],
+                "evidence_id": previous["evidence_id"],
+                "evidence_digest": previous["evidence_digest"],
+                "prior_approval": previous["subject"].get("prior_approval"),
+                "artifacts": artifacts,
+            } if all((aid, a["path"]) in covered
+                     for a in previous["subject"]["artifacts"]) else previous)
+        return result
+    except (ValueError, KeyError, TypeError):
+        return lineage
+
+
+def validate_retained_lineage(approval: dict[str, Any], lineage: list[dict[str, Any]]) -> None:
+    """Validate the public continuation index against the current reviewed text.
+
+    An indexed prior subject is historical identity, not a claim that its former
+    source bytes can be reconstructed. An uncovered approval stays complete.
+    """
+    import re
+
+    subject = validate_approval(approval)["subject"]
+    declarations = []
+    for artifact in subject["artifacts"]:
+        for block in re.findall(r"^```keepsail-obligation-continuation\s*\n(.*?)^```\s*$",
+                                artifact["content"], re.MULTILINE | re.DOTALL):
+            declarations.append((artifact["path"], json.loads(block, object_pairs_hook=_pairs)))
+    declaration = declarations[0][1] if len(declarations) == 1 else None
+    current = {a["path"]: a for a in subject["artifacts"]}
+    prior_id = subject.get("prior_approval")
+    seen = set()
+    for previous in lineage:
+        if previous.get("approval_id") != prior_id or prior_id in seen:
+            raise ApprovalError("missing, unordered or cyclic retained approval lineage")
+        seen.add(prior_id)
+        if previous.get("schema_version") is None:
+            checked = validate_approval(previous, change_id=approval["change_id"])
+            prior_id = checked["subject"].get("prior_approval")
+            continue
+        if (previous.get("schema_version") != "approval-lineage-projection/v1"
+                or declaration is None
+                or declaration.get("schema_version") != "obligation-continuation/v1"
+                or declaration.get("current_artifact") != declarations[0][0]
+                or declaration.get("prior_approval") != subject.get("prior_approval")
+                or declaration.get("fallback") != "retain-full-uncovered-lineage"
+                or declaration.get("scope") != (
+                    "all-current-obligations-with-explicit-historical-replacements")):
+            raise ApprovalError("retained lineage lacks a reviewed continuation")
+        rows = [row for row in declaration["prior_approvals"] if row["approval_id"] == prior_id]
+        if len(rows) != 1 or rows[0]["subject_id"] != previous.get("subject_id"):
+            raise ApprovalError("retained prior subject does not match continuation")
+        bindings = {item["path"]: item for item in rows[0]["artifacts"]}
+        if len(bindings) != len(rows[0]["artifacts"]) or set(bindings) != {
+            a["path"] for a in previous["artifacts"]
+        }:
+            raise ApprovalError("retained lineage artifact set mismatch")
+        for artifact in previous["artifacts"]:
+            item = bindings[artifact["path"]]
+            target = current.get(item["continued_in"])
+            if (item != artifact.get("continuation") or item["digest"] != artifact.get("digest")
+                    or "content" in artifact or target is None):
+                raise ApprovalError("retained artifact binding mismatch")
+            if item["coverage"] == "entire-artifact-unchanged":
+                valid = target["digest"] == item["digest"]
+            elif item["coverage"] == "all-current-obligations":
+                expected = {c["id"] for c in subject["commitments"]
+                            if c["artifact_path"] == target["path"]}
+                valid = bool(expected) and set(item["commitments"]) == expected
+            else:
+                valid = False
+            if not valid:
+                raise ApprovalError("retained continuation target mismatch")
+        prior_id = previous.get("prior_approval")
+    if prior_id:
+        raise ApprovalError("retained prior approval is unavailable")
+    if any(p.get("schema_version") == "approval-lineage-projection/v1" for p in lineage):
+        if declaration is None or [p["approval_id"] for p in lineage] != [
+            row["approval_id"] for row in declaration["prior_approvals"]
+        ]:
+            raise ApprovalError("retained continuation omits a declared historical approval")
+
+
 def validate_evidence(value: object, *, change_id: str | None = None) -> dict[str, Any]:
     """Validate the mechanical portion of a review evidence record."""
     if not isinstance(value, dict):
@@ -430,19 +611,55 @@ def load_recognition(root: Path, *, ref: str | None = None) -> Recognition:
     return _recognition_from_mapping(raw)
 
 
-def _contract_base_refs(root: Path) -> tuple[str, ...]:
-    """Return local candidates for the repository's trusted default base."""
-    refs: list[str] = []
+def _git_metadata_present(root: Path) -> bool:
+    """Distinguish an uninitialized workspace from unreadable Git authority."""
+    if any(os.environ.get(key) for key in ("GIT_DIR", "GIT_COMMON_DIR", "GIT_WORK_TREE")):
+        return True
+    resolved = root.resolve()
+    for directory in (resolved, *resolved.parents):
+        try:
+            (directory / ".git").lstat()
+        except FileNotFoundError:
+            pass
+        else:
+            return True  # Includes linked worktrees and broken metadata links.
+        try:
+            (directory / "HEAD").stat()
+            (directory / "objects").stat()
+        except FileNotFoundError:
+            continue
+        return True  # Bare repositories have no .git directory.
+    return False
+
+
+def _contract_base_candidates(root: Path) -> tuple[tuple[str, str, str], ...]:
+    """Read current trusted refs and their object identities in one Git query."""
+    refs = ("refs/remotes/origin/HEAD", "refs/remotes/origin/main", "refs/heads/main")
     try:
-        default_ref = _git(root, "symbolic-ref", "--short", "refs/remotes/origin/HEAD").strip()
-    except GitScopeError:
-        default_ref = ""
-    if default_ref:
-        refs.append(default_ref)
-    for ref in ("origin/main", "main"):
-        if ref not in refs:
-            refs.append(ref)
-    return tuple(refs)
+        output = _git(root, "for-each-ref",
+                      "--format=%(refname)%09%(objectname)%09%(objecttype)%09%(symref)", *refs)
+    except GitScopeError as exc:
+        try:
+            configured = _git_metadata_present(root)
+        except OSError as metadata_error:
+            raise ApprovalError("cannot inspect trusted baseline refs") from metadata_error
+        if configured:
+            raise ApprovalError("cannot inspect trusted baseline refs") from exc
+        return ()
+    records: dict[str, tuple[str, str]] = {}
+    for line in output.splitlines():
+        fields = line.split("\t")
+        if len(fields) < 3 or fields[0] not in refs:
+            continue
+        # Only a symbolic origin/HEAD names the remote's default branch.
+        if fields[0] == refs[0] and (len(fields) < 4 or not fields[3]):
+            continue
+        records[fields[0]] = (fields[1], fields[2])
+    return tuple((ref, records[ref][0], records[ref][1]) for ref in refs if ref in records)
+
+
+def _contract_base_refs(root: Path) -> tuple[str, ...]:
+    return tuple(ref for ref, _, _ in _contract_base_candidates(root))
 
 
 def recognition_contract_active(root: Path) -> bool:
@@ -510,6 +727,30 @@ def evidence_is_recognized(evidence: dict[str, Any], recognition: Recognition) -
 
 def evidence_digest(evidence: dict[str, Any]) -> str:
     return digest_record(evidence)
+
+
+def resolve_review_reference(
+    payload: dict[str, Any], available: Iterable[dict[str, Any]], *, change_id: str,
+    kind: str, decision: str, subject_id: str,
+) -> dict[str, Any]:
+    """Resolve an explicit v2 milestone against preceding imported conclusions."""
+    if payload.get("review_reference_version") != REVIEW_REFERENCE_VERSION:
+        raise ApprovalError("unsupported review reference version")
+    if "evidence" in payload:
+        raise ApprovalError("v2 review milestones reference evidence; they do not repeat its body")
+    identifier, digest = payload.get("evidence_id"), payload.get("evidence_digest")
+    if not isinstance(identifier, str) or not identifier or not isinstance(digest, str):
+        raise ApprovalError("review reference needs evidence_id and digest")
+    matches = [e for e in available if e.get("evidence_id") == identifier]
+    if len(matches) != 1:
+        raise ApprovalError("review reference is missing or ambiguous")
+    evidence = validate_evidence(matches[0], change_id=change_id)
+    if evidence_digest(evidence) != digest:
+        raise ApprovalError("review reference digest mismatch")
+    if (evidence["kind"] != kind or evidence["decision"] != decision
+            or evidence["subject_id"] != subject_id):
+        raise ApprovalError("review reference conclusion belongs to another outcome or subject")
+    return evidence
 
 
 def validate_evidence_reuse(
@@ -625,17 +866,20 @@ def _git(root: Path, *args: str) -> str:
 
 def resolve_contract_base(root: Path) -> str:
     """Resolve the new contract's default base without old review policy."""
-    for candidate in _contract_base_refs(root):
-        try:
-            return resolve_commit(root, candidate)
-        except GitScopeError:
-            continue
+    for ref, oid, kind in _contract_base_candidates(root):
+        if kind == "commit":
+            return oid
+        if kind == "tag":
+            try:
+                return resolve_commit(root, ref)
+            except GitScopeError:
+                continue
     raise ApprovalError("new-contract code subjects require a reachable trusted baseline")
 
 
 def _tree_entries(root: Path, ref: str) -> dict[str, tuple[str, str]]:
     entries: dict[str, tuple[str, str]] = {}
-    for line in _git(root, "ls-tree", "-r", ref).splitlines():
+    for line in _git(root, "ls-tree", "-rz", ref).split("\0"):
         if "\t" not in line:
             continue
         left, path = line.split("\t", 1)
@@ -645,20 +889,41 @@ def _tree_entries(root: Path, ref: str) -> dict[str, tuple[str, str]]:
     return entries
 
 
+def _name_status(raw: str) -> list[tuple[str, tuple[str, ...]]]:
+    """Parse Git's NUL protocol, preserving whitespace and non-ASCII paths."""
+    if not raw:
+        return []
+    if not raw.endswith("\0"):
+        raise GitScopeError("incomplete Git name-status output")
+    fields = raw[:-1].split("\0")
+    rows = []
+    index = 0
+    while index < len(fields):
+        status = fields[index]
+        count = 2 if status.startswith(("R", "C")) else 1
+        paths = tuple(fields[index + 1:index + 1 + count])
+        if not status or status[0] not in "ACDMRTUXB" or len(paths) != count or not all(paths):
+            raise GitScopeError("invalid Git name-status output")
+        rows.append((status, paths))
+        index += count + 1
+    return rows
+
+
+def _attestation_only(paths: Iterable[str]) -> bool:
+    return all(p.startswith(".harness/attestations/") and p.endswith(".jsonl") for p in paths)
+
+
 def git_change_manifest(root: Path, *, base: str, head: str) -> list[dict[str, Any]]:
     """Build a deterministic mode/content manifest, including renames."""
     base_sha = resolve_commit(root, base)
     head_sha = resolve_commit(root, head)
-    statuses = _git(root, "diff", "--name-status", "--find-renames", f"{base_sha}..{head_sha}")
+    statuses = _git(root, "diff", "--name-status", "-z", "--find-renames",
+                    f"{base_sha}..{head_sha}")
     base_tree = _tree_entries(root, base_sha)
     head_tree = _tree_entries(root, head_sha)
     result: list[dict[str, Any]] = []
-    for line in statuses.splitlines():
-        parts = line.split("\t")
-        if len(parts) < 2:
-            continue
-        status = parts[0]
-        paths = [posixpath.normpath(p.replace("\\", "/")) for p in parts[1:]]
+    for status, raw_paths in _name_status(statuses):
+        paths = [posixpath.normpath(p.replace("\\", "/")) for p in raw_paths]
         old_path = paths[0] if status.startswith("R") or status.startswith("C") else None
         new_path = paths[-1]
         row: dict[str, Any] = {"status": status, "path": new_path}
@@ -676,13 +941,80 @@ def git_change_manifest(root: Path, *, base: str, head: str) -> list[dict[str, A
         # content itself.  Keep this exemption deliberately narrow: executable
         # files and arbitrary neighboring files under the same directory remain
         # part of the subject.
-        if all(
-            path.startswith(".harness/attestations/") and path.endswith(".jsonl")
-            for path in (old_path or new_path, new_path)
-        ):
+        if _attestation_only((old_path or new_path, new_path)):
             continue
         result.append(row)
     return sorted(result, key=lambda row: (str(row.get("path")), str(row.get("old_path", ""))))
+
+
+def implementation_coverage(
+    root: Path, *, include_paths: Iterable[str] = (),
+) -> tuple[list[dict[str, str]], dict[str, Any]]:
+    """Snapshot complete committed and tracked workspace paths, without staging files.
+
+    Untracked files enter only through explicit inclusion or ordinary git add.
+    This mechanical manifest makes no within-approval judgment.
+    """
+    head = resolve_commit(root)
+    base = merge_base_commit(root, resolve_contract_base(root), head)
+    committed = git_change_manifest(root, base=base, head=head)
+    staged = _git(root, "diff", "--cached", "--name-status", "-z", "--find-renames", "HEAD")
+    workspace = _git(root, "diff", "--name-status", "-z", "--find-renames")
+    index = _git(root, "ls-files", "--stage", "-z")
+    paths = set()
+    for row in committed:
+        paths.add(row["path"])
+        if row.get("old_path"):
+            paths.add(row["old_path"])
+    for _, changed in (*_name_status(staged), *_name_status(workspace)):
+        if not _attestation_only(changed):
+            paths.update(changed)
+    included = sorted({_relative_path(root, p) for p in include_paths})
+    for path in included:
+        if not (root / path).is_file():
+            raise ApprovalError(f"--include-path must name an existing file: {path}")
+        if not _attestation_only((path,)):
+            paths.add(path)
+    identities: dict[str, Any] = {}
+    try:
+        for path in sorted(paths):
+            source = root / path
+            if source.is_symlink():
+                identities[path] = {"symlink": os.readlink(source)}
+            elif source.is_file():
+                identities[path] = {"digest": sha256(source.read_bytes()).hexdigest(),
+                                    "mode": source.stat().st_mode}
+            elif source.is_dir():
+                identities[path] = {"gitlink": _git(source, "rev-parse", "HEAD").strip(),
+                                    "dirty": _git(source, "status", "--porcelain",
+                                                  "--untracked-files=no")}
+            else:
+                identities[path] = None
+    except OSError as exc:
+        raise ApprovalError(f"cannot snapshot implementation coverage: {exc}") from exc
+    if (head != resolve_commit(root)
+            or staged != _git(root, "diff", "--cached", "--name-status", "-z",
+                              "--find-renames", "HEAD")
+            or workspace != _git(root, "diff", "--name-status", "-z", "--find-renames")
+            or index != _git(root, "ls-files", "--stage", "-z")):
+        raise ApprovalError("Git inputs changed while generating implementation coverage; retry")
+    basis = {"schema_version": "git-workspace-coverage/v1", "base": base, "head": head,
+             "committed_manifest_digest": digest_record(committed),
+             "workspace_digest": digest_record([staged, workspace, index, identities]),
+             "include_paths": included}
+    return [{"path": p} for p in sorted(paths)], basis
+
+
+def validate_generated_coverage(root: Path, payload: dict[str, Any]) -> None:
+    """Native writer rechecks the observed object under its normal append lock."""
+    basis = payload.get("coverage_basis")
+    if not isinstance(basis, dict) or not isinstance(basis.get("include_paths"), list):
+        raise ApprovalError("invalid generated coverage basis")
+    if any(not isinstance(p, str) for p in basis["include_paths"]):
+        raise ApprovalError("invalid generated coverage inclusion")
+    coverage, current = implementation_coverage(root, include_paths=basis["include_paths"])
+    if current != basis or coverage != payload.get("coverage"):
+        raise ApprovalError("implementation coverage inputs changed before append; retry")
 
 
 _AUTO_KNOWLEDGE_BASIS = object()
