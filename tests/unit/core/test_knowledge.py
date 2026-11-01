@@ -5,25 +5,31 @@ from __future__ import annotations
 import json
 import subprocess
 from copy import deepcopy
+from hashlib import sha256
 from pathlib import Path
+from shutil import copytree
 
 import pytest
 import yaml
 from click.testing import CliRunner
 
 from keepsail.cli import main
-from keepsail.core.approval import digest_record, recognition_policy_digest
+from keepsail.core.approval import canonical_json, digest_record, recognition_policy_digest
 from keepsail.core.knowledge import (
     PROTOCOL,
     KnowledgeError,
     load_ledger,
     load_policy,
     policy_digest,
+    read_inputs,
     report,
+    validate_checkpoint,
     validate_policy,
     version_record,
 )
+from keepsail.core.knowledge_checkpoint import make_checkpoint, replay_facts, resolve_facts
 from keepsail.core.reducer import derive_state
+from keepsail.engineering.attestation import write_attestation
 
 
 def git(root: Path, *args: str) -> str:
@@ -148,6 +154,7 @@ class Workspace:
         p.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
         return p
 
+
     def cli(self, *args: str, code: int = 0) -> dict:
         result = self.runner.invoke(main, ["--workspace", str(self.root), "--json", *args])
         assert result.exit_code == code, (result.output, result.exception)
@@ -206,9 +213,124 @@ class Workspace:
         }
 
 
+def test_review_conclusion_is_stored_once_with_exact_preceding_reference(workspace):
+    from keepsail.core.approval import ApprovalError, resolve_review_reference
+    from keepsail.core.events import parse_event_line
+    from keepsail.engineering.attestation import _review_reference_blockers
+
+    events = [parse_event_line(line) for line in (
+        workspace.root / ".harness/events.jsonl").read_text(encoding="utf-8").splitlines()]
+    imported = next(e for e in events if e.type == "review_evidence_imported")
+    milestone = next(e for e in events if e.type == "plan_approved")
+    evidence = imported.payload["evidence"]
+    assert sum("evidence" in e.payload for e in events) == 1
+    assert milestone.payload["review_reference_version"] == "review-reference/v2"
+    assert "evidence" not in milestone.payload
+    assert _review_reference_blockers(events, "change-a") == []
+    assert _review_reference_blockers([milestone, imported], "change-a")
+    for mutation in ({"evidence_id": "missing"}, {"evidence_digest": "wrong"},
+                     {"review_reference_version": "unknown"}, {"evidence": evidence}):
+        with pytest.raises(ApprovalError):
+            resolve_review_reference({**milestone.payload, **mutation}, [evidence],
+                                     change_id="change-a", kind="plan", decision="approve",
+                                     subject_id=evidence["subject_id"])
+    with pytest.raises(ApprovalError, match="another outcome or subject"):
+        resolve_review_reference(milestone.payload, [evidence], change_id="change-a",
+                                 kind="plan", decision="approve", subject_id="plan:wrong")
+
+
+@pytest.mark.parametrize(
+    "command", ["review", "assessment", "propose", "import", "record", "statement"],
+)
+def test_structured_cli_stdin_retains_native_facts_without_input_files(workspace, command):
+    from keepsail.core.context import new_entry
+
+    w = workspace
+    if command == "review":
+        w.cli("plan", "redeclare", "change-a", "--plan", "plan.md",
+              "--commitment", "db=Use PostgreSQL")
+        state = derive_state(w.root / ".harness/events.jsonl")["change-a"]
+        value = {**state.evidence_references[0], "evidence_id": "stdin-plan",
+                 "subject_id": state.pending_revision["candidate_id"]}
+        args = ["review", "import", "change-a", "--evidence", "-"]
+    elif command == "assessment":
+        value = {"affected_commitments": ["db"], "conclusion": "within_approval",
+                 "reasons": ["Same approved persistence behavior"], "references": ["plan.md"]}
+        args = ["implementation", "record", "change-a", "--assessment", "-"]
+    elif command == "propose":
+        value = w.operation(version=version())
+        args = ["knowledge", "propose", "--record", "-"]
+    elif command == "import":
+        digest = w.submit("propose", w.operation(version=version()))["version_digest"]
+        value = w.operation(evidence=w.evidence("recognition", digest, "recognize"))
+        args = ["knowledge", "import", "--evidence", "-"]
+    elif command == "record":
+        digest = w.recognize(version())
+        delivery = w.deliver()
+        value = w.operation(record={"kind": "statement", "decision": "adopt",
+                                    "reason": "Explicit fixture declaration",
+                                    "version_digest": digest,
+                                    "delivery_id": delivery["delivery_id"]})
+        args = ["knowledge", "record", "--record", "-"]
+    else:
+        entry = new_entry(w.root, "change-a", "stdin-fixture", "startup", "keepsail")
+        data = w.cli("change", "context", "change-a", "--entry", entry["entry_id"])["data"]
+        value = {"schema_version": "entry-statement/v1", "entry_id": entry["entry_id"],
+                 "manifest_id": data["manifest_id"], "actor": "fixture", "decision": "adopt",
+                 "project_context": True, "reason": "Explicit fixture; not acquisition"}
+        args = ["change", "context", "change-a", "--entry", entry["entry_id"], "--statement", "-"]
+    before = set(w.root.glob("input*.json"))
+    raw = json.dumps(value, ensure_ascii=False, indent=1).encode("utf-8") + b"\n"
+    result = w.runner.invoke(main, ["--workspace", str(w.root), "--json", *args], input=raw)
+    assert result.exit_code == 0, (result.output, result.exception)
+    assert set(w.root.glob("input*.json")) == before
+    if command in {"propose", "import", "record"}:
+        ledger, _ = load_ledger(w.root / ".harness/events.jsonl", load_policy(w.root))
+        assert ledger["operations"][value["operation_id"]]["request"]["_input_digest"] == (
+            sha256(raw).hexdigest()
+        )
+
+
+@pytest.mark.parametrize(
+    "command", ["review", "assessment", "propose", "import", "record", "statement"],
+)
+def test_stdin_duplicate_keys_fail_without_writing_native_events(workspace, command):
+    from keepsail.core.context import new_entry
+
+    w = workspace
+    args = {
+        "review": ["review", "import", "change-a", "--evidence", "-"],
+        "assessment": ["implementation", "record", "change-a", "--assessment", "-"],
+        "propose": ["knowledge", "propose", "--record", "-"],
+        "import": ["knowledge", "import", "--evidence", "-"],
+        "record": ["knowledge", "record", "--record", "-"],
+    }
+    if command == "statement":
+        entry = new_entry(w.root, "change-a", "stdin-fixture", "startup", "keepsail")
+        w.cli("change", "context", "change-a", "--entry", entry["entry_id"])
+        args[command] = ["change", "context", "change-a", "--entry", entry["entry_id"],
+                         "--statement", "-"]
+    path = w.root / ".harness/events.jsonl"
+    before = path.read_bytes()
+    result = w.runner.invoke(main, ["--workspace", str(w.root), "--json", *args[command]],
+                             input=b'{"duplicate":1,"duplicate":2}')
+    assert result.exit_code == 2, (result.output, result.exception)
+    assert "duplicate JSON key" in result.output
+    assert path.read_bytes() == before
+
+
+@pytest.fixture(scope="module")
+def _workspace_template(tmp_path_factory) -> Workspace:
+    return Workspace(tmp_path_factory.mktemp("approved-knowledge-template"))
+
+
 @pytest.fixture
-def workspace(tmp_path: Path) -> Workspace:
-    return Workspace(tmp_path)
+def workspace(tmp_path: Path, _workspace_template: Workspace) -> Workspace:
+    # Native bootstrap is tested directly elsewhere; every scenario owns its copy.
+    copytree(_workspace_template.root, tmp_path, dirs_exist_ok=True)
+    result = deepcopy(_workspace_template)
+    result.root = tmp_path
+    return result
 
 
 def test_candidate_has_no_authority_and_rejection_cannot_activate(workspace: Workspace):
@@ -978,3 +1100,269 @@ def test_mixed_legacy_episode_keeps_approval_after_new_v2_challenge(
     state.current_code_subject = {"knowledge_basis": {"digest": view["basis_digest"]}}
     replayed = validate_checkpoint(retained, policy(), state)
     assert replayed["impacts"] == view["impacts"]
+
+
+def test_v2_export_is_idempotent_and_retains_legacy_fact_without_raw(context_workspace):
+    w = context_workspace
+    digest = w.recognize(version())
+    delivery = w.deliver()
+    w.submit("record", w.operation(record={
+        "kind": "acquisition", "producer": "test-observer", "delivery_id": delivery["delivery_id"],
+        "version_digest": digest, "session_id": "private-host-session",
+        "returned_content_digest": sha256(version()["body"].encode()).hexdigest(),
+        "original_receipt": {"fixture-only-raw": "x" * 100_000},
+    }))
+    log = w.root / ".harness/events.jsonl"
+    original = log.read_bytes()
+    legacy_path = w.root / ".harness/attestations/change-a.jsonl"
+    legacy_path.parent.mkdir(exist_ok=True)
+    legacy_path.write_bytes(b"legacy original kept\n")
+    out = write_attestation(log, legacy_path.parent, "change-a")
+    first = out.read_bytes()
+    retained_log = log.read_bytes()
+    assert retained_log.startswith(original)
+    assert out.relative_to(w.root).as_posix() == ".harness/attestations/v2/change-a.jsonl"
+    assert legacy_path.read_bytes() == b"legacy original kept\n"
+    assert b"fixture-only-raw" not in first and b"private-host-session" not in first
+    assert b"retained-acquisition/v2" in first
+    assert b"original-return-bytes-not-published" in first
+    assert b'"original_receipt"' not in first
+    assert write_attestation(log, legacy_path.parent, "change-a").read_bytes() == first
+    assert log.read_bytes() == retained_log
+    assert derive_state(out)["change-a"].effective_approval == (
+        derive_state(log)["change-a"].effective_approval)
+
+
+def test_export_projects_owner_host_locators_without_changing_conclusions(
+    context_workspace, monkeypatch, tmp_path,
+):
+    from keepsail.core.knowledge_checkpoint import SOURCE, retained_source, view_digest
+
+    w = context_workspace
+    native_evidence = w.evidence
+    originals = {}
+
+    def owner_evidence(*args, **kwargs):
+        evidence = native_evidence(*args, **kwargs)
+        source = evidence["original_evidence"]
+        source.update(thread_id="fixture-private-owner-thread",
+                      question_call_id="fixture-private-question-call",
+                      quoted_response="Recognize this exact subject and scope.",
+                      boundary="No additional authority.")
+        originals[evidence["evidence_id"]] = deepcopy(source)
+        return evidence
+
+    monkeypatch.setattr(w, "evidence", owner_evidence)
+    _, second, _, _ = continued_version(w)
+    delivery = w.deliver()
+    reason = ("Received in root chat fixture-private-owner-thread. Declaration only; "
+              "business entity 00000000-0000-0000-0000-000000000001 remains unchanged.")
+    w.submit("record", w.operation(record={"kind": "statement", "decision": "adopt",
+        "version_digest": second, "delivery_id": delivery["delivery_id"], "reason": reason}))
+    log = w.root / ".harness/events.jsonl"
+    native_bytes = log.read_bytes()
+    native_view = report(w.root, "change-a")
+    out = write_attestation(log, w.root / ".harness/attestations", "change-a")
+    published = out.read_bytes()
+    assert b"fixture-private-owner-thread" not in published
+    assert b"fixture-private-question-call" not in published
+    assert log.read_bytes().startswith(native_bytes)
+    record = json.loads(published)
+    facts = resolve_facts(w.root, record["knowledge_checkpoint"], policy())
+    ledger = replay_facts(facts, policy())
+    statement = ledger["statements"][-1]
+    assert statement["decision"] == "adopt" and statement["version_digest"] == second
+    assert "host-locator:" + digest_record("fixture-private-owner-thread") in statement["reason"]
+    assert "00000000-0000-0000-0000-000000000001" in statement["reason"]
+    assert statement["reason_projection"] == {
+        "schema_version": "retained-statement-reason/v1", "source_digest": digest_record(reason)}
+    for eid, original in originals.items():
+        source = ledger["evidence"][eid]["original_evidence"]
+        assert source["schema_version"] == SOURCE
+        assert source["source_digest"] == digest_record(original)
+        assert source["host_locators"] == {
+            key: digest_record(original[key]) for key in ("thread_id", "question_call_id")}
+        assert source["content"]["decision"] == original["decision"]
+        assert source["content"]["quoted_response"] == original["quoted_response"]
+        assert source["content"]["boundary"] == original["boundary"]
+        assert retained_source(source) == source
+    state = derive_state(log)["change-a"]
+    state.current_code_subject = {"knowledge_basis": {"digest": native_view["basis_digest"]}}
+    restored = validate_checkpoint(record["knowledge_checkpoint"], policy(), state,
+                                   retained_facts=facts)
+    assert restored["basis_digest"] == native_view["basis_digest"]
+    assert view_digest(restored) == view_digest(native_view)
+    assert restored["impacts"][0]["status"] == native_view["impacts"][0]["status"]
+    broken = deepcopy(ledger["evidence"][eid]["original_evidence"])
+    broken["host_locators"]["thread_id"] = "raw-host-id"
+    with pytest.raises(KnowledgeError, match="logical locator"):
+        retained_source(broken)
+    # A pure Git fixture has neither the original log nor runtime observations.
+    git(w.root, "add", str(out.relative_to(w.root)))
+    git(w.root, "commit", "-qm", "public owner source projection")
+    isolated = tmp_path / "isolated-git"
+    subprocess.run(["git", "clone", "--quiet", "--no-local", str(w.root), str(isolated)],
+                   check=True)
+    assert not (isolated / ".harness/events.jsonl").exists()
+    assert not (isolated / ".harness/operation-logs").exists()
+    monkeypatch.setenv("GIT_ALLOW_PROTOCOL", "")
+    assert resolve_facts(isolated, record["knowledge_checkpoint"], policy()) == facts
+
+
+def test_later_source_registration_does_not_reproject_committed_history(
+    context_workspace, tmp_path,
+):
+    w = context_workspace
+    version_digest = w.recognize(version())
+    delivery = w.deliver()
+    source = "fixture-later-owner-thread"
+    w.submit("record", w.operation(record={"kind": "statement", "decision": "adopt",
+        "version_digest": version_digest, "delivery_id": delivery["delivery_id"],
+        "reason": f"Received in root chat {source}; declaration only."}))
+    log = w.root / ".harness/events.jsonl"
+    out = write_attestation(log, w.root / ".harness/attestations", "change-a")
+    original = json.loads(out.read_text())["knowledge_checkpoint"]
+    before = resolve_facts(w.root, original, policy())
+    git(w.root, "add", str(out.relative_to(w.root)))
+    git(w.root, "commit", "-qm", "baseline before later source metadata")
+    base = git(w.root, "rev-parse", "HEAD")
+    git(w.root, "branch", "-f", "main", base)
+    evidence = w.evidence("applicability", version_digest, "apply", target_change_id="change-a",
+                          original_evidence={"decision": "apply", "thread_id": source})
+    w.submit("import", w.operation(evidence=evidence))
+    checkpoint = make_checkpoint(w.root, "change-a", read_inputs(w.root), base)
+    assert len(checkpoint["delta"]) == 1
+    assert source not in canonical_json(checkpoint)  # Old text stays in its existing Git baseline.
+    after = resolve_facts(w.root, checkpoint, policy())
+    assert after[:len(before)] == before
+    assert source in replay_facts(before, policy())["statements"][-1]["reason"]
+    isolated = tmp_path / "later-source-git"
+    subprocess.run(["git", "clone", "--quiet", "--no-local", str(w.root), str(isolated)],
+                   check=True)
+    assert not (isolated / ".harness/events.jsonl").exists()
+    assert not (isolated / ".harness/operation-logs").exists()
+    assert resolve_facts(isolated, checkpoint, policy()) == after
+    assert replay_facts(after, policy())["applicability"][("change-a", version_digest)] == (
+        evidence["evidence_id"])
+
+
+
+
+
+
+
+
+def test_git_baseline_delta_and_missing_closure_fail_without_live_log(context_workspace):
+    w = context_workspace
+    digest = w.recognize(version())
+    w.deliver()
+    log = w.root / ".harness/events.jsonl"
+    out = write_attestation(log, w.root / ".harness/attestations", "change-a")
+    git(w.root, "add", str(out.relative_to(w.root)))
+    git(w.root, "commit", "-qm", "trusted checkpoint fixture")
+    base = git(w.root, "rev-parse", "HEAD")
+    git(w.root, "branch", "-f", "main", base)
+    delivery = w.deliver()
+    inputs = read_inputs(w.root)
+    checkpoint = make_checkpoint(w.root, "change-a", inputs, base)
+    assert len(checkpoint["delta"]) == 1
+    assert checkpoint["baseline"]["checkpoints"]
+    assert "events" not in checkpoint and "view" not in checkpoint
+    assert checkpoint["contexts"]
+    # An isolated Git checkout must not consult the native log or network.
+    log.rename(log.with_suffix(".preserved"))
+    policy = load_policy(w.root)
+    facts = resolve_facts(w.root, checkpoint, policy)
+    ledger = replay_facts(facts, policy)
+    assert ledger["deliveries"][delivery["delivery_id"]]["constraints"][0][
+        "version_digest"] == digest
+    state = inputs.states["change-a"]
+    state.current_code_subject = {"knowledge_basis": {"digest": ledger["deliveries"][
+        delivery["delivery_id"]]["basis_digest"]}}
+    assert validate_checkpoint(checkpoint, policy, state, retained_facts=facts)["constraints"]
+    for mutation in ("missing-base", "missing-reference", "missing-context", "changed-result"):
+        bad = deepcopy(checkpoint)
+        if mutation == "missing-base":
+            bad["baseline"]["commit"] = "f" * 40
+        elif mutation == "missing-reference":
+            bad["baseline"]["checkpoints"] = []
+        elif mutation == "missing-context":
+            bad["contexts"] = {}
+        else:
+            bad["delta"][0]["result_digest"] = "0" * 64
+        bad["digest"] = digest_record({k: v for k, v in bad.items() if k != "digest"})
+        with pytest.raises((KnowledgeError, KeyError)):
+            resolve_facts(w.root, bad, policy)
+
+
+@pytest.mark.parametrize("count", [6, 35])
+def test_checkpoint_closure_reuses_commits_only_within_one_traversal(tmp_path, monkeypatch, count):
+    from keepsail.core import knowledge_checkpoint as checkpoints
+
+    # Each immutable tree retains every preceding Change's checkpoint, as a
+    # real repository does. Valid empty deltas isolate closure traversal cost.
+    trees = {}
+    previous = "0" * 40
+    trees[previous] = {}
+    for index in range(count):
+        refs = [{"path": path, "digest": payload["digest"]}
+                for path, payload in sorted(trees[previous].items())]
+        record = {
+            "schema_version": "knowledge-checkpoint/v2",
+            "representation": "derived-not-original-event-bytes",
+            "policy_digest": policy()["policy_digest"],
+            "baseline": {"commit": previous, "checkpoints": refs},
+            "delta": [], "contexts": {}, "expected_view_digest": "0" * 64,
+        }
+        payload = {**record, "digest": digest_record(record)}
+        commit = f"{index + 1:040x}"
+        trees[commit] = {**trees[previous],
+                         f".harness/attestations/v2/change-{index:03}.jsonl": payload}
+        previous = commit
+    calls = []
+
+    def local_git(root, *args):
+        calls.append(args)
+        if args[:2] == ("rev-parse", "--verify"):
+            return args[2].removesuffix("^{commit}")
+        if args[0] == "ls-tree":
+            return "\0".join(trees[args[-1]]) + "\0"
+        assert args[0] == "show"
+        commit, path = args[1].split(":", 1)
+        return canonical_json({"type": "knowledge_checkpointed",
+                               "payload": trees[commit][path]}) + "\n"
+
+    monkeypatch.setattr(checkpoints, "_git", local_git)
+    assert checkpoints.baseline(tmp_path, previous, policy())[0] == []
+    # Each tree is read once, rather than once per route through the DAG.
+    expected = 2 * (count + 1) + count * (count + 1) // 2
+    assert len(calls) == expected
+    calls.clear()
+    assert checkpoints.baseline(tmp_path, previous, policy())[0] == []
+    assert len(calls) == expected  # No cache survives the action.
+    with pytest.raises(KnowledgeError, match="cyclic"):
+        checkpoints.baseline(tmp_path, previous, policy(), stack=frozenset({previous}))
+
+
+def test_compact_corruption_cannot_disappear_in_legacy_tolerant_reader(context_workspace):
+    w = context_workspace
+    log = w.root / ".harness/events.jsonl"
+    out = write_attestation(log, w.root / ".harness/attestations", "change-a")
+    original = json.loads(out.read_text())
+    for mutation in ("schema", "ref", "lineage", "state", "duplicate"):
+        bad = deepcopy(original)
+        if mutation == "schema":
+            bad["schema_version"] = "attestation/unknown"
+        elif mutation == "ref":
+            bad["lifecycle"][1]["payload"]["plan_subject_ref"] = "missing"
+        elif mutation == "lineage":
+            bad["authorization_lineage"] = [{"approval_id": "unrelated"}]
+        elif mutation == "state":
+            bad["expected_state"] = "READY_TO_MERGE"
+        bad["digest"] = digest_record({k: v for k, v in bad.items() if k != "digest"})
+        text = canonical_json(bad)
+        if mutation == "duplicate":
+            text = '{"schema_version":"attestation/v2",' + text[1:]
+        out.write_text(text + "\n", encoding="utf-8")
+        with pytest.raises(ValueError):
+            derive_state(out)

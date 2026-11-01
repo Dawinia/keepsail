@@ -42,7 +42,7 @@ from keepsail.core.scope_match import GitScopeError, resolve_commit, tracked_fil
 ATTESTATIONS_DIRNAME = ".harness/attestations"
 # Reader-only rollout keeps this at v1 until the decoder is in the trusted base.
 # The subsequent producer release enables v2 without changing verifier selection.
-ATTESTATION_FORMAT = "v1"
+ATTESTATION_FORMAT = "v2"
 PLACEHOLDER_IDENTITY = "cli"
 MILESTONE_EVENTS: frozenset[str] = frozenset(
     {"plan_approved", "implementation_complete", "code_review_passed"}

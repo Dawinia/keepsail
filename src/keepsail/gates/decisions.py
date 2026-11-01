@@ -75,6 +75,9 @@ PLAN_PATH_ALLOW_STATES: frozenset[str] = frozenset({"INTENT_DECLARED"})
 # @decision:d-keepsail-single-gate-policy
 SCRATCH_ROOT: str = ".harness/scratch"
 
+# Only the explicitly selected Claude context integration consumes this tool set.
+CONTEXT_EDIT_TOOLS = frozenset({"Edit", "Write", "MultiEdit", "NotebookEdit"})
+
 # Imperative "what to do next" line for each BLOCKING state. The reason string
 # tells the agent WHY the edit was blocked; the suggestion tells it the next
 # concrete step. Rejected code also needs guidance to re-freeze its subject even
@@ -109,3 +112,10 @@ SUGGESTIONS: dict[str, str] = {
     "ARCHIVED": "This change is terminal; start a new change.",
     "ABANDONED": "This change is terminal; start a new change.",
 }
+
+
+def entry_context_block(reasons: tuple[str, ...], *, state_available: bool = True) -> str | None:
+    """Selected entry prerequisites only tighten an otherwise authorized edit."""
+    if not state_available:
+        return "selected Change state unavailable"
+    return "context prerequisites: " + "; ".join(reasons) if reasons else None
