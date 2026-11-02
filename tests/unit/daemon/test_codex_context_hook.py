@@ -295,7 +295,9 @@ def test_codex_complete_cli_returns_require_observed_root_turn(tmp_path, context
     }
 
 
-def test_patch_gate_checks_entire_move_and_preserves_independent_work(tmp_path, context_workspace):
+def test_patch_gate_checks_entire_move_and_preserves_independent_work(
+    tmp_path, context_workspace, monkeypatch,
+):
     from keepsail.core.context import entry_command, read_entry
     from keepsail.daemon.codex_context_hook import observe_return, record_prompt, start_session
     from tests.unit.core import test_knowledge as fixtures
@@ -345,3 +347,28 @@ def test_patch_gate_checks_entire_move_and_preserves_independent_work(tmp_path, 
     assert decide(independent.replace("docs/independent.md", "../outside.md"), 2)["data"][
         "decision"] == "block"
     assert decide("malformed patch", 2)["data"]["decision"] == "block"
+
+    import json
+    from io import StringIO
+
+    from keepsail.daemon.codex_context_hook import run_context_hook
+
+    def hook(tool, tool_input, turn="root-turn"):
+        payload = {"hook_event_name": "PreToolUse", "session_id": "codex-a", "cwd": str(tmp_path),
+                   "turn_id": turn, "tool_name": tool, "tool_input": tool_input}
+        output = StringIO()
+        with monkeypatch.context() as m:
+            m.chdir(tmp_path)
+            m.setattr("sys.stdin", StringIO(json.dumps(payload)))
+            m.setattr("sys.stdout", output)
+            run_context_hook("pre-tool-use", None)
+        return output.getvalue()
+
+    for tool in ("Edit", "Write"):
+        assert hook(tool, {"file_path": "docs/independent.md"}) == ""
+        for tool_input in ({"file_path": "src/db/file.py", "command": independent},
+                           {"file_path": "../outside.md"}, {"command": independent},
+                           {"file_path": []}):
+            assert '"permissionDecision": "deny"' in hook(tool, tool_input)
+        assert '"permissionDecision": "deny"' in hook(
+            tool, {"file_path": "docs/independent.md"}, turn="wrong-root")

@@ -20,7 +20,8 @@ from tests.unit.core.test_knowledge import Workspace, git, policy, version
 
 def projection_program() -> str:
     workflow = yaml.safe_load(
-        (Path(__file__).resolve().parents[3] / ".github/workflows/merge-gate.yml").read_text()
+        (Path(__file__).resolve().parents[3] / ".github/workflows/merge-gate.yml").read_text(
+            encoding="utf-8")
     )
     step = next(
         s

@@ -111,7 +111,16 @@ adapter. Test actual callback connectivity and failure behavior before claiming
 protection. Raw complete-return acquisition remains separate from executor
 declarations, native checks and substantive code review.
 
+In context mode, selected `apply_patch` callbacks use `tool_input.command`;
+selected `Edit`/`Write` callbacks use `tool_input.file_path`. Both use the same
+root identity, task context and lifecycle gate. Missing or unresolved paths are
+denied. Fixture coverage of these payload shapes does not establish actual host
+callback delivery or activation.
+
 ## Earlier Claude candidate
+
+The following sections describe the earlier Claude Code opt-in integration.
+They do not establish Codex callback support; use the Codex setup above for that harness.
 
 ## Install and select the task
 

@@ -50,7 +50,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
     from keepsail.adapters import AgentAdapter
@@ -203,6 +203,13 @@ def _run_codex_shim() -> None:
 def decide_codex_patch(root: Path, session: str, turn: str, patch: str,
                        change: str | None = None) -> tuple[GateResult, ChangeState | None]:
     """One selected multi-path I/O seam, shared by the Codex hook and gate CLI."""
+    return decide_codex_edit(root, session, turn, "apply_patch", {"command": patch}, change)
+
+
+def decide_codex_edit(root: Path, session: str, turn: str, tool: str,
+                      tool_input: dict[str, Any], change: str | None = None
+                      ) -> tuple[GateResult, ChangeState | None]:
+    """Use each selected tool's actual paths with the same context and lifecycle gate."""
     from keepsail.core.context import (
         codex_patch_paths,
         codex_root_turn,
@@ -215,14 +222,25 @@ def decide_codex_patch(root: Path, session: str, turn: str, patch: str,
     from keepsail.gates.pre_tool_use import PreToolUseGate
 
     try:
+        if tool not in {"apply_patch", "Edit", "Write"}:
+            raise ValueError("selected edit tool unavailable")
         if (root / ".harness/gate-disabled").exists():
-            _record_bypass(root, tool="apply_patch", file=None)
+            _record_bypass(root, tool=tool, file=None)
             return GateResult(decision=GateDecision.ALLOW, reason="gate disabled (disclosed)"), None
         entry = session_entry(root, session)
         if entry.get("harness") != "codex" or (change and entry["change_id"] != change):
             raise ValueError("selected Codex Change/session mismatch")
         codex_root_turn(root, entry["entry_id"], {"session_id": session, "turn_id": turn})
-        paths = codex_patch_paths(root, patch)
+        if tool == "apply_patch":
+            paths = codex_patch_paths(root, tool_input.get("command"))
+        else:
+            file = tool_input.get("file_path")
+            if not isinstance(file, str) or not file:
+                raise ValueError("selected edit file path unavailable")
+            path = canonical_relpath(root, file)
+            if path is None or path == ".":
+                raise ValueError("selected edit path outside workspace or unresolved")
+            paths = [path]
         state, readiness = context_gate_inputs(root, entry["change_id"], session, paths)
         patterns = patterns_for_state(root, state, PLAN_PATH_ALLOW_STATES)
         gate = PreToolUseGate(plan_path_patterns=patterns, entry_context=readiness)

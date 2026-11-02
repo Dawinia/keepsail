@@ -212,6 +212,14 @@ def test_preview_restores_frozen_approval_without_recording_supply(
     assert data["acquisition_status"] == "not_observed"
     assert events.read_bytes() == before
 
+    for args in (["--entry", "fixture"], ["--statement", "-"],
+                 ["--bind-startup", "fixture"], ["--finalize-acquisition"]):
+        result = workspace.cli("change", "context", "change-a", "--preview", *args, code=2)
+        message = result["errors"][0]["message"]
+        assert all(flag in message for flag in (
+            "--entry", "--statement", "--bind-startup", "--finalize-acquisition"))
+        assert events.read_bytes() == before
+
 
 def test_revision_restores_referenced_frozen_approval_and_unreplaced_restrictions(
     tmp_path, context_workspace,

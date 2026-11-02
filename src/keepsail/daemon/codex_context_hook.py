@@ -139,7 +139,7 @@ def _hint(root: Path, session: str) -> dict[str, Any] | None:
 
 def run_context_hook(event: str, cli: str | None) -> None:
     from keepsail.core.paths import find_harness_root
-    from keepsail.daemon.hook_entry import decide_codex_patch
+    from keepsail.daemon.hook_entry import decide_codex_edit
     from keepsail.gates import GateDecision
 
     names = {"session-start": "SessionStart", "user-prompt-submit": "UserPromptSubmit",
@@ -177,11 +177,9 @@ def run_context_hook(event: str, cli: str | None) -> None:
             tool_input = payload.get("tool_input")
             if not isinstance(tool_input, dict):
                 raise KnowledgeError("patch input unavailable")
-            patch = tool_input.get("command")
-            if not isinstance(patch, str):
-                raise KnowledgeError("patch text unavailable")
-            decision, _ = decide_codex_patch(root, payload.get("session_id", ""),
-                                            payload.get("turn_id", ""), patch)
+            decision, _ = decide_codex_edit(root, payload.get("session_id", ""),
+                                           payload.get("turn_id", ""), payload["tool_name"],
+                                           tool_input)
             if decision.decision is GateDecision.ALLOW:
                 return
             raise KnowledgeError(decision.reason + "; " + (decision.suggested_action or ""))

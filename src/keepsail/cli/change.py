@@ -596,13 +596,15 @@ def context_command(ctx: click.Context, slug: str, preview: bool,
     def action(root: Path) -> dict[str, Any]:
         selected_entry = entry_id
         if preview and (entry_id or statement or bind_startup or finalize_acquisition):
-            raise KnowledgeError("--preview and --entry/--statement are mutually exclusive")
+            raise KnowledgeError("--preview cannot be combined with --entry, --statement, "
+                                 "--bind-startup or --finalize-acquisition")
         if preview:
             return project_context(root, slug)
         if bind_startup:
             from keepsail.core.context import bind_startup as bind
             if entry_id or statement or page != 1 or finalize_acquisition:
-                raise KnowledgeError("--bind-startup requires page 1 without --entry/--statement")
+                raise KnowledgeError("--bind-startup requires page 1 without --entry, --statement "
+                                     "or --finalize-acquisition")
             selected_entry = bind(root, slug, bind_startup)["entry_id"]
         if selected_entry is None:
             raise KnowledgeError("explicit --entry or --preview required", code="entry_unbound")
