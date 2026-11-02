@@ -17,11 +17,12 @@ import click
 from keepsail.cli.errors import format_error
 from keepsail.cli.output import json_envelope
 from keepsail.core.approval import (
+    REVIEW_REFERENCE_VERSION,
     ApprovalError,
     approval_record,
     evidence_digest,
     evidence_is_recognized,
-    load_json_record,
+    load_json_input,
     load_recognition,
     validate_evidence,
 )
@@ -222,6 +223,8 @@ def _emit_imported_conclusion(
     framework = state.framework
     writer = EventWriter(events_path(root))
     digest = evidence_digest(evidence)
+    reference = {"review_reference_version": REVIEW_REFERENCE_VERSION,
+                 "evidence_id": evidence["evidence_id"], "evidence_digest": digest}
     evidence_event = Event(
         event_id=new_event_id(),
         type="review_evidence_imported",
@@ -259,8 +262,7 @@ def _emit_imported_conclusion(
                         actor=actor,
                         framework=framework,
                         payload={
-                            "evidence_id": evidence["evidence_id"],
-                            "evidence": evidence,
+                            **reference,
                             "approval": approval_record(
                                 subject=subject,
                                 evidence_id=str(evidence["evidence_id"]),
@@ -281,7 +283,7 @@ def _emit_imported_conclusion(
                         timestamp=utc_now_iso(),
                         actor=actor,
                         framework=framework,
-                        payload={"evidence": evidence, "candidate_id": subject["subject_id"]},
+                        payload={**reference, "candidate_id": subject["subject_id"]},
                     ),
                 ]
             )
@@ -297,8 +299,7 @@ def _emit_imported_conclusion(
                     actor=actor,
                     framework=framework,
                     payload={
-                        "evidence": evidence,
-                        "evidence_id": evidence["evidence_id"],
+                        **reference,
                         "code_subject": subject,
                     },
                 ),
@@ -316,8 +317,7 @@ def _emit_imported_conclusion(
                     actor=actor,
                     framework=framework,
                     payload={
-                        "evidence": evidence,
-                        "evidence_id": evidence["evidence_id"],
+                        **reference,
                         "code_subject": subject,
                     },
                 ),
@@ -331,8 +331,8 @@ def _emit_imported_conclusion(
     "--evidence",
     "evidence_path",
     required=True,
-    type=click.Path(exists=True, dir_okay=False),
-    help="JSON conclusion produced by a user-recognized external process.",
+    type=click.Path(exists=True, dir_okay=False, allow_dash=True),
+    help="Recognized external JSON conclusion; use - for stdin. No input file need be committed.",
 )
 @click.pass_context
 def import_evidence(ctx: click.Context, change: str, evidence_path: str) -> None:
@@ -340,7 +340,7 @@ def import_evidence(ctx: click.Context, change: str, evidence_path: str) -> None
     subcommand = "review import"
     try:
         root = find_harness_root(Path(ctx.obj.get("workspace") or "."))
-        evidence = load_json_record(Path(evidence_path))
+        evidence = load_json_input(evidence_path)
         validate_evidence(evidence, change_id=change)
         recognition = load_recognition(root)
         if not evidence_is_recognized(evidence, recognition):

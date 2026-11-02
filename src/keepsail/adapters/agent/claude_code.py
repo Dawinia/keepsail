@@ -28,6 +28,8 @@ API stability: **experimental** (v0.1).
 
 from __future__ import annotations
 
+import json
+import shlex
 import shutil
 import subprocess
 from pathlib import Path
@@ -111,8 +113,8 @@ For each review epoch:
    original evidence; the core does not infer approval from a model, failed call,
    empty result, or skip.
 3. Import that exact record with `keepsail review import <change>
-   --evidence <path>`. Review execution, retries, and substantive judgment stay
-   outside keepsail.
+   --evidence -` using JSON on stdin (or a workspace file). Review execution,
+   retries, and judgment stay outside keepsail.
 4. Batch code-only fixes after `implementation reopen <change> --reason "<why>"`;
    if approved commitments change or explicit restrictions are relaxed, require a
    new plan candidate and review. Within-approval file additions and implementation
@@ -122,7 +124,44 @@ For each review epoch:
 The imported evidence must cover the exact frozen subject. A reviewer may read
 unchanged repository material as supporting context, but a finding never widens
 the target implicitly. Do not edit while an external review is pending.
+
+Use stdin for review/assessment/knowledge/entry-statement JSON. Import the necessary
+facts once; temporary input files and copied tool returns are not deliverables.
+For implementation record, omit coverage to enumerate the full Git/workspace diff;
+git add intended new files or name --include-path. Supply the semantic reasons and
+commitment links explicitly. See docs/knowledge.md for the input and export formats.
+
+#### Optional session-bound context
+
+When installed with `adapter install claude-code --knowledge-context`, follow the
+SessionStart hint before product edits: run its exact Bash command and retrieve
+every context page. Bind the intended task with `KEEPSAIL_CHANGE_ID`; a resumed or
+compacted session requires the new entry's retrieval. Declare adoption or challenge
+explicitly. See [context delivery](docs/knowledge-context.md) for statements,
+refresh, independent-work checks, evidence boundaries and opt-out.
 {_AGENTS_MD_END}"""
+
+
+def _context_hook_installed(raw: bytes | None) -> bool:
+    """Only an actual managed SessionStart registration selects the existing mode."""
+    settings = json.loads(raw or b"{}")
+    for entry in settings.get("hooks", {}).get("SessionStart", []):
+        if not isinstance(entry, dict) or not isinstance(entry.get("hooks"), list):
+            continue
+        for hook in entry["hooks"]:
+            if not isinstance(hook, dict) or hook.get("type") != "command":
+                continue
+            command = hook.get("command")
+            if (not isinstance(command, str)
+                    or "--agent claude-code --event session-start" not in command):
+                continue
+            tokens = shlex.split(command)
+            if (len(tokens) == 8
+                    and Path(tokens[0]).name.lower() in {"keepsail-hook", "keepsail-hook.exe"}
+                    and tokens[1:7] == ["--agent", "claude-code", "--event", "session-start",
+                                       "--context", "--cli"]):
+                return True
+    return False
 
 
 class ClaudeCodeAdapter(AgentAdapter):
@@ -134,6 +173,7 @@ class ClaudeCodeAdapter(AgentAdapter):
 
     name: ClassVar[str] = "claude-code"
     version: ClassVar[str] = "0.1.0"
+    knowledge_context: bool | None = None
     capabilities: ClassVar[dict[str, bool]] = {
         "pre_tool_use_hook": True,  # Claude Code PreToolUse hook
         "post_tool_use_hook": True,  # Claude Code PostToolUse hook
@@ -196,12 +236,38 @@ class ClaudeCodeAdapter(AgentAdapter):
     def plan_hook_install(
         self, workspace: Path, *, hook_executable: str, cli_executable: str
     ) -> SettingsMergePlan:
-        return plan_settings_merge(
+        legacy = plan_settings_merge(
             workspace / ".claude" / "settings.local.json",
             workspace_root=workspace,
             pre_tool_use_command=f"{hook_executable} --agent claude-code",
             session_start_command=f"{cli_executable} change resume",
             stop_command=f"{hook_executable} --agent claude-code --event stop",
+        )
+        enabled = self.knowledge_context
+        if enabled is None:
+            enabled = _context_hook_installed(legacy.original_bytes)
+        if not enabled:
+            if self.knowledge_context is False:
+                return plan_settings_merge(
+                    workspace / ".claude" / "settings.local.json", workspace_root=workspace,
+                    pre_tool_use_command=f"{hook_executable} --agent claude-code",
+                    session_start_command=f"{cli_executable} change resume",
+                    stop_command=f"{hook_executable} --agent claude-code --event stop",
+                    context_commands={},
+                )
+            return legacy
+        hook = shlex.quote(hook_executable.replace("\\", "/"))
+        cli = shlex.quote(cli_executable.replace("\\", "/"))
+        base = f"{hook} --agent claude-code"
+        return plan_settings_merge(
+            workspace / ".claude" / "settings.local.json", workspace_root=workspace,
+            pre_tool_use_command=f"{base} --context",
+            session_start_command=f"{base} --event session-start --context --cli {cli}",
+            stop_command=f"{base} --event stop",
+            context_commands={
+                "UserPromptSubmit": f"{base} --event user-prompt-submit --context",
+                "PostToolUse": f"{base} --event post-tool-use --context",
+            },
         )
 
     def stop_should_check(self, payload: dict[str, Any]) -> bool:
@@ -257,9 +323,13 @@ class ClaudeCodeAdapter(AgentAdapter):
     def on_uninstall(self, workspace: Path) -> None:
         """Restore the earliest pristine backup or remove marker-owned hooks."""
         settings_path = workspace / ".claude" / "settings.local.json"
+        preview = self.plan_hook_install(workspace, hook_executable="keepsail-hook",
+                                         cli_executable="keepsail")
+        context_events = _context_hook_installed(preview.original_bytes)
         restore_or_remove_managed_hooks(
             settings_path,
             pre_tool_use_marker="--agent claude-code",
             stop_marker="--agent claude-code --event stop",
             workspace_root=workspace,
+            context_events=context_events,
         )

@@ -563,3 +563,60 @@ def resume(ctx: click.Context, slug: str | None) -> None:
         sys.exit(EXIT_VALIDATION)
     _emit_resume(ctx, root, slug, derived[slug])
     sys.exit(EXIT_OK)
+
+
+@change_group.command("context")
+@click.argument("slug")
+@click.option("--preview", is_flag=True, help="Read current context without recording supply.")
+@click.option("--entry", "entry_id", help="SessionStart entry epoch to supply and retrieve.")
+@click.option("--bind-startup", help="Bind a real Codex startup once to the explicit Change.")
+@click.option("--finalize-acquisition", is_flag=True,
+              help="Record native acquisitions from retained complete Codex tool returns.")
+@click.option("--page", type=click.IntRange(min=1), default=1, show_default=True)
+@click.option("--statement", type=click.Path(exists=True, dir_okay=False, allow_dash=True),
+              help="Explicit entry-statement/v1 JSON: - or workspace file; never auto-adopts.")
+@click.pass_context
+def context_command(ctx: click.Context, slug: str, preview: bool,
+                    entry_id: str | None, bind_startup: str | None,
+                    page: int, statement: str | None, finalize_acquisition: bool) -> None:
+    """Retrieve the explicitly selected Change's current authority context."""
+    from keepsail.cli.knowledge import _run
+    from keepsail.core.context import PAGE_BYTES, project_context
+    from keepsail.core.knowledge import KnowledgeError
+    from keepsail.daemon.context_hook import (
+        finalize_acquisition as finalize,
+    )
+    from keepsail.daemon.context_hook import (
+        record_statement,
+        retrieve_context,
+    )
+
+    ctx.obj["unicode_output"] = True
+
+    def action(root: Path) -> dict[str, Any]:
+        selected_entry = entry_id
+        if preview and (entry_id or statement or bind_startup or finalize_acquisition):
+            raise KnowledgeError("--preview and --entry/--statement are mutually exclusive")
+        if preview:
+            return project_context(root, slug)
+        if bind_startup:
+            from keepsail.core.context import bind_startup as bind
+            if entry_id or statement or page != 1 or finalize_acquisition:
+                raise KnowledgeError("--bind-startup requires page 1 without --entry/--statement")
+            selected_entry = bind(root, slug, bind_startup)["entry_id"]
+        if selected_entry is None:
+            raise KnowledgeError("explicit --entry or --preview required", code="entry_unbound")
+        if finalize_acquisition:
+            if statement or page != 1:
+                raise KnowledgeError("finalization requires --entry without --statement/--page")
+            return finalize(root, slug, selected_entry)
+        if statement:
+            return record_statement(root, slug, selected_entry, statement)
+        data = retrieve_context(root, slug, selected_entry, page)
+        encoded = json_envelope(command="change context", status="pass", exit_code=0,
+                                data=data, ensure_ascii=False)
+        if len(encoded.encode("utf-8")) + 1 > PAGE_BYTES:
+            raise KnowledgeError("context page exceeds tool-return budget", code="page_incomplete")
+        return data
+
+    _run(ctx, "change context", action)
