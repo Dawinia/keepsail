@@ -26,6 +26,7 @@ from keepsail.core.approval import (
     evidence_digest,
     evidence_is_recognized,
     has_unresolved_candidate,
+    is_attestation_path,
     load_recognition,
     make_code_subject,
     missing_coverage,
@@ -138,10 +139,13 @@ def write_attestation(events_file: Path, attestations_dir: Path, slug: str, *,
         raise ValueError("unsupported attestation output format")
     if ATTESTATION_FORMAT == "v1" and selected == "v2":
         raise ValueError("reader-only release cannot produce v2; upgrade the producer first")
+    root = events_file.parent.parent
+    policy = load_policy(root)
+    if format_version in {"v2", "v1-bootstrap"} and policy is None:
+        raise ValueError(f"{format_version} requires an activated knowledge policy")
     retain_checkpoint(events_file, slug, compact=selected == "v2",
                        bootstrap=selected == "v1-bootstrap")
-    root = events_file.parent.parent
-    if load_policy(root) is not None and selected == "v2":
+    if policy is not None and selected == "v2":
         from keepsail.core.approval import resolve_contract_base
         from keepsail.core.attestation_format import make_attestation
         from keepsail.core.context import _approval_lineage
@@ -158,7 +162,7 @@ def write_attestation(events_file: Path, attestations_dir: Path, slug: str, *,
             out_path.write_text(content, encoding="utf-8")
         return out_path
     lines = extract_change_events(events_file, slug)
-    if selected == "v1-bootstrap" and load_policy(root) is not None:
+    if selected == "v1-bootstrap" and policy is not None:
         # Old readers require inline review conclusions. This explicit one-time
         # compatibility projection never changes the retained native originals.
         preceding: list[dict[str, Any]] = []
@@ -215,7 +219,10 @@ def check_attestation(
     context, direct callers retain legacy receipt enforcement.
     """
     blockers: list[str] = []
-    states = derive_state(attestation_path)
+    try:
+        states = derive_state(attestation_path)
+    except (ApprovalError, EventSchemaError) as exc:
+        return [f"attestation {slug}: invalid lifecycle evidence: {exc}"]
     if set(states.keys()) != {slug}:
         blockers.append(
             f"attestation {attestation_path.name}: filename slug {slug!r} does "
@@ -363,7 +370,7 @@ def _is_attestation_path(canonical: str) -> bool:
     # A non-.jsonl file committed under the dir (e.g. .harness/attestations/x.py)
     # must stay a subject requiring coverage — otherwise it would be neither
     # subject nor evidence and escape the gate entirely (fail-OPEN, B1 / §5).
-    return canonical.startswith(ATTESTATIONS_DIRNAME + "/") and canonical.endswith(".jsonl")
+    return is_attestation_path(canonical)
 
 
 def verify_attestations(

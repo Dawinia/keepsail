@@ -4,6 +4,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+import pytest
 from click.testing import CliRunner
 
 import keepsail.cli.attest as attest_mod
@@ -52,6 +53,20 @@ def test_attest_write_creates_file(tmp_path):
     r = CliRunner().invoke(main, ["--workspace", str(tmp_path), "attest", "write", "s"])
     assert r.exit_code == 0, r.output
     assert (tmp_path / ".harness" / "attestations" / "s.jsonl").exists()
+
+
+@pytest.mark.parametrize("output_format", ["v1-bootstrap"] + (
+    ["v2"] if attest_mod.ATTESTATION_FORMAT == "v2" else []))
+def test_explicit_format_without_policy_fails_before_writing(tmp_path, output_format):
+    _init(tmp_path)
+    events = tmp_path / ".harness/events.jsonl"
+    before = events.read_bytes()
+    result = CliRunner().invoke(main, ["--workspace", str(tmp_path), "--json", "attest", "write",
+                                      "s", "--format", output_format])
+    assert result.exit_code == 1
+    assert "requires an activated knowledge policy" in result.output
+    assert events.read_bytes() == before
+    assert not (tmp_path / ".harness/attestations").exists()
 
 
 def test_attest_write_no_events_for_slug_errors(tmp_path):
