@@ -143,7 +143,19 @@ def make_attestation(change: str, inputs: Any, checkpoint: dict[str, Any],
     return result
 
 
-def expand_attestation(raw: dict[str, Any]) -> list[str]:
+def expand_attestation(raw: object) -> list[str]:
+    """Reject malformed external records through the domain validation boundary."""
+    if not isinstance(raw, dict):
+        raise ApprovalError("compact attestation must be an object")
+    try:
+        return _expand_attestation(raw)
+    except ApprovalError:
+        raise
+    except (KeyError, TypeError, ValueError, AttributeError, IndexError) as exc:
+        raise ApprovalError("invalid compact attestation structure") from exc
+
+
+def _expand_attestation(raw: dict[str, Any]) -> list[str]:
     _require(set(raw) == {"schema_version", "representation", "change_id", "approval",
                           "code_subject",
                           "authorization_lineage", "lifecycle", "knowledge_checkpoint",
@@ -152,16 +164,31 @@ def expand_attestation(raw: dict[str, Any]) -> list[str]:
              "invalid compact attestation format")
     _require(raw["digest"] == digest_record({k: v for k, v in raw.items() if k != "digest"}),
              "compact attestation digest mismatch")
+    _require(isinstance(raw["change_id"], str) and raw["change_id"]
+             and isinstance(raw["expected_state"], str), "invalid compact attestation identity")
+    _require(isinstance(raw["lifecycle"], list) and raw["lifecycle"],
+             "compact attestation needs a non-empty lifecycle")
+    _require(isinstance(raw["knowledge_checkpoint"], dict)
+             and isinstance(raw["knowledge_checkpoint"].get("digest"), str),
+             "invalid compact knowledge checkpoint")
+    _require(isinstance(raw["historical_lifecycle_index"], list)
+             and all(isinstance(row, dict) and set(row) == {
+                 "source_event_id", "type", "source_event_digest"}
+                 and all(isinstance(value, str) and value for value in row.values())
+                 for row in raw["historical_lifecycle_index"]),
+             "invalid historical lifecycle index")
     approval = validate_approval(raw["approval"], change_id=raw["change_id"])
     validate_retained_lineage(approval, raw["authorization_lineage"])
     code = validate_code_subject(raw["code_subject"], change_id=raw["change_id"]) if (
         raw["code_subject"] is not None) else None
     result = []
     for index, row in enumerate(raw["lifecycle"]):
-        _require(set(row) == {"type", "payload", "timestamp", "source_timestamp", "actor",
+        _require(isinstance(row, dict) and set(row) == {
+                              "type", "payload", "timestamp", "source_timestamp", "actor",
                               "framework",
                               "source_event_id",
                               "source_event_digest"}, "invalid derived lifecycle row")
+        _require(isinstance(row["payload"], dict), "invalid derived lifecycle payload")
         payload = deepcopy(row["payload"])
         targets = [(payload, "plan_subject", approval["subject"]),
                    (payload, "approval", approval), (payload, "code_subject", code)]

@@ -411,7 +411,19 @@ def continued_approval_lineage(
         return lineage
 
 
-def validate_retained_lineage(approval: dict[str, Any], lineage: list[dict[str, Any]]) -> None:
+def validate_retained_lineage(approval: dict[str, Any], lineage: object) -> None:
+    """Normalize malformed external lineage into an explicit validation failure."""
+    if not isinstance(lineage, list) or any(not isinstance(row, dict) for row in lineage):
+        raise ApprovalError("retained approval lineage must be a list of objects")
+    try:
+        _validate_retained_lineage(approval, lineage)
+    except ApprovalError:
+        raise
+    except (KeyError, TypeError, ValueError, AttributeError, IndexError) as exc:
+        raise ApprovalError("invalid retained approval lineage structure") from exc
+
+
+def _validate_retained_lineage(approval: dict[str, Any], lineage: list[dict[str, Any]]) -> None:
     """Validate the public continuation index against the current reviewed text.
 
     An indexed prior subject is historical identity, not a claim that its former
@@ -426,6 +438,8 @@ def validate_retained_lineage(approval: dict[str, Any], lineage: list[dict[str, 
                                 artifact["content"], re.MULTILINE | re.DOTALL):
             declarations.append((artifact["path"], json.loads(block, object_pairs_hook=_pairs)))
     declaration = declarations[0][1] if len(declarations) == 1 else None
+    if declaration is not None and not isinstance(declaration, dict):
+        raise ApprovalError("retained continuation must be an object")
     current = {a["path"]: a for a in subject["artifacts"]}
     prior_id = subject.get("prior_approval")
     seen = set()
@@ -446,7 +460,10 @@ def validate_retained_lineage(approval: dict[str, Any], lineage: list[dict[str, 
                 or declaration.get("scope") != (
                     "all-current-obligations-with-explicit-historical-replacements")):
             raise ApprovalError("retained lineage lacks a reviewed continuation")
-        rows = [row for row in declaration["prior_approvals"] if row["approval_id"] == prior_id]
+        prior_rows = declaration.get("prior_approvals")
+        if not isinstance(prior_rows, list) or any(not isinstance(row, dict) for row in prior_rows):
+            raise ApprovalError("retained continuation needs prior approval objects")
+        rows = [row for row in prior_rows if row["approval_id"] == prior_id]
         if len(rows) != 1 or rows[0]["subject_id"] != previous.get("subject_id"):
             raise ApprovalError("retained prior subject does not match continuation")
         bindings = {item["path"]: item for item in rows[0]["artifacts"]}
@@ -909,8 +926,16 @@ def _name_status(raw: str) -> list[tuple[str, tuple[str, ...]]]:
     return rows
 
 
+def is_attestation_path(path: str) -> bool:
+    """Match the flat/v2 evidence locations accepted by the trusted workflow."""
+    parts = path.split("/")
+    return (parts[:2] == [".harness", "attestations"]
+            and (len(parts) == 3 or (len(parts) == 4 and parts[2] == "v2"))
+            and ".." not in parts and posixpath.splitext(parts[-1])[1] == ".jsonl")
+
+
 def _attestation_only(paths: Iterable[str]) -> bool:
-    return all(p.startswith(".harness/attestations/") and p.endswith(".jsonl") for p in paths)
+    return all(is_attestation_path(p) for p in paths)
 
 
 def git_change_manifest(root: Path, *, base: str, head: str) -> list[dict[str, Any]]:

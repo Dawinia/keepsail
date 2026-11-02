@@ -215,3 +215,94 @@ def test_reader_bootstrap_preserves_other_task_statement_source_without_rehash(
     new = make_checkpoint(w.root, "change-a", read_inputs(w.root), resolve_contract_base(w.root))
     assert len(new["delta"]) == 1
     assert resolve_facts(w.root, new, policy())[:len(original)] == original
+
+
+def test_v2_reader_round_trip_and_malformed_structures(tmp_path, monkeypatch):
+    from copy import deepcopy
+
+    from keepsail.core.approval import ApprovalError, digest_record
+    from keepsail.core.attestation_format import expand_attestation
+    from keepsail.core.reducer import derive_state
+    from keepsail.engineering import attestation
+
+    # Exercise the future producer seam even in the reader-only release.
+    monkeypatch.setattr(attestation, "ATTESTATION_FORMAT", "v2")
+    w = Workspace(tmp_path)
+    out = write_attestation(w.root / ".harness/events.jsonl", w.root / ".harness/attestations",
+                            "change-a", format_version="v2")
+    original = json.loads(out.read_text(encoding="utf-8"))
+    assert out.parent.name == "v2"
+    assert expand_attestation(original)
+    assert derive_state(out)["change-a"].current_state == "IMPLEMENTATION_IN_PROGRESS"
+    mutations = [
+        ("lifecycle", []), ("lifecycle", None), ("lifecycle", [None]),
+        ("authorization_lineage", None), ("authorization_lineage", [None]),
+        ("knowledge_checkpoint", None), ("knowledge_checkpoint", {}),
+        ("historical_lifecycle_index", None),
+    ]
+    for key, value in mutations:
+        bad = deepcopy(original)
+        bad[key] = value
+        bad["digest"] = digest_record({k: v for k, v in bad.items() if k != "digest"})
+        with pytest.raises(ApprovalError):
+            expand_attestation(bad)
+    for value in (None, [], "not-an-object", 1):
+        bad = deepcopy(original)
+        bad["lifecycle"][0]["payload"] = value
+        bad["digest"] = digest_record({k: v for k, v in bad.items() if k != "digest"})
+        with pytest.raises(ApprovalError):
+            expand_attestation(bad)
+        out.write_text(json.dumps(bad) + "\n", encoding="utf-8")
+        blockers = attestation.check_attestation(out, "change-a")
+        assert blockers and "invalid" in blockers[0]
+    from keepsail.cli import attest as attest_cli
+
+    monkeypatch.setattr(attest_cli, "_git_name_status", lambda *args:
+                        "A\t.harness/attestations/v2/change-a.jsonl\nM\tplan.md\n")
+    failure = w.cli("attest", "verify", "--base", "main", "--head", "HEAD", code=2)
+    assert any("invalid lifecycle evidence" in row["message"] for row in failure["errors"])
+
+
+@pytest.mark.parametrize("declaration", ["{", "null", "[]", "1",
+                                         '{"prior_approvals":null}',
+                                         '{"prior_approvals":[null]}'])
+def test_retained_lineage_rejects_malformed_reviewed_json(tmp_path, declaration):
+    from keepsail.core.approval import (
+        ApprovalError,
+        approval_record,
+        make_plan_subject,
+        validate_retained_lineage,
+    )
+
+    if declaration.startswith("{") and declaration != "{":
+        declaration = json.dumps({
+            "schema_version": "obligation-continuation/v1", "current_artifact": "plan.md",
+            "scope": "all-current-obligations-with-explicit-historical-replacements",
+            "prior_approval": "approval:previous", "fallback": "retain-full-uncovered-lineage",
+            **json.loads(declaration),
+        })
+    (tmp_path / "plan.md").write_text(
+        "# Fixture\n```keepsail-obligation-continuation\n" + declaration + "\n```\n",
+        encoding="utf-8",
+    )
+    subject = make_plan_subject(tmp_path, change_id="fixture", artifacts=[("plan.md", "plan")],
+                                commitments=[], prior_approval="approval:previous")
+    approval = approval_record(subject=subject, evidence_id="fixture", evidence_digest="0" * 64)
+    with pytest.raises(ApprovalError):
+        validate_retained_lineage(approval, [{"schema_version": "approval-lineage-projection/v1",
+                                              "approval_id": "approval:previous"}])
+
+
+@pytest.mark.parametrize("path,accepted", [
+    (".harness/attestations/probe.jsonl", True),
+    (".harness/attestations/v2/probe.jsonl", True),
+    (".harness/attestations/unknown/probe.jsonl", False),
+    (".harness/attestations/v2/deep/probe.jsonl", False),
+    (".harness/attestations/.jsonl", False),
+])
+def test_python_evidence_classification_matches_workflow_depth(path, accepted):
+    from keepsail.core.approval import _attestation_only
+    from keepsail.engineering.attestation import _is_attestation_path
+
+    assert _is_attestation_path(path) is accepted
+    assert _attestation_only([path]) is accepted
