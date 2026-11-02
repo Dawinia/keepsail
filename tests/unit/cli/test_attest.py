@@ -43,6 +43,15 @@ def test_external_disclosure_names_provenance_without_claiming_independence():
     assert "importer=author" in line and "independence not verified" in line
     assert "evidence=conclusion-1" in line
     assert "self-signed" not in line
+    assert line.isascii()
+
+
+def test_attest_write_help_explains_policy_dependent_default():
+    result = CliRunner().invoke(main, ["attest", "write", "--help"])
+    text = " ".join(result.output.split())
+    assert result.exit_code == 0
+    assert "v2 with an activated knowledge policy; otherwise v1" in text
+    assert "Explicit formats never fall back" in text
 
 
 # --------------------------------------------------------------------------- #
@@ -179,7 +188,7 @@ def test_verify_discloses_self_signed_line(tmp_path, monkeypatch):
 def test_verify_discloses_independent_line(tmp_path, monkeypatch):
     _attestation(tmp_path, "feat-x", "alice@x", "bob@x")
     r = _verify(tmp_path, monkeypatch, _DIFF)
-    assert "code review independence: independent — bob@x" in r.output
+    assert "code review independence: independent - bob@x" in r.output
     assert r.exit_code == 0
 
 
@@ -300,6 +309,7 @@ def test_independence_line_names_its_role():
             "override": False, "reason": None}
     assert _independence_line("code_review", item).startswith("code review independence:")
     assert _independence_line("plan_review", item).startswith("plan review independence:")
+    assert _independence_line("code_review", item).isascii()
 
 
 # --------------------------------------------------------------------------- #
@@ -342,7 +352,7 @@ def test_verify_budget_hold_is_not_attached_to_the_independence_line(tmp_path, m
     _attestation_with_holds(tmp_path, "feat-x", [("plan-reviewer", 7)])
     r = _verify(tmp_path, monkeypatch, _DIFF)
     assert [ln for ln in r.output.splitlines() if "independence:" in ln] == [
-        "code review independence: independent — bob@x",
+        "code review independence: independent - bob@x",
         'plan review independence: unattributed (legacy "cli" placeholder)',
     ]
     assert sum(ln.startswith("round budget:") for ln in r.output.splitlines()) == 1

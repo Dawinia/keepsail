@@ -72,19 +72,19 @@ def _independence_line(role: str, item: dict[str, Any]) -> str:
     if cls == "external-evidence":
         process = item["process"]
         return (
-            f"{label}: external evidence — process={process['id']}/{process['version']}, "
+            f"{label}: external evidence - process={process['id']}/{process['version']}, "
             f"issuer={item['issuer']}, evidence={item['evidence_id']}, "
             f"subject={item['subject_id']}, "
             f"importer={item['importer']} (independence not verified)"
         )
     if cls == "self-signed":
-        return f"{label}: self-signed (self-review) — {who}"
+        return f"{label}: self-signed (self-review) - {who}"
     if cls == "independent":
-        return f"{label}: independent — {who}"
+        return f"{label}: independent - {who}"
     if cls == "skipped":
         if item.get("override"):
-            return f"{label}: skipped (OVERRIDE: {item.get('reason')}) — {who}"
-        return f"{label}: skipped — {who}"
+            return f"{label}: skipped (OVERRIDE: {item.get('reason')}) - {who}"
+        return f"{label}: skipped - {who}"
     if cls == "ci":
         return f"{label}: ci"
     return f'{label}: unattributed (legacy "cli" placeholder)'
@@ -101,7 +101,12 @@ def attest_group() -> None:
               type=click.Choice(["v2", "v1-bootstrap"] if ATTESTATION_FORMAT == "v2"
                                 else ["v1-bootstrap"]),
               default=None,
-              help="Output version; v1-bootstrap is limited to reader-first upgrades.")
+              help=("Output version; default is v2 with an activated knowledge policy; "
+                    "otherwise v1. Explicit formats never fall back. "
+                    "v1-bootstrap is limited to reader-first upgrades."
+                    if ATTESTATION_FORMAT == "v2" else
+                    "Output version; default is v1. Explicit formats never fall back. "
+                    "v1-bootstrap is limited to reader-first upgrades."))
 @click.option(
     "--disclose-gate-bypass",
     "disclose_reason",
@@ -149,7 +154,7 @@ def attest_write(ctx: click.Context, slug: str, disclose_reason: str | None,
                 subcommand="attest write",
                 message=str(e),
                 hint=(
-                    "Run the lifecycle for this change first — events.jsonl must "
+                    "Run the lifecycle for this change first - events.jsonl must "
                     "contain its events before an attestation can be written."
                 ),
             ),
@@ -297,7 +302,7 @@ def attest_verify(ctx: click.Context, base: str, head: str) -> None:
                 if gb["bypassed"]:
                     click.echo(
                         f"gate bypass: {gb['bypassed']} bypass(es), "
-                        f"{gb['disclosed']} disclosure(s) — "
+                        f"{gb['disclosed']} disclosure(s) - "
                         + "; ".join(r for r in gb["reasons"] if r)
                     )
         if verdict.ok:

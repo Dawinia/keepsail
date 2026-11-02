@@ -7,6 +7,35 @@ import pytest
 from keepsail.adapters.agent.codex import CodexAdapter
 
 
+def test_context_optin_is_explicit_preserved_and_reversible(tmp_path, monkeypatch):
+    monkeypatch.setattr(shutil, "which", lambda name: f"C:/Program Files/Keepsail/{name}.exe")
+    settings = tmp_path / ".codex/hooks.json"
+    settings.parent.mkdir()
+    settings.write_text(json.dumps({"theme": "keep", "permissions": {
+        "allow": ["keepsail-hook --agent codex --event session-start --context"]},
+        "hooks": {"PostToolUse": [{"hooks": [{"type": "command", "command": "user-hook"}]}]}}))
+    CodexAdapter().install_hooks(tmp_path)
+    assert "--context" not in json.loads(settings.read_text())["hooks"]["PreToolUse"][0][
+        "hooks"][0]["command"]
+    CodexAdapter(knowledge_context=True).install_hooks(tmp_path)
+    installed = settings.read_bytes()
+    data = json.loads(installed)
+    assert {"SessionStart", "PreToolUse", "PostToolUse", "UserPromptSubmit", "Stop"} == set(
+        data["hooks"])
+    assert "powershell.exe" in data["hooks"]["SessionStart"][0]["hooks"][0]["command"]
+    assert "--cli" in data["hooks"]["SessionStart"][0]["hooks"][0]["command"]
+    CodexAdapter().install_hooks(tmp_path)
+    assert settings.read_bytes() == installed
+    data["user-added"] = True
+    settings.write_text(json.dumps(data))
+    CodexAdapter(knowledge_context=False).install_hooks(tmp_path)
+    data = json.loads(settings.read_text())
+    assert data["theme"] == "keep" and data["user-added"] is True
+    assert "UserPromptSubmit" not in data["hooks"]
+    assert data["hooks"]["PostToolUse"] == [
+        {"hooks": [{"type": "command", "command": "user-hook"}]}]
+
+
 def test_detect_requires_codex_dir(tmp_path):
     a = CodexAdapter()
     assert a.detect(tmp_path) is False
@@ -56,7 +85,8 @@ def test_agents_md_subsection_has_trust_and_caveat():
     # keepsail *gates*: the old "intercepts only simple shell" phrasing read as
     # a contradiction against "Bash is never gated" (PR#74 review).
     assert "simple shell" not in sub.lower()
-    assert "Codex surfaces only shell commands" in sub  # caveat separates surface from gating
+    assert "Codex surfaces only shell commands" not in sub
+    assert "selected coverage are separate" in sub  # host capability is not adapter coverage
 
 
 def test_on_uninstall_restores_earliest_backup(tmp_path, monkeypatch):

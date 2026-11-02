@@ -14,6 +14,8 @@ API stability: experimental (v0.1).
 
 from __future__ import annotations
 
+import json
+import shlex
 import shutil
 import subprocess
 from pathlib import Path
@@ -42,6 +44,28 @@ _CODEX_MARKER = "--agent codex"
 # REPLACE the prior Stop entry instead of appending a duplicate (two objects on stdout
 # → Codex "Stop Failed"). Mirrors the PreToolUse `_CODEX_MARKER` pattern.
 _CODEX_STOP_MARKER = "--agent codex --event stop"
+_CONTEXT_MARKERS = {event: f"--agent codex --event {name}" for event, name in (
+    ("SessionStart", "session-start"), ("UserPromptSubmit", "user-prompt-submit"),
+    ("PostToolUse", "post-tool-use"),
+)}
+
+
+def _context_installed(raw: bytes | None) -> bool:
+    for group in json.loads(raw or b"{}").get("hooks", {}).get("SessionStart", []):
+        for hook in group.get("hooks", []) if isinstance(group, dict) else []:
+            command = hook.get("command", "") if isinstance(hook, dict) else ""
+            if not isinstance(command, str) or _CONTEXT_MARKERS["SessionStart"] not in command:
+                continue
+            tokens = shlex.split(command)
+            if tokens[:4] != ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command"]:
+                continue
+            inner = shlex.split(tokens[4]) if len(tokens) == 5 else []
+            if (len(inner) == 9 and inner[0] == "&"
+                    and Path(inner[1]).name.lower() in {"keepsail-hook", "keepsail-hook.exe"}
+                    and inner[2:8] == ["--agent", "codex", "--event", "session-start",
+                                       "--context", "--cli"]):
+                return True
+    return False
 
 _AGENTS_MD_BEGIN = "<!-- keepsail agent: codex -->"
 _AGENTS_MD_END = "<!-- /keepsail agent: codex -->"
@@ -58,20 +82,27 @@ new/changed hooks until trusted (trust is keyed to the hook's hash); if you
 reinstall or relocate the binary, re-trust it. On a pre-existing repo also run
 `keepsail sync --gitignore` so `.codex/hooks.json` is ignored.
 
-**Coverage caveat:** Codex surfaces only shell commands and `apply_patch` to
-PreToolUse hooks — it does NOT expose `WebSearch` or other non-shell/non-MCP
-tools. keepsail gates `apply_patch` edits (never `Bash`, so the kill-switch
-keeps working); an action taken through a tool Codex does not surface isn't caught
-in real time, so real-time coverage is narrower than Claude Code's. The CI cold
-floor backs the gap.
+**Coverage caveat:** keepsail selects `apply_patch` edits for this adapter's gate.
+It does not gate arbitrary shell, MCP or other local writes. Current host hook
+capability and keepsail's selected coverage are separate; CI/check evidence also
+has its own scope and does not prove every action was observed. Hosted WebSearch
+is outside this integration's observation boundary.
 
 **Authoring-space caveat:** keepsail also allows the change's plan document in
 `INTENT_DECLARED` (any path matching `.harness/plan-paths.yaml`) and scratch notes in
 `.harness/scratch/<slug>/` in every state — but both key off the edited file's path,
-and Codex's `apply_patch` hook payload never carries one (see the coverage caveat
-above). Neither carve-out can fire for Codex: an `apply_patch` edit to either
-location blocks in a blocking state exactly like any other edit. Draft the plan
-document before `change start` instead of relying on in-gate authoring for it.
+and the legacy Codex shim passes no resolved file path. In that legacy mode those
+carve-outs cannot fire. The optional context mode parses all native patch paths
+and applies the same lawful allowances to each path; it requires a bound task.
+
+#### Optional session-bound context (Windows local desktop)
+
+When installed with `adapter install codex --knowledge-context`, follow the real
+SessionStart hint: bind its startup once to the task's explicit Change and retrieve
+every returned context command before product edits. New resume/compact entries
+require fresh retrieval. Declare adoption or challenge explicitly. Never borrow a
+root entry for an unverified subagent. See [context delivery](docs/knowledge-context.md)
+for current transport limits, declarations, refresh and native opt-out.
 
 When a tool call is blocked:
 - Run `keepsail status` to see the change, its state, and the next step.
@@ -98,8 +129,8 @@ For each review epoch:
    original evidence; the core does not infer approval from a model, failed call,
    empty result, or skip.
 3. Import that exact record with `keepsail review import <change>
-   --evidence <path>`. Review execution, retries, and substantive judgment stay
-   outside keepsail.
+   --evidence -` using JSON on stdin (or a workspace file). Review execution,
+   retries, and judgment stay outside keepsail.
 4. Batch code-only fixes after `implementation reopen <change> --reason "<why>"`;
    if approved commitments change or explicit restrictions are relaxed, require a
    new plan candidate and review. Within-approval file additions and implementation
@@ -109,6 +140,12 @@ For each review epoch:
 The imported evidence must cover the exact frozen subject. A reviewer may read
 unchanged repository material as supporting context, but a finding never widens
 the target implicitly. Do not edit while an external review is pending.
+
+Use stdin for review/assessment/knowledge/entry-statement JSON. Import the necessary
+facts once; temporary input files and copied tool returns are not deliverables.
+For implementation record, omit coverage to enumerate the full Git/workspace diff;
+git add intended new files or name --include-path. Supply the semantic reasons and
+commitment links explicitly. See docs/knowledge.md for the input and export formats.
 
 #### Turn-end authoring check
 
@@ -120,6 +157,8 @@ Like the PreToolUse gate, the Stop hook is INACTIVE until you `/hooks`-trust it.
 
 
 class CodexAdapter(AgentAdapter):
+    def __init__(self, knowledge_context: bool | None = None) -> None:
+        self.knowledge_context = knowledge_context
     name: ClassVar[str] = "codex"
     version: ClassVar[str] = "0.1.0"
     capabilities: ClassVar[dict[str, bool]] = {
@@ -162,7 +201,7 @@ class CodexAdapter(AgentAdapter):
     def plan_hook_install(
         self, workspace: Path, *, hook_executable: str, cli_executable: str
     ) -> SettingsMergePlan:
-        return plan_settings_merge(
+        legacy = plan_settings_merge(
             workspace / ".codex" / "hooks.json",
             workspace_root=workspace,
             pre_tool_use_command=f"{hook_executable} --agent codex",
@@ -171,6 +210,36 @@ class CodexAdapter(AgentAdapter):
             pre_tool_use_matcher=_CODEX_MATCHER,
             pre_tool_use_marker=_CODEX_MARKER,
             stop_marker=_CODEX_STOP_MARKER,
+        )
+        enabled = self.knowledge_context
+        if enabled is None:
+            enabled = _context_installed(legacy.original_bytes)
+        if not enabled and self.knowledge_context is not False:
+            return legacy
+
+        def command(arguments: str) -> str:
+            hook, cli = (p.replace("\\", "/") for p in (hook_executable, cli_executable))
+            if any('"' in p or "\n" in p or "\r" in p for p in (hook, cli)):
+                raise ValueError("unsupported quote/newline in Codex hook executable path")
+            invocation = "& '" + hook.replace("'", "''") + "' --agent codex " + arguments
+            if "--event session-start" in arguments:
+                invocation += " --cli '" + cli.replace("'", "''") + "'"
+            return 'powershell.exe -NoProfile -NonInteractive -Command "' + invocation + '"'
+
+        return plan_settings_merge(
+            workspace / ".codex/hooks.json", workspace_root=workspace,
+            pre_tool_use_command=command("--context") if enabled else (
+                f"{hook_executable} --agent codex"),
+            session_start_command=command("--event session-start --context") if enabled else (
+                f"{cli_executable} change resume"),
+            stop_command=command("--event stop") if enabled else (
+                f"{hook_executable} --agent codex --event stop"),
+            pre_tool_use_matcher=_CODEX_MATCHER, pre_tool_use_marker=_CODEX_MARKER,
+            stop_marker=_CODEX_STOP_MARKER, context_markers=_CONTEXT_MARKERS,
+            context_commands={
+                "UserPromptSubmit": command("--event user-prompt-submit --context"),
+                "PostToolUse": command("--event post-tool-use --context"),
+            } if enabled else {},
         )
 
     def inject_context(self, change_id: str) -> str:
@@ -201,6 +270,9 @@ class CodexAdapter(AgentAdapter):
         return ".codex/hooks.json"
 
     def installed_detail(self) -> str:
+        if self.knowledge_context is True:
+            return ("Codex session-bound context hooks registered in .codex/hooks.json; "
+                    "review and trust the exact hooks in the current Codex desktop before use")
         return (
             "PreToolUse + SessionStart + Stop hooks registered in .codex/hooks.json — "
             "run `/hooks` in Codex to trust the hooks before the gate is active"
@@ -213,4 +285,7 @@ class CodexAdapter(AgentAdapter):
             pre_tool_use_marker=_CODEX_MARKER,
             stop_marker=_CODEX_STOP_MARKER,
             workspace_root=workspace,
+            context_events=(_context_installed(hooks_path.read_bytes())
+                            if hooks_path.exists() else False),
+            context_markers=_CONTEXT_MARKERS,
         )

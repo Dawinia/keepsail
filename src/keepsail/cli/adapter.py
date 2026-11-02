@@ -98,14 +98,38 @@ def adapter_group() -> None:
     """Install / uninstall / list keepsail integrations for frameworks + agents."""
 
 
+def _cleanup_withdrawn_context(root: Path, name: str, command: str) -> None:
+    if name not in {"codex", "claude-code"}:
+        return
+    from keepsail.core.context import retire_context_returns
+
+    try:
+        retire_context_returns(root, name)
+    except (ValueError, KeyError, TypeError, OSError) as exc:
+        click.echo(format_error(
+            subcommand=command,
+            message=f"hook step completed; v2 temporary context cleanup failed: {exc}",
+            hint="Native history is retained; correct the cleanup error and retry.",
+        ), err=True)
+        sys.exit(EXIT_GENERIC)
+
+
 @adapter_group.command("install")
 @click.argument("name")  # free-form: registry membership checked below (NOT click.Choice)
+@click.option("--knowledge-context/--no-knowledge-context", default=None,
+              help="Opt in/out of Claude/Codex session-bound context (otherwise preserve).")
 @click.pass_context
-def adapter_install(ctx: click.Context, name: str) -> None:
+def adapter_install(ctx: click.Context, name: str, knowledge_context: bool | None) -> None:
     """Install the <name> adapter (registers hooks + persists adapters.yaml)."""
     root = _resolve_root(ctx, "adapter install")
 
     adapter = _resolve_builtin_or_exit(name, "adapter install")
+    if knowledge_context is not None:
+        from keepsail.adapters.agent.claude_code import ClaudeCodeAdapter
+        from keepsail.adapters.agent.codex import CodexAdapter
+        if not isinstance(adapter, (ClaudeCodeAdapter, CodexAdapter)):
+            raise click.UsageError("--knowledge-context requires claude-code or codex")
+        adapter.knowledge_context = knowledge_context
     kind = "framework" if isinstance(adapter, FrameworkAdapter) else "agent"
 
     # verification.yaml: empty-safe (agents + the v0.1 framework built-ins that
@@ -158,6 +182,8 @@ def adapter_install(ctx: click.Context, name: str) -> None:
             )
             sys.exit(EXIT_GENERIC)
 
+    if knowledge_context is False:
+        _cleanup_withdrawn_context(root, name, "adapter install")
     try:
         _persist_install_entry(root, name=name, kind=kind, version=adapter.version)
     except yaml.YAMLError as e:
@@ -366,6 +392,7 @@ def adapter_uninstall(ctx: click.Context, name: str) -> None:
             err=True,
         )
         sys.exit(EXIT_GENERIC)
+    _cleanup_withdrawn_context(root, name, "adapter uninstall")
     try:
         _remove_install_entry(root, name=name)
     except yaml.YAMLError as e:

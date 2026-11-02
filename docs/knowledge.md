@@ -99,14 +99,17 @@ supplied workspace JSON file with this outer shape:
 ```
 
 The final member is `version` for propose, `evidence` for import, or `record` for
-record. The input file's original byte digest is retained. Matching operation IDs
+record. Pass JSON directly with `--record -` or `--evidence -`; workspace files
+remain supported. The digest binds the actual UTF-8 input bytes read once from
+either source. Duplicate keys and non-object inputs fail before mutation.
+Matching operation IDs
 and canonically identical inputs return the original receipt, even if JSON
 whitespace changes; a reused ID with different
 content fails. A stale expected revision fails under the event writer lock before
 append. The full log prefix digest is the CAS revision; the semantic basis digest
 separately identifies relevant knowledge, applicability and authorization.
 
-`knowledge propose --record <file>` requires an approved governing Change in
+`knowledge propose --record -` requires an approved governing Change in
 implementation. The version object contains exactly schema_version
 (`knowledge-version/v1`), product_id, knowledge_id, body, rationale, sources,
 selector, authority (`guidance` or `constraint`), and previous_version (null for
@@ -120,7 +123,7 @@ matches its descendants but not `src/db2`. Paths are evaluated against the union
 of estimated scope and actual coverage/code manifest. Missing necessary path
 context is unknown, not non-matching. Initial scope is not an authorization limit.
 
-`knowledge import --evidence <file>` consumes an operation whose evidence object
+`knowledge import --evidence -` consumes an operation whose evidence object
 contains schema_version (`knowledge-evidence/v1`), evidence_id, kind, subject_id,
 decision, process (id/version), issuer, original_evidence, provenance (including
 policy_digest), and explicit authorization_effect (`unchanged` or
@@ -145,12 +148,16 @@ not recipient acquisition; a broken output pipe does not retract the receipt.
 Retrying the same delivery returns its original text and reports stale if the
 current basis changed. A new operation is required for a fresh delivery.
 
-`knowledge record --record <file>` supports typed statement, challenge,
-acquisition, emitted and execution records. A statement names delivery_id,
+`knowledge record --record -` supports typed statement, challenge,
+acquisition, context-acquisition, emitted and execution records. A statement names delivery_id,
 version_digest, decision (adopt/reject/challenge), and reason. A challenge also
-declares dependent_paths or dependency=global. Acquisition names an owner-selected
-observer, retained original_receipt, and the SHA256 of the returned body in
-returned_content_digest. These observed operations do not prove understanding or
+declares dependent_paths or dependency=global. The native context observer writes
+one context-acquisition/v2 fact after strict actual-return validation, then small
+acquisition-observation/v2 links for every exact version/body. Empty delivery has
+an outer completion fact without a fictitious version. Legacy acquisitions still
+require original_receipt and the exact body SHA256 in returned_content_digest;
+unknown schemas cannot opt into that legacy interpretation.
+These observed operations do not prove understanding or
 compliance; agent-declared adoption is a different category. Acquisition coverage
 is shown per delivery/version, including missing observations.
 Manually submitted emitted records are retained as self-reported output statements;
@@ -161,6 +168,40 @@ approval, challenges, impact dispositions, action evidence and missing observati
 It is pure read, including when used from a replacement process. `knowledge show
 [id] --version <digest>` reads immutable history. Neither read silently records a
 new supply or an acquisition.
+
+## Inputs, coverage and derived exports
+
+`review import --evidence -`, `implementation record --assessment -`, and
+`change context --statement -` also accept JSON directly. File inputs remain
+available; importing a conclusion does not make its input file a required
+deliverable. review_evidence_imported stores the full conclusion once; the plan
+or code milestone uses review-reference/v2 with the exact id/digest and subject.
+
+Omitting coverage from an implementation assessment generates it from the trusted
+Git base through HEAD and tracked staged/unstaged paths. Add intended new files
+with git add or --include-path; unrelated untracked files stay outside. Renames
+include both ends. The writer rechecks the generation basis before recording.
+Reasons, affected commitments and within-approval judgment remain explicit.
+
+With an active knowledge protocol, attest write produces
+`.harness/attestations/v2/<change>.jsonl` using attestation/v2 and
+knowledge-checkpoint/v2. These are explicitly derived records, not original event
+bytes. They retain the complete current approval/review and code subject once,
+necessary lifecycle facts, knowledge operations and explicit source identities.
+Trusted baseline checkpoints are resolved from local Git; only subsequent facts
+are carried in the delta. Repeated contexts and delivery version/conclusion
+bodies use local references; results and views are recomputed. Identical exports
+append no checkpoint and produce identical output bytes.
+
+Accepted v1 acquisitions become explicitly labelled retained-acquisition/v2 facts
+in the export, with source/receipt digests and their original trust ceiling; this
+does not promote a failure or create a new observation. True host session/turn/tool
+identifiers use logical aliases in that representation. Native original logs and
+legacy attestation files are preserved. Validation requires the trusted Git closure
+and current subject; it does not use a live log, network, or replay of raw callbacks.
+No recognition policy or issuer is activated by these format versions. Historical
+merged-Change recovery v1 still rejects unsupported knowledge-bearing recovery;
+the v2 export is an offline verification format, not an implicit live-ledger import.
 
 ## Correction and impact handling
 
@@ -244,3 +285,14 @@ remain outside this slice. Historical Changes stay readable with knowledge
 coverage=not_recorded. No historical event, decision or receipt is migrated or
 retroactively promoted into an observation. Damaged enabled-protocol records fail
 explicitly; absence is not substituted for corruption.
+
+## Session entry
+
+The optional [session-bound context integration](knowledge-context.md) selects
+the current Windows Codex desktop revision and preserves the earlier Claude
+candidate's evidence. It composes
+this protocol with frozen work approval and ratified decisions. It uses native
+supply and whole-version acquisition records, adding an outer paginated envelope
+and actual CLI tool-return receipts. Resume/show remain read-only. This does not
+expand knowledge-recognition policy, the archived pilot selector, or all-tool
+enforcement. Actual host and replacement-session acceptance remain separate.

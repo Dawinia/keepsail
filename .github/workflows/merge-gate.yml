@@ -28,7 +28,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.base.sha }}
           path: .harness-trusted-base
-          fetch-depth: 1
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
       - name: Build isolated verifier from trusted BASE_SHA

@@ -194,6 +194,13 @@ The `.claude/` directory is not deleted, even if `install_hooks` created it.
 
 ## See also
 
+The optional [session-bound context](../knowledge-context.md) mode uses
+`adapter install claude-code --knowledge-context`. It adds CLI-return observation
+and entry prerequisites. Default installations remain compatible. Reinstalling
+without a flag preserves the mode; `--no-knowledge-context` removes its callbacks.
+Context-mode uninstall retains unrelated settings added after installation.
+Actual host activation and replacement-session acceptance need separate evidence.
+
 - [`docs/getting-started.md`](../getting-started.md) — the end-to-end
   walkthrough that installs this adapter alongside `openspec`.
 - [`docs/cli-reference.md`](../cli-reference.md) — the full
