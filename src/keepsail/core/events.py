@@ -169,6 +169,11 @@ def parse_event_line(line: str) -> Event:
         obj = json.loads(line)
     except json.JSONDecodeError as e:
         raise EventSchemaError(f"invalid JSON: {e}") from e
+    return _event_from_object(obj)
+
+
+def _event_from_object(obj: Any) -> Event:
+    """The same shape predicate for callers that already decoded a record."""
     if not isinstance(obj, dict):
         raise EventSchemaError(f"event must be a JSON object, got {type(obj).__name__}")
     missing = _REQUIRED_FIELDS - obj.keys()
@@ -228,12 +233,38 @@ def effective_event_lines(lines: Iterable[str]) -> Iterator[str]:
     identifiers: set[str] = set()
     for line in lines:
         try:
-            event = parse_event_line(line)
+            raw = json.loads(line)
+        except (ValueError, TypeError):
+            raw = None
+        if isinstance(raw, dict) and raw.get("schema_version") == "attestation/v2":
+            from keepsail.core.attestation_format import expand_attestation
+
+            def unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+                value: dict[str, Any] = {}
+                for key, item in pairs:
+                    if key in value:
+                        raise EventSchemaError(f"duplicate compact attestation key: {key}")
+                    value[key] = item
+                return value
+
+            raw = json.loads(line, object_pairs_hook=unique_object)
+            for expanded in expand_attestation(raw):
+                event = parse_event_line(expanded)
+                if event.event_id in identifiers:
+                    raise EventSchemaError("compact attestation has a conflicting derived event ID")
+                identifiers.add(event.event_id)
+                history.setdefault(event.change_id, []).append(expanded)
+                yield expanded
+            continue
+        if isinstance(raw, dict) and str(raw.get("schema_version", "")).startswith("attestation/"):
+            raise EventSchemaError("unsupported attestation format")
+        try:
+            event = _event_from_object(raw)
         except EventSchemaError:
             yield line
             continue
         if event.type != "historical_change_recovered":
-            history.setdefault(event.change_id, []).append(serialize_event(event))
+            history.setdefault(event.change_id, []).append(line)
             identifiers.add(event.event_id)
             yield line
             continue
@@ -248,7 +279,9 @@ def effective_event_lines(lines: Iterable[str]) -> Iterator[str]:
         restored_events = retained_history(event.payload, event.change_id)
         source = strict_events(event.payload["source_text"], event.change_id)
         expected = [serialize_event(e) for e in source[:event.payload["prefix_count"]]]
-        if history.get(event.change_id, []) != expected:
+        preceding = [serialize_event(parse_event_line(raw))
+                     for raw in history.get(event.change_id, [])]
+        if preceding != expected:
             raise EventSchemaError("recovery envelope does not extend its exact source prefix")
         source_ids = {e.event_id for e in source}
         restored_ids = {e.event_id for e in restored_events}

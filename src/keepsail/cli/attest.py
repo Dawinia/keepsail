@@ -29,6 +29,7 @@ from keepsail.core.paths import (
     find_harness_root,
 )
 from keepsail.engineering.attestation import (
+    ATTESTATION_FORMAT,
     ATTESTATIONS_DIRNAME,
     gate_bypass_for_attestation,
     independence_for_attestation,
@@ -96,6 +97,11 @@ def attest_group() -> None:
 
 @attest_group.command("write")
 @click.argument("slug")
+@click.option("--format", "output_format",
+              type=click.Choice(["v2", "v1-bootstrap"] if ATTESTATION_FORMAT == "v2"
+                                else ["v1-bootstrap"]),
+              default=None,
+              help="Output version; v1-bootstrap is limited to reader-first upgrades.")
 @click.option(
     "--disclose-gate-bypass",
     "disclose_reason",
@@ -104,7 +110,8 @@ def attest_group() -> None:
     "(clears the merge-gate blocker).",
 )
 @click.pass_context
-def attest_write(ctx: click.Context, slug: str, disclose_reason: str | None) -> None:
+def attest_write(ctx: click.Context, slug: str, disclose_reason: str | None,
+                 output_format: str | None) -> None:
     """Snapshot the per-change event slice to .harness/attestations/<slug>.jsonl."""
     try:
         root = find_harness_root(Path(ctx.obj.get("workspace") or "."))
@@ -134,7 +141,8 @@ def attest_write(ctx: click.Context, slug: str, disclose_reason: str | None) -> 
         )
         EventWriter(events_path(root)).emit(ev, skip_validation=True)
     try:
-        out = write_attestation(events_path(root), root / ATTESTATIONS_DIRNAME, slug)
+        out = write_attestation(events_path(root), root / ATTESTATIONS_DIRNAME, slug,
+                                format_version=output_format)
     except ValueError as e:
         click.echo(
             format_error(
@@ -212,7 +220,7 @@ def attest_verify(ctx: click.Context, base: str, head: str) -> None:
     # HG-12 cut 1: disclose review independence for each validated (newly-ADDED,
     # scope-covering) attestation. Disclosure only — never changes pass/fail.
     disclosures = {
-        slug: independence_for_attestation(root / ATTESTATIONS_DIRNAME / f"{slug}.jsonl")
+        slug: independence_for_attestation(root / verdict.attestation_paths[slug])
         for slug in verdict.attestations
     }
     # One item per (attestation, role). `role` is carried explicitly rather than left
@@ -285,7 +293,7 @@ def attest_verify(ctx: click.Context, base: str, head: str) -> None:
                         "for a human funding decision (distinct rounds, not retries)"
                     )
             for slug in verdict.attestations:
-                gb = gate_bypass_for_attestation(root / ATTESTATIONS_DIRNAME / f"{slug}.jsonl")
+                gb = gate_bypass_for_attestation(root / verdict.attestation_paths[slug])
                 if gb["bypassed"]:
                     click.echo(
                         f"gate bypass: {gb['bypassed']} bypass(es), "

@@ -145,6 +145,7 @@ keepsail attest write [OPTIONS] SLUG
 | Param | Type | Default | Description |
 |-------|------|---------|-------------|
 | `SLUG` | text | *required* |  |
+| `--format` | {v1-bootstrap} | — | Output version; v1-bootstrap is limited to reader-first upgrades. |
 | `--disclose-gate-bypass` | text | — | Disclose+justify that the gate was bypassed during this change (clears the merge-gate blocker). |
 
 **Exit codes:**

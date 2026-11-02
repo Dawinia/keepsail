@@ -64,7 +64,10 @@ jobs:
               mode, kind, oid = metadata.split()
               path = pathlib.PurePosixPath(raw_path.decode("utf-8"))
               assert mode in (b"100644", b"100755") and kind == b"blob", "nonregular attestation"
-              assert path.parts[:2] == (".harness", "attestations") and len(path.parts) == 3
+              assert path.parts[:2] == (".harness", "attestations")
+              assert len(path.parts) == 3 or (
+                  len(path.parts) == 4 and path.parts[2] == "v2"
+              ), "unsupported attestation location"
               assert path.suffix == ".jsonl" and ".." not in path.parts
               destination = root.joinpath(*path.parts)
               assert destination.resolve().is_relative_to(root.resolve())

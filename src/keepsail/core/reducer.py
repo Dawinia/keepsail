@@ -53,7 +53,8 @@ def derive_state(events_file: Path) -> dict[str, ChangeState]:
     return derive_state_from_lines(events_file.read_text(encoding="utf-8").splitlines())
 
 
-def derive_state_from_lines(lines: list[str]) -> dict[str, ChangeState]:
+def derive_state_from_lines(lines: list[str], *, _effective: bool = False
+                            ) -> dict[str, ChangeState]:
     """Full-rebuild reducer: replay events.jsonl → per-change state map.
 
     Returns an empty dict if `events_file` does not exist (first-run case).
@@ -77,7 +78,7 @@ def derive_state_from_lines(lines: list[str]) -> dict[str, ChangeState]:
     last_ts: dict[str, str] = {}
     from keepsail.core.events import effective_event_lines
 
-    raw_lines = effective_event_lines(lines)
+    raw_lines = lines if _effective else effective_event_lines(lines)
     for line_num, line in enumerate(raw_lines, start=1):
         if not line.strip():
             continue

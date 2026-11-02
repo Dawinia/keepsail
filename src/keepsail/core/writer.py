@@ -38,6 +38,7 @@ import json
 import os
 import tempfile
 import threading
+import time
 from hashlib import sha256
 from pathlib import Path
 
@@ -51,6 +52,18 @@ from keepsail.core.events import Event, serialize_event
 from keepsail.core.file_lock import exclusive_file_lock
 
 __all__ = ["EmitPreconditionError", "EventWriter"]
+
+
+def _remove_staged(path: Path) -> None:
+    """Retry only short Windows sharing/access locks on this transaction's temp."""
+    for attempt in range(4):
+        try:
+            path.unlink(missing_ok=True)
+            return
+        except PermissionError as exc:
+            if getattr(exc, "winerror", None) not in {5, 32, 33} or attempt == 3:
+                raise  # Preserve the file and fail before the real append.
+            time.sleep(0.05 * 2 ** attempt)
 
 
 # @decision:d-events-append-only
@@ -178,7 +191,7 @@ class EventWriter:
                                 staged.write((serialize_event(event) + "\n").encode("utf-8"))
                     finally:
                         if temp_path is not None:
-                            temp_path.unlink(missing_ok=True)
+                            _remove_staged(temp_path)
                 fd = os.open(self.path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o644)
                 try:
                     os.write(fd, data)
@@ -236,7 +249,7 @@ class EventWriter:
                 validate_recovery(staged_path, event)
             finally:
                 if staged_path is not None:
-                    staged_path.unlink(missing_ok=True)
+                    _remove_staged(staged_path)
             if not journal_path.exists():
                 journal = {"identity": identity, "prefix_length": len(prefix),
                            "prefix_sha256": sha256(prefix).hexdigest(),

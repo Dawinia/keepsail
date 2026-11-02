@@ -32,7 +32,7 @@ dependencies = [
   "rich>=14,<15",
   "tomli>=2.0; python_version < '3.11'",
   "python-ulid>=2.2",
-  "watchdog>=4.0",
+  "watchdog>=4.0,<7",  # v7 fails the Linux observer-host startup contract.
   # `python-ulid 3.1.0`'s installed metadata declares NO runtime requires,
   # but its `ulid/__init__.py` does `from typing_extensions import Self` —
   # upstream packaging bug. Declare it explicitly so `pipx install
