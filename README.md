@@ -1,37 +1,33 @@
 # Keepsail
 
-Keep decisions and product knowledge effective across AI coding sessions.
+An open-source control layer for product work across coding agents.
 
 **English** | [简体中文](README.zh-CN.md)
 
-Keepsail is an open-source product-work control layer for developers and product
-owners working with coding agents. It records what has been approved, which
-product constraints apply, and what evidence supports completion, so agents can
-work autonomously within agreed bounds and resume with the recorded context.
+With Keepsail, a product owner can approve what an agent should deliver, set the
+limits of its authority, and later check what was actually reviewed and verified.
+The agent can choose how to implement the plan within those limits. If the work
+calls for a change to an agreed requirement, the change needs its own approval.
 
 It works alongside your agent and development workflow through a CLI, agent
 hooks and CI checks. Integrations include Claude Code, Codex (experimental),
 OpenSpec, Superpowers and a plain CLI workflow.
 
-**Status: alpha.** Knowledge delivery currently operates within one repository
-using explicit rules and recognized applicability judgments. Integration coverage
-varies by agent and mode; see [current limits](#current-limits).
+**Status: alpha.** See [current limits](#current-limits) for integration coverage.
 
 ## Why Keepsail?
 
-Long-running agent work needs more than the current conversation:
-
-- **Carry approvals forward.** Preserve objectives, acceptance obligations and
-  restrictions. An approved plan permits implementation adjustments within those
-  bounds, including added files, without restarting approval for every discovery.
-- **Evolve product knowledge.** Retain versioned constraints and their rationale.
-  When a constraint changes, record its impact on ongoing work and the decision
-  to continue, adjust or seek renewed approval.
-- **Resume with the recorded basis.** Recover approvals, supplied knowledge and
-  unresolved matters across sessions. Optional context integration tracks what
-  was supplied and what retrieval actually returned.
-- **Make completion inspectable.** Bind review and verification evidence to the
-  corresponding plan or code, and check configured rules on supported surfaces.
+- **Give agents room to implement.** An agent can add a missing test fixture under
+  an approved plan and record why. Dropping the acceptance test changes what the
+  owner agreed to and requires a new plan review.
+- **Catch departures from the plan.** Local hooks check selected editing actions.
+  Before merge, configured checks can flag missing verification or a review that
+  covers an earlier version of the code.
+- **Hand work to the next session.** Recover the approved plan, applicable
+  constraints and unresolved questions so another session can pick up the work.
+- **Track changes to product knowledge.** When a recognized constraint changes,
+  see which work received the earlier version and record how each affected change
+  should proceed.
 
 See the [Overview](docs/overview.md) for a worked scenario and the
 [product architecture](docs/product-architecture.md) for the product's responsibilities.
@@ -112,8 +108,8 @@ Windows local Codex desktop setup. The basic quickstart does not enable that mod
 
 - Local hooks cover selected tools and require actual host activation. CI checks
   protect merges only when installed and required by branch protection.
-- Knowledge selection uses explicit rules and recognized judgments. Shared
-  cross-repository knowledge authority and complete semantic recall are not implemented.
+- Knowledge delivery operates within one repository. It selects constraints through
+  explicit rules and recognized applicability judgments.
 - Recorded retrieval does not prove understanding; an agent's adoption statement
   does not prove compliance. Review quality remains the responsibility of the
   recognized process.

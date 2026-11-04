@@ -1,8 +1,9 @@
 # Overview
 
 Keepsail is an open-source product-work control layer across agent harnesses.
-It keeps effective human commitments and long-lived product knowledge connected
-to ongoing work, with autonomy inside approved bounds and evidence of what happened.
+For each change, the owner sets the objective, acceptance criteria and limits.
+The agent works within that approval. Keepsail records decisions and deviations
+and checks whether the evidence for delivery covers the work being submitted.
 
 This overview explains the workflow. The [product architecture](product-architecture.md)
 defines the responsibilities; the dated [coverage report](product-architecture-coverage.md)
@@ -42,25 +43,24 @@ record its reasons and actual file coverage. Changed commitments or relaxed
 restrictions require appropriate new authorization. Verification and code review
 must still match the current implementation, even when the plan approval remains valid.
 
-## Example: a constraint changes during work
+## Example: deliver an export without breaking existing readers
 
-Suppose a project has recognized a database constraint and supplied version 1 to
-an ongoing Change. A later discovery leads to a proposed version 2.
+Suppose a team approves a CSV export on the condition that existing readers can
+still consume it. The plan includes a compatibility test. During implementation,
+its agent discovers that it needs an extra fixture. It can add the fixture and
+record how it supports the approved test. Removing the compatibility requirement
+would change the promised outcome and requires renewed approval.
 
-1. **Propose and recognize.** The candidate retains its text, scope and provenance.
-   It acquires authority only through the project's recognized process.
-2. **Expose the impact.** If the effective version or applicability changes,
-   Keepsail identifies affected recorded deliveries and the resulting work impacts.
-3. **Decide how to proceed.** A recognized conclusion can allow continued use of
-   an exact version, require adjustments or renewed approval, or establish an
-   authorized exclusion. A challenge alone does not release the constraint.
-4. **Continue and recover.** Dependent actions wait for the necessary resolution;
-   work shown to be independent can continue within its approval. Later sessions
-   can recover the historical version, current approval and unresolved matters.
+Meanwhile, the project recognizes a new version of its naming convention for CSV
+columns. Keepsail can show that this change received the previous version. The
+team's recognized process may decide that the export should keep the old names
+to preserve compatibility. A later session can recover that decision, the plan
+and any unresolved work. See [knowledge delivery](knowledge.md).
 
-Knowledge recognition does not authorize changing a human commitment. For example,
-discovering that a test is unstable does not itself grant permission to remove
-that acceptance obligation. See [knowledge delivery](knowledge.md) for the protocol.
+At delivery, the reviewer and the configured checks need to cover the actual
+export implementation. If a patch changes it after review, the old conclusion
+covers only the earlier code. The plan can still stand while verification and
+review are refreshed for the revised implementation.
 
 ## What is implemented
 
