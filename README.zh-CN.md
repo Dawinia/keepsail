@@ -32,7 +32,9 @@ Codex（实验性）、OpenSpec、Superpowers，以及直接使用 CLI 的 plain
 
 ## 安装
 
-前置条件：**Python 3.10+**、**Git** 和 **pipx**。从源码安装：
+Keepsail 要求 **Python 3.10+**。按下面的步骤从源码安装，还需确保在终端中可以运行
+Git 和 pipx。安装当前版本的 pipx 需要 **Python 3.11+**，详见
+[pipx 安装指南](https://pipx.pypa.io/stable/how-to/install-pipx.html)。
 
 ```sh
 git clone https://github.com/Dawinia/keepsail.git
@@ -41,9 +43,8 @@ pipx install .
 keepsail --version
 ```
 
-尚未安装 pipx 时，请参阅其[安装指南](https://pipx.pypa.io/stable/installation/)。
-GitHub 集成还需要 [GitHub CLI](https://cli.github.com/) 和 `gh auth login`；
-本地快速开始不需要启用 GitHub 集成。
+如需启用可选的 GitHub 集成，请安装 [GitHub CLI](https://cli.github.com/)
+并运行 `gh auth login`。
 
 从 **super-harness** 升级？请先阅读[迁移指南](docs/keepsail-migration.md)。
 

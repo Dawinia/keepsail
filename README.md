@@ -38,7 +38,9 @@ See the [Overview](docs/overview.md) for a worked scenario and the
 
 ## Install
 
-Requirements: **Python 3.10+**, **Git** and **pipx**. Install from source:
+Keepsail requires **Python 3.10+**. For the source installation below, you also
+need Git and pipx on your `PATH`. Installing the current version of pipx requires
+**Python 3.11+**. See the [pipx installation guide](https://pipx.pypa.io/stable/how-to/install-pipx.html).
 
 ```sh
 git clone https://github.com/Dawinia/keepsail.git
@@ -47,9 +49,8 @@ pipx install .
 keepsail --version
 ```
 
-If pipx is not installed, follow its [installation guide](https://pipx.pypa.io/stable/installation/).
-GitHub integration additionally needs the [GitHub CLI](https://cli.github.com/)
-and `gh auth login`; it is optional for the local quickstart.
+To use the optional GitHub integration, install the [GitHub CLI](https://cli.github.com/)
+and run `gh auth login`.
 
 Upgrading from **super-harness**? Read the [migration guide](docs/keepsail-migration.md).
 
