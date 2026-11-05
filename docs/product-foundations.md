@@ -11,7 +11,7 @@
 
 ## 修订前的局部基础与行为
 
-[架构说明](architecture.md) 将产品职责描述为把人的决定变成环境约束，使偏离不能静默发生或被掩盖。[README](../README.md) 把未经计划审查时阻止实施作为产品的核心演示。[既有 ratified decision](decisions/d-gate-governs-git-product.md) 明确要求产品代码在计划批准后才能写入。
+[实现架构说明](implementation-architecture.md) 将产品职责描述为把人的决定变成环境约束，使偏离不能静默发生或被掩盖。[README](../README.md) 把未经计划审查时阻止实施作为产品的核心演示。[既有 ratified decision](decisions/d-gate-governs-git-product.md) 明确要求产品代码在计划批准后才能写入。
 
 这些材料支持保留“先批准计划，后实施”的既有承诺。它们不单独证明指定 reviewer、重复审查轮次或 exact-file 清单是身份级公理；也不能证明完整 review 循环是上述承诺的必然推导。历史上这些机制的基础地位和全部选择理由尚未恢复。
 
@@ -74,7 +74,7 @@ super-harness 负责批准依据与偏离的可追溯性，不承诺所有语义
 1. **文件范围与授权范围。** [plan CLI 的既有设计](../src/super_harness/cli/plan.py) 明确将晚期 scope 扩展送回 plan review，且有意不提供免重审的 scope 修订路径。若这种扩展只是已批准承诺内补充 fixture，它与基础 2 冲突。后续设计必须能表达并处理这种情况。精确文件清单仍可用于检查、审查目标和追溯；本推导不要求删除它。
 2. **批准有效性与证据版本。** [审查契约](../src/super_harness/engineering/review_contract.py) 以准确 Git 目标和范围构造证据。准确绑定本身与新基础相容。目标变化需要刷新哪些代码证据，应与计划承诺是否变化分别判断；不能直接把两者等同。
 3. **计划复审与代码复审。** [入门文档](getting-started.md) 已允许 code-only 修复通过 implementation reopen 处理而不重开计划。这种职责分离与新基础相容，应保留其产品含义；本记录不指定命令或状态机改法。
-4. **review 编排的地位。** [架构说明](architecture.md) 已包含 source、冻结轮次、收集结果和预算的编排职责。这些是现有选择，不能由“计划必须 review”必然推出。产品决策者随后确认将编排移出核心职责，责任划分见下节；现有能力是否作为可选能力保留及其迁移方式尚未决定，本次确认不自动授权删除。
+4. **review 编排的地位。** [实现架构说明](implementation-architecture.md) 已包含 source、冻结轮次、收集结果和预算的编排职责。这些是现有选择，不能由“计划必须 review”必然推出。产品决策者随后确认将编排移出核心职责，责任划分见下节；现有能力是否作为可选能力保留及其迁移方式尚未决定，本次确认不自动授权删除。
 
 ### 后续设计必须通过的语义场景
 

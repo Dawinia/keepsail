@@ -9,7 +9,10 @@ Architecture governs implementation discrepancies: record a gap rather than
 narrowing the obligation to fit code. Changing this architecture requires product
 authority. This does not authorize bypassing existing gates, rewriting historical
 evidence or hand-editing ratified decisions. See the separate dated
-[implementation coverage](product-architecture-coverage.md).
+[implementation coverage](product-architecture-coverage.md). How the software is
+put together is described separately in
+[implementation architecture](implementation-architecture.md); that document is
+descriptive and cannot narrow or extend this one.
 
 ## Purpose and positioning
 

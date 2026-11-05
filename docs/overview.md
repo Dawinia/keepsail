@@ -104,7 +104,7 @@ identity or a guarantee of review quality.
 - [Getting started](getting-started.md): follow the change lifecycle and configure review.
 - [Knowledge](knowledge.md) and [session context](knowledge-context.md): configure continuity and delivery.
 - [Adopting](adopting.md): connect architecture decisions to checks.
-- [CLI reference](cli-reference.md) and [internals](ARCHITECTURE.md): inspect commands and implementation.
+- [CLI reference](cli-reference.md) and [implementation architecture](implementation-architecture.md): inspect commands and implementation.
 - [Migration guide](keepsail-migration.md): upgrade from the former super-harness name.
 
 For help or contributions, see the [README](../README.md#help-and-contributing).

@@ -126,7 +126,7 @@ evidence and [Limitations & FAQ](docs/limitations.md) for operational details.
 | Check architecture decisions | [Adopting](docs/adopting.md) |
 | Configure integrations | [Agent and framework adapters](docs/adapters/) |
 | Look up commands | [CLI reference](docs/cli-reference.md) |
-| Understand the design | [Product architecture](docs/product-architecture.md) · [Internals](docs/ARCHITECTURE.md) |
+| Understand the design | [Product architecture](docs/product-architecture.md) · [Implementation architecture](docs/implementation-architecture.md) |
 
 Browse the [documentation index](docs/README.md) for the full set of guides.
 

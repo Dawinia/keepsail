@@ -108,7 +108,7 @@ Codex 桌面接入方式。基础快速开始不会启用该模式。
 | 检查架构决策 | [接入项目](docs/adopting.md) |
 | 配置集成 | [Agent 与框架适配器](docs/adapters/) |
 | 查询命令 | [CLI 参考](docs/cli-reference.md) |
-| 理解设计 | [产品架构](docs/product-architecture.md) · [内部架构](docs/ARCHITECTURE.md) |
+| 理解设计 | [产品架构](docs/product-architecture.md) · [实现架构](docs/implementation-architecture.md) |
 
 完整指南见[文档索引](docs/README.md)。链接保留各文档现有语言。
 

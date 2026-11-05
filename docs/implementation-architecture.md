@@ -1,9 +1,13 @@
-# Architecture
+# Implementation architecture
 
-How keepsail is put together, and why. This is the orienting map for
-contributors; for command-level detail see [`cli-reference.md`](./cli-reference.md),
-for the lifecycle states see [`state-machine.md`](./state-machine.md), and for the
-reasoning behind individual subsystems see the design docs under [`plans/`](./plans/).
+How keepsail is put together, and why. The normative product definition — who owes
+what, which authority decides, and where the boundaries are — lives in
+[`product-architecture.md`](./product-architecture.md) and stays authoritative;
+this document is the contributor's map of the implementation, not a restatement of
+the product contract. For command-level detail see
+[`cli-reference.md`](./cli-reference.md), for the lifecycle states see
+[`state-machine.md`](./state-machine.md), and for the reasoning behind individual
+subsystems see the design docs under [`plans/`](./plans/).
 
 ## 1. What it is, and where it sits
 
