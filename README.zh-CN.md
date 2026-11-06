@@ -1,6 +1,6 @@
 # Keepsail
 
-面向多种编程 Agent 的开源产品工作控制层。
+面向各类 Agent Harness 的开源产品工作控制层。
 
 [English](README.md) | **简体中文**
 

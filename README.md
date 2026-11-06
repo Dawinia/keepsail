@@ -1,6 +1,6 @@
 # Keepsail
 
-An open-source control layer for product work across coding agents.
+An open-source control layer for product work across agent harnesses.
 
 **English** | [简体中文](README.zh-CN.md)
 
