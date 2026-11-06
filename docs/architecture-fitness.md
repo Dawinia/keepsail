@@ -8,10 +8,13 @@ cognitive debt", "complacency with AI-generated code"). Human review doesn't sav
 you here for structural reasons: it is late, it doesn't scale to agent-sized
 diffs, and vigilance drops after a few good experiences.
 
-Writing the rule into an AGENTS.md or CLAUDE.md file as prose does not hold —
-agents read the instruction and violate it anyway. What holds is a *mechanical*
-check the agent cannot talk its way past. keepsail already ships that
-mechanism; this guide shows how to point it at your architecture rules.
+Writing the rule into an AGENTS.md or CLAUDE.md file as prose leaves it
+*guidance*: the agent may follow it, and nothing records whether it did — in
+practice, agents read the instruction and violate it anyway. What makes the rule a
+*constraint* is a *mechanical* check the agent cannot talk its way past, and that
+is what keepsail ships; this guide shows how to point it at your architecture
+rules. Prose is not worthless — a rule without a check is still binding on the
+humans who agreed to it — but only the check is mechanically enforced.
 
 ## Why not just grep?
 
@@ -58,9 +61,9 @@ this guide is about the *check* you put inside it.
 
 ## Worked example — Python (import-linter)
 
-This is the example keepsail runs on *itself*: the `d-core-is-base` decision
-(`docs/decisions/d-core-is-base.md`) enforces an import-graph contract on every PR
-via CI. Reproduce the shape in your repo.
+This is the example keepsail runs on *itself*: the `d-keepsail-core-is-base`
+decision (`docs/decisions/d-keepsail-core-is-base.md`) enforces an import-graph
+contract on every PR via CI. Reproduce the shape in your repo.
 
 Declare the contract in `.importlinter`:
 

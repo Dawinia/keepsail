@@ -127,7 +127,7 @@ Structured historical finding dispositions are a limited metric, not total
 verification/CI value. See [Report semantics](reporting.md).
 
 **Does it spawn or manage my coding agent?**
-No. Your agent calls the harness; the harness gates the agent. See
+No. Your agent calls keepsail; keepsail gates the agent. See
 [Concepts](concepts.md).
 
 **How does a plain-mode change advance past INTENT_DECLARED?**

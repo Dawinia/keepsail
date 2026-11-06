@@ -345,7 +345,7 @@ def _render_brief(r: ValueReport) -> str:
 @click.option("--brief", is_flag=True, help="One-line summary only.")
 @click.pass_context
 def report_cmd(ctx: click.Context, since: str | None, until: str | None, brief: bool) -> None:
-    """Show what the harness measurably did for you over a repo/time-window."""
+    """Show what keepsail measurably did for you over a repo/time-window."""
     try:
         root = find_harness_root(Path(ctx.obj.get("workspace") or "."))
     except HarnessNotInitialized as e:

@@ -1,73 +1,152 @@
 # Keepsail
 
-> A product-work control layer across agent harnesses.
+An open-source control layer for product work across agent harnesses.
 
 **English** | [简体中文](README.zh-CN.md)
 
-## What is Keepsail?
+With Keepsail, a product owner can approve what an agent should deliver, set the
+limits of its authority, and later check what was actually reviewed and verified.
+The agent can choose how to implement the plan within those limits. If the work
+calls for a change to an agreed requirement, the change needs its own approval.
 
-Keepsail keeps effective human commitments and long-lived product knowledge
-consequential across continuous agent work. It supports autonomy within approved
-bounds, knowledge evolution, continuity and traceability across agent harnesses.
-Read the normative [product architecture](docs/product-architecture.md) and the
-separate dated [implementation coverage](docs/product-architecture-coverage.md):
-existing CLI, hooks and CI implement parts of these responsibilities.
+It works alongside your agent and development workflow through a CLI, agent
+hooks and CI checks. Integrations include Claude Code, Codex (experimental),
+OpenSpec, Superpowers and a plain CLI workflow.
 
-Keepsail was named super-harness. The [migration guide](docs/keepsail-migration.md)
-explains the direct runtime cutover, local consumers and delivery boundaries.
+**Status: alpha.** See [current limits](#current-limits) for integration coverage.
 
-See the [Overview](docs/overview.md) for the problem it solves, what v0.1 ships,
-and how it relates to neighboring tools like Spec Kit, OpenSpec, and Superpowers.
+## Why Keepsail?
+
+- **Give agents room to implement.** An agent can add a missing test fixture under
+  an approved plan and record why. Dropping the acceptance test changes what the
+  owner agreed to and requires a new plan review.
+- **Catch departures from the plan.** Local hooks check selected editing actions.
+  Before merge, configured checks can flag missing verification or a review that
+  covers an earlier version of the code.
+- **Hand work to the next session.** Recover the approved plan, applicable
+  constraints and unresolved questions so another session can pick up the work.
+- **Track changes to product knowledge.** When a recognized constraint changes,
+  see which work received the earlier version and record how each affected change
+  should proceed.
+
+See the [Overview](docs/overview.md) for a worked scenario and the
+[product architecture](docs/product-architecture.md) for the product's responsibilities.
 
 ## Install
 
-```bash
-# From a checkout containing this migration (registry publication is pending):
+Keepsail requires **Python 3.10+**. For the source installation below, you also
+need Git and pipx on your `PATH`. Installing the current version of pipx requires
+**Python 3.11+**. See the [pipx installation guide](https://pipx.pypa.io/stable/how-to/install-pipx.html).
+
+```sh
+git clone https://github.com/Dawinia/keepsail.git
+cd keepsail
 pipx install .
-brew install gh && gh auth login   # gh is a prerequisite for init --setup-github
+keepsail --version
 ```
+
+To use the optional GitHub integration, install the [GitHub CLI](https://cli.github.com/)
+and run `gh auth login`.
+
+Upgrading from **super-harness**? Read the [migration guide](docs/keepsail-migration.md).
 
 ## Quickstart
 
-Bootstrap a repo and observe one implemented control surface: the gate blocks
-an out-of-lifecycle edit.
+Try the local lifecycle gate in a Git repository. First initialize Keepsail:
 
-```bash
-# Install from the Keepsail checkout first: pipx install .
-cd your-repo && keepsail init            # create the .harness/ data plane
-keepsail adapter install claude-code     # wire your agent (auto-done by init if .claude/ exists)
-#   or, for Codex:  keepsail adapter install codex   → then run /hooks in Codex to trust it
-keepsail change start "my-change"        # → INTENT_DECLARED
-# now have your agent (or you) try to edit code → the gate blocks it,
-# because no plan review has happened yet. This demonstrates one control surface.
+```sh
+cd path/to/your-repo
+keepsail init
 ```
 
-That is the shortest path to *seeing* keepsail work. The full arc — install
-a framework adapter, get the plan reviewed, implement, verify, review, merge — is
-the 10-minute [Getting started](docs/getting-started.md) walkthrough. To inspect a
-pre-seeded non-trivial `.harness/` state without running anything, see the in-tree
-demo [`examples/demo-openspec-claude/`](examples/demo-openspec-claude/). The
-walkthrough shows the active review contract: the owner recognizes an external
-process in `.harness/review-recognition.yaml`; the process supplies an explicit
-plan/code conclusion, original evidence and provenance for the exact subject.
-Import it with `keepsail review import`. Approved commitments authorize
-implementation adjustments, with assessments and actual file coverage recorded
-before completion. Review execution and retries belong to the external process.
-Historical configuration and event records remain readable; the demo is historical
-sample data, not an executable current-review recipe.
+Choose the agent integration during setup, or install one explicitly:
 
-## Links
+```sh
+keepsail adapter install claude-code
+# Alternatively:
+keepsail adapter install codex
+```
 
-- [Documentation index](docs/README.md)
-- [Overview](docs/overview.md) — what it is, what v0.1 ships, neighboring tools
-- [Getting started](docs/getting-started.md) — full end-to-end walkthrough
-- [Concepts](docs/concepts.md) — lifecycle, and what the harness does *not* do
-- [Adopting](docs/adopting.md) — lock architecture rules in your own project
-- [Limitations & FAQ](docs/limitations.md)
-- [Agent adapters](docs/adapters/) — [Claude Code](docs/adapters/claude-code.md) · [Codex](docs/adapters/codex.md) (experimental)
-- [CLI reference](docs/cli-reference.md)
-- [Architecture](docs/ARCHITECTURE.md)
+Open a new agent session in that repository and complete its hook trust steps.
+For Codex, review and trust the Keepsail hooks using `/hooks` before proceeding.
+See the [Claude Code](docs/adapters/claude-code.md) and
+[Codex](docs/adapters/codex.md) setup guides for host-specific details.
+
+Declare a change from your terminal:
+
+```sh
+keepsail change start my-change
+keepsail status my-change
+```
+
+The change is now `INTENT_DECLARED`. With the hook active, an attempt to edit a
+source file through a covered agent tool is blocked because the plan has not
+been approved. This demonstrates the local gate; manual editor changes, shell
+commands and MCP writes are outside this interception boundary.
+
+To proceed, follow [Getting started](docs/getting-started.md) to configure the
+owner-recognized review process, submit a plan and import its conclusion. The
+normal path is:
+
+```text
+Declare → Plan review → Implement → Verify → Code review → Merge and archive
+```
+
+Keepsail imports review conclusions from your chosen process; it does not run
+reviewers. Once approved, the agent can record implementation adjustments within
+the plan's bounds. Changing those commitments requires appropriate new approval.
+
+### Knowledge and session context
+
+The [knowledge guide](docs/knowledge.md) covers policy activation, versioned
+constraints, delivery and impact handling. These require explicit configuration.
+For session-bound delivery and observed retrieval, follow the optional
+[context integration guide](docs/knowledge-context.md), including the selected
+Windows local Codex desktop setup. The basic quickstart does not enable that mode.
+
+## Current limits
+
+- Local hooks cover selected tools and require actual host activation. CI checks
+  protect merges only when installed and required by branch protection.
+- Knowledge delivery operates within one repository. It selects constraints through
+  explicit rules and recognized applicability judgments.
+- Recorded retrieval does not prove understanding; an agent's adoption statement
+  does not prove compliance. Review quality remains the responsibility of the
+  recognized process.
+
+See [implementation coverage](docs/product-architecture-coverage.md) for dated
+evidence and [Limitations & FAQ](docs/limitations.md) for operational details.
+
+## Documentation
+
+| Goal | Guide |
+|---|---|
+| Complete a change | [Getting started](docs/getting-started.md) · [Concepts](docs/concepts.md) |
+| Manage knowledge and session continuity | [Knowledge](docs/knowledge.md) · [Session context](docs/knowledge-context.md) |
+| Check architecture decisions | [Adopting](docs/adopting.md) |
+| Configure integrations | [Agent and framework adapters](docs/adapters/) |
+| Look up commands | [CLI reference](docs/cli-reference.md) |
+| Understand the design | [Product architecture](docs/product-architecture.md) · [Implementation architecture](docs/implementation-architecture.md) |
+
+Browse the [documentation index](docs/README.md) for the full set of guides.
+
+## Help and contributing
+
+Report bugs or propose improvements in [GitHub Issues](https://github.com/Dawinia/keepsail/issues).
+For a bug report, include your OS, Keepsail version, agent integration, steps to
+reproduce and relevant output with secrets removed.
+
+Before making changes, read [AGENTS.md](AGENTS.md) for the repository's plan,
+review and verification workflow. For development, create and activate a Python
+virtual environment, then install from the repository root:
+
+```sh
+python -m pip install -e ".[dev]"
+```
+
+The project uses Ruff, mypy and pytest. Its configured checks run through
+`keepsail verify`; see the [CLI reference](docs/cli-reference.md).
 
 ## License
 
-MIT — see [`LICENSE`](LICENSE).
+[MIT](LICENSE).

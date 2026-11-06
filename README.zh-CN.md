@@ -1,68 +1,133 @@
 # Keepsail
 
-> 跨 agent harness 的产品工作控制层。
+面向各类 Agent Harness 的开源产品工作控制层。
 
 [English](README.md) | **简体中文**
 
-## Keepsail 是什么?
+使用 Keepsail，产品负责人可以批准一项工作要交付什么、划定 Agent 的权限，并在交付时核查哪一版成果经过了审查和验证。Agent 可以在批准范围内自行决定实现办法。如果实施中需要改变已约定的要求，就要为这项变化取得新的批准。
 
-Keepsail 让有效人类承诺与长期产品知识在连续工作中持续生效，支持授权范围内的
-自主行动、知识演进、连续性与可追溯性。产品定位以
-[产品架构](docs/product-architecture.md)为准，现有 CLI、hooks 与 CI 的覆盖情况见
-单独的[实现覆盖报告](docs/product-architecture-coverage.md)。
+Keepsail 通过 CLI、Agent hooks 和 CI 检查接入现有开发流程。集成包括 Claude Code、
+Codex（实验性）、OpenSpec、Superpowers，以及直接使用 CLI 的 plain 工作流。
 
-Keepsail 原名 super-harness。[迁移说明](docs/keepsail-migration.md)列出直接迁移、
-本地使用项目的更新方式和交付边界。
+**状态：Alpha。** 各种接入方式的覆盖范围见[当前限制](#当前限制)。
 
-关于它解决的问题、v0.1 交付了什么、以及跟邻近工具的关系,见
-[Overview](docs/overview.md)。
+## 为什么使用 Keepsail？
+
+- **给 Agent 留出实施空间。** 为已批准的验收测试补一份测试数据，Agent 可以自行处理并记录理由。取消这项测试会改变原有承诺，需要重新审查计划。
+- **让偏离及时显现。** 本地 hook 检查指定工具发起的编辑。合并前，配置好的检查可以指出哪些验证缺失，或某份审查结论只覆盖了旧版代码。
+- **让下一次会话接得上。** 新会话可以找回已批准的计划、适用的约束和未决问题，继续推进同一项工作。
+- **追踪产品知识的变化。** 一条已获认可的约束更新后，可以查到哪些工作收到过旧版本，并记录每项受影响的工作该如何继续。
+
+[项目概览](docs/overview.md)通过示例介绍工作方式；
+[产品架构](docs/product-architecture.md)定义产品职责。
 
 ## 安装
 
-```bash
-# 在包含本次迁移的源码 checkout 中安装；注册表发布尚待完成：
+Keepsail 要求 **Python 3.10+**。按下面的步骤从源码安装，还需确保在终端中可以运行
+Git 和 pipx。安装当前版本的 pipx 需要 **Python 3.11+**，详见
+[pipx 安装指南](https://pipx.pypa.io/stable/how-to/install-pipx.html)。
+
+```sh
+git clone https://github.com/Dawinia/keepsail.git
+cd keepsail
 pipx install .
-brew install gh && gh auth login   # gh 是 init --setup-github 的前置依赖
+keepsail --version
 ```
 
-## Quickstart
+如需启用可选的 GitHub 集成，请安装 [GitHub CLI](https://cli.github.com/)
+并运行 `gh auth login`。
 
-引导一个仓库，观察一个已实现的控制面：门会拦住一次“越出生命周期”的编辑。
+从 **super-harness** 升级？请先阅读[迁移指南](docs/keepsail-migration.md)。
 
-```bash
-# 先在 Keepsail checkout 中执行 pipx install .
-cd your-repo && keepsail init            # 创建 .harness/ 数据面
-keepsail adapter install claude-code     # 接入你的 agent(若有 .claude/,init 会自动装)
-#   Codex 用法:     keepsail adapter install codex   → 再在 Codex 里跑 /hooks 信任它
-keepsail change start "my-change"        # → INTENT_DECLARED
-# 现在让你的 agent(或你)去改代码 → 门会拦住,
-# 因为还没经过 plan review。这展示了一个控制面。
+## 快速开始
+
+在一个 Git 仓库中体验本地生命周期门禁。先初始化 Keepsail：
+
+```sh
+cd path/to/your-repo
+keepsail init
 ```
 
-这是"看见 keepsail 工作"的最短路径。完整流程 —— 装框架适配器、过 plan review、
-实现、验证、评审、合并 —— 是 10 分钟的 [Getting started](docs/getting-started.md) 走查。
-想不跑任何东西就看一个预置的非平凡 `.harness/` 状态,见仓内示例
-[`examples/demo-openspec-claude/`](examples/demo-openspec-claude/)。走查也展示了
-当前 review 契约：用户在 `.harness/review-recognition.yaml` 认可外部审查流程，
-由该流程提供准确 subject、明确 plan/code 结论、原始证据和来源，再通过
-`keepsail review import` 导入。获批承诺内的实施调整以 assessment 和实际
-文件 coverage 留痕；执行和重试由外部流程负责。历史配置与事件保留可读，
-demo 是历史样例数据，不是当前 review 的执行指南。
+初始化时选择 Agent 集成，或显式安装其中一个：
 
-## 链接
+```sh
+keepsail adapter install claude-code
+# 或者：
+keepsail adapter install codex
+```
 
-- [文档索引](docs/README.md)
-- [Overview](docs/overview.md) —— 它是什么、v0.1 交付了什么、邻近工具
-- [Getting started](docs/getting-started.md) —— 完整端到端走查
-- [Concepts](docs/concepts.md) —— 生命周期,以及 harness *不*替你做的事
-- [Adopting](docs/adopting.md) —— 在你自己的项目里锁住架构规则
-- [Limitations & FAQ](docs/limitations.md)
-- [Agent 适配器](docs/adapters/) —— [Claude Code](docs/adapters/claude-code.md) · [Codex](docs/adapters/codex.md)(实验性)
-- [CLI reference](docs/cli-reference.md)
-- [Architecture](docs/ARCHITECTURE.md)
+在该仓库打开新的 Agent 会话，并完成宿主要求的 hook 信任步骤。
+Codex 用户需先通过 `/hooks` 查看并信任 Keepsail hooks。
+具体接入说明见 [Claude Code](docs/adapters/claude-code.md) 和
+[Codex](docs/adapters/codex.md) 指南。
 
-> 说明:深度文档(`docs/`)目前仅有英文;本页是面向中文读者的入口,链接指向同一份英文文档。
+从终端声明一次变更：
 
-## License
+```sh
+keepsail change start my-change
+keepsail status my-change
+```
 
-MIT —— 见 [`LICENSE`](LICENSE)。
+此时变更处于 `INTENT_DECLARED`。hook 生效后，Agent 通过覆盖范围内的编辑工具
+尝试修改源文件，会因计划尚未获批而被阻止。这展示的是本地门禁；手动编辑器操作、
+shell 命令和 MCP 写入不在该拦截范围内。
+
+继续工作时，按[入门指南](docs/getting-started.md)配置所有者认可的审查流程、
+提交计划并导入结论。正常路径是：
+
+```text
+声明变更 → 计划审查 → 实施 → 验证 → 代码审查 → 合并归档
+```
+
+Keepsail 导入所选流程的审查结论，不负责运行审查者。计划获批后，Agent 可以记录
+批准范围内的实施调整；改变原有承诺需要取得相应的新批准。
+
+### 知识与会话上下文
+
+[知识指南](docs/knowledge.md)介绍策略激活、约束版本、交付和影响处理，这些能力
+需要显式配置。若要接入会话绑定的交付与获取观察，请按可选的
+[上下文集成指南](docs/knowledge-context.md)操作，其中包括选定的 Windows 本地
+Codex 桌面接入方式。基础快速开始不会启用该模式。
+
+## 当前限制
+
+- 本地 hooks 只覆盖选定工具，且必须由宿主实际启用。CI 检查需要安装并配置为
+  分支保护的必需检查，才能约束合并。
+- 知识交付在单仓库内运行，依据显式规则和获认可的适用性判断选择约束。
+- 获取记录不证明理解，Agent 的采用声明不证明遵从。审查质量仍由获认可的流程负责。
+
+[实现覆盖报告](docs/product-architecture-coverage.md)记录带日期的证据；
+[限制与常见问题](docs/limitations.md)提供运行细节。
+
+## 文档
+
+| 目标 | 指南 |
+|---|---|
+| 完成一次变更 | [入门指南](docs/getting-started.md) · [核心概念](docs/concepts.md) |
+| 管理知识与会话连续性 | [知识](docs/knowledge.md) · [会话上下文](docs/knowledge-context.md) |
+| 检查架构决策 | [接入项目](docs/adopting.md) |
+| 配置集成 | [Agent 与框架适配器](docs/adapters/) |
+| 查询命令 | [CLI 参考](docs/cli-reference.md) |
+| 理解设计 | [产品架构](docs/product-architecture.md) · [实现架构](docs/implementation-architecture.md) |
+
+完整指南见[文档索引](docs/README.md)。链接保留各文档现有语言。
+
+## 求助与贡献
+
+请通过 [GitHub Issues](https://github.com/Dawinia/keepsail/issues) 报告问题或提出改进建议。
+报告问题时，请附上操作系统、Keepsail 版本、Agent 集成、复现步骤，以及去除敏感信息的
+相关输出。
+
+修改项目之前，请阅读 [AGENTS.md](AGENTS.md) 中的计划、审查和验证流程。
+开发时先创建并激活 Python 虚拟环境，再在仓库根目录安装：
+
+```sh
+python -m pip install -e ".[dev]"
+```
+
+项目使用 Ruff、mypy 和 pytest。配置的检查通过 `keepsail verify` 执行，
+详见 [CLI 参考](docs/cli-reference.md)。
+
+## 许可证
+
+[MIT](LICENSE)。
