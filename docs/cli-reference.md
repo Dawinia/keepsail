@@ -1027,7 +1027,7 @@ keepsail pr validate [OPTIONS] PR_NUMBER
 
 ## keepsail report
 
-Show what the harness measurably did for you over a repo/time-window.
+Show what keepsail measurably did for you over a repo/time-window.
 
 ```
 keepsail report [OPTIONS]
@@ -1066,8 +1066,8 @@ keepsail review approve [OPTIONS] CHANGE
 
 **Exit codes:**
 
-- `0` success
 - `1` generic error
+- `2` command retired — produce recognized evidence externally, then use `review import`
 
 ## keepsail review authorize
 
@@ -1083,8 +1083,8 @@ keepsail review authorize [OPTIONS] CHANGE
 
 **Exit codes:**
 
-- `0` success
 - `1` generic error
+- `2` command retired — produce recognized evidence externally, then use `review import`
 
 ## keepsail review begin
 
@@ -1100,8 +1100,8 @@ keepsail review begin [OPTIONS] CHANGE
 
 **Exit codes:**
 
-- `0` success
 - `1` generic error
+- `2` command retired — produce recognized evidence externally, then use `review import`
 
 ## keepsail review human
 
@@ -1125,8 +1125,8 @@ keepsail review human confirm [OPTIONS] CHANGE
 
 **Exit codes:**
 
-- `0` success
 - `1` generic error
+- `2` command retired — produce recognized evidence externally, then use `review import`
 
 ## keepsail review human draft
 
@@ -1142,8 +1142,8 @@ keepsail review human draft [OPTIONS] CHANGE
 
 **Exit codes:**
 
-- `0` success
 - `1` generic error
+- `2` command retired — produce recognized evidence externally, then use `review import`
 
 ## keepsail review human inspect
 
@@ -1159,8 +1159,8 @@ keepsail review human inspect [OPTIONS] CHANGE
 
 **Exit codes:**
 
-- `0` success
 - `1` generic error
+- `2` command retired — produce recognized evidence externally, then use `review import`
 
 ## keepsail review import
 
@@ -1195,8 +1195,8 @@ keepsail review prepare [OPTIONS] CHANGE
 
 **Exit codes:**
 
-- `0` success
 - `1` generic error
+- `2` command retired — produce recognized evidence externally, then use `review import`
 
 ## keepsail review reject
 
@@ -1212,8 +1212,8 @@ keepsail review reject [OPTIONS] CHANGE
 
 **Exit codes:**
 
-- `0` success
 - `1` generic error
+- `2` command retired — produce recognized evidence externally, then use `review import`
 
 ## keepsail review result
 
@@ -1237,8 +1237,8 @@ keepsail review result import [OPTIONS] CHANGE
 
 **Exit codes:**
 
-- `0` success
 - `1` generic error
+- `2` command retired — produce recognized evidence externally, then use `review import`
 
 ## keepsail review run
 
@@ -1262,8 +1262,8 @@ keepsail review run fail [OPTIONS] CHANGE
 
 **Exit codes:**
 
-- `0` success
 - `1` generic error
+- `2` command retired — produce recognized evidence externally, then use `review import`
 
 ## keepsail review skip
 
@@ -1279,8 +1279,8 @@ keepsail review skip [OPTIONS] CHANGE
 
 **Exit codes:**
 
-- `0` success
 - `1` generic error
+- `2` command retired — produce recognized evidence externally, then use `review import`
 
 ## keepsail sensor
 

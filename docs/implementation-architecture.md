@@ -1,18 +1,22 @@
-# Architecture
+# Implementation architecture
 
-How keepsail is put together, and why. This is the orienting map for
-contributors; for command-level detail see [`cli-reference.md`](./cli-reference.md),
-for the lifecycle states see [`state-machine.md`](./state-machine.md), and for the
-reasoning behind individual subsystems see the design docs under [`plans/`](./plans/).
+How keepsail is put together, and why. The normative product definition — who owes
+what, which authority decides, and where the boundaries are — lives in
+[`product-architecture.md`](./product-architecture.md) and stays authoritative;
+this document is the contributor's map of the implementation, not a restatement of
+the product contract. For command-level detail see
+[`cli-reference.md`](./cli-reference.md), for the lifecycle states see
+[`state-machine.md`](./state-machine.md), and for the reasoning behind individual
+subsystems see the design docs under [`plans/`](./plans/).
 
 ## 1. What it is, and where it sits
 
-keepsail is a **harness**: the layer around an AI coding agent that turns a
-human's decisions into constraints the environment enforces, rather than rules an
-agent is merely asked to follow. In control-systems terms it is a *cybernetic
-governor* — its regulated target is "what the human ratified," and its job is to
-make drift away from that target either impossible to do silently or impossible to
-do without leaving a trail.
+keepsail is a **control layer above the execution harness**: it sits above the
+agent and the tooling that runs it, and turns a human's decisions into constraints
+the environment enforces, rather than rules an agent is merely asked to follow. In
+control-systems terms it is a *cybernetic governor* — its regulated target is
+"what the human ratified," and its job is to make drift away from that target
+either impossible to do silently or impossible to do without leaving a trail.
 
 It is a **layer on top of**, not a replacement for, the agent and the spec
 framework:
@@ -20,11 +24,14 @@ framework:
 - The **agent** (Claude Code) and its **process skills** (e.g. superpowers:
   brainstorming → writing-plans → TDD → code review) provide *feedforward guidance*
   — how to do a piece of work well, in-session. These are advisory and ephemeral.
-- keepsail adds what those lack: **persistent, mechanical, cross-actor binding**
-  — a target state that survives sessions, sensors that hold code to ratified
-  decisions, and gates that hold even when an agent skips the soft rails. Agent =
-  Model + Harness; the skills and keepsail are different organs of the same
-  harness, not competitors.
+- The **agent harness** — the runtime around the model: hooks, tool calls, context
+  delivery — is where that agent acts. It is the execution layer keepsail steers,
+  not a layer keepsail belongs to.
+- keepsail adds what the layers below lack: **persistent, mechanical, cross-actor
+  binding** — a target state that survives sessions, sensors that hold code to
+  ratified decisions, and gates that hold even when an agent skips the soft rails.
+  Because it must hold across harnesses (Claude Code, Codex, DeepSeek Harness, or a
+  plain CLI session), its binding lands on git and CI rather than on any one hook.
 
 Everything below is in service of three properties: **(1) required steps can't be
 skipped silently, (2) work is forced to align with the layer above it, (3) when the

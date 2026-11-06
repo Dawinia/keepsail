@@ -287,6 +287,28 @@ for _knowledge_command in ("propose", "import", "deliver", "record", "show", "ch
         "`5` concurrent revision or operation identity conflict",
     ]
 
+# Every retired review verb shares one contract: it prints the removal notice and
+# exits `EXIT_VALIDATION` (2) via `_retired()` in `src/keepsail/cli/review.py`.
+# Assign the list once instead of repeating eleven identical entries above.
+_RETIRED_REVIEW_EXIT_CODES: list[str] = [
+    "`1` generic error",
+    "`2` command retired — produce recognized evidence externally, then use `review import`",
+]
+for _retired_review_command in (
+    "approve",
+    "reject",
+    "skip",
+    "prepare",
+    "begin",
+    "authorize",
+    "result import",
+    "run fail",
+    "human inspect",
+    "human draft",
+    "human confirm",
+):
+    _EXIT_CODES[f"review {_retired_review_command}"] = list(_RETIRED_REVIEW_EXIT_CODES)
+
 
 # ---------------------------------------------------------------------------
 # Markdown helpers

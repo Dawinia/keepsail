@@ -31,7 +31,7 @@ Start here.
 ## Reference
 
 - [CLI reference](cli-reference.md) — the full command surface.
-- [Architecture](ARCHITECTURE.md) — internals and module layering.
+- [Implementation architecture](implementation-architecture.md) — internals and module layering.
 - [State machine](state-machine.md) — the authoritative transition matrix.
 - [Arm an architecture rule](architecture-fitness.md) — the decision-conformance
   worked example.
