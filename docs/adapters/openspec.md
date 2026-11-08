@@ -4,7 +4,7 @@ The OpenSpec adapter teaches keepsail to read changes maintained with the
 [OpenSpec](https://www.npmjs.com/package/@fission-ai/openspec) Node CLI
 (verified against `openspec@1.3.1`). It is a *framework* adapter: keepsail
 reads OpenSpec's on-disk artifacts and emits the matching lifecycle events
-(`intent_declared`, `plan_ready`) so the rest of the harness — gates,
+(`intent_declared`, `plan_ready`) so the rest of keepsail — gates,
 verification, state — works without OpenSpec needing to know keepsail
 exists. The adapter does not call OpenSpec at runtime except through one
 verification check (`openspec validate`).

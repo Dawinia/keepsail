@@ -85,8 +85,8 @@ Ensure `keepsail verify` passes (tests, lint and any other checks configured in
 If using a `done` skill, run `keepsail done <slug>` instead—it triggers
 verify and emits the lifecycle event automatically.
 
-Plan and code review are supplied by an external, user-recognized process. The
-harness does not start reviewers, choose models, manage rounds, or turn a
+Plan and code review are supplied by an external, user-recognized process.
+Keepsail does not start reviewers, choose models, manage rounds, or turn a
 failed/empty result into approval. Import the exact retained conclusion with
 `keepsail review import <change> --evidence <path>`; the record must name
 the current subject and an explicit decision. A skipped review is disclosure,
