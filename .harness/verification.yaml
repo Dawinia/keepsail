@@ -25,5 +25,8 @@ checks:
 - id: pytest
   command: [python, -m, scripts.run_project_check, pytest, -q]
   must_pass: true
-  timeout_seconds: 1200
+  # Local self-host: the non-e2e suite takes ~22 minutes on this machine
+  # (the suite is dominated by lifecycle/integration fixtures, not by a
+  # hang), so the 20-minute default truncated a passing run at 90%+.
+  timeout_seconds: 2700
 adapter_provided: []

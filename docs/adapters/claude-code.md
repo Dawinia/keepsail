@@ -2,8 +2,8 @@
 
 The Claude Code adapter is keepsail's reference *agent* adapter in v0.1
 (Codex ships as an experimental second adapter — see [Codex adapter](codex.md)).
-It wires Claude Code's runtime to the
-harness by registering three hooks directly in `.claude/settings.local.json`
+It wires keepsail into Claude Code's runtime by registering three hooks
+directly in `.claude/settings.local.json`
 (the per-machine, conventionally-gitignored settings file — NEVER the committed
 shared `.claude/settings.json` — because the hook `command` pins a
 machine-specific absolute path that must not be committed):
