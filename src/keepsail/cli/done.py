@@ -90,6 +90,7 @@ from keepsail.core.approval import (
 )
 from keepsail.core.clock import utc_now_iso
 from keepsail.core.events import Actor, Event
+from keepsail.core.knowledge import validate_event as validate_knowledge_event
 from keepsail.core.paths import (
     HarnessNotInitialized,
     events_path,
@@ -120,7 +121,7 @@ from keepsail.sensors.dispatcher import (
     ONESHOT_DISPATCHER_TIMEOUT_S,
     SensorDispatcher,
 )
-from keepsail.sensors.verification_runner import VerificationRunner
+from keepsail.sensors.verification_runner import CheckResult, CheckTask, VerificationRunner
 
 
 def _current_state(root: Path, slug: str) -> str | None:
@@ -411,6 +412,33 @@ def done_cmd(
         )
         sys.exit(EXIT_VALIDATION)
 
+    # The knowledge validator is the same one used by the strict writer. Unlike
+    # the full writer preconditions it does not require a future verification.
+    try:
+        validate_knowledge_event(
+            events_path(root),
+            Event(event_id="", type="implementation_complete", change_id=resolved,
+                  timestamp="", actor=Actor(type="human", identifier="cli"),
+                  framework="plain", payload={}),
+        )
+    except ApprovalError as exc:
+        click.echo(
+            format_error(
+                subcommand="done", message=str(exc),
+                hint="Inspect `keepsail knowledge show`, then deliver current constraints "
+                     "or resolve the blocking impact.",
+            ),
+            err=True,
+        )
+        sys.exit(EXIT_VALIDATION)
+
+    def progress(task: CheckTask, result: CheckResult | None) -> None:
+        if result is None:
+            timeout = f" (timeout {task.timeout_seconds}s)" if task.timeout_seconds else ""
+            click.echo(f"[verify] {task.id} started{timeout}", err=True)
+        else:
+            click.echo(f"[verify] {task.id} {result.status} ({result.duration_ms}ms)", err=True)
+
     # HG-01: carry the change's recorded framework so VerificationRunner can
     # resolve ${SPEC_PATH}/${PLAN_PATH} via the adapter. None when unknown.
     _cs = derive_state(events_path(root)).get(resolved)
@@ -421,7 +449,9 @@ def done_cmd(
         framework=_cs.framework if _cs is not None else None,
     )
     dispatcher = SensorDispatcher(
-        [VerificationRunner()],
+        [VerificationRunner(
+            progress=progress if not (ctx.obj.get("quiet") or ctx.obj.get("json")) else None,
+        )],
         writer=writer,
         context=ctx_ws,
         timeout_s=ONESHOT_DISPATCHER_TIMEOUT_S,

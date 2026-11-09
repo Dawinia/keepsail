@@ -5,6 +5,8 @@ import json
 import os
 import shlex
 import subprocess
+import sys
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -49,6 +51,42 @@ from keepsail.sensors.verification_runner import (
 # (`true`/`false` are shell builtins and need no PATH, but we keep PATH for the
 # rest.)
 _ENV: dict[str, str] = {"PATH": os.environ["PATH"]}
+
+
+def test_progress_follows_real_parallel_execution(tmp_path: Path) -> None:
+    started = threading.Event()
+    release = threading.Event()
+    notices: list[tuple[str, str]] = []
+
+    def first() -> CheckResult:
+        started.set()
+        assert release.wait(5)
+        return CheckResult("first", "fail", 1, 12, True, "first", None)
+
+    def second() -> CheckResult:
+        return run_check(
+            _spec(check_id="second", command=[sys.executable, "-c", "import time; time.sleep(5)"],
+                  timeout_seconds=1, capture="none"),
+            workdir=tmp_path, env=dict(os.environ), archive_dir=tmp_path / "archive", variables={},
+        )
+
+    def progress(task: CheckTask, result: CheckResult | None) -> None:
+        notices.append((task.id, "started" if result is None else result.status))
+
+    tasks = [CheckTask("first", True, first), CheckTask("second", True, second)]
+    thread = threading.Thread(target=lambda: run_checks(
+        tasks, mode="parallel", max_workers=1, fail_fast=False, progress=progress,
+    ))
+    thread.start()
+    try:
+        assert started.wait(5)
+        assert notices == [("first", "started")]
+    finally:
+        release.set()
+        thread.join(15)
+    assert not thread.is_alive()
+    assert notices == [("first", "started"), ("first", "fail"),
+                       ("second", "started"), ("second", "timeout")]
 
 
 def _spec(

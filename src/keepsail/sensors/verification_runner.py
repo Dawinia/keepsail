@@ -266,6 +266,7 @@ class CheckTask:
     id: str
     must_pass: bool
     run: Callable[[], CheckResult]
+    timeout_seconds: int | None = None
 
 
 def build_variables(change_id: str, context: WorkspaceContext) -> dict[str, str]:
@@ -641,7 +642,8 @@ def _config_check_task(
             variables=variables,
         )
 
-    return CheckTask(id=spec.id, must_pass=spec.must_pass, run=_run)
+    return CheckTask(id=spec.id, must_pass=spec.must_pass, run=_run,
+                     timeout_seconds=spec.timeout_seconds)
 
 
 def _is_project_check(command: Command) -> bool:
@@ -770,6 +772,7 @@ def run_checks(
     mode: str,
     max_workers: int,
     fail_fast: bool,
+    progress: Callable[[CheckTask, CheckResult | None], None] | None = None,
 ) -> list[CheckResult]:
     """Execute `tasks` and return their `CheckResult`s.
 
@@ -803,13 +806,21 @@ def run_checks(
         tasks that actually executed (already-run-but-dropped checks aren't
         returned); see the best-effort note above.
     """
+    def run_task(task: CheckTask) -> CheckResult:
+        if progress is not None:
+            progress(task, None)
+        result = task.run()
+        if progress is not None:
+            progress(task, result)
+        return result
+
     if not tasks:
         return []
 
     if mode == "sequential":
         results: list[CheckResult] = []
         for task in tasks:
-            result = task.run()
+            result = run_task(task)
             results.append(result)
             if fail_fast and result.must_pass and result.status != "pass":
                 break
@@ -820,7 +831,7 @@ def run_checks(
     # beyond max_workers is ever truly cancelled; futures already running/done
     # complete on their own and we simply drop (stop collecting) their results.
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
-        futures = [pool.submit(task.run) for task in tasks]
+        futures = [pool.submit(run_task, task) for task in tasks]
         parallel_results: list[CheckResult] = []
         aborted = False
         for future in futures:
@@ -1114,6 +1125,11 @@ class VerificationRunner(Sensor):
     )
     determinism: ClassVar[Determinism] = "computational"
 
+    def __init__(
+        self, progress: Callable[[CheckTask, CheckResult | None], None] | None = None,
+    ) -> None:
+        self.progress = progress
+
     def check(self, trigger: Event | Activity, context: WorkspaceContext) -> SensorResult:
         change_id = getattr(trigger, "change_id", None) or context.active_change_id
         if change_id is None:
@@ -1166,6 +1182,7 @@ class VerificationRunner(Sensor):
             mode=cfg.execution.mode,
             max_workers=cfg.execution.max_parallelism,
             fail_fast=cfg.execution.fail_fast,
+            progress=self.progress,
         )
 
         must_pass_failed = [r for r in results if r.must_pass and r.status != "pass"]

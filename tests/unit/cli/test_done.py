@@ -325,11 +325,21 @@ def test_done_json_success_envelope(tmp_path: Path) -> None:
     )
     assert r.exit_code == EXIT_OK, r.output
     payload = json.loads(r.output)
+    assert "[verify]" not in r.stderr
     assert payload["command"] == "done"
     assert payload["status"] == "pass"
     assert payload["exit_code"] == EXIT_OK
     # Default path success envelope lifts the verification data block.
     assert payload["data"]["change_id"] == "my-change"
+
+
+def test_done_quiet_has_no_progress(tmp_path: Path) -> None:
+    _init_in_progress(tmp_path, yaml_text=_PASS_YAML)
+    result = CliRunner().invoke(
+        main, ["--workspace", str(tmp_path), "--quiet", "done", "my-change"]
+    )
+    assert result.exit_code == EXIT_OK, result.output
+    assert "[verify]" not in result.stderr
 
 
 # --------------------------------------------------------------------------- #
@@ -702,7 +712,7 @@ def test_done_failure_lists_failing_must_pass_checks_on_stderr(
     assert "boom" in r.stderr
     assert "exit 1" in r.stderr
     # The passing check is not in the failure breakdown.
-    assert "ok-1" not in r.stderr
+    assert "ok-1 pass" in r.stderr  # Progress is separate from the failure breakdown.
 
 
 def test_done_failure_includes_summary_path_on_stderr(tmp_path: Path) -> None:
