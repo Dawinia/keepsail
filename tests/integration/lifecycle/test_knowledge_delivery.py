@@ -59,6 +59,54 @@ def review(w: Workspace, slug: str, kind: str, subject: str, eid: str) -> None:
     w.cli("review", "import", slug, "--evidence", str(w.write(evidence)))
 
 
+def test_done_preflights_delivery_and_rechecks_after_execution(tmp_path, monkeypatch):
+    from keepsail.sensors import verification_runner
+
+    w = Workspace(tmp_path)
+    log = w.root / ".harness/events.jsonl"
+    config = {
+        "layers": {"baseline": {"enabled": False}, "framework_adapter": {"enabled": False},
+                   "user_checks": {"enabled": True}},
+        "defaults": {"timeout_seconds": 30, "must_pass": True, "capture": "none",
+                     "workdir": ".", "env": {}},
+        "execution": {"mode": "sequential", "max_parallelism": 1, "fail_fast": False},
+        "checks": [{"id": "ok", "command": [sys.executable, "-c", "pass"]}],
+        "adapter_provided": [],
+    }
+    (w.root / ".harness/verification.yaml").write_text(yaml.safe_dump(config), encoding="utf-8")
+    git(w.root, "add", ".harness/verification.yaml")
+    git(w.root, "commit", "-qm", "fixture check")
+    approval = derive_state(log)["change-a"].effective_approval["approval_id"]
+    subject = make_code_subject(w.root, change_id="change-a", approval_id=approval, base="main")
+    assessment = {
+        "assessment": {"approval_id": approval, "affected_commitments": ["db"],
+                       "conclusion": "within_approval", "reasons": ["Test check"],
+                       "references": [".harness/verification.yaml"]},
+        "coverage": [{"path": row["path"]} for row in subject["manifest"]],
+    }
+    w.cli("implementation", "record", "change-a", "--assessment", str(w.write(assessment)))
+    before = log.read_bytes()
+    with monkeypatch.context() as m:
+        m.setattr(verification_runner.VerificationRunner, "check", lambda *_: pytest.fail("ran"))
+        w.cli("done", "change-a", code=2)
+    assert log.read_bytes() == before
+
+    w.deliver()
+    original = verification_runner.run_checks
+
+    def change_during_run(*args, **kwargs):
+        w.recognize(version())
+        return original(*args, **kwargs)
+
+    with monkeypatch.context() as m:
+        m.setattr(verification_runner, "run_checks", change_during_run)
+        w.cli("done", "change-a", code=2)
+    assert derive_state(log)["change-a"].current_state == "IMPLEMENTATION_IN_PROGRESS"
+    w.deliver()
+    w.cli("done", "change-a")
+    assert derive_state(log)["change-a"].current_state == "AWAITING_CODE_REVIEW"
+
+
 def test_three_native_changes_export_only_new_knowledge_facts(tmp_path):
     from keepsail.core.knowledge import load_policy
     from keepsail.core.knowledge_checkpoint import resolve_facts
@@ -279,8 +327,12 @@ def test_postgresql_adjustment_cross_change_attestation_and_new_session(
     w.submit("import", w.operation(evidence=e))
     w.deliver()
     w.cli("done", "change-a", code=2)
-    assert marker.read_text() == "executed"
-    assert derive_state(log)["change-a"].current_verification["outcome"] == "failed"
+    if disposition == "adjust":
+        assert marker.read_text() == "executed"
+        assert derive_state(log)["change-a"].current_verification["outcome"] == "failed"
+    else:
+        assert not marker.exists()  # Reapproval remains unresolved until the new plan.
+        assert derive_state(log)["change-a"].current_verification is None
     old_approval = approval
     if disposition == "reapprove":
         w.cli(
