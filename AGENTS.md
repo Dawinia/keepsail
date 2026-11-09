@@ -199,12 +199,13 @@ Like the PreToolUse gate, the Stop hook is INACTIVE until you `/hooks`-trust it.
 
 ### Before opening PR
 
-Ensure `keepsail verify` passes (tests / lint / build / anchor sentinels).
+Ensure `keepsail verify` passes (tests, lint and any other checks configured in
+`.harness/verification.yaml`).
 If using a `done` skill, run `keepsail done <slug>` instead—it triggers
 verify and emits the lifecycle event automatically.
 
-Plan and code review are supplied by an external, user-recognized process. The
-harness does not start reviewers, choose models, manage rounds, or turn a
+Plan and code review are supplied by an external, user-recognized process.
+Keepsail does not start reviewers, choose models, manage rounds, or turn a
 failed/empty result into approval. Import the exact retained conclusion with
 `keepsail review import <change> --evidence <path>`; the record must name
 the current subject and an explicit decision. A skipped review is disclosure,

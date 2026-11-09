@@ -1,23 +1,28 @@
-# User-owned activation record for the new external-evidence contract.
+# User-owned activation record for the external-evidence contract.
 # The recognition record below is bound by process.policy_digest. It records the
 # owner decision without claiming a cryptographic identity for the reviewer.
+#
+# 2026-11-07: the owner recognized the current harness's independent subagent
+# reviewer (`dsh-subagent-review`) in place of `codex-subagent-review`, because
+# the Codex CLI on this machine cannot reach its backend. The owner made this
+# decision in the delivery task for change 2026-11-07-product-architecture-alignment.
 version: review-recognition/v1
 enabled: true
 process:
-  id: codex-subagent-review
-  version: codex-subagent-review/v1
+  id: dsh-subagent-review
+  version: dsh-subagent-review/v1
   kinds:
     - plan
     - code
   issuers:
-    - codex-subagent
+    - dsh-subagent
   evidence_forms:
     - json
   requirements:
     execution:
-      boundary: outside-super-harness-core
+      boundary: outside-keepsail-core
       invoker: implementation-agent
-      reviewer: independent-codex-subagent
+      reviewer: independent-dsh-subagent
     subject: exact-frozen-plan-or-code-subject
     retention:
       object_identifier: required
@@ -34,13 +39,13 @@ process:
       blocking_finding: fix-and-re-review
       per_review_confirmation: not_required
     owner_recognition:
-      id: owner-recognition-2026-09-14-plan-authority
+      id: owner-recognition-2026-11-07-dsh-subagent
       source: owner-authorization-in-current-delivery-task
-      recorded_on: "2026-09-14"
+      recorded_on: "2026-11-07"
       decision: recognize
       scope:
         - plan-review
         - code-review
       historical_effect: no-retroactive-change-to-prior-skips
       scope_boundary: no-expansion-beyond-this-process
-  policy_digest: 41e290b360e52e83f5fd6e4538c4c465cbb758871e47c05972b28c8e251d41b4
+  policy_digest: a1252a5daa13211a06c28bae75494dcd93a73baa66aa9ca4aa930849b8ceb6a9

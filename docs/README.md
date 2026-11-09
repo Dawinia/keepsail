@@ -19,7 +19,7 @@ Start here.
 - [Getting started](getting-started.md) — a 10-minute end-to-end walkthrough (the
   full version of the README Quickstart).
 - [Concepts](concepts.md) — plan authority, recognized external review evidence,
-  and the boundary between the harness and external execution.
+  and the boundary between keepsail and external execution.
 - [Report semantics](reporting.md) — historical attempts, external conclusions,
   usage coverage and the limits of finding metrics.
 - [Knowledge context](knowledge-context.md) — selected Codex revision, task binding,
@@ -31,7 +31,7 @@ Start here.
 ## Reference
 
 - [CLI reference](cli-reference.md) — the full command surface.
-- [Architecture](ARCHITECTURE.md) — internals and module layering.
+- [Implementation architecture](implementation-architecture.md) — internals and module layering.
 - [State machine](state-machine.md) — the authoritative transition matrix.
 - [Arm an architecture rule](architecture-fitness.md) — the decision-conformance
   worked example.

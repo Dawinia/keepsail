@@ -104,7 +104,7 @@ current workflow and [Report semantics](reporting.md) for observation boundaries
 
 ## keepsail does not spawn your agent
 
-Your agent or terminal calls the harness through hooks and CLI. The harness gates
+Your agent or terminal calls keepsail through hooks and CLI. Keepsail gates
 implementation and validates retained evidence. The external review workflow owns
 invocation, retries, source retention and reviewer instructions; the core has no
 model selection, automatic rounds, retry budget or human nonce executor.
@@ -128,7 +128,7 @@ That one sentence explains every narrowing in the state table:
   push an agent toward the shell to get around the gate.
 
 Blocking a file the reviewer will never see buys no safety; it only makes the
-harness something to route around. See [Limitations](limitations.md) for the
+gate something to route around. See [Limitations](limitations.md) for the
 residuals.
 
 ## Two gate paths

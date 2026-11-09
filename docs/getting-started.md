@@ -192,9 +192,9 @@ immediately when stdin is not a TTY):
    an existing file creates exactly one sibling backup containing its original
    bytes; an unchanged reinstall neither writes nor backs up. Pass `--no-agent`
    to skip integration configuration.
-3. Writes `.github/workflows/keepsail.yml` — the 7-job CI workflow
-   (pr-decorate / pr-validate / verification / attest-verify / decision-check /
-   doc-check / on-merge).
+3. Writes `.github/workflows/keepsail.yml` — the 8-job CI workflow
+   (pr-decorate / pr-validate / verification / attest-verify /
+   candidate-acceptance / decision-check / doc-check / on-merge).
 4. Writes `.github/pull_request_template.md` with the required metadata
    block that links a PR to a change.
 5. Best-effort enables repo `auto-merge` + `squash` settings on GitHub
@@ -499,8 +499,9 @@ What `on-merge` does:
 2. State advances directly to `ARCHIVED` — the merge is the terminal beat;
    there is no post-merge follow-up step.
 
-`on-merge` always exits 0 — the merge already happened, so it never blocks
-or fails the merged PR.
+`on-merge` runs after the merge, so it never blocks the merged PR. It can still
+fail its own workflow run: `1` when it cannot resolve the change id (no
+`--change` and no parseable merge subject) and `3` when `.harness/` is missing.
 
 ---
 
@@ -597,9 +598,9 @@ is what makes the merge gate refuse work that skipped a lifecycle step.
 - **Add custom verification checks**: edit `.harness/verification.yaml` and
   add entries under `user_checks`. They run alongside baseline + adapter
   checks.
-- **Tier-tag your changes**: `Micro` / `Normal` / `Large` tiers change how
-  strictly some checks fail (more lenient on `Micro`, must-pass on
-  `Normal`+).
+- **Tier-tag your changes**: `Micro` / `Normal` / `Large` record an estimate on
+  the change (`--tier-hint`). They do not change how checks fail; what fails a
+  change is each check's own `must_pass` setting.
 - **Read the full reference**: every command's flags, defaults, and exit
   codes are documented in [`cli-reference.md`](./cli-reference.md).
 - **Discover which rules to arm**: point your Code Agent at the
@@ -671,7 +672,7 @@ non-terminal change. Pass an explicit `<slug>` argument to override.
 
 ---
 
-Done. You now have a fully harnessed repo. The whole lifecycle from
+Done. You now have a fully wired-up repo. The whole lifecycle from
 `change start` to `archived` is event-sourced — every decision is in
 `.harness/events.jsonl`, and you can reproduce any state by replaying the
 log.
