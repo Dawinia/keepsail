@@ -50,7 +50,8 @@ def test_attest_write_help_explains_policy_dependent_default():
     result = CliRunner().invoke(main, ["attest", "write", "--help"])
     text = " ".join(result.output.split())
     assert result.exit_code == 0
-    assert "v2 with an activated knowledge policy; otherwise v1" in text
+    assert "activated delivery policy selects v3 by default" in text
+    assert "knowledge policy selects v2 or v1" in text
     assert "Explicit formats never fall back" in text
 
 
@@ -105,6 +106,25 @@ def test_attest_verify_fails_on_uncovered(tmp_path, monkeypatch):
     )
     assert r.exit_code == 2
     assert "snuck.py" in r.output
+
+
+def test_git_diff_uses_nul_protocol_and_preserves_rename_paths(tmp_path):
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.email", "test@example.invalid"],
+                   cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.name", "fixture"], cwd=tmp_path, check=True)
+    (tmp_path / "old name.txt").write_text("same content\n", encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-qm", "base"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "switch", "-qc", "candidate"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "mv", "old name.txt", "new 雪 name.txt"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-qm", "rename"], cwd=tmp_path, check=True)
+    raw = attest_mod._git_name_status("main", "HEAD", tmp_path)
+    assert raw.endswith("\0")
+    entries = attest_mod.parse_name_status(raw)
+    assert [(e.status, e.paths) for e in entries] == [
+        ("R100", ("old name.txt", "new 雪 name.txt")),
+    ]
 
 
 def test_attest_verify_fail_closed_on_git_error(tmp_path, monkeypatch):

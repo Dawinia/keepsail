@@ -18,9 +18,9 @@ from keepsail.engineering.attestation import write_attestation
 from tests.unit.core.test_knowledge import Workspace, git, policy, version
 
 
-def projection_program() -> str:
+def projection_program(workflow_path: str) -> str:
     workflow = yaml.safe_load(
-        (Path(__file__).resolve().parents[3] / ".github/workflows/merge-gate.yml").read_text(
+        (Path(__file__).resolve().parents[3] / workflow_path).read_text(
             encoding="utf-8")
     )
     step = next(
@@ -58,9 +58,11 @@ def test_required_verifier_rejects_unsuccessful_candidate_acceptance(outcome):
     assert (result.returncode == 0) == (outcome == "success")
 
 
-@pytest.mark.parametrize("case", ["valid", "v2", "unknown-directory", "deep-directory",
+@pytest.mark.parametrize("workflow_path", [".github/workflows/merge-gate.yml",
+                                           "src/keepsail/templates/keepsail_workflow.yml"])
+@pytest.mark.parametrize("case", ["valid", "v2", "v3", "unknown-directory", "deep-directory",
                                   "missing-object", "symlink", "wrong-base"])
-def test_workflow_projects_only_regular_target_evidence(tmp_path, case):
+def test_workflow_projects_only_regular_target_evidence(tmp_path, case, workflow_path):
     source = tmp_path / "source"
     source.mkdir()
     (source / ".harness").mkdir()
@@ -72,6 +74,7 @@ def test_workflow_projects_only_regular_target_evidence(tmp_path, case):
     git(source, "commit", "-qm", "trusted base")
     base = git(source, "rev-parse", "HEAD")
     relative = {"v2": ".harness/attestations/v2/probe.jsonl",
+                "v3": ".harness/attestations/v3/probe.jsonl",
                 "unknown-directory": ".harness/attestations/unknown/probe.jsonl",
                 "deep-directory": ".harness/attestations/v2/deep/probe.jsonl"}.get(
                     case, ".harness/attestations/probe.jsonl")
@@ -102,7 +105,7 @@ def test_workflow_projects_only_regular_target_evidence(tmp_path, case):
     subprocess.run(["git", "clone", "-q", "--shared", str(source), str(trusted)], check=True)
     git(trusted, "checkout", "-q", "--detach", base)
     result = subprocess.run(
-        [sys.executable, "-c", projection_program()],
+        [sys.executable, "-c", projection_program(workflow_path)],
         capture_output=True,
         env={
             **os.environ,
@@ -111,12 +114,12 @@ def test_workflow_projects_only_regular_target_evidence(tmp_path, case):
             "HEAD_SHA": "0" * 40 if case == "missing-object" else head,
         },
     )
-    assert (result.returncode == 0) == (case in {"valid", "v2"}), result.stderr
+    assert (result.returncode == 0) == (case in {"valid", "v2", "v3"}), result.stderr
     assert (trusted / "source.py").read_text() == "trusted source\n"
     assert not (trusted / ".harness/knowledge-recognition.yaml").exists()
     assert git(trusted, "rev-parse", "HEAD") == base
     target = trusted / relative
-    if case in {"valid", "v2"}:
+    if case in {"valid", "v2", "v3"}:
         assert target.read_bytes() == original
     else:
         assert not target.exists()

@@ -127,6 +127,8 @@ keepsail attest verify [OPTIONS]
 |-------|------|---------|-------------|
 | `--base` | text | *required* | Base ref/SHA (e.g. PR base.sha). |
 | `--head` | text | *required* | Head ref/SHA (e.g. PR head.sha). |
+| `--repository-id` | text | — | Trusted host repository identity for v3 evidence. |
+| `--target-ref` | text | — | Trusted host's full target branch ref for v3 evidence. |
 
 **Exit codes:**
 
@@ -146,7 +148,7 @@ keepsail attest write [OPTIONS] SLUG
 | Param | Type | Default | Description |
 |-------|------|---------|-------------|
 | `SLUG` | text | *required* |  |
-| `--format` | {v2\|v1-bootstrap} | — | Output version; default is v2 with an activated knowledge policy; otherwise v1. Explicit formats never fall back. v1-bootstrap is limited to reader-first upgrades. |
+| `--format` | {v2\|v3\|v1-bootstrap} | — | Output version; an activated delivery policy selects v3 by default. Otherwise the knowledge policy selects v2 or v1. Explicit formats never fall back. v1-bootstrap is limited to reader-first upgrades. |
 | `--disclose-gate-bypass` | text | — | Disclose+justify that the gate was bypassed during this change (clears the merge-gate blocker). |
 
 **Exit codes:**
@@ -242,6 +244,23 @@ keepsail change recover [OPTIONS] SLUG
 | `--pr` | integer range | *required* |  |
 | `--apply` | flag | `False` | Append after successful dry-run and revision check. |
 | `--expected-revision` | text | — | Exact dry-run physical ledger SHA256. |
+
+**Exit codes:**
+
+- `0` success
+- `1` generic error
+
+## keepsail change recover-completion
+
+Resume an interrupted no-review completion without rewriting history.
+
+```
+keepsail change recover-completion [OPTIONS] SLUG
+```
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `SLUG` | text | *required* |  |
 
 **Exit codes:**
 
@@ -971,6 +990,91 @@ keepsail plan withdraw [OPTIONS] SLUG
 | `SLUG` | text | *required* |  |
 | `--candidate` | text | *required* | Exact pending candidate subject id. |
 | `--reason` | text | *required* | Why this unapproved candidate is not adopted. |
+
+**Exit codes:**
+
+- `0` success
+- `1` generic error
+
+## keepsail policy
+
+Inspect and import policy transition evidence.
+
+```
+keepsail policy COMMAND [ARGS...]
+```
+
+## keepsail policy authorization
+
+Work with signed policy transition authorizations.
+
+```
+keepsail policy authorization COMMAND [ARGS...]
+```
+
+## keepsail policy authorization import
+
+Retain an exact signed authorization; it does not approve or activate a plan.
+
+```
+keepsail policy authorization import [OPTIONS] CHANGE
+```
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `CHANGE` | text | *required* |  |
+| `--evidence` | file | *required* |  |
+| `--repository-id` | text | *required* | Explicit local repository identity. |
+| `--target-ref` | text | *required* | Explicit full target branch ref. |
+| `--target-authority` | file | — | Proposed YAML authority for a key rotation. |
+
+**Exit codes:**
+
+- `0` success
+- `1` generic error
+
+## keepsail policy initial
+
+Prepare, but never activate, an owner-established first policy.
+
+```
+keepsail policy initial COMMAND [ARGS...]
+```
+
+## keepsail policy initial confirmation
+
+Print a record retaining the supplied original owner confirmation.
+
+```
+keepsail policy initial confirmation [OPTIONS]
+```
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `--initial-commit` | text | *required* | Full commit ID of the proposed first policy. |
+| `--repository-id` | text | *required* |  |
+| `--target-ref` | text | *required* |  |
+| `--evidence` | file | *required* |  |
+
+**Exit codes:**
+
+- `0` success
+- `1` generic error
+
+## keepsail policy initial prepare
+
+Print a light-policy proposal and trust configuration; activate nothing.
+
+```
+keepsail policy initial prepare [OPTIONS]
+```
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `--repository-id` | text | *required* | Owner-confirmed repository identity. |
+| `--target-ref` | text | *required* | Owner-confirmed full target branch ref. |
+| `--public-key` | text | *required* | Base64-encoded raw Ed25519 public key. |
+| `--enable-recovery` | flag | `False` | Include recovery in the proposed purposes. |
 
 **Exit codes:**
 

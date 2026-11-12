@@ -128,7 +128,7 @@ def state_verify(ctx: click.Context) -> None:
     parsed_events = []
     if f.exists():
         for ln, line in enumerate(effective_event_lines(
-                f.read_text(encoding="utf-8").splitlines()), start=1):
+                f.read_bytes().decode("utf-8").splitlines(keepends=True)), start=1):
             if not line.strip():
                 continue
             try:

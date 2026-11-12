@@ -23,6 +23,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from keepsail.core.approval import (
     ApprovalError,
@@ -31,10 +32,11 @@ from keepsail.core.approval import (
     evidence_digest,
     evidence_is_recognized,
     has_unresolved_candidate,
-    load_recognition,
+    load_trusted_recognition,
     make_code_subject,
     missing_coverage,
     recognition_contract_active,
+    resolve_contract_base,
     resolve_review_reference,
     validate_approval,
     validate_code_subject,
@@ -92,6 +94,7 @@ class OrderingViolation:
 _HARD_PREREQ_EVENTS: dict[str, list[str]] = {
     # implementation_complete must follow verification_passed (lifecycle §3.4)
     "implementation_complete": ["verification_passed"],
+    "code_review_not_required": ["implementation_complete"],
 }
 
 
@@ -106,7 +109,8 @@ def _current_state(events_file: Path, change_id: str) -> str | None:
     if not events_file.exists():
         return None
     current: str | None = None
-    for line in effective_event_lines(events_file.read_text(encoding="utf-8").splitlines()):
+    lines = events_file.read_bytes().decode("utf-8").splitlines(keepends=True)
+    for line in effective_event_lines(lines):
         if not line.strip():
             continue
         try:
@@ -128,7 +132,8 @@ def _change_event_types(events_file: Path, change_id: str) -> set[str]:
     if not events_file.exists():
         return set()
     seen: set[str] = set()
-    for line in effective_event_lines(events_file.read_text(encoding="utf-8").splitlines()):
+    lines = events_file.read_bytes().decode("utf-8").splitlines(keepends=True)
+    for line in effective_event_lines(lines):
         if not line.strip():
             continue
         try:
@@ -197,15 +202,79 @@ def _validate_authority(events_file: Path, new_event: Event) -> None:
 
     try:
         root = events_file.parent.parent
+        current = derive_state(events_file).get(new_event.change_id)
+
+        def verify_local_evidence(evidence: dict[str, Any]) -> None:
+            from keepsail.core.review_basis import resolve_local_review_basis
+
+            basis = resolve_local_review_basis(root, events_file, current, evidence,
+                                               expected_base=new_event.payload.get("trusted_base"))
+            claimed = new_event.payload.get("recognition_basis")
+            if (claimed is not None or basis["mode"] == "recovery") and claimed != basis:
+                raise ApprovalError("review evidence recognition basis does not match")
+
         validate_authority_context(
-            derive_state(events_file).get(new_event.change_id), new_event,
+            current, new_event,
             active_recognition=recognition_contract_active(root),
-            recognition_loader=lambda: load_recognition(root),
+            recognition_loader=lambda: load_trusted_recognition(
+                root, expected_base=new_event.payload.get("trusted_base")
+            ),
             check_git=lambda subject: _validate_git_subject(events_file, subject),
+            review_evidence_validator=verify_local_evidence,
         )
+        if (current is not None and current.effective_approval is not None
+                and new_event.type in {"implementation_started", "implementation_restarted",
+                    "implementation_invalidated", "implementation_recorded",
+                    "verification_passed", "verification_failed", "implementation_complete",
+                    "code_review_passed", "code_review_failed", "code_review_not_required"}):
+            from keepsail.core.review_basis import validate_effective_plan_basis
+
+            validate_effective_plan_basis(root, events_file, current)
+        if (new_event.type == "implementation_complete" and current is not None
+                and current.effective_approval is not None):
+            from keepsail.core.git_objects import regular_blob_text
+            from keepsail.core.transition_guard import validate_delivery_obligations
+            from keepsail.core.verification_config import (
+                parse_verification_config,
+                required_check_contract,
+            )
+            from keepsail.core.verification_evidence import verify_check_evidence
+
+            code = new_event.payload.get("code_subject")
+            basis = validate_delivery_obligations(root, events_file, current, code)
+            if basis["mode"] != "unchanged" or "builtin_version" in basis:
+                trusted_text = regular_blob_text(root, basis["trusted_base"],
+                                                 ".harness/verification.yaml")
+                contract = required_check_contract(parse_verification_config(trusted_text))
+                assert isinstance(code, dict)
+                verify_check_evidence(current.current_verification,
+                                      subject_id=str(code["subject_id"]),
+                                      required_contract=contract,
+                                      builtin_version=basis.get("builtin_version",
+                                                                "keepsail-baseline/v1"),
+                                      trusted_base=basis["trusted_base"])
         if new_event.type == "implementation_recorded" and "coverage_basis" in new_event.payload:
             validate_generated_coverage(root, new_event.payload)
-    except (ApprovalError, GitScopeError, TypeError, KeyError) as exc:
+        if new_event.type == "policy_authorization_imported":
+            from keepsail.core.policy_authority import validate_authorization_import
+
+            validate_authorization_import(root, derive_state(events_file).get(new_event.change_id),
+                                          new_event.change_id, new_event.payload)
+        if new_event.type == "code_review_not_required":
+            from keepsail.core.no_review import verify_no_review_binding
+            from keepsail.core.review_verdict import read_change_events
+
+            if (current is None
+                    or new_event.payload.get("trusted_base") != resolve_contract_base(root)):
+                raise ApprovalError("no-review decision does not use the current trusted base")
+            verify_no_review_binding(root, new_event, current.current_code_subject)
+            subject_id = new_event.payload.get("subject_id")
+            for prior in read_change_events(events_file, new_event.change_id):
+                prior_subject = prior.payload.get("code_subject")
+                if (prior.type == "code_review_failed" and isinstance(prior_subject, dict)
+                        and prior_subject.get("subject_id") == subject_id):
+                    raise ApprovalError("a rejected code subject cannot bypass its code review")
+    except (ApprovalError, GitScopeError, TypeError, KeyError, ValueError) as exc:
         raise EmitPreconditionError(str(exc)) from exc
 
 
@@ -213,6 +282,7 @@ def validate_authority_context(
     current: ChangeState | None, new_event: Event, *, active_recognition: bool,
     recognition_loader: Callable[[], Recognition],
     check_git: Callable[[dict[str, object]], None],
+    review_evidence_validator: Callable[[dict[str, Any]], None] | None = None,
 ) -> None:
     """Shared authority predicates against preceding state, not later evidence.
 
@@ -263,16 +333,19 @@ def validate_authority_context(
                 raise ApprovalError("review evidence requires an existing Change")
             if payload.get("subject_id") != evidence.get("subject_id"):
                 raise ApprovalError("review evidence event subject does not match its evidence")
-            recognition = recognition_loader()
-            if not evidence_is_recognized(evidence, recognition):
-                raise ApprovalError("evidence process or issuer is not user-recognized")
-            if recognition.policy_digest:
-                provenance = evidence.get("provenance", {})
-                if (
-                    not isinstance(provenance, dict)
-                    or provenance.get("policy_digest") != recognition.policy_digest
-                ):
-                    raise ApprovalError("evidence policy digest is not recognized")
+            if review_evidence_validator is not None:
+                review_evidence_validator(evidence)
+            else:
+                recognition = recognition_loader()
+                if not evidence_is_recognized(evidence, recognition):
+                    raise ApprovalError("evidence process or issuer is not user-recognized")
+                if recognition.policy_digest:
+                    provenance = evidence.get("provenance", {})
+                    if (
+                        not isinstance(provenance, dict)
+                        or provenance.get("policy_digest") != recognition.policy_digest
+                    ):
+                        raise ApprovalError("evidence policy digest is not recognized")
             subject = _current_subject(current, str(evidence["kind"]))
             historical_only = payload.get("historical_only") is True
             if subject is None:
@@ -391,6 +464,7 @@ def validate_authority_context(
                 in {
                     "implementation_complete",
                     "code_review_passed",
+                    "code_review_not_required",
                     "merged",
                 }
             ):
@@ -542,6 +616,8 @@ def is_new_contract_event(events_file: Path, event: Event) -> bool:
     from keepsail.core.events import KNOWLEDGE_EVENT_TYPES
     if event.type in KNOWLEDGE_EVENT_TYPES or event.type == "knowledge_checkpointed":
         return True
+    if event.type == "policy_authorization_imported":
+        return True
     if any(
         payload.get(key) is not None
         for key in ("plan_subject", "approval", "evidence", "code_subject",
@@ -559,7 +635,10 @@ def is_new_contract_event(events_file: Path, event: Event) -> bool:
     )
 
 
-def find_ordering_violations(events_file: Path, change_id: str) -> list[OrderingViolation]:
+def find_ordering_violations(
+    events_file: Path, change_id: str, *, builtin_version: str = "keepsail-baseline/v1",
+    repository_root: Path | None = None,
+) -> list[OrderingViolation]:
     """Forward-walk a change's events; report transitions the table rejects.
 
     The whole-stream sibling of `validate_preconditions` (which only vets a
@@ -590,12 +669,16 @@ def find_ordering_violations(events_file: Path, change_id: str) -> list[Ordering
         Violations in append order. Empty list for a clean stream (or a
         nonexistent file / a change with no events).
     """
+    if builtin_version not in {"keepsail-baseline/v1", "keepsail-baseline/v2"}:
+        raise ValueError("unsupported built-in checks version")
     if not events_file.exists():
         return []
     violations: list[OrderingViolation] = []
     current: str | None = None
     seen: set[str] = set()
-    for line in effective_event_lines(events_file.read_text(encoding="utf-8").splitlines()):
+    completed_subject: object = None
+    lines = events_file.read_bytes().decode("utf-8").splitlines(keepends=True)
+    for line in effective_event_lines(lines):
         if not line.strip():
             continue
         try:
@@ -605,6 +688,23 @@ def find_ordering_violations(events_file: Path, change_id: str) -> list[Ordering
             continue
         if ev.change_id != change_id:
             continue
+
+        if ev.type == "code_review_not_required":
+            error: str | None = None
+            if builtin_version == "keepsail-baseline/v1":
+                error = "built-in v1 does not permit a no-review completion"
+            else:
+                from keepsail.core.no_review import verify_no_review_binding
+
+                try:
+                    verify_no_review_binding(repository_root or events_file.parent.parent,
+                                             ev, completed_subject)
+                except (ApprovalError, GitScopeError, TypeError, KeyError, ValueError) as exc:
+                    error = str(exc)
+            if error:
+                violations.append(OrderingViolation(event_id=ev.event_id, event_type=ev.type,
+                                                    from_state=current, reason=error))
+                continue
 
         # Hard-prerequisite check BEFORE recording this type as seen (a prereq
         # cannot be satisfied by the event itself).
@@ -644,5 +744,7 @@ def find_ordering_violations(events_file: Path, change_id: str) -> list[Ordering
             # state so subsequent legal events still validate (reducer parity).
             continue
         current = target
+        if ev.type == "implementation_complete":
+            completed_subject = ev.payload.get("code_subject")
 
     return violations

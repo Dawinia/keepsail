@@ -18,6 +18,7 @@ from keepsail.engineering.attestation import (
     extract_change_events,
     independence_for_attestation,
     parse_name_status,
+    parse_name_status_z,
     verify_attestations,
     write_attestation,
 )
@@ -52,6 +53,17 @@ def test_parse_name_status_handles_amd_and_rename():
 def test_parse_name_status_canonicalizes_paths():
     entries = parse_name_status("A\t./src/x.py\n")
     assert entries[0].paths == ("src/x.py",)
+
+
+def test_parse_name_status_z_preserves_unusual_names_and_both_rename_paths():
+    raw = "R100\0old\tname\0new\nname\0A\0 leading and trailing \0"
+    assert parse_name_status_z(raw) == [
+        DiffEntry("R100", ("old\tname", "new\nname")),
+        DiffEntry("A", (" leading and trailing ",)),
+    ]
+    for invalid in ("A\0unterminated", "R100\0old\0", "A\0\0", "A123\0path\0"):
+        with pytest.raises(ValueError):
+            parse_name_status_z(invalid)
 
 
 # --------------------------------------------------------------------------- #

@@ -76,4 +76,5 @@ class ChangeState:
     coverage_manifest: list[dict[str, Any]] = field(default_factory=list)
     current_code_subject: dict[str, Any] | None = None
     current_verification: dict[str, Any] | None = None
+    no_review_decision: dict[str, Any] | None = None
     evidence_references: list[dict[str, Any]] = field(default_factory=list)

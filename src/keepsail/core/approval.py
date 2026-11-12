@@ -687,26 +687,9 @@ def recognition_contract_active(root: Path) -> bool:
     operator must not be able to downgrade an active contract by making its
     recognition record unreadable.
     """
-    path = root / ".harness" / "review-recognition.yaml"
-    try:
-        raw = yaml.safe_load(path.read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        raw = None
-    except (OSError, UnicodeDecodeError, yaml.YAMLError) as exc:
-        raise ApprovalError(f"review recognition policy is invalid: {exc}") from exc
-    if raw is not None:
-        if not isinstance(raw, dict) or not isinstance(raw.get("enabled"), bool):
-            raise ApprovalError("review recognition policy needs a boolean enabled field")
-        if raw["enabled"] is True:
-            # This validates the complete record, including its digest, and
-            # therefore rejects enabled-but-malformed policies.
-            load_recognition(root)
-            return True
-
-    # A later PR must not downgrade a contract that was enabled by its trusted
-    # base simply by changing the candidate copy to ``enabled: false`` or
-    # deleting the file.  The first cutover base has no enabled policy, so this
-    # remains false for that one transition.
+    # An enabled trusted base remains active even if the candidate replaces,
+    # damages, or removes its own copy.  Evaluate it before the working tree so
+    # a policy proposal cannot choose the authority for its own delivery.
     for ref in _contract_base_refs(root):
         try:
             commit = resolve_commit(root, ref)
@@ -722,23 +705,57 @@ def recognition_contract_active(root: Path) -> bool:
         if not isinstance(base_raw, dict) or not isinstance(base_raw.get("enabled"), bool):
             raise ApprovalError(f"review recognition policy at {ref} is malformed")
         if base_raw["enabled"] is True:
-            load_recognition(root, ref=commit)
+            if base_raw.get("version") == "review-recognition/v2":
+                from keepsail.core.effective_policy import load_effective_v2
+
+                load_effective_v2(root, commit)
+            else:
+                load_recognition(root, ref=commit)
             return True
         # A disabled candidate is not authoritative by itself; continue to
         # inspect the remaining local base candidates before choosing legacy.
+    # Preserve the legacy structural check for workspaces without an active
+    # trusted policy.  This signals that strict event checks are needed; it does
+    # not make the candidate an authority for review evidence.
+    path = root / ".harness" / "review-recognition.yaml"
+    try:
+        raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return False
+    except (OSError, UnicodeDecodeError, yaml.YAMLError) as exc:
+        raise ApprovalError(f"review recognition policy is invalid: {exc}") from exc
+    if not isinstance(raw, dict) or not isinstance(raw.get("enabled"), bool):
+        raise ApprovalError("review recognition policy needs a boolean enabled field")
+    if raw["enabled"] is True:
+        load_recognition(root)
+        return True
     return False
 
 
-def evidence_is_recognized(evidence: dict[str, Any], recognition: Recognition) -> bool:
+def evidence_is_recognized(
+    evidence: dict[str, Any], recognition: Recognition, *, signed_plan_verified: bool = False,
+) -> bool:
     process = evidence.get("process")
     if not isinstance(process, dict):
         return False
+    form = evidence.get("form", "json")
+    if not isinstance(form, str):
+        return False
+    if recognition.version == "review-recognition/v2":
+        reserved = (evidence.get("kind") == "plan"
+                    and process.get("id") == "maintainer-plan-review"
+                    and process.get("version") == "maintainer-plan-review/v1"
+                    and evidence.get("issuer") == "maintainer")
+        if form == "signed-plan-decision" and (not reserved or not signed_plan_verified):
+            return False
+        if reserved and form != "signed-plan-decision":
+            return False
     return (
         process.get("id") == recognition.process_id
         and process.get("version") == recognition.process_version
         and evidence.get("kind") in recognition.kinds
         and evidence.get("issuer") in recognition.issuers
-        and evidence.get("form", "json") in recognition.evidence_forms
+        and form in recognition.evidence_forms
     )
 
 
@@ -894,6 +911,14 @@ def resolve_contract_base(root: Path) -> str:
     raise ApprovalError("new-contract code subjects require a reachable trusted baseline")
 
 
+def load_trusted_recognition(root: Path, *, expected_base: str | None = None) -> Recognition:
+    """Use the same resolved target commit as the merge verifier, never a candidate."""
+    base = resolve_contract_base(root)
+    if expected_base is not None and expected_base != base:
+        raise ApprovalError("trusted recognition baseline changed during review import")
+    return load_recognition(root, ref=base)
+
+
 def _tree_entries(root: Path, ref: str) -> dict[str, tuple[str, str]]:
     entries: dict[str, tuple[str, str]] = {}
     for line in _git(root, "ls-tree", "-rz", ref).split("\0"):
@@ -927,10 +952,10 @@ def _name_status(raw: str) -> list[tuple[str, tuple[str, ...]]]:
 
 
 def is_attestation_path(path: str) -> bool:
-    """Match the flat/v2 evidence locations accepted by the trusted workflow."""
+    """Match the flat and versioned evidence locations accepted by the reader."""
     parts = path.split("/")
     return (parts[:2] == [".harness", "attestations"]
-            and (len(parts) == 3 or (len(parts) == 4 and parts[2] == "v2"))
+            and (len(parts) == 3 or (len(parts) == 4 and parts[2] in {"v2", "v3"}))
             and ".." not in parts and posixpath.splitext(parts[-1])[1] == ".jsonl")
 
 
@@ -982,9 +1007,14 @@ def implementation_coverage(
     """
     head = resolve_commit(root)
     base = merge_base_commit(root, resolve_contract_base(root), head)
+    from keepsail.core.git_diff import DiffEntry, require_literal_git_diff, require_literal_paths
+
+    require_literal_git_diff(root, base=base, head=head)
     committed = git_change_manifest(root, base=base, head=head)
     staged = _git(root, "diff", "--cached", "--name-status", "-z", "--find-renames", "HEAD")
     workspace = _git(root, "diff", "--name-status", "-z", "--find-renames")
+    require_literal_paths([DiffEntry(status, paths)
+                           for status, paths in (*_name_status(staged), *_name_status(workspace))])
     index = _git(root, "ls-files", "--stage", "-z")
     paths = set()
     for row in committed:
@@ -1186,6 +1216,7 @@ def authorizing_event(event_type: str) -> bool:
         "implementation_invalidated",
         "implementation_complete",
         "code_review_passed",
+        "code_review_not_required",
         "merged",
         "code_review_failed",
         "plan_rejected",

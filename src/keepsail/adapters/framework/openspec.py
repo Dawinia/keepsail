@@ -158,7 +158,7 @@ def _seen_from_events(workspace: Path) -> set[tuple[str, str]]:
     if not path.exists():
         return set()
     seen: set[tuple[str, str]] = set()
-    for line in effective_event_lines(path.read_text(encoding="utf-8").splitlines()):
+    for line in effective_event_lines(path.read_bytes().decode("utf-8").splitlines(keepends=True)):
         if not line.strip():
             continue
         try:

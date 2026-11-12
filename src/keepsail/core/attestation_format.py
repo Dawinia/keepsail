@@ -30,7 +30,7 @@ def _require(value: object, message: str) -> None:
 
 
 def make_attestation(change: str, inputs: Any, checkpoint: dict[str, Any],
-                     lineage: list[dict[str, Any]]) -> dict[str, Any]:
+                     lineage: list[dict[str, Any]], *, for_v3: bool = False) -> dict[str, Any]:
     state = inputs.states[change]
     approval = validate_approval(state.effective_approval, change_id=change)
     _require(not has_unresolved_candidate(state), "cannot compact an unresolved plan revision")
@@ -98,10 +98,16 @@ def make_attestation(change: str, inputs: Any, checkpoint: dict[str, Any],
         add("implementation_complete", {"code_subject_ref": "current"}, last(
             "implementation_complete", lambda e: e.payload.get("code_subject", {}).get("subject_id")
             == code["subject_id"]))
-        review = next((e for e in reversed(originals) if e.type in {
-            "code_review_passed", "code_review_failed",
-        } and e.payload.get("code_subject", {}).get("subject_id") == code["subject_id"]), None)
-        if review is not None:
+        review = next((e for e in reversed(originals) if (
+            (e.type in {"code_review_passed", "code_review_failed"}
+             and e.payload.get("code_subject", {}).get("subject_id") == code["subject_id"])
+            or (e.type == "code_review_not_required"
+                and e.payload.get("subject_id") == code["subject_id"])
+        )), None)
+        if review is not None and review.type == "code_review_not_required":
+            _require(for_v3, "no-review completion requires a v3 attestation")
+            add(review.type, review.payload, review)
+        elif review is not None:
             conclusion = evidence[review.payload["evidence_id"]]
             add("review_evidence_imported", {"evidence": conclusion,
                                             "evidence_digest": digest_record(conclusion),
@@ -132,7 +138,7 @@ def make_attestation(change: str, inputs: Any, checkpoint: dict[str, Any],
     result = {**record, "digest": digest_record(record)}
     # Round-trip validation includes the unchanged transition table and subject
     # predicates, before a writer can publish the derived artifact.
-    expanded = expand_attestation(result)
+    expanded = expand_attestation(result, for_v3=for_v3)
     from keepsail.core.reducer import derive_state_from_lines
     restored = derive_state_from_lines(expanded)[change]
     _require(restored.current_state == state.current_state
@@ -143,19 +149,24 @@ def make_attestation(change: str, inputs: Any, checkpoint: dict[str, Any],
     return result
 
 
-def expand_attestation(raw: object) -> list[str]:
+def inactive_knowledge_checkpoint() -> dict[str, str]:
+    body = {"schema_version": "knowledge-inactive/v1"}
+    return {**body, "digest": digest_record(body)}
+
+
+def expand_attestation(raw: object, *, for_v3: bool = False) -> list[str]:
     """Reject malformed external records through the domain validation boundary."""
     if not isinstance(raw, dict):
         raise ApprovalError("compact attestation must be an object")
     try:
-        return _expand_attestation(raw)
+        return _expand_attestation(raw, for_v3=for_v3)
     except ApprovalError:
         raise
     except (KeyError, TypeError, ValueError, AttributeError, IndexError) as exc:
         raise ApprovalError("invalid compact attestation structure") from exc
 
 
-def _expand_attestation(raw: dict[str, Any]) -> list[str]:
+def _expand_attestation(raw: dict[str, Any], *, for_v3: bool = False) -> list[str]:
     _require(set(raw) == {"schema_version", "representation", "change_id", "approval",
                           "code_subject",
                           "authorization_lineage", "lifecycle", "knowledge_checkpoint",
@@ -171,6 +182,9 @@ def _expand_attestation(raw: dict[str, Any]) -> list[str]:
     _require(isinstance(raw["knowledge_checkpoint"], dict)
              and isinstance(raw["knowledge_checkpoint"].get("digest"), str),
              "invalid compact knowledge checkpoint")
+    inactive_knowledge = raw["knowledge_checkpoint"] == inactive_knowledge_checkpoint()
+    _require(for_v3 or not inactive_knowledge,
+             "inactive knowledge sentinel is only permitted inside v3")
     _require(isinstance(raw["historical_lifecycle_index"], list)
              and all(isinstance(row, dict) and set(row) == {
                  "source_event_id", "type", "source_event_digest"}
@@ -189,6 +203,8 @@ def _expand_attestation(raw: dict[str, Any]) -> list[str]:
                               "source_event_id",
                               "source_event_digest"}, "invalid derived lifecycle row")
         _require(isinstance(row["payload"], dict), "invalid derived lifecycle payload")
+        _require(for_v3 or row["type"] != "code_review_not_required",
+                 "no-review completion requires a v3 attestation")
         payload = deepcopy(row["payload"])
         targets = [(payload, "plan_subject", approval["subject"]),
                    (payload, "approval", approval), (payload, "code_subject", code)]
@@ -211,13 +227,15 @@ def _expand_attestation(raw: dict[str, Any]) -> list[str]:
             "payload": payload,
         }
         result.append(serialize_event(parse_event_line(json.dumps(record))))
-    from keepsail.core.events import Actor
-    result.append(serialize_event(Event(
-        event_id="derived-checkpoint-" + raw["knowledge_checkpoint"]["digest"],
-        type="knowledge_checkpointed", change_id=raw["change_id"],
-        timestamp=raw["lifecycle"][-1]["timestamp"], actor=Actor("agent", "attestation-export/v2"),
-        framework="plain", payload=raw["knowledge_checkpoint"],
-    )))
+    if not inactive_knowledge:
+        from keepsail.core.events import Actor
+        result.append(serialize_event(Event(
+            event_id="derived-checkpoint-" + raw["knowledge_checkpoint"]["digest"],
+            type="knowledge_checkpointed", change_id=raw["change_id"],
+            timestamp=raw["lifecycle"][-1]["timestamp"],
+            actor=Actor("agent", "attestation-export/v2"),
+            framework="plain", payload=raw["knowledge_checkpoint"],
+        )))
     from keepsail.core.reducer import derive_state_from_lines
     restored = derive_state_from_lines(result).get(raw["change_id"])
     _require(restored is not None and restored.current_state == raw["expected_state"]

@@ -317,7 +317,9 @@ def done_cmd(
         declared = [row["path"] for row in current_change.coverage_manifest
                     if isinstance(row.get("path"), str)]
         try:
-            dirty = working_tree_dirty(root, declared)
+            dirty = working_tree_dirty(root, [*declared, ".harness/verification.yaml",
+                                             ".harness/review-recognition.yaml",
+                                             ".harness/policy-authority.yaml"])
         except GitScopeError as exc:
             click.echo(
                 format_error(
@@ -346,6 +348,11 @@ def done_cmd(
                 base=resolve_contract_base(root),
             )
             missing = missing_coverage(code_subject, current_change.coverage_manifest)
+            from keepsail.core.review_basis import validate_effective_plan_basis
+            from keepsail.core.transition_guard import validate_delivery_obligations
+
+            validate_effective_plan_basis(root, events_path(root), current_change)
+            validate_delivery_obligations(root, events_path(root), current_change, code_subject)
         except (ApprovalError, KeyError, ValueError) as exc:
             click.echo(
                 format_error(
@@ -598,15 +605,37 @@ def _emit_implementation_complete(
         payload=payload,
     )
     try:
-        # Strict — the prior verification_passed (dispatcher-emitted on the
-        # default path, or the synthetic one on --skip-verify) satisfies the
-        # implementation_complete hard prerequisite.
-        writer.emit(ev)
+        basis: dict[str, Any] = {}
+        if current is not None and isinstance(current.effective_approval, dict):
+            from keepsail.core.transition_guard import validate_delivery_obligations
+
+            basis = validate_delivery_obligations(root, events_path(root), current,
+                                                  payload.get("code_subject"))
+        if basis.get("code_review_required") is False:
+            if basis.get("builtin_version") != "keepsail-baseline/v2":
+                raise EmitPreconditionError("no-review completion requires built-in contract v2")
+            subject = payload["code_subject"]
+            assert isinstance(subject, dict)
+            no_review = Event(
+                event_id=new_event_id(), type="code_review_not_required", change_id=slug,
+                timestamp=utc_now_iso(), actor=Actor(type="human", identifier="cli"),
+                framework="plain", payload={"subject_id": subject["subject_id"],
+                    "trusted_base": basis["trusted_base"], "policy_digest": basis["policy_digest"],
+                    "reason": basis["code_review_reason"]},
+            )
+            writer.emit_many([ev, no_review])
+        else:
+            writer.emit(ev)
     except EmitPreconditionError as e:
         click.echo(
             format_error(subcommand="done", message=str(e)),
             err=True,
         )
+        sys.exit(EXIT_VALIDATION)
+    except (ApprovalError, OSError) as e:
+        click.echo(format_error(subcommand="done", message=str(e),
+                                hint=f"If an append was interrupted, run `keepsail change "
+                                     f"recover-completion {slug}`."), err=True)
         sys.exit(EXIT_VALIDATION)
     refresh_state_after_emit(root)
     return True

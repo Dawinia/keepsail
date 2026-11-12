@@ -367,4 +367,10 @@ def report_cmd(ctx: click.Context, since: str | None, until: str | None, brief: 
         click.echo(_render_brief(r))
     else:
         click.echo(_render_human(r))
+        if r.no_review_decisions:
+            click.echo("\nRecorded no-review decisions (historical):")
+            for decision in r.no_review_decisions:
+                click.echo(f"  {decision.get('change_id')}: {decision.get('reason')}")
+                click.echo(f"    base={decision.get('trusted_base')} "
+                           f"policy={decision.get('policy_digest')}")
     sys.exit(EXIT_OK)

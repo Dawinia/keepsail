@@ -405,6 +405,11 @@ def load_ledger(path: Path, policy: dict[str, Any] | None, *,
             continue
         try:
             raw = json.loads(line, object_pairs_hook=_unique_pairs)
+            if isinstance(raw, dict) and raw.get("schema_version") == "completion-transaction/v1":
+                from keepsail.core.completion_transaction import decode_completion
+
+                decode_completion(raw_line)
+                continue
             event = _event_from_object(raw)
         except (ValueError, TypeError, KeyError) as exc:
             if policy or "knowledge_" in line:
@@ -1193,7 +1198,7 @@ def read_inputs(root: Path, *, events_file: Path | None = None) -> KnowledgeInpu
     policy, candidate = policy_configuration(root)
     content = path.read_bytes() if path.exists() else b""
     ledger, revision = load_ledger(path, policy, _content=content)
-    lines = content.decode("utf-8").splitlines()
+    lines = content.decode("utf-8").splitlines(keepends=True)
     effective_lines = list(effective_event_lines(lines))
     return KnowledgeInputs(policy, candidate, ledger, revision,
                            derive_state_from_lines(effective_lines, _effective=True),

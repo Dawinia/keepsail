@@ -21,9 +21,8 @@ from keepsail.core.approval import (
     ApprovalError,
     approval_record,
     evidence_digest,
-    evidence_is_recognized,
     load_json_input,
-    load_recognition,
+    resolve_contract_base,
     validate_evidence,
 )
 from keepsail.core.clock import utc_now_iso
@@ -33,6 +32,7 @@ from keepsail.core.identity import resolve_identity
 from keepsail.core.paths import HarnessNotInitialized, events_path, find_harness_root
 from keepsail.core.post_emit import refresh_state_after_emit
 from keepsail.core.reducer import derive_state
+from keepsail.core.review_basis import resolve_local_review_basis
 from keepsail.core.review_verdict import read_change_events
 from keepsail.core.scope_match import GitScopeError
 from keepsail.core.ulid import new_event_id
@@ -215,6 +215,8 @@ def _emit_imported_conclusion(
     evidence: dict[str, Any],
     subject: dict[str, Any],
     actor: Actor,
+    trusted_base: str,
+    recognition_basis: dict[str, str],
     historical_only: bool = False,
 ) -> None:
     state = derive_state(events_path(root)).get(change)
@@ -236,6 +238,8 @@ def _emit_imported_conclusion(
             "evidence": evidence,
             "evidence_digest": digest,
             "subject_id": evidence["subject_id"],
+            "trusted_base": trusted_base,
+            "recognition_basis": recognition_basis,
             "historical_only": historical_only,
         },
     )
@@ -342,16 +346,10 @@ def import_evidence(ctx: click.Context, change: str, evidence_path: str) -> None
         root = find_harness_root(Path(ctx.obj.get("workspace") or "."))
         evidence = load_json_input(evidence_path)
         validate_evidence(evidence, change_id=change)
-        recognition = load_recognition(root)
-        if not evidence_is_recognized(evidence, recognition):
-            raise ApprovalError("evidence process or issuer is not user-recognized")
-        if recognition.policy_digest:
-            provenance = evidence.get("provenance", {})
-            if (
-                not isinstance(provenance, dict)
-                or provenance.get("policy_digest") != recognition.policy_digest
-            ):
-                raise ApprovalError("evidence policy digest is not recognized")
+        base = resolve_contract_base(root)
+        state = derive_state(events_path(root)).get(change)
+        basis = resolve_local_review_basis(root, events_path(root), state, evidence,
+                                           expected_base=base)
         subject_id, subject = _subject_for_change(root, change, str(evidence["kind"]))
         historical_only = evidence.get("subject_id") != subject_id
         prior = _prior_evidence(root, change)
@@ -363,6 +361,9 @@ def import_evidence(ctx: click.Context, change: str, evidence_path: str) -> None
                 "change": change,
                 "evidence_id": evidence["evidence_id"],
                 "idempotent": True,
+                "trusted_base": base,
+                "policy_digest": basis["policy_digest"],
+                "recognition_basis": basis,
             }
             if ctx.obj.get("json"):
                 click.echo(
@@ -388,6 +389,8 @@ def import_evidence(ctx: click.Context, change: str, evidence_path: str) -> None
             evidence=evidence,
             subject=subject,
             actor=actor,
+            trusted_base=base,
+            recognition_basis=basis,
             historical_only=historical_only,
         )
     except HarnessNotInitialized as exc:
@@ -405,6 +408,9 @@ def import_evidence(ctx: click.Context, change: str, evidence_path: str) -> None
         "evidence_id": evidence["evidence_id"],
         "kind": evidence["kind"],
         "decision": evidence["decision"],
+        "trusted_base": base,
+        "policy_digest": basis["policy_digest"],
+        "recognition_basis": basis,
     }
     if ctx.obj.get("json"):
         click.echo(json_envelope(command=subcommand, status="pass", exit_code=EXIT_OK, data=data))

@@ -15,6 +15,7 @@ jobs:
     env:
       BASE_SHA: ${{ github.event.pull_request.base.sha }}
       HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      TARGET_REF: refs/heads/${{ github.event.pull_request.base.ref }}
     steps:
       - name: Require successful candidate acceptance
         shell: bash
@@ -66,7 +67,7 @@ jobs:
               assert mode in (b"100644", b"100755") and kind == b"blob", "nonregular attestation"
               assert path.parts[:2] == (".harness", "attestations")
               assert len(path.parts) == 3 or (
-                  len(path.parts) == 4 and path.parts[2] == "v2"
+                  len(path.parts) == 4 and path.parts[2] in ("v2", "v3")
               ), "unsupported attestation location"
               assert path.suffix == ".jsonl" and ".." not in path.parts
               destination = root.joinpath(*path.parts)
@@ -85,8 +86,12 @@ jobs:
           verifier="$RUNNER_TEMP/keepsail-verifier/bin"
           base_cli="$(env -u PYTHONPATH "$verifier/python" -I -c 'import pathlib, tomllib; print(tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["name"])')"
           cli="$verifier/$base_cli"
-          env -u PYTHONPATH "$cli" \
-            attest verify --base "$BASE_SHA" --head "$HEAD_SHA"
+          if env -u PYTHONPATH "$cli" attest verify --help | grep -q -- '--repository-id'; then
+            env -u PYTHONPATH "$cli" attest verify --base "$BASE_SHA" --head "$HEAD_SHA" \
+              --repository-id "$GITHUB_REPOSITORY" --target-ref "$TARGET_REF"
+          else
+            env -u PYTHONPATH "$cli" attest verify --base "$BASE_SHA" --head "$HEAD_SHA"
+          fi
 
   candidate-acceptance:
     runs-on: ubuntu-latest

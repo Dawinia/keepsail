@@ -189,32 +189,14 @@ def _skeleton_files() -> dict[str, str]:
             "  evidence_forms: [json]\n"
             "  requirements: {}\n"
         ),
-        "review-governance.yaml": (
-            "# Shared review governance. Commit this file.\n"
-            "# Local producer/model choices live in the gitignored\n"
-            "# .harness/review-profiles.local.yaml file.\n"
-            "version: 1\n"
-            "review:\n"
-            "  base_branch: main\n"
-            "  sources:\n"
-            "    human:\n"
-            "      kind: human\n"
-            "  roles:\n"
-            "    plan-reviewer:\n"
-            "      participants: [human]\n"
-            "      min_independent: 1\n"
-            "      max_automatic_rounds: 6\n"
-            "    code-reviewer:\n"
-            "      participants: [human]\n"
-            "      min_independent: 1\n"
-            "      max_automatic_rounds: 4\n"
-            "      # blocking_severity: major   # optional; one of blocker|major|minor\n"
-            "      #   (default major). A code-review round rejects only when a finding\n"
-            "      #   is at or above this severity; findings below it pass with the\n"
-            "      #   finding left open (recorded + surfaced by `keepsail report`),\n"
-            "      #   not forcing a re-review round. Plan review always rejects on any\n"
-            "      #   checklist fail (its findings are not tracked in the report).\n"
-            "  require_distinct_model_families: false\n"
+        "policy-authority.yaml": (
+            "# Disabled until the owner confirms the repository, target and public key\n"
+            "# through the project's separate trusted-baseline establishment process.\n"
+            "version: policy-authority/v1\n"
+            "repository_id: REPLACE_WITH_OWNER_AND_REPOSITORY\n"
+            "target_ref: refs/heads/REPLACE_WITH_TARGET_BRANCH\n"
+            "enabled: false\n"
+            "keys: []\n"
         ),
         "sensors.yaml": "sensors: []\n",
         "gates.yaml": (
@@ -269,7 +251,7 @@ def build_init_operations(
             skeletons = _skeleton_files()
             for name, content in skeletons.items():
                 path = harness / name
-                if name in {"review-recognition.yaml", "review-governance.yaml"} and path.exists():
+                if name in {"review-recognition.yaml", "policy-authority.yaml"} and path.exists():
                     continue
                 if path.exists() and not request.force:
                     continue
