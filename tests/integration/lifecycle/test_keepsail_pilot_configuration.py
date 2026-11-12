@@ -91,7 +91,7 @@ def test_concrete_candidate_delivery_and_observable_process_use(tmp_path):
     subprocess.run(["git", "clone", "-q", "--shared", str(tmp_path), str(trusted)], check=True)
     git(trusted, "checkout", "-q", "--detach", base)
     subprocess.run(
-        [sys.executable, "-c", projection_program()],
+        [sys.executable, "-c", projection_program(".github/workflows/merge-gate.yml")],
         check=True,
         env={**os.environ, "GITHUB_WORKSPACE": str(tmp_path), "BASE_SHA": base, "HEAD_SHA": head},
     )

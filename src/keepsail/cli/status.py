@@ -158,15 +158,28 @@ def status_cmd(ctx: click.Context, slug: str | None, all_changes: bool) -> None:
         from keepsail.engineering.review_governance import (
             ReviewGovernanceError,
             load_review_governance,
+            review_governance_path,
         )
 
         reviewer = REVIEW_STATE_REVIEWER.get(cs.current_state)
         if reviewer is None:
             return None, None
+        if not review_governance_path(root).exists():
+            return None, None
         governance = load_review_governance(root)
         if reviewer not in governance.roles:
             raise ReviewGovernanceError(f"review role {reviewer!r} is not configured")
         return reviewer, governance
+
+    def _next_step(cs: Any, reviewer: str | None) -> str | None:
+        if reviewer is None and cs.current_state in {
+            "AWAITING_PLAN_REVIEW", "AWAITING_CODE_REVIEW",
+        }:
+            return (
+                "Use the current review recognition contract and import applicable evidence with "
+                f"`keepsail review import {cs.change_id} --evidence -`."
+            )
+        return SUGGESTIONS.get(cs.current_state)
 
     def _no_review_details(cs: Any) -> dict[str, Any] | None:
         if cs.no_review_decision is None:
@@ -358,8 +371,8 @@ def status_cmd(ctx: click.Context, slug: str | None, all_changes: bool) -> None:
                 entry = asdict(cs)
                 entry["no_review_decision"] = _no_review_details(cs)
                 entry["delivery_policy"] = _delivery_details(cs)
-                entry["next"] = SUGGESTIONS.get(cs.current_state)
                 reviewer, governance = _reviewer_info(cs)
+                entry["next"] = _next_step(cs, reviewer)
                 if reviewer is not None:
                     assert governance is not None
                     entry["reviewer"] = reviewer
@@ -476,7 +489,7 @@ def status_cmd(ctx: click.Context, slug: str | None, all_changes: bool) -> None:
                         if isinstance(options, dict) and options:
                             click.echo(f"      agent_options: {_format_agent_options(options)}")
                     click.echo(f"  review next: {progress['next_command']}")
-                nxt = SUGGESTIONS.get(cs.current_state)
+                nxt = _next_step(cs, reviewer)
                 if nxt:
                     click.echo(f"  next: {nxt}")
     except (ValueError, GitScopeError) as e:

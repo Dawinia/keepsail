@@ -21,6 +21,7 @@ COMMAND_NAMES = [
     "observe",
     "on-merge",
     "plan",
+    "policy",
     "pr",
     "report",
     "review",

@@ -9,7 +9,6 @@ import sys
 from pathlib import Path
 
 import pytest
-import yaml
 
 from keepsail.core.approval import make_code_subject
 from keepsail.core.knowledge import report
@@ -62,8 +61,6 @@ def review(w: Workspace, slug: str, kind: str, subject: str, eid: str) -> None:
 def test_done_preflights_delivery_and_rechecks_after_execution(tmp_path, monkeypatch):
     from keepsail.sensors import verification_runner
 
-    w = Workspace(tmp_path)
-    log = w.root / ".harness/events.jsonl"
     config = {
         "layers": {"baseline": {"enabled": False}, "framework_adapter": {"enabled": False},
                    "user_checks": {"enabled": True}},
@@ -73,15 +70,17 @@ def test_done_preflights_delivery_and_rechecks_after_execution(tmp_path, monkeyp
         "checks": [{"id": "ok", "command": [sys.executable, "-c", "pass"]}],
         "adapter_provided": [],
     }
-    (w.root / ".harness/verification.yaml").write_text(yaml.safe_dump(config), encoding="utf-8")
-    git(w.root, "add", ".harness/verification.yaml")
+    w = Workspace(tmp_path, verification_config=config)
+    log = w.root / ".harness/events.jsonl"
+    (w.root / "check.txt").write_text("Fixture implementation\n", encoding="utf-8")
+    git(w.root, "add", "check.txt")
     git(w.root, "commit", "-qm", "fixture check")
     approval = derive_state(log)["change-a"].effective_approval["approval_id"]
     subject = make_code_subject(w.root, change_id="change-a", approval_id=approval, base="main")
     assessment = {
         "assessment": {"approval_id": approval, "affected_commitments": ["db"],
                        "conclusion": "within_approval", "reasons": ["Test check"],
-                       "references": [".harness/verification.yaml"]},
+                       "references": ["check.txt"]},
         "coverage": [{"path": row["path"]} for row in subject["manifest"]],
     }
     w.cli("implementation", "record", "change-a", "--assessment", str(w.write(assessment)))
@@ -207,31 +206,7 @@ def test_coverage_refresh_preserves_exact_recognized_impact(tmp_path: Path, sele
 def test_postgresql_adjustment_cross_change_attestation_and_new_session(
     tmp_path: Path, disposition, legacy, monkeypatch
 ):
-    w = Workspace(tmp_path)
-    if legacy:
-        # Exercise retained v1 writer records, not rewritten v2 lookalikes.
-        import importlib
-
-        module = importlib.import_module("keepsail.cli.knowledge")
-        submit = module._submit
-
-        def old_writer(root, event_type, request):
-            if event_type == module.TRIGGER_EVENT:
-                event_type = "knowledge_imported" if "evidence" in request else "knowledge_recorded"
-            return submit(root, event_type, request)
-
-        monkeypatch.setattr(module, "_submit", old_writer)
-    log = w.root / ".harness/events.jsonl"
-    first = w.recognize(version())
-    w.deliver()
     marker = tmp_path.parent / (tmp_path.name + "-executed.txt")
-    (w.root / "database.txt").write_text("postgresql:16", encoding="utf-8")
-    (w.root / "check.py").write_text(
-        "from pathlib import Path\nimport sys\n"
-        "Path(sys.argv[1]).write_text('executed')\n"
-        "assert Path('database.txt').read_text() == 'postgresql:17'\n",
-        encoding="utf-8",
-    )
     config = {
         "layers": {
             "baseline": {"enabled": False},
@@ -254,8 +229,31 @@ def test_postgresql_adjustment_cross_change_attestation_and_new_session(
         ],
         "adapter_provided": [],
     }
-    (w.root / ".harness/verification.yaml").write_text(yaml.safe_dump(config), encoding="utf-8")
-    git(w.root, "add", "database.txt", "check.py", ".harness/verification.yaml")
+    w = Workspace(tmp_path, verification_config=config)
+    if legacy:
+        # Exercise retained v1 writer records, not rewritten v2 lookalikes.
+        import importlib
+
+        module = importlib.import_module("keepsail.cli.knowledge")
+        submit = module._submit
+
+        def old_writer(root, event_type, request):
+            if event_type == module.TRIGGER_EVENT:
+                event_type = "knowledge_imported" if "evidence" in request else "knowledge_recorded"
+            return submit(root, event_type, request)
+
+        monkeypatch.setattr(module, "_submit", old_writer)
+    log = w.root / ".harness/events.jsonl"
+    first = w.recognize(version())
+    w.deliver()
+    (w.root / "database.txt").write_text("postgresql:16", encoding="utf-8")
+    (w.root / "check.py").write_text(
+        "from pathlib import Path\nimport sys\n"
+        "Path(sys.argv[1]).write_text('executed')\n"
+        "assert Path('database.txt').read_text() == 'postgresql:17'\n",
+        encoding="utf-8",
+    )
+    git(w.root, "add", "database.txt", "check.py")
     git(w.root, "commit", "-qm", "implement database selection fixture")
     approval = derive_state(log)["change-a"].effective_approval["approval_id"]
 
