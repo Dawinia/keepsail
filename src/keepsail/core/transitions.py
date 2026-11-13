@@ -39,6 +39,7 @@ _INFORMATIONAL: frozenset[str] = KNOWLEDGE_EVENT_TYPES | frozenset(
         "implementation_recorded",
         "plan_revision_submitted",
         "plan_withdrawn",
+        "policy_authorization_imported",
         "knowledge_checkpointed",
     }
 )
@@ -68,6 +69,7 @@ _TRANSITIONS: dict[tuple[str, str], str] = {
     ("PLAN_APPROVED", "implementation_started"): "IMPLEMENTATION_IN_PROGRESS",
     ("IMPLEMENTATION_IN_PROGRESS", "implementation_complete"): "AWAITING_CODE_REVIEW",
     ("AWAITING_CODE_REVIEW", "code_review_passed"): "READY_TO_MERGE",
+    ("AWAITING_CODE_REVIEW", "code_review_not_required"): "READY_TO_MERGE",
     ("AWAITING_CODE_REVIEW", "code_review_failed"): "CODE_REVIEW_REJECTED",
     ("AWAITING_CODE_REVIEW", "review_verdict_recorded"): "AWAITING_CODE_REVIEW",
     # Per §3.4 implementation_complete is single-fire; §3.7 line 438: user re-submits

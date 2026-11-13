@@ -47,9 +47,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 from keepsail.core.approval import ApprovalError, make_code_subject, resolve_contract_base
+from keepsail.core.baseline_contract import builtin_check_contract
 from keepsail.core.clock import utc_now_iso
 from keepsail.core.emit_validation import find_ordering_violations
 from keepsail.core.events import Actor, Event
+from keepsail.core.git_objects import regular_blob_text
 from keepsail.core.paths import (
     events_path,
     verification_results_dir,
@@ -65,6 +67,8 @@ from keepsail.engineering.verification_config import (
     VerificationConfig,
     interpolate,
     load_verification_config,
+    parse_verification_config,
+    required_check_contract,
 )
 from keepsail.sensors import (
     Activity,
@@ -267,6 +271,7 @@ class CheckTask:
     must_pass: bool
     run: Callable[[], CheckResult]
     timeout_seconds: int | None = None
+    source: str = "unknown"
 
 
 def build_variables(change_id: str, context: WorkspaceContext) -> dict[str, str]:
@@ -359,6 +364,7 @@ def _baseline_lifecycle_ordering(
     *,
     context: WorkspaceContext,
     archive: Path,
+    builtin_version: str = "keepsail-baseline/v1",
 ) -> CheckResult:
     """Baseline: the change's event stream has no illegal transitions.
 
@@ -368,7 +374,9 @@ def _baseline_lifecycle_ordering(
     Always must_pass.
     """
     t0 = time.perf_counter()
-    violations = find_ordering_violations(events_path(context.workspace_root), change_id)
+    violations = find_ordering_violations(events_path(context.workspace_root), change_id,
+                                          builtin_version=builtin_version,
+                                          repository_root=context.workspace_root)
     report = None
     if violations:
         report = (
@@ -525,6 +533,7 @@ def baseline_check_tasks(
     archive: Path,
     variables: dict[str, str],
     only_ids: list[str] | None = None,
+    builtin_version: str = "keepsail-baseline/v1",
 ) -> list[CheckTask]:
     """Build the baseline-layer `CheckTask`s (Task 8.5): the 2 in-process checks.
 
@@ -569,9 +578,11 @@ def baseline_check_tasks(
             context: WorkspaceContext = context,
             archive: Path = archive,
         ) -> CheckResult:
-            return _baseline_lifecycle_ordering(change_id, context=context, archive=archive)
+            return _baseline_lifecycle_ordering(change_id, context=context, archive=archive,
+                                                builtin_version=builtin_version)
 
-        tasks.append(CheckTask(id=_BASELINE_LIFECYCLE, must_pass=True, run=_run_lifecycle))
+        tasks.append(CheckTask(id=_BASELINE_LIFECYCLE, must_pass=True, run=_run_lifecycle,
+                               source="baseline"))
 
     if _included(_BASELINE_SCOPE):
 
@@ -582,7 +593,8 @@ def baseline_check_tasks(
         ) -> CheckResult:
             return _baseline_scope_vs_plan(change_id, context=context, archive=archive)
 
-        tasks.append(CheckTask(id=_BASELINE_SCOPE, must_pass=False, run=_run_scope))
+        tasks.append(CheckTask(id=_BASELINE_SCOPE, must_pass=False, run=_run_scope,
+                               source="baseline"))
 
     return tasks
 
@@ -594,6 +606,7 @@ def _config_check_task(
     cfg: VerificationConfig,
     archive: Path,
     variables: dict[str, str],
+    source: str,
 ) -> CheckTask:
     """Wrap one config `CheckSpec` as a `CheckTask` bound to a `run_check` call.
 
@@ -643,7 +656,7 @@ def _config_check_task(
         )
 
     return CheckTask(id=spec.id, must_pass=spec.must_pass, run=_run,
-                     timeout_seconds=spec.timeout_seconds)
+                     timeout_seconds=spec.timeout_seconds, source=source)
 
 
 def _is_project_check(command: Command) -> bool:
@@ -671,6 +684,7 @@ def collect_checks(
     variables: dict[str, str],
     layer: str | None = None,
     only_ids: list[str] | None = None,
+    builtin_version: str = "keepsail-baseline/v1",
 ) -> list[CheckTask]:
     """Collect runnable `CheckTask`s across the three verification layers.
 
@@ -706,18 +720,21 @@ def collect_checks(
                 archive=archive,
                 variables=variables,
                 only_ids=only_ids,
+                builtin_version=builtin_version,
             )
         )
 
     if want_adapter and cfg.layers.framework_adapter:
         tasks.extend(
-            _config_check_task(spec, context=context, cfg=cfg, archive=archive, variables=variables)
+            _config_check_task(spec, context=context, cfg=cfg, archive=archive, variables=variables,
+                               source="adapter:" + (spec.provided_by or "<unidentified>"))
             for spec in cfg.adapter_provided
         )
 
     if want_user and cfg.layers.user_checks:
         tasks.extend(
-            _config_check_task(spec, context=context, cfg=cfg, archive=archive, variables=variables)
+            _config_check_task(spec, context=context, cfg=cfg, archive=archive, variables=variables,
+                               source="user")
             for spec in cfg.checks
         )
 
@@ -1103,6 +1120,31 @@ def _verification_identity_snapshot(
     }
 
 
+def check_evidence(
+    cfg: VerificationConfig, tasks: list[CheckTask], results: list[CheckResult], *,
+    builtin_version: str, trusted_base: str,
+) -> dict[str, Any]:
+    """Bind each observed result to its source and effective check definition."""
+    if len(results) > len(tasks):
+        raise ApprovalError("verification returned more results than scheduled checks")
+    configured = required_check_contract(cfg)
+    builtin = builtin_check_contract(builtin_version)
+    definitions = {(row["source"], row["id"]): row["definition_digest"]
+                   for row in [*configured["checks"], *builtin["checks"]]}
+    observed = []
+    for task, result in zip(tasks, results, strict=False):
+        if task.id != result.id or task.must_pass != result.must_pass:
+            raise ApprovalError("verification result does not match its scheduled check")
+        observed.append({"source": task.source, "id": task.id, "status": result.status,
+                         "exit_code": result.exit_code, "must_pass": result.must_pass,
+                         "definition_digest": definitions.get((task.source, task.id))})
+    return {"version": "verification-check-evidence/v1",
+            "required_checks_digest": configured["digest"],
+            "trusted_base": trusted_base,
+            "builtin_checks_version": builtin_version, "builtin_checks_digest": builtin["digest"],
+            "results": observed}
+
+
 class VerificationRunner(Sensor):
     """Sensor that runs `.harness/verification.yaml` checks and emits a verdict.
 
@@ -1141,14 +1183,35 @@ class VerificationRunner(Sensor):
             )
 
         root = context.workspace_root
-        cfg = load_verification_config(verification_yaml_path(root))
+        state_before = derive_state(events_path(root)).get(change_id)
+        approval_before = state_before.effective_approval if state_before is not None else None
+        trusted_base: str | None = None
+        builtin_version = "keepsail-baseline/v1"
+        if isinstance(approval_before, dict):
+            try:
+                trusted_base = resolve_contract_base(root)
+                config_text = regular_blob_text(root, trusted_base, ".harness/verification.yaml")
+                cfg = parse_verification_config(config_text)
+                from keepsail.core.policy_authority import parse_unique_yaml
+
+                policy = parse_unique_yaml(regular_blob_text(
+                    root, trusted_base, ".harness/review-recognition.yaml"
+                ))
+                if isinstance(policy, dict) and policy.get("version") == "review-recognition/v2":
+                    from keepsail.core.effective_policy import load_effective_v2
+
+                    snapshot = load_effective_v2(root, trusted_base)
+                    builtin_version = snapshot.policy.builtin_checks_version
+            except (ApprovalError, GitScopeError, OSError, ValueError) as exc:
+                return SensorResult(status="fail",
+                                    summary=f"trusted verification config unavailable: {exc}")
+        else:
+            cfg = load_verification_config(verification_yaml_path(root))
         variables = build_variables(change_id, context)
         payload = getattr(trigger, "payload", {}) or {}
         layer = payload.get("layer")
         only_ids = payload.get("checks")
 
-        state_before = derive_state(events_path(root)).get(change_id)
-        approval_before = state_before.effective_approval if state_before is not None else None
         before_snapshot: dict[str, Any] | None = None
         snapshot_error: str | None = None
         if isinstance(approval_before, dict):
@@ -1164,6 +1227,8 @@ class VerificationRunner(Sensor):
                     approval_id=str(approval_before["approval_id"]),
                     declared_paths=declared_paths,
                 )
+                if resolve_contract_base(root) != trusted_base:
+                    raise ApprovalError("trusted baseline changed before verification")
             except (ApprovalError, GitScopeError, KeyError, OSError, ValueError) as exc:
                 snapshot_error = str(exc)
 
@@ -1176,6 +1241,7 @@ class VerificationRunner(Sensor):
             variables=variables,
             layer=layer,
             only_ids=only_ids,
+            builtin_version=builtin_version,
         )
         results = run_checks(
             tasks,
@@ -1218,6 +1284,7 @@ class VerificationRunner(Sensor):
                     unchanged = (
                         isinstance(approval_after, dict)
                         and approval_after.get("approval_id") == approval_before.get("approval_id")
+                        and resolve_contract_base(root) == trusted_base
                         and before_snapshot["subject_id"] == after_snapshot["subject_id"]
                         and before_snapshot["config_digest"] == after_snapshot["config_digest"]
                         and before_snapshot["working_tree_digest"]
@@ -1253,6 +1320,16 @@ class VerificationRunner(Sensor):
                     ),
                     **({"snapshot_error": snapshot_error} if snapshot_error else {}),
                 }
+
+        if verification is not None and trusted_base is not None:
+            try:
+                verification["check_evidence"] = check_evidence(
+                    cfg, tasks, results, builtin_version=builtin_version,
+                    trusted_base=trusted_base,
+                )
+            except (ApprovalError, ValueError) as exc:
+                # Legacy output is retained; v3 cannot claim missing check evidence.
+                verification["check_evidence_error"] = str(exc)
 
         write_summary_json(archive, results, verdict)
 

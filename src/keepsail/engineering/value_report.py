@@ -87,6 +87,7 @@ class ValueReport:
     # Neither historical issuance nor external evidence proves invocation count.
     review_invocations_total: int | None = None
     findings_scope: str = "historical structured code-review IDs/dispositions only"
+    no_review_decisions: tuple[dict[str, Any], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -158,7 +159,8 @@ def _read_all_events(events_file: Path) -> list[Event]:
         return []
     out: list[Event] = []
     seen: set[tuple[str, ...]] = set()
-    for line in effective_event_lines(events_file.read_text(encoding="utf-8").splitlines()):
+    lines = events_file.read_bytes().decode("utf-8").splitlines(keepends=True)
+    for line in effective_event_lines(lines):
         if not line.strip():
             continue
         try:
@@ -652,4 +654,7 @@ def build_value_report(
             ev.type in {"plan_approved", "code_review_passed"}
             and ev.payload.get("skipped") is True for ev in windowed
         ),
+        no_review_decisions=tuple({"change_id": event.change_id, "timestamp": event.timestamp,
+                                   **event.payload} for event in windowed
+                                  if event.type == "code_review_not_required"),
     )

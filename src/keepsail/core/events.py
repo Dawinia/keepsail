@@ -47,6 +47,7 @@ EXTENSION_EVENT_TYPES: frozenset[str] = KNOWLEDGE_EVENT_TYPES | frozenset(
         "verification_failed",
         "code_review_passed",
         "code_review_failed",
+        "code_review_not_required",
         "review_verdict_recorded",
         "review_round_started",
         "review_result_imported",
@@ -80,6 +81,7 @@ EXTENSION_EVENT_TYPES: frozenset[str] = KNOWLEDGE_EVENT_TYPES | frozenset(
         "implementation_recorded",
         "plan_revision_submitted",
         "plan_withdrawn",
+        "policy_authorization_imported",
         "knowledge_checkpointed",
         "historical_change_recovered",
     }
@@ -231,11 +233,24 @@ def effective_event_lines(lines: Iterable[str]) -> Iterator[str]:
     """
     history: dict[str, list[str]] = {}
     identifiers: set[str] = set()
-    for line in lines:
+    for physical_line in lines:
+        line = physical_line.rstrip("\r\n")
         try:
             raw = json.loads(line)
         except (ValueError, TypeError):
             raw = None
+        if isinstance(raw, dict) and raw.get("schema_version") == "completion-transaction/v1":
+            from keepsail.core.completion_transaction import decode_completion
+
+            pair = decode_completion(physical_line.encode("utf-8"))
+            if any(completed.event_id in identifiers for completed in pair):
+                raise EventSchemaError("completion transaction has a conflicting event ID")
+            for completed in pair:
+                identifiers.add(completed.event_id)
+                expanded = serialize_event(completed)
+                history.setdefault(completed.change_id, []).append(expanded)
+                yield expanded
+            continue
         if isinstance(raw, dict) and raw.get("schema_version") == "attestation/v2":
             from keepsail.core.attestation_format import expand_attestation
 

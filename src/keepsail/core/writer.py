@@ -16,8 +16,8 @@ Atomicity guarantees (per lifecycle-event-model §2 + §3.9 #1):
 - threading.Lock is a PER-INSTANCE thread guard (serializes threads sharing ONE
   EventWriter). It is NOT process-wide: two EventWriter instances in one process
   are serialized by the flock, not this lock (kept as cheap defense-in-depth).
-- fsync after each write — durable on power loss (cost: ~ms per emit; v0.1
-  accepts this; v0.2 may add batch-fsync option)
+- fsync after each write requests a data flush; crash durability also depends on
+  the filesystem and platform, including persistence of directory entries.
 
 Supported filesystems (spec §3.9 #1): Linux ext4, macOS APFS. NOT supported:
 NFS / SMB / FUSE — these break atomic append AND advisory-lock semantics. flock
@@ -43,15 +43,17 @@ from hashlib import sha256
 from pathlib import Path
 
 from keepsail.core.approval import authorizing_event, load_json_record
+from keepsail.core.completion_transaction import decode_completion, encode_completion
 from keepsail.core.emit_validation import (
     EmitPreconditionError,
     is_new_contract_event,
     validate_preconditions,
 )
-from keepsail.core.events import Event, serialize_event
+from keepsail.core.events import Event, EventSchemaError, serialize_event
 from keepsail.core.file_lock import exclusive_file_lock
 
 __all__ = ["EmitPreconditionError", "EventWriter"]
+_BINARY = getattr(os, "O_BINARY", 0)
 
 
 def _remove_staged(path: Path) -> None:
@@ -64,6 +66,17 @@ def _remove_staged(path: Path) -> None:
             if getattr(exc, "winerror", None) not in {5, 32, 33} or attempt == 3:
                 raise  # Preserve the file and fail before the real append.
             time.sleep(0.05 * 2 ** attempt)
+
+
+def _sync_directory(path: Path) -> None:
+    """Persist journal namespace updates where directory fsync is available."""
+    if os.name == "nt":
+        return  # Windows directory-entry durability needs separate platform acceptance.
+    fd = os.open(path, os.O_RDONLY)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
 
 
 # @decision:d-events-append-only
@@ -82,6 +95,8 @@ class EventWriter:
         # equal to `paths.lock_path(root, "events")` (`.harness/.events.lock`);
         # derived from self.path so EventWriter stays path-only.
         self._lock_path = self.path.parent / ".events.lock"
+        self._completion_journal = (self.path.parent / "operation-logs" /
+                                    "completion-transaction-pending.json")
         # Ensure parent directory exists — common case: `.harness/` is brand
         # new on first emit. mkdir(parents=True, exist_ok=True) is idempotent.
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -141,23 +156,35 @@ class EventWriter:
         """
         if not events:
             return
+        completion = any(event.type == "code_review_not_required" for event in events)
+        if completion and (skip_validation or historical_replay):
+            raise EmitPreconditionError("no-review completion requires strict validation")
         for event in events:
             if not isinstance(event.timestamp, str):
                 raise EmitPreconditionError(
                     f"timestamp must be a string, got {type(event.timestamp).__name__}"
                 )
         # Pure prep stays outside the lock to keep the critical section minimal.
-        data = b"".join((serialize_event(event) + "\n").encode("utf-8") for event in events)
+        try:
+            data = (encode_completion(events) if completion else
+                    b"".join((serialize_event(event) + "\n").encode("utf-8") for event in events))
+        except EventSchemaError as exc:
+            raise EmitPreconditionError(str(exc)) from exc
         with self._lock:  # per-instance thread guard (see class docstring)
             # The process lock spans validate+append so no writer validates a
             # stale stream then appends over another writer's transition.
             with exclusive_file_lock(self._lock_path):
+                if self._completion_journal.exists():
+                    raise EmitPreconditionError("completion transaction pending; recover it first")
                 if self.path.with_name(".events.recovery-pending.json").exists():
                     raise EmitPreconditionError(
                         "historical recovery append pending; resume change recover")
                 if any(event.type == "historical_change_recovered" for event in events):
                     raise EmitPreconditionError(
                         "historical recovery requires the strict recovery transaction")
+                prefix = self.path.read_bytes() if self.path.exists() else b""
+                if prefix and not prefix.endswith(b"\n"):
+                    raise EmitPreconditionError("event log has an incomplete trailing line")
                 guarded = [
                     event
                     for event in events
@@ -172,32 +199,109 @@ class EventWriter:
                         "historical_replay"
                     )
                 if not skip_validation:
-                    temp_path: Path | None = None
-                    try:
-                        with tempfile.NamedTemporaryFile(
-                            mode="wb",
-                            dir=self.path.parent,
-                            prefix=".events-",
-                            suffix=".tmp",
-                            delete=False,
-                        ) as temp:
-                            temp_path = Path(temp.name)
-                            if self.path.exists():
-                                temp.write(self.path.read_bytes())
-                        assert temp_path is not None
-                        for event in events:
-                            validate_preconditions(temp_path, event)
-                            with temp_path.open("ab") as staged:
-                                staged.write((serialize_event(event) + "\n").encode("utf-8"))
-                    finally:
-                        if temp_path is not None:
-                            _remove_staged(temp_path)
-                fd = os.open(self.path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o644)
+                    self._validate_batch(prefix, events)
+                if completion:
+                    self._prepare_completion(prefix, data)
+                    self._finish_completion(data, b"")
+                    return
+                fd = os.open(self.path, os.O_WRONLY | os.O_APPEND | os.O_CREAT | _BINARY, 0o644)
                 try:
                     os.write(fd, data)
                     os.fsync(fd)
                 finally:
                     os.close(fd)
+
+    def _validate_batch(self, prefix: bytes, events: list[Event]) -> None:
+        staged_path: Path | None = None
+        try:
+            with tempfile.NamedTemporaryFile(mode="wb", dir=self.path.parent, prefix=".events-",
+                                             suffix=".tmp", delete=False) as staged:
+                staged_path = Path(staged.name)
+                staged.write(prefix)
+            for event in events:
+                validate_preconditions(staged_path, event)
+                with staged_path.open("ab") as staged:
+                    staged.write((serialize_event(event) + "\n").encode("utf-8"))
+        finally:
+            if staged_path is not None:
+                _remove_staged(staged_path)
+
+    def _prepare_completion(self, prefix: bytes, data: bytes) -> None:
+        folder = self._completion_journal.parent
+        created = not folder.exists()
+        folder.mkdir(parents=True, exist_ok=True)
+        if created:
+            _sync_directory(folder.parent)
+        journal = {"schema_version": "completion-journal/v1", "prefix_length": len(prefix),
+                   "prefix_sha256": sha256(prefix).hexdigest(),
+                   "append_sha256": sha256(data).hexdigest(),
+                   "append_base64": base64.b64encode(data).decode("ascii")}
+        staged_path: Path | None = None
+        try:
+            with tempfile.NamedTemporaryFile(mode="wb", dir=folder, prefix="completion-prepared-",
+                                             suffix=".tmp", delete=False) as pending:
+                staged_path = Path(pending.name)
+                encoded = json.dumps(journal, sort_keys=True, separators=(",", ":")).encode("utf-8")
+                pending.write(encoded)
+                pending.flush()
+                os.fsync(pending.fileno())
+            os.replace(staged_path, self._completion_journal)
+            staged_path = None
+        finally:
+            if staged_path is not None:
+                _remove_staged(staged_path)
+        _sync_directory(folder)
+
+    def _finish_completion(self, data: bytes, suffix: bytes) -> None:
+        if not data.startswith(suffix):
+            raise EmitPreconditionError("pending completion suffix was modified")
+        fd = os.open(self.path, os.O_WRONLY | os.O_APPEND | os.O_CREAT | _BINARY, 0o644)
+        try:
+            remaining = memoryview(data)[len(suffix):]
+            while remaining:
+                written = os.write(fd, remaining)
+                if written <= 0 or written > len(remaining):
+                    raise OSError("completion append made no progress")
+                remaining = remaining[written:]
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+        self._completion_journal.unlink()
+        _sync_directory(self._completion_journal.parent)
+
+    def recover_completion(self, *, change: str | None = None) -> bool:
+        """Resume an interrupted completion by appending only its validated missing suffix."""
+        with self._lock, exclusive_file_lock(self._lock_path):
+            if not self._completion_journal.exists():
+                return False  # A repeated recovery after success is a no-op.
+            if self.path.with_name(".events.recovery-pending.json").exists():
+                raise EmitPreconditionError("historical recovery is also pending")
+            try:
+                journal = load_json_record(self._completion_journal)
+                if (set(journal) != {"schema_version", "prefix_length", "prefix_sha256",
+                                     "append_sha256", "append_base64"}
+                        or journal["schema_version"] != "completion-journal/v1"
+                        or type(journal["prefix_length"]) is not int
+                        or journal["prefix_length"] < 0):
+                    raise ValueError("invalid completion journal shape")
+                data = base64.b64decode(journal["append_base64"], validate=True)
+                events = decode_completion(data)
+                if change is not None and events[0].change_id != change:
+                    raise ValueError("pending completion belongs to another Change")
+                current = self.path.read_bytes() if self.path.exists() else b""
+                size = journal["prefix_length"]
+                prefix, suffix = current[:size], current[size:]
+                if (len(prefix) != size or sha256(prefix).hexdigest() != journal["prefix_sha256"]
+                        or sha256(data).hexdigest() != journal["append_sha256"]
+                        or not data.startswith(suffix)):
+                    raise ValueError("completion prefix or append does not match the journal")
+            except (ValueError, KeyError, TypeError, OSError) as exc:
+                raise EmitPreconditionError(
+                    f"pending completion cannot be recovered: {exc}"
+                ) from exc
+            self._validate_batch(prefix, events)
+            self._finish_completion(data, suffix)
+            return True
 
     def recover(self, event: Event | None, *, expected_revision: str,
                 change: str, source_commit: str, pr: int) -> None:
@@ -212,6 +316,8 @@ class EventWriter:
         journal_path = self.path.with_name(".events.recovery-pending.json")
         identity = {"change": change, "source_commit": source_commit, "pr": pr}
         with self._lock, exclusive_file_lock(self._lock_path):
+            if self._completion_journal.exists():
+                raise EmitPreconditionError("completion transaction pending; recover it first")
             current = self.path.read_bytes() if self.path.exists() else b""
             if journal_path.exists():
                 journal = load_json_record(journal_path)
@@ -229,6 +335,8 @@ class EventWriter:
             else:
                 if sha256(current).hexdigest() != expected_revision:
                     raise EmitPreconditionError("historical recovery target revision changed")
+                if current and not current.endswith(b"\n"):
+                    raise EmitPreconditionError("event log has an incomplete trailing line")
                 if event is None or event.type != "historical_change_recovered":
                     raise EmitPreconditionError("missing prepared recovery envelope")
                 prefix = current
@@ -261,7 +369,7 @@ class EventWriter:
                     pending.write(json.dumps(journal).encode())
                     pending.flush()
                     os.fsync(pending.fileno())
-            fd = os.open(self.path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o644)
+            fd = os.open(self.path, os.O_WRONLY | os.O_APPEND | os.O_CREAT | _BINARY, 0o644)
             try:
                 remaining = memoryview(data)[len(suffix):]
                 while remaining:

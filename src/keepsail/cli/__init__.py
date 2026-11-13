@@ -73,6 +73,10 @@ COMMAND_SPECS = {
         "keepsail.cli.plan:plan_group",
         "Plan-phase lifecycle verbs (plain-mode manual emit).",
     ),
+    "policy": CommandSpec(
+        "keepsail.cli.policy:policy_group",
+        "Import explicitly signed policy transition evidence.",
+    ),
     "pr": CommandSpec(
         "keepsail.cli.pr:pr_group",
         "PR-side helpers (validate PR metadata + lifecycle).",
@@ -148,6 +152,11 @@ def main(
     ctx.obj["json"] = json_output
     ctx.obj["quiet"] = quiet
     ctx.obj["verbose"] = verbose
+    if ctx.invoked_subcommand in {"attest", "change", "done", "implementation", "plan",
+                                  "policy", "review", "status", "verify"}:
+        from keepsail.core.attestation_v3_verify import activation_replay_scope
+
+        ctx.with_resource(activation_replay_scope())
 
 
 # Re-export names used by other modules / tests.

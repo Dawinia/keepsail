@@ -237,6 +237,18 @@ def _seed_awaiting_code_review(tmp_path: Path, slug: str) -> None:
 def _set_strategy(tmp_path: Path, reviewer: str, strategy: str) -> None:
     assert reviewer == "plan-reviewer"
     assert strategy == "human"
+    (tmp_path / ".harness/review-governance.yaml").write_text(
+        "version: 1\n"
+        "review:\n"
+        "  sources:\n"
+        "    human:\n"
+        "      kind: human\n"
+        "  roles:\n"
+        "    plan-reviewer:\n"
+        "      participants: [human]\n"
+        "      min_independent: 1\n",
+        encoding="utf-8",
+    )
 
 
 def _set_independent_policy(tmp_path: Path) -> None:
@@ -422,6 +434,29 @@ def _write_code_review_bundle(tmp_path: Path, slug: str, digest: str) -> None:
             "profile_digest": "new-profiles",
         }) + "\n"
     )
+
+
+def test_status_pending_review_without_historical_governance(tmp_path: Path) -> None:
+    _init(tmp_path)
+    assert not (tmp_path / ".harness/review-governance.yaml").exists()
+    for slug, seed, state in (
+        ("plan", _seed_awaiting_plan_review, "AWAITING_PLAN_REVIEW"),
+        ("code", _seed_awaiting_code_review, "AWAITING_CODE_REVIEW"),
+    ):
+        seed(tmp_path, slug)
+        human = CliRunner().invoke(main, ["--workspace", str(tmp_path), "status", slug])
+        assert human.exit_code == 0, human.output
+        assert state in human.output
+        assert "review import" in human.output
+
+        machine = CliRunner().invoke(
+            main, ["--workspace", str(tmp_path), "--json", "status", slug]
+        )
+        assert machine.exit_code == 0, machine.output
+        entry = json.loads(machine.stdout)["data"]["changes"][0]
+        assert entry["current_state"] == state
+        assert "reviewer" not in entry
+        assert "review import" in entry["next"]
 
 
 def test_status_shows_reviewer_strategy_in_review_state(tmp_path: Path) -> None:

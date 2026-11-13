@@ -100,6 +100,7 @@ jobs:
     env:
       BASE_SHA: ${{ github.event.pull_request.base.sha }}
       HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      TARGET_REF: refs/heads/${{ github.event.pull_request.base.ref }}
     permissions:
       contents: read
     steps:
@@ -110,7 +111,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.base.sha }}
           path: .harness-trusted-base
-          fetch-depth: 1
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
       - name: Build isolated verifier from trusted BASE_SHA
@@ -125,16 +126,54 @@ jobs:
           env -u PYTHONPATH TRUSTED_ROOT="$GITHUB_WORKSPACE/.harness-trusted-base" \
             BASE_SHA="$BASE_SHA" "$verifier/python" -I -c \
             'import hashlib, importlib, os, pathlib, subprocess, tomllib; trusted = pathlib.Path(os.environ["TRUSTED_ROOT"]); project = tomllib.loads((trusted / "pyproject.toml").read_text())["project"]; namespace = project["scripts"][project["name"]].split(".", 1)[0]; attest = importlib.import_module(namespace + ".cli.attest"); events = importlib.import_module(namespace + ".core.events"); verifier = pathlib.Path(attest.__file__).resolve(); installed = pathlib.Path(events.__file__).resolve(); expected = trusted / "src" / namespace / "core" / "events.py"; assert subprocess.check_output(["git", "-C", str(trusted), "rev-parse", "HEAD"], text=True).strip() == os.environ["BASE_SHA"]; assert "site-packages" in str(verifier); assert "site-packages" in str(installed); assert ".harness-trusted-base" not in str(verifier); assert ".harness-trusted-base" not in str(installed); assert hashlib.sha256(installed.read_bytes()).hexdigest() == hashlib.sha256(expected.read_bytes()).hexdigest(); print("A17 verifier loaded from {} and matches trusted BASE_SHA={}".format(verifier, os.environ["BASE_SHA"]))'
+      - name: Prepare trusted BASE workspace with exact target evidence
+        shell: bash
+        run: |
+          git -C .harness-trusted-base fetch --no-tags "$GITHUB_WORKSPACE" "$HEAD_SHA"
+          python - <<'PY'
+          import os
+          import pathlib
+          import subprocess
+
+          root = pathlib.Path(os.environ["GITHUB_WORKSPACE"]) / ".harness-trusted-base"
+          def git(*args):
+              return subprocess.check_output(["git", "-C", str(root), *args])
+          assert git("rev-parse", "HEAD").decode().strip() == os.environ["BASE_SHA"]
+          target = git("rev-parse", "--verify", os.environ["HEAD_SHA"] + "^{commit}").decode().strip()
+          assert target == os.environ["HEAD_SHA"]
+          entries = git("ls-tree", "-rz", target, "--", ".harness/attestations").split(b"\0")
+          for entry in filter(None, entries):
+              metadata, raw_path = entry.split(b"\t", 1)
+              mode, kind, oid = metadata.split()
+              path = pathlib.PurePosixPath(raw_path.decode("utf-8"))
+              assert mode in (b"100644", b"100755") and kind == b"blob", "nonregular attestation"
+              assert path.parts[:2] == (".harness", "attestations")
+              assert len(path.parts) == 3 or (
+                  len(path.parts) == 4 and path.parts[2] in ("v2", "v3")
+              ), "unsupported attestation location"
+              assert path.suffix == ".jsonl" and ".." not in path.parts
+              destination = root.joinpath(*path.parts)
+              assert destination.resolve().is_relative_to(root.resolve())
+              content = git("cat-file", "blob", oid.decode())
+              destination.parent.mkdir(parents=True, exist_ok=True)
+              destination.write_bytes(content)
+              assert destination.read_bytes() == content
+          print("Trusted BASE workspace; only target attestation blobs projected")
+          PY
       - name: Verify lifecycle attestations cover the diff
         shell: bash
         run: |
-          cd "$GITHUB_WORKSPACE"
+          cd "$GITHUB_WORKSPACE/.harness-trusted-base"
           # The trusted base may predate Keepsail; select only its installed CLI.
           verifier="$RUNNER_TEMP/keepsail-verifier/bin"
-          base_cli="$(env -u PYTHONPATH "$verifier/python" -I -c 'import pathlib, tomllib; print(tomllib.loads(pathlib.Path(".harness-trusted-base/pyproject.toml").read_text())["project"]["name"])')"
+          base_cli="$(env -u PYTHONPATH "$verifier/python" -I -c 'import pathlib, tomllib; print(tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["name"])')"
           cli="$verifier/$base_cli"
-          env -u PYTHONPATH "$cli" \
-            attest verify --base "$BASE_SHA" --head "$HEAD_SHA"
+          if env -u PYTHONPATH "$cli" attest verify --help | grep -q -- '--repository-id'; then
+            env -u PYTHONPATH "$cli" attest verify --base "$BASE_SHA" --head "$HEAD_SHA" \
+              --repository-id "$GITHUB_REPOSITORY" --target-ref "$TARGET_REF"
+          else
+            env -u PYTHONPATH "$cli" attest verify --base "$BASE_SHA" --head "$HEAD_SHA"
+          fi
 
   candidate-acceptance:
     if: github.event_name == 'pull_request'

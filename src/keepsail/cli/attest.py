@@ -98,11 +98,12 @@ def attest_group() -> None:
 @attest_group.command("write")
 @click.argument("slug")
 @click.option("--format", "output_format",
-              type=click.Choice(["v2", "v1-bootstrap"] if ATTESTATION_FORMAT == "v2"
+              type=click.Choice(["v2", "v3", "v1-bootstrap"] if ATTESTATION_FORMAT == "v2"
                                 else ["v1-bootstrap"]),
               default=None,
-              help=("Output version; default is v2 with an activated knowledge policy; "
-                    "otherwise v1. Explicit formats never fall back. "
+              help=("Output version; an activated delivery policy selects v3 by default. "
+                    "Otherwise the knowledge policy selects v2 or v1. Explicit formats never "
+                    "fall back. "
                     "v1-bootstrap is limited to reader-first upgrades."
                     if ATTESTATION_FORMAT == "v2" else
                     "Output version; default is v1. Explicit formats never fall back. "
@@ -184,21 +185,30 @@ def _git_name_status(base: str, head: str, cwd: Path) -> str:
     """
     # @decision:d-keepsail-merge-gate-pure-git
     proc = subprocess.run(
-        ["git", "-c", "core.quotePath=false", "diff", "--name-status", f"{base}...{head}"],
+        ["git", "diff", "--name-status", "-z", "--find-renames", f"{base}...{head}"],
         cwd=str(cwd),
         capture_output=True,
-        text=True,
     )
     if proc.returncode != 0:
-        raise _GitError(proc.stderr.strip() or f"git diff failed (exit {proc.returncode})")
-    return proc.stdout
+        raise _GitError(proc.stderr.decode("utf-8", errors="replace").strip()
+                        or f"git diff failed (exit {proc.returncode})")
+    try:
+        output = proc.stdout.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise _GitError("git diff contains a non-UTF-8 path") from exc
+    if output and not output.endswith("\0"):
+        raise _GitError("git diff output is incomplete")
+    return output
 
 
 @attest_group.command("verify")
 @click.option("--base", required=True, help="Base ref/SHA (e.g. PR base.sha).")
 @click.option("--head", required=True, help="Head ref/SHA (e.g. PR head.sha).")
+@click.option("--repository-id", help="Trusted host repository identity for v3 evidence.")
+@click.option("--target-ref", help="Trusted host's full target branch ref for v3 evidence.")
 @click.pass_context
-def attest_verify(ctx: click.Context, base: str, head: str) -> None:
+def attest_verify(ctx: click.Context, base: str, head: str, repository_id: str | None,
+                  target_ref: str | None) -> None:
     """Fail if any changed file lacks a complete, ordered, scope-covering attestation."""
     try:
         root = find_harness_root(Path(ctx.obj.get("workspace") or "."))
@@ -210,7 +220,8 @@ def attest_verify(ctx: click.Context, base: str, head: str) -> None:
         sys.exit(EXIT_NO_CONFIG)
     try:
         raw = _git_name_status(base, head, root)
-    except _GitError as e:
+        entries = parse_name_status(raw)
+    except (_GitError, ValueError) as e:
         click.echo(
             format_error(
                 subcommand="attest verify",
@@ -221,11 +232,13 @@ def attest_verify(ctx: click.Context, base: str, head: str) -> None:
         )
         sys.exit(EXIT_EXTERNAL_TOOL)  # FAIL-CLOSED — never a vacuous pass
 
-    verdict = verify_attestations(root, parse_name_status(raw), base=base, head=head)
+    verdict = verify_attestations(root, entries, base=base, head=head,
+                                  repository_id=repository_id, target_ref=target_ref)
     # HG-12 cut 1: disclose review independence for each validated (newly-ADDED,
     # scope-covering) attestation. Disclosure only — never changes pass/fail.
     disclosures = {
-        slug: independence_for_attestation(root / verdict.attestation_paths[slug])
+        slug: (verdict.independence[slug] if slug in verdict.independence else
+               independence_for_attestation(root / verdict.attestation_paths[slug]))
         for slug in verdict.attestations
     }
     # One item per (attestation, role). `role` is carried explicitly rather than left
@@ -263,6 +276,12 @@ def attest_verify(ctx: click.Context, base: str, head: str) -> None:
         "blockers": verdict.blockers,
         "independence": independence,
         "budget_holds": budget_holds,
+        "trusted_base": base,
+        "head": head,
+        "repository_id": repository_id,
+        "target_ref": target_ref,
+        "policy_basis": verdict.policy_basis,
+        "delivery_decisions": verdict.delivery_decisions,
     }
     if ctx.obj.get("json"):
         click.echo(
@@ -298,7 +317,8 @@ def attest_verify(ctx: click.Context, base: str, head: str) -> None:
                         "for a human funding decision (distinct rounds, not retries)"
                     )
             for slug in verdict.attestations:
-                gb = gate_bypass_for_attestation(root / verdict.attestation_paths[slug])
+                gb = (verdict.gate_bypasses[slug] if slug in verdict.gate_bypasses else
+                      gate_bypass_for_attestation(root / verdict.attestation_paths[slug]))
                 if gb["bypassed"]:
                     click.echo(
                         f"gate bypass: {gb['bypassed']} bypass(es), "
