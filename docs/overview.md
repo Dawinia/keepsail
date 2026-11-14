@@ -30,18 +30,20 @@ concepts, conventions, technology choices, rationale and experience.
 The normal work path is:
 
 ```text
-Declare → Plan review → Implement → Verify → Code review → Merge and archive
+Declare → Plan review → Implement → Verify → Applicable code review → Merge and archive
 ```
 
-An owner-recognized process supplies plan and code review conclusions. Keepsail
+An owner-recognized process supplies plan and any required code review conclusions. Keepsail
 checks their object, explicit decision, provenance and retained evidence. It does
 not choose reviewers, run models or retry reviews. A failed, empty or skipped
 review cannot become an approval.
 
 Approval allows the agent to adjust implementation within the commitments and
 record its reasons and actual file coverage. Changed commitments or relaxed
-restrictions require appropriate new authorization. Verification and code review
-must still match the current implementation, even when the plan approval remains valid.
+restrictions require appropriate new authorization. Verification and any required
+code review must still match the current implementation, even when the plan approval
+remains valid. An active delivery policy determines whether code review applies;
+an existing policy retains its obligations until an authorized transition.
 
 ## Example: deliver an export without breaking existing readers
 

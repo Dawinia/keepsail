@@ -198,6 +198,11 @@ def verify_v3_transition(
             "policy_digest": recognition.policy_digest,
             "target_policy_digest": candidate.policy_digest,
             "required_checks_digest": old_checks["digest"],
+            "required_checks": [{"source": item["source"], "id": item["id"]}
+                                for item in old_checks["checks"]],
+            "builtin_checks_version": "keepsail-baseline/v1",
+            "code_review_required": True,
+            "code_review_reason": "trusted v1 policy requires code review for this transition",
             "coverage": [row["path"] for row in state.coverage_manifest],
             "independence": independence, "gate_bypass": disclosure}
 
@@ -501,6 +506,9 @@ def verify_v3_delivery(
             "policy_digest": snapshot.policy.policy_digest,
             "target_policy_digest": candidate.policy.policy_digest,
             "required_checks_digest": snapshot.checks["digest"],
+            "required_checks": [{"source": item["source"], "id": item["id"]}
+                                for item in snapshot.checks["checks"]],
+            "builtin_checks_version": snapshot.policy.builtin_checks_version,
             "code_review_required": required, "code_review_reason": reason,
             "coverage": [row["path"] for row in state.coverage_manifest],
             "independence": independence, "gate_bypass": disclosure}

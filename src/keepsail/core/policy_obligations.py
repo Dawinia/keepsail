@@ -31,7 +31,7 @@ def _review_not_weaker(old_mode: str, old_scope: tuple[str, ...],
         return True
     if old_mode == "full" or new_mode == "off":
         return False
-    return all(covered_by_scope(path.rstrip("/"), list(new_scope)) for path in old_scope)
+    return all(covered_by_scope(path, list(new_scope)) for path in old_scope)
 
 
 def check_definitions(contract: object) -> tuple[dict[str, bool], dict[tuple[str, str], str]]:

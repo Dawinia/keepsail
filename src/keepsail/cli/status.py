@@ -37,6 +37,7 @@ from keepsail.core.paths import (
 )
 from keepsail.core.reducer import derive_state
 from keepsail.core.scope_match import GitScopeError
+from keepsail.engineering.delivery_policy import delivery_details
 from keepsail.exit_codes import EXIT_NO_CONFIG, EXIT_OK, EXIT_VALIDATION
 from keepsail.gates.decisions import SUGGESTIONS
 
@@ -194,52 +195,6 @@ def status_cmd(ctx: click.Context, slug: str | None, all_changes: bool) -> None:
                 "base_matches": (current_base == cs.no_review_decision.get("trusted_base")
                                  if current_base is not None else None)}
 
-    def _delivery_details(cs: Any) -> dict[str, Any] | None:
-        if (cs.current_code_subject is None or cs.current_state not in {
-            "IMPLEMENTATION_IN_PROGRESS", "AWAITING_CODE_REVIEW", "CODE_REVIEW_REJECTED",
-            "READY_TO_MERGE",
-        }):
-            return None
-        from keepsail.core.approval import (
-            ApprovalError,
-            make_code_subject,
-            resolve_contract_base,
-            validate_code_subject,
-        )
-        from keepsail.core.effective_policy import load_effective_v2
-        from keepsail.core.git_diff import require_literal_git_diff
-        from keepsail.core.git_objects import optional_regular_blob_text
-        from keepsail.core.policy_authority import parse_unique_yaml
-
-        try:
-            base = resolve_contract_base(root)
-            text = optional_regular_blob_text(root, base, ".harness/review-recognition.yaml")
-            policy = parse_unique_yaml(text) if text is not None else None
-            if not isinstance(policy, dict) or policy.get("version") != "review-recognition/v2":
-                return None
-            snapshot = load_effective_v2(root, base)
-            subject = validate_code_subject(cs.current_code_subject, change_id=cs.change_id)
-            require_literal_git_diff(root, base=base, head="HEAD")
-            current = make_code_subject(
-                root, change_id=cs.change_id, approval_id=subject["approval_id"], base=base,
-                verification_config_digest=subject.get("verification_config_digest"),
-                knowledge_basis=subject.get("knowledge_basis"),
-            )
-            required, reason = snapshot.policy.review_requirement(current["manifest"])
-            return {"status": "resolved", "trusted_base": base,
-                    "policy_digest": snapshot.policy.policy_digest,
-                    "required_checks_digest": snapshot.checks["digest"],
-                    "required_checks": [{"source": item["source"], "id": item["id"]}
-                                        for item in snapshot.checks["checks"]],
-                    "builtin_checks_version": snapshot.policy.builtin_checks_version,
-                    "code_review_required": required, "code_review_reason": reason,
-                    "current_subject_id": current["subject_id"],
-                    "recorded_subject_id": subject["subject_id"],
-                    "subject_matches": current["subject_id"] == subject["subject_id"],
-                    "basis": "committed-git-diff"}
-        except (ApprovalError, GitScopeError, OSError, ValueError, KeyError, TypeError) as exc:
-            return {"status": "unavailable", "reason": str(exc)}
-
     def _review_progress(
         change_id: str, reviewer: str, governance: Any
     ) -> _ReviewProgress:
@@ -370,7 +325,7 @@ def status_cmd(ctx: click.Context, slug: str | None, all_changes: bool) -> None:
             for cs in target:
                 entry = asdict(cs)
                 entry["no_review_decision"] = _no_review_details(cs)
-                entry["delivery_policy"] = _delivery_details(cs)
+                entry["delivery_policy"] = delivery_details(root, cs)
                 reviewer, governance = _reviewer_info(cs)
                 entry["next"] = _next_step(cs, reviewer)
                 if reviewer is not None:
@@ -410,12 +365,16 @@ def status_cmd(ctx: click.Context, slug: str | None, all_changes: bool) -> None:
                         f"  verification: {cs.current_verification.get('subject_id')} "
                         f"({cs.current_verification.get('outcome', 'unknown')})"
                     )
-                delivery = _delivery_details(cs)
+                delivery = delivery_details(root, cs)
                 if delivery is not None and delivery["status"] == "resolved":
                     click.echo(f"  trusted policy: {delivery['policy_digest']} "
                                f"at {delivery['trusted_base']}")
                     click.echo(f"  code review required: {delivery['code_review_required']} "
                                f"({delivery['code_review_reason']})")
+                    checks = ", ".join(f"{item['source']}/{item['id']}"
+                                       for item in delivery["required_checks"]) or "none"
+                    click.echo(f"  required checks: {checks} "
+                               f"({delivery['builtin_checks_version']})")
                     click.echo(f"  recorded subject matches committed diff: "
                                f"{delivery['subject_matches']}")
                 elif delivery is not None:

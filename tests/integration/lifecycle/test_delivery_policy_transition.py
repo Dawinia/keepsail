@@ -120,6 +120,20 @@ def verify_with_installed_base(root, base, head, *, label, repository_id="owner/
             "attest", "verify", "--base", base, "--head", head]
     if "--repository-id" in help_text:
         args.extend(["--repository-id", repository_id, "--target-ref", target_ref])
+    if os.environ.get("KEEPSAIL_TEST_NETWORK_NAMESPACE") == "1":
+        assert sys.platform.startswith("linux"), "network namespace acceptance requires Linux"
+        # Isolate the verifier and its Git subprocesses, not only Python sockets.
+        # Probe before the Python-level guard to detect a misconfigured namespace.
+        program = (
+            "import errno, socket\n"
+            "try: socket.create_connection(('192.0.2.1', 9), timeout=2)\n"
+            "except OSError as exc:\n"
+            "    if exc.errno != errno.ENETUNREACH: raise\n"
+            "else: raise AssertionError('network namespace is not isolated')\n"
+        ) + program
+        args[3] = program
+        args = ["sudo", "unshare", "--net", f"--setgid={os.getgid()}",
+                f"--setuid={os.getuid()}", "--", *args]
     return subprocess.run(
         args, cwd=checkout, capture_output=True, text=True,
         env={**os.environ, "GIT_ALLOW_PROTOCOL": "file", "GIT_TERMINAL_PROMPT": "0"},
@@ -294,6 +308,9 @@ def test_recovery_plan_review_uses_only_the_signed_process_and_digest(tmp_path):
     verdict = verify_v3_transition(root, record, base=base, head="HEAD",
                                    repository_id="owner/project", target_ref="refs/heads/main")
     assert verdict["target_policy_digest"] == target["policy_digest"]
+    assert verdict["builtin_checks_version"] == "keepsail-baseline/v1"
+    assert verdict["required_checks"] == [{"source": "user", "id": "fixture"}]
+    assert verdict["code_review_required"] is True
     verified = cli("--json", "attest", "verify", "--base", base, "--head", "HEAD",
                    "--repository-id", "owner/project", "--target-ref", "refs/heads/main")
     assert verified.exit_code == 0, verified.output
@@ -551,6 +568,15 @@ def test_recovery_plan_review_uses_only_the_signed_process_and_digest(tmp_path):
     assert completed.exit_code == 0, completed.output
     rotation_state = derive_state(events_path(root))["rotate-key"]
     assert rotation_state.current_state == "AWAITING_CODE_REVIEW"
+    report = cli("--json", "report")
+    assert report.exit_code == 0, report.output
+    policies = json.loads(report.output)["data"]["current_delivery_policies"]
+    rotation_policy = next(item for item in policies if item["change_id"] == "rotate-key")
+    assert rotation_policy["trusted_base"] == next_head
+    assert rotation_policy["policy_digest"] == next_policy["policy_digest"]
+    assert rotation_policy["required_checks"] == [{"source": "user", "id": "fixture"}]
+    assert rotation_policy["code_review_required"] is True
+    assert rotation_policy["code_review_reason"] == "policy requires code review for all changes"
     review = {"version": "review-evidence/v1", "evidence_id": "rotation-code", "kind": "code",
               "subject_id": rotation_state.current_code_subject["subject_id"],
               "decision": "approve",
@@ -567,6 +593,8 @@ def test_recovery_plan_review_uses_only_the_signed_process_and_digest(tmp_path):
     verified = cli("attest", "verify", "--base", next_head, "--head", rotated_head,
                    "--repository-id", "owner/project", "--target-ref", "refs/heads/main")
     assert verified.exit_code == 0, verified.output
+    assert "code review required: True" in verified.output
+    assert "required checks: user/fixture" in verified.output
     rotation = verify_v2_activation(root, trusted_commit=rotated_head,
                                     repository_id="owner/project", target_ref="refs/heads/main")
     assert rotation["authority_rotation"]["change"] == "rotate-key"

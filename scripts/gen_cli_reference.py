@@ -64,6 +64,29 @@ _EXIT_CODES: dict[str, list[str]] = {
         "`3` no `.harness/` (run `init` first)",
         "`5` `state.yaml` lock contention",
     ],
+    "change recover-completion": [
+        "`0` recovery finished or not needed",
+        "`1` generic error",
+        "`2` invalid change, unavailable workspace, or recovery error",
+    ],
+    "policy authorization import": [
+        "`0` authorization retained or already present",
+        "`1` generic error",
+        "`2` invalid authorization or trusted basis",
+        "`3` no `.harness/`",
+    ],
+    "policy initial confirmation": [
+        "`0` confirmation record prepared",
+        "`1` generic error",
+        "`2` invalid confirmation or trusted input",
+        "`3` no `.harness/`",
+    ],
+    "policy initial prepare": [
+        "`0` policy and authority proposal prepared",
+        "`1` generic error",
+        "`2` invalid proposal input or verification configuration",
+        "`3` no `.harness/`",
+    ],
     "plan ready": [
         "`0` success",
         "`1` generic error",

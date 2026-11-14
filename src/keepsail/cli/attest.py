@@ -183,7 +183,7 @@ def _git_name_status(base: str, head: str, cwd: Path) -> str:
     Raises ``_GitError`` on a non-zero git exit (the CLI translates that into a
     FAIL-CLOSED exit 4 — an unreachable merge-base must never become a pass).
     """
-    # @decision:d-keepsail-merge-gate-pure-git
+    # @decision:d-policy-replay-offline
     proc = subprocess.run(
         ["git", "diff", "--name-status", "-z", "--find-renames", f"{base}...{head}"],
         cwd=str(cwd),
@@ -297,6 +297,14 @@ def attest_verify(ctx: click.Context, base: str, head: str, repository_id: str |
         # Human path only — disclosure lines must NEVER print before the `--json`
         # branch or they would corrupt the single-line JSON envelope.
         if not ctx.obj.get("quiet"):
+            for slug, decision in verdict.delivery_decisions.items():
+                checks = ", ".join(f"{item['source']}/{item['id']}"
+                                   for item in decision["required_checks"]) or "none"
+                click.echo(f"delivery policy [{slug}]: base={decision['trusted_base']} "
+                           f"policy={decision['policy_digest']}")
+                click.echo(f"  code review required: {decision['code_review_required']} "
+                           f"({decision['reason']}); required checks: {checks} "
+                           f"({decision['builtin_checks_version']})")
             # Iterates slugs rather than the flattened `independence` list, which now
             # carries two rows per attestation: driving the hold line off that list
             # would print it once per role.

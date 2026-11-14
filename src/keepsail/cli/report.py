@@ -21,6 +21,8 @@ from keepsail.core.paths import (
     events_path,
     find_harness_root,
 )
+from keepsail.core.reducer import derive_state
+from keepsail.engineering.delivery_policy import delivery_details
 from keepsail.engineering.value_report import (
     AuthorizationRecord,
     CostBreakdownRow,
@@ -203,16 +205,10 @@ def _reopen_lines(r: ValueReport) -> list[str]:
     lines = [
         "",
         "Reopened implementations",
-        # What was counted, not what happened next. The trailing clause states the
-        # merge gate's RULE — a reopen lands in IMPLEMENTATION_IN_PROGRESS, and nothing
-        # merges from there without `code_review_passed` and READY_TO_MERGE — which is
-        # true of every reopen the moment it is emitted. It deliberately does not say
-        # the change WAS reviewed again: a reopened change can be abandoned, and
-        # `derive_reopens` counts `implementation_invalidated` events and nothing else.
-        # Nor does it say the voided review had PASSED — the verb accepts
-        # AWAITING_CODE_REVIEW, where the round is still out.
+        # A reopen returns to editing; later delivery must satisfy the then-applicable
+        # policy. The event alone does not prove that another review took place.
         f"  - {r.reopens_total} frozen implementation(s) returned to editing, each one "
-        "requiring code review to run again before it can merge",
+        "requiring a new completion under the applicable delivery policy before it can merge",
     ]
     if not r.reopens:
         return lines
@@ -357,16 +353,36 @@ def report_cmd(ctx: click.Context, since: str | None, until: str | None, brief: 
     r = build_value_report(
         events_path(root), since=since, until=until, workspace_root=root
     )
+    policies = []
+    if ctx.obj.get("json") or not brief:
+        for change_id, state in derive_state(events_path(root)).items():
+            details = delivery_details(root, state)
+            if details is not None:
+                policies.append({"change_id": change_id, **details})
     if ctx.obj.get("json"):
         click.echo(
             json_envelope(
-                command="report", status="pass", exit_code=EXIT_OK, data=asdict(r)
+                command="report", status="pass", exit_code=EXIT_OK,
+                data={**asdict(r), "current_delivery_policies": policies},
             )
         )
     elif brief:
         click.echo(_render_brief(r))
     else:
         click.echo(_render_human(r))
+        if policies:
+            click.echo("\nCurrent delivery policies (independent of report window):")
+            for policy in policies:
+                if policy["status"] != "resolved":
+                    click.echo(f"  {policy['change_id']}: unavailable ({policy['reason']})")
+                    continue
+                checks = ", ".join(f"{item['source']}/{item['id']}"
+                                   for item in policy["required_checks"]) or "none"
+                click.echo(f"  {policy['change_id']}: base={policy['trusted_base']} "
+                           f"policy={policy['policy_digest']}")
+                click.echo(f"    code review required: {policy['code_review_required']} "
+                           f"({policy['code_review_reason']}); required checks: {checks} "
+                           f"({policy['builtin_checks_version']})")
         if r.no_review_decisions:
             click.echo("\nRecorded no-review decisions (historical):")
             for decision in r.no_review_decisions:

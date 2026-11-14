@@ -1,13 +1,14 @@
 """Layer-2 CI merge gate (HG-DF item C) — attestation write + verify logic.
 
-Pure-function domain layer. The CLI (`cli/attest.py`) owns the git/filesystem
-boundary and calls these. Reuses `find_ordering_violations` + `derive_state`
-unchanged. See docs/plans/2026-06-03-layer2-merge-gate-design.md.
+The CLI calls this layer to write and verify committed evidence. Verification
+may read local Git objects and replay evidence; it does not fetch trust or review
+conclusions from the network.
 
 What this proves (per design §2): for every changed file in a PR, there EXISTS
 a committed attestation declaring that file in scope, encoding a complete,
-correctly-ordered lifecycle reaching READY_TO_MERGE incl. a genuine
-`code_review_passed`. It does NOT prove the file was edited through the gated
+correctly-ordered lifecycle reaching READY_TO_MERGE. Applicable policy requires
+either a genuine `code_review_passed` or a validated no-review decision. It does
+NOT prove the file was edited through the gated
 path (an actor who bypasses the editor but also runs a trivial covering
 lifecycle passes — deferred forgery-resistance, HG-12/B).
 """
@@ -504,6 +505,9 @@ def verify_attestations(
                     "policy_digest": result["policy_digest"],
                     "code_review_required": result["code_review_required"],
                     "reason": result["code_review_reason"],
+                    "required_checks_digest": result["required_checks_digest"],
+                    "required_checks": result["required_checks"],
+                    "builtin_checks_version": result["builtin_checks_version"],
                 }
             continue
         att_path = root / relative

@@ -4,6 +4,7 @@ import base64
 import json
 import subprocess
 import sys
+from unittest.mock import patch
 
 import pytest
 import yaml
@@ -14,6 +15,7 @@ from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 from keepsail.cli import main
 from keepsail.core.approval import ApprovalError, canonical_json
 from keepsail.core.attestation_v3_verify import verify_v2_activation
+from keepsail.core.emit_validation import find_ordering_violations
 from keepsail.core.paths import events_path
 from keepsail.core.reducer import derive_state
 
@@ -163,6 +165,31 @@ def test_init_first_trust_and_light_delivery(tmp_path):
     assert delivery["code_review_required"] is False
     assert delivery["subject_matches"] is True
     assert delivery["required_checks"] == [{"source": "user", "id": "fixture"}]
+    status_text = cli("status", "light")
+    assert "required checks: user/fixture" in status_text.output
+    report = cli("--json", "report")
+    assert report.exit_code == 0, report.output
+    policies = json.loads(report.output)["data"]["current_delivery_policies"]
+    reported = next(item for item in policies if item["change_id"] == "light")
+    assert reported["trusted_base"] == trusted
+    assert reported["policy_digest"] == proposal["policy"]["policy_digest"]
+    assert reported["required_checks"] == [{"source": "user", "id": "fixture"}]
+    assert reported["code_review_required"] is False
+    report_text = cli("report")
+    assert "required checks: user/fixture" in report_text.output
+    assert "code review required: False" in report_text.output
+    body = ("<!-- keepsail:metadata -->\nChange: light\nTier: Normal\n"
+            "Verification: passed\nkeepsail version: 0.1.0\n<!-- /keepsail:metadata -->\n")
+    with patch("keepsail.cli.pr.gh.view_pr", return_value={"body": body}):
+        validated = cli("--json", "pr", "validate", "7")
+    assert validated.exit_code == 0, validated.output
+    old_violations = find_ordering_violations(events_path(root), "light")
+    assert any("built-in v1 does not permit" in item.reason for item in old_violations)
+    with (patch("keepsail.cli.pr.gh.view_pr", return_value={"body": body}),
+          patch("keepsail.cli.pr.load_effective_v2", side_effect=ApprovalError("unavailable"))):
+        unavailable = cli("--json", "pr", "validate", "7")
+    assert unavailable.exit_code == 2
+    assert "trusted delivery policy unavailable" in unavailable.output
     legacy = cli("attest", "write", "light", "--format", "v2")
     assert legacy.exit_code != 0, legacy.output
     assert "requires v3 attestation" in legacy.output
@@ -173,8 +200,15 @@ def test_init_first_trust_and_light_delivery(tmp_path):
     verified = cli("--json", "attest", "verify", "--base", trusted, "--head", "HEAD",
                    "--repository-id", "owner/project", "--target-ref", "refs/heads/main")
     assert verified.exit_code == 0, verified.output
-    assert not json.loads(verified.output)["data"]["delivery_decisions"]["light"][
-        "code_review_required"]
+    decision = json.loads(verified.output)["data"]["delivery_decisions"]["light"]
+    assert not decision["code_review_required"]
+    assert decision["required_checks"] == [{"source": "user", "id": "fixture"}]
+    assert decision["builtin_checks_version"] == "keepsail-baseline/v2"
+    verified_text = cli("attest", "verify", "--base", trusted, "--head", "HEAD",
+                        "--repository-id", "owner/project", "--target-ref", "refs/heads/main")
+    assert verified_text.exit_code == 0, verified_text.output
+    assert "required checks: user/fixture" in verified_text.output
+    assert "code review required: False" in verified_text.output
     blob = subprocess.check_output(["git", "hash-object", "-w", "--stdin"], cwd=root,
                                    input=b"unsupported path\n").decode().strip()
     tree = subprocess.check_output(["git", "ls-tree", "-z", "HEAD"], cwd=root)
@@ -189,3 +223,22 @@ def test_init_first_trust_and_light_delivery(tmp_path):
                   "--repository-id", "owner/project", "--target-ref", "refs/heads/main")
     assert refused.exit_code == 2, refused.output
     assert "unsupported literal Git path" in refused.output
+
+    # A valid light delivery cannot turn off or damage its already trusted key.
+    for damage in ("removed", "disabled", "malformed"):
+        git(root, "switch", "-q", "--detach", head)
+        authority_path = harness / "policy-authority.yaml"
+        if damage == "removed":
+            git(root, "rm", "-q", ".harness/policy-authority.yaml")
+        else:
+            content = (yaml.safe_dump({**proposal["authority"], "enabled": False, "keys": []})
+                       if damage == "disabled" else "invalid: [yaml\n")
+            authority_path.write_text(content, encoding="utf-8")
+            git(root, "add", ".harness/policy-authority.yaml")
+        git(root, "commit", "-qm", f"{damage} candidate authority")
+        rejected = cli("--json", "attest", "verify", "--base", trusted, "--head", "HEAD",
+                       "--repository-id", "owner/project", "--target-ref", "refs/heads/main")
+        assert rejected.exit_code == 2, rejected.output
+        blockers = json.loads(rejected.output)["data"]["blockers"]
+        assert any("authority" in message.lower() or "yaml" in message.lower()
+                   for message in blockers), blockers

@@ -54,6 +54,7 @@ def _validate_pair(events: list[Event]) -> None:
         raise EventSchemaError("completion transaction lacks trusted policy bindings")
 
 
+# @decision:d-events-append-only
 def encode_completion(events: list[Event]) -> bytes:
     """Return one complete checksummed physical line after validating both events."""
     _validate_pair(events)

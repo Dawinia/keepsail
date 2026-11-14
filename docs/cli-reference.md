@@ -264,8 +264,9 @@ keepsail change recover-completion [OPTIONS] SLUG
 
 **Exit codes:**
 
-- `0` success
+- `0` recovery finished or not needed
 - `1` generic error
+- `2` invalid change, unavailable workspace, or recovery error
 
 ## keepsail change resume
 
@@ -1030,8 +1031,10 @@ keepsail policy authorization import [OPTIONS] CHANGE
 
 **Exit codes:**
 
-- `0` success
+- `0` authorization retained or already present
 - `1` generic error
+- `2` invalid authorization or trusted basis
+- `3` no `.harness/`
 
 ## keepsail policy initial
 
@@ -1058,8 +1061,10 @@ keepsail policy initial confirmation [OPTIONS]
 
 **Exit codes:**
 
-- `0` success
+- `0` confirmation record prepared
 - `1` generic error
+- `2` invalid confirmation or trusted input
+- `3` no `.harness/`
 
 ## keepsail policy initial prepare
 
@@ -1078,8 +1083,10 @@ keepsail policy initial prepare [OPTIONS]
 
 **Exit codes:**
 
-- `0` success
+- `0` policy and authority proposal prepared
 - `1` generic error
+- `2` invalid proposal input or verification configuration
+- `3` no `.harness/`
 
 ## keepsail pr
 

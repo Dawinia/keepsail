@@ -74,6 +74,22 @@ def test_scope_may_become_broader_without_dropping_the_old_review_requirement():
     assert [(x["kind"], x["id"]) for x in changes] == [("code_review", "scope")]
 
 
+@pytest.mark.parametrize(
+    ("old_scope", "new_scope", "weakened"),
+    [
+        ("src/", "src/", False),
+        ("src/", "src", False),
+        ("src", "src/", True),
+        ("src/secure/", "src/", False),
+        ("src/", "src/secure/", True),
+    ],
+)
+def test_scope_comparison_preserves_directory_boundary(old_scope, new_scope, weakened):
+    raw, old, checks = setup_policy("scope", [new_scope])
+    changes = compare(raw, old, checks, old_mode="scope", old_scope=(old_scope,))
+    assert any(item["kind"] == "code_review" for item in changes) is weakened
+
+
 def test_mutating_a_check_contract_without_recomputing_its_evidence_is_rejected():
     raw, old, checks = setup_policy()
     changed = deepcopy(checks)

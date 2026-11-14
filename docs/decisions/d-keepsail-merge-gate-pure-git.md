@@ -1,9 +1,10 @@
 ---
 id: d-keepsail-merge-gate-pure-git
-status: ratified
+status: superseded
 ratified_by: dawinialo@163.com
 ratified_at: '2026-10-23T14:02:35.654411Z'
 supersedes: d-merge-gate-pure-git
+superseded_by: d-policy-replay-offline
 ratified_text_hash: sha256:004673096ea486ad401cee69469337b8be2973f4539cb55ac6ede9dc13371e99
 authoring_time: true
 ---
