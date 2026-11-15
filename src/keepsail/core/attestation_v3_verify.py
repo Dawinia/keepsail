@@ -29,7 +29,7 @@ from keepsail.core.attestation_replay import (
     gate_bypass_disclosure,
 )
 from keepsail.core.attestation_v3 import parse_v3_line, validate_v3
-from keepsail.core.delivery_policy import parse_delivery_policy_yaml
+from keepsail.core.completion_transaction import wrap_derived_completion
 from keepsail.core.git_diff import parse_name_status_z, require_literal_paths
 from keepsail.core.git_objects import regular_blob_bytes, regular_blob_text
 from keepsail.core.policy_authority import (
@@ -108,23 +108,18 @@ def verify_v3_transition(
         raise ApprovalError("v3 activation attestation must be newly added in the exact diff")
     if parse_v3_line(regular_blob_bytes(root, head_sha, attestation_path)) != record:
         raise ApprovalError("v3 attestation does not match the committed Git blob")
-    candidate = parse_delivery_policy_yaml(regular_blob_text(root, head_sha,
-                                                              ".harness/review-recognition.yaml"))
+    target = read_policy_snapshot(root, head_sha, repository_id=repository_id,
+                                  target_ref=target_ref)
+    candidate = target.policy
     if candidate.activation != {"kind": "transition", "change": change}:
         raise ApprovalError("v3 activation does not identify this transition")
     old_config = parse_verification_config(regular_blob_text(root, base_sha,
                                                               ".harness/verification.yaml"))
-    new_config = parse_verification_config(regular_blob_text(root, head_sha,
-                                                              ".harness/verification.yaml"),
-                                           strict=True)
     old_checks = required_check_contract(old_config)
-    new_checks = required_check_contract(new_config)
-    if candidate.required_checks_digest != new_checks["digest"]:
-        raise ApprovalError("candidate required checks do not match the target policy")
+    new_checks = target.checks
     authority = parse_authority_yaml(regular_blob_text(root, base_sha,
                                                        ".harness/policy-authority.yaml"))
-    target_authority = parse_authority_yaml(regular_blob_text(root, head_sha,
-                                                              ".harness/policy-authority.yaml"))
+    target_authority = target.authority
     authorization = record["authorization"]
     if not isinstance(authorization, dict) or authorization.get("kind") not in {
         "transition", "recovery"
@@ -171,7 +166,8 @@ def verify_v3_transition(
     lines = expand_attestation(snapshot, for_v3=True)
     with tempfile.TemporaryDirectory(prefix="keepsail-v3-replay-") as temp:
         path = Path(temp) / "lifecycle.jsonl"
-        path.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+        path.write_text("\n".join(wrap_derived_completion(lines)) + "\n",
+                        encoding="utf-8", newline="\n")
         blockers = check_recognized_attestation(path, change)
         state = derive_state(path).get(change)
         if state is None:
@@ -189,9 +185,11 @@ def verify_v3_transition(
         for kind in ("plan_review", "code_review"):
             if independence[kind]["skipped"] and not independence[kind]["override"]:
                 blockers.append(f"{kind} was skipped without the required override")
-        verify_check_evidence(state.current_verification, subject_id=code["subject_id"],
-                              required_contract=old_checks, builtin_version="keepsail-baseline/v1",
-                              trusted_base=base_sha)
+        checks_summary = verify_check_evidence(
+            state.current_verification, subject_id=code["subject_id"],
+            required_contract=old_checks, builtin_version="keepsail-baseline/v1",
+            trusted_base=base_sha,
+        )
         if blockers:
             raise ApprovalError("; ".join(blockers))
     return {"change": change, "trusted_base": base_sha, "head": head_sha,
@@ -200,6 +198,7 @@ def verify_v3_transition(
             "required_checks_digest": old_checks["digest"],
             "required_checks": [{"source": item["source"], "id": item["id"]}
                                 for item in old_checks["checks"]],
+            **checks_summary,
             "builtin_checks_version": "keepsail-baseline/v1",
             "code_review_required": True,
             "code_review_reason": "trusted v1 policy requires code review for this transition",
@@ -443,7 +442,8 @@ def verify_v3_delivery(
     lines = expand_attestation(record["snapshot"], for_v3=True)
     with tempfile.TemporaryDirectory(prefix="keepsail-v3-delivery-") as temp:
         replay_path = Path(temp) / "lifecycle.jsonl"
-        replay_path.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+        replay_path.write_text("\n".join(wrap_derived_completion(lines)) + "\n",
+                               encoding="utf-8", newline="\n")
         state = derive_state(replay_path).get(change)
         if state is None:
             raise ApprovalError("ordinary v3 lifecycle has no matching Change")
@@ -496,10 +496,11 @@ def verify_v3_delivery(
         for kind in ("plan_review", "code_review"):
             if independence[kind]["skipped"] and not independence[kind]["override"]:
                 blockers.append(f"{kind} was skipped without the required override")
-        verify_check_evidence(state.current_verification, subject_id=code["subject_id"],
-                              required_contract=snapshot.checks,
-                              builtin_version=snapshot.policy.builtin_checks_version,
-                              trusted_base=base_sha)
+        checks_summary = verify_check_evidence(
+            state.current_verification, subject_id=code["subject_id"],
+            required_contract=snapshot.checks,
+            builtin_version=snapshot.policy.builtin_checks_version, trusted_base=base_sha,
+        )
         if blockers:
             raise ApprovalError("; ".join(blockers))
     return {"change": change, "trusted_base": base_sha, "head": head_sha,
@@ -508,6 +509,7 @@ def verify_v3_delivery(
             "required_checks_digest": snapshot.checks["digest"],
             "required_checks": [{"source": item["source"], "id": item["id"]}
                                 for item in snapshot.checks["checks"]],
+            **checks_summary,
             "builtin_checks_version": snapshot.policy.builtin_checks_version,
             "code_review_required": required, "code_review_reason": reason,
             "coverage": [row["path"] for row in state.coverage_manifest],

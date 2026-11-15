@@ -97,8 +97,6 @@ def parse_name_status(raw: str) -> list[DiffEntry]:
     return entries
 
 
-
-
 # --------------------------------------------------------------------------- #
 # Attestation extraction + write
 # --------------------------------------------------------------------------- #
@@ -291,8 +289,6 @@ def check_attestation(
         blockers.extend(_review_receipt_blockers(events, slug))
         blockers.extend(_review_reference_blockers(events, slug))
     return blockers
-
-
 
 
 def _review_receipt_blockers(events: list[Event], slug: str) -> list[str]:
@@ -507,6 +503,8 @@ def verify_attestations(
                     "reason": result["code_review_reason"],
                     "required_checks_digest": result["required_checks_digest"],
                     "required_checks": result["required_checks"],
+                    "required_project_checks": result["required_project_checks"],
+                    "required_total_checks": result["required_total_checks"],
                     "builtin_checks_version": result["builtin_checks_version"],
                 }
             continue
@@ -611,8 +609,6 @@ def verify_attestations(
         policy_basis=policy_basis,
         delivery_decisions=delivery_decisions,
     )
-
-
 
 
 # --------------------------------------------------------------------------- #

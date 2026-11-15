@@ -26,6 +26,7 @@ from keepsail.core.policy_obligations import (
     changed_required_checks,
     require_signed_obligation_changes,
 )
+from keepsail.core.policy_snapshot import read_policy_snapshot
 from keepsail.core.review_verdict import read_change_events
 from keepsail.core.scope_match import resolve_commit
 from keepsail.core.verification_config import parse_verification_config, required_check_contract
@@ -119,16 +120,13 @@ def validate_delivery_obligations(
         from keepsail.core.effective_policy import load_effective_v2
 
         snapshot = load_effective_v2(root, base)
-        candidate_policy = parse_delivery_policy(
-            parse_unique_yaml(regular_blob_text(root, head, _POLICY))
+        candidate_snapshot = read_policy_snapshot(
+            root, head, repository_id=snapshot.authority.repository_id,
+            target_ref=snapshot.authority.target_ref,
         )
-        candidate_authority = parse_authority_yaml(regular_blob_text(root, head, _AUTHORITY))
-        config = parse_verification_config(
-            regular_blob_text(root, head, _VERIFICATION), strict=True
+        candidate_policy, candidate_authority, checks = (
+            candidate_snapshot.policy, candidate_snapshot.authority, candidate_snapshot.checks
         )
-        checks = required_check_contract(config)
-        if checks["digest"] != candidate_policy.required_checks_digest:
-            raise ApprovalError("candidate required checks differ from the target policy")
         policy_changed = candidate_policy.policy_digest != snapshot.policy.policy_digest
         authority_changed = candidate_authority.digest != snapshot.authority.digest
         checks_changed = checks["digest"] != snapshot.checks["digest"]
@@ -216,6 +214,13 @@ def validate_delivery_obligations(
         if not old_authority.enabled and new_authority.enabled:
             raise ApprovalError("initial enabled trust needs separate owner establishment")
         authority_changed = old_authority.digest != new_authority.digest
+
+    if candidate_v2 is not None:
+        if old_authority_text is None:
+            raise ApprovalError("policy transition requires an established authority")
+        old_authority = parse_authority_yaml(old_authority_text)
+        read_policy_snapshot(root, head, repository_id=old_authority.repository_id,
+                             target_ref=old_authority.target_ref)
 
     if not policy_changed and not check_changes and not authority_changed:
         return {"trusted_base": base, "policy_digest": old_recognition.policy_digest,

@@ -71,18 +71,18 @@ def state_rebuild(ctx: click.Context, dry_run: bool, verify_flag: bool) -> None:
         sys.exit(EXIT_NO_CONFIG)
     derived = derive_state(events_path(root))
     # last_reduced_event_id semantics per spec §3.8.2 + §3.8.3: the literal
-    # event_id of the last non-blank parseable line in events.jsonl (file-position
-    # truth, NOT dict-iteration order). v0.1 uses this as audit metadata; Phase 2
+    # event_id of the last non-blank parseable effective event, including a
+    # completion transaction's events. v0.1 uses this as audit metadata; Phase 2
     # daemon consumers will rely on it for short-circuit decisions.
     last_id = ""
     events_file = events_path(root)
     if events_file.exists():
-        for line in reversed(events_file.read_text(encoding="utf-8").splitlines()):
+        lines = events_file.read_bytes().decode("utf-8").splitlines(keepends=True)
+        for line in effective_event_lines(lines):
             if not line.strip():
                 continue
             try:
                 last_id = parse_event_line(line).event_id
-                break
             except EventSchemaError:
                 continue
     if dry_run:

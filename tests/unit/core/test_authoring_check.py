@@ -48,6 +48,13 @@ def test_not_opted_in_is_skipped(tmp_path: Path):
     assert run_authoring_check(tmp_path).violations == []
 
 
+def test_superseded_opted_in_check_is_skipped(tmp_path: Path):
+    _write_decision(tmp_path, "d-old", check="false", authoring=True)
+    path = tmp_path / "docs" / "decisions" / "d-old.md"
+    path.write_text(path.read_text().replace("status: ratified", "status: superseded"))
+    assert run_authoring_check(tmp_path).violations == []
+
+
 def test_passing_check_is_clean(tmp_path: Path):
     _write_decision(tmp_path, "d-ok", check="true", authoring=True)
     assert run_authoring_check(tmp_path).violations == []

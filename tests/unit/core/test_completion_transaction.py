@@ -6,11 +6,17 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
+import yaml
 from click.testing import CliRunner
 
 from keepsail.cli import main
-from keepsail.core.completion_transaction import decode_completion, encode_completion
+from keepsail.core.completion_transaction import (
+    decode_completion,
+    encode_completion,
+    wrap_derived_completion,
+)
 from keepsail.core.events import Actor, Event, EventSchemaError, serialize_event
+from keepsail.core.post_emit import refresh_state_after_emit
 from keepsail.core.reducer import derive_state
 from keepsail.core.writer import EmitPreconditionError, EventWriter
 
@@ -89,6 +95,38 @@ def test_torn_envelope_never_exposes_one_completion_event(tmp_path: Path):
     path.write_bytes(prefix + data[:-1] + b"\r\n")
     with pytest.raises(EventSchemaError, match="encoding"):
         derive_state(path)
+
+
+def test_bare_no_review_is_rejected_and_derived_pair_is_rewrapped(tmp_path: Path):
+    events = pair()
+    path = tmp_path / "events.jsonl"
+    path.write_bytes(_prefix() + "".join(serialize_event(e) + "\n" for e in events).encode())
+    with pytest.raises(EventSchemaError, match="requires a completion transaction"):
+        derive_state(path)
+    wrapped = wrap_derived_completion([serialize_event(e) for e in events])
+    assert len(wrapped) == 1
+    assert decode_completion((wrapped[0] + "\n").encode()) == events
+    with pytest.raises(EventSchemaError):
+        wrap_derived_completion([serialize_event(events[1])])
+
+
+def test_event_log_and_state_cache_include_transaction_events(tmp_path: Path):
+    harness = tmp_path / ".harness"
+    harness.mkdir()
+    (harness / "events.jsonl").write_bytes(_prefix() + encode_completion(pair()))
+    refresh_state_after_emit(tmp_path)
+    state = yaml.safe_load((harness / "state.yaml").read_text())
+    assert state["last_reduced_event_id"] == "two"
+    runner = CliRunner()
+    result = runner.invoke(main, ["--workspace", str(tmp_path), "--json", "event", "log"])
+    assert result.exit_code == 0, result.output
+    assert [e["type"] for e in json.loads(result.output)["data"]["events"]][-2:] == [
+        "implementation_complete", "code_review_not_required"
+    ]
+    rebuilt = runner.invoke(main, ["--workspace", str(tmp_path), "state", "rebuild"])
+    assert rebuilt.exit_code == 0, rebuilt.output
+    state = yaml.safe_load((harness / "state.yaml").read_text())
+    assert state["last_reduced_event_id"] == "two"
 
 
 def test_failed_validation_does_not_create_a_completion_journal(tmp_path: Path, monkeypatch):

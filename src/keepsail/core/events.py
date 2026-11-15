@@ -278,6 +278,8 @@ def effective_event_lines(lines: Iterable[str]) -> Iterator[str]:
         except EventSchemaError:
             yield line
             continue
+        if event.type == "code_review_not_required":
+            raise EventSchemaError("no-review completion requires a completion transaction")
         if event.type != "historical_change_recovered":
             history.setdefault(event.change_id, []).append(line)
             identifiers.add(event.event_id)

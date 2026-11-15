@@ -141,7 +141,10 @@ def verify_with_installed_base(root, base, head, *, label, repository_id="owner/
     )
 
 
-def test_recovery_plan_review_uses_only_the_signed_process_and_digest(tmp_path):
+@pytest.mark.parametrize("missing_plan_purpose", [False, True])
+def test_recovery_plan_review_uses_only_the_signed_process_and_digest(
+    tmp_path, monkeypatch, missing_plan_purpose,
+):
     root = tmp_path
     source = Path(__file__).resolve().parents[3]
     shutil.copytree(source / "src/keepsail", root / "src/keepsail",
@@ -158,6 +161,8 @@ def test_recovery_plan_review_uses_only_the_signed_process_and_digest(tmp_path):
                      "public_key": base64.b64encode(public).decode("ascii"),
                      "purposes": ["policy-transition", "policy-recovery", "plan-decision"],
                  }]}
+    if missing_plan_purpose:
+        authority["keys"][0]["purposes"].remove("plan-decision")
     (harness / "policy-authority.yaml").write_text(yaml.safe_dump(authority), encoding="utf-8")
     policy = {"version": "review-recognition/v1", "enabled": True, "process": {
         "id": "old-review", "version": "v1", "kinds": ["plan", "code"],
@@ -289,6 +294,14 @@ def test_recovery_plan_review_uses_only_the_signed_process_and_digest(tmp_path):
                    data=json.dumps(assessment))
     assert recorded.exit_code == 0, recorded.output
     completed = cli("done", "recovery")
+    if missing_plan_purpose:
+        assert completed.exit_code != 0, completed.output
+        assert "plan-decision purpose" in completed.output
+        # Exercise the independent offline gate with an invalid signed candidate
+        # even though the local completion guard correctly refused to make it.
+        monkeypatch.setattr("keepsail.core.transition_guard.read_policy_snapshot",
+                            lambda *_args, **_kwargs: None)
+        completed = cli("done", "recovery")
     assert completed.exit_code == 0, completed.output
     code = derive_state(events_path(root))["recovery"].current_code_subject
     code_evidence = {**evidence, "evidence_id": "backup-code", "kind": "code",
@@ -305,6 +318,11 @@ def test_recovery_plan_review_uses_only_the_signed_process_and_digest(tmp_path):
     assert record["recognition_basis"]["code"]["mode"] == "recovery"
     git(root, "add", ".harness/attestations/v3/recovery.jsonl")
     git(root, "commit", "-qm", "retain signed transition evidence")
+    if missing_plan_purpose:
+        with pytest.raises(ApprovalError, match="plan-decision purpose"):
+            verify_v3_transition(root, record, base=base, head="HEAD",
+                                 repository_id="owner/project", target_ref="refs/heads/main")
+        return
     verdict = verify_v3_transition(root, record, base=base, head="HEAD",
                                    repository_id="owner/project", target_ref="refs/heads/main")
     assert verdict["target_policy_digest"] == target["policy_digest"]

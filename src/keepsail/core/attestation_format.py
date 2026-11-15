@@ -140,7 +140,7 @@ def make_attestation(change: str, inputs: Any, checkpoint: dict[str, Any],
     # predicates, before a writer can publish the derived artifact.
     expanded = expand_attestation(result, for_v3=for_v3)
     from keepsail.core.reducer import derive_state_from_lines
-    restored = derive_state_from_lines(expanded)[change]
+    restored = derive_state_from_lines(expanded, _effective=True)[change]
     _require(restored.current_state == state.current_state
              and restored.effective_approval == approval
              and restored.current_code_subject == code
@@ -237,7 +237,7 @@ def _expand_attestation(raw: dict[str, Any], *, for_v3: bool = False) -> list[st
             framework="plain", payload=raw["knowledge_checkpoint"],
         )))
     from keepsail.core.reducer import derive_state_from_lines
-    restored = derive_state_from_lines(result).get(raw["change_id"])
+    restored = derive_state_from_lines(result, _effective=True).get(raw["change_id"])
     _require(restored is not None and restored.current_state == raw["expected_state"]
              and restored.effective_approval == approval and restored.current_code_subject == code,
              "compact attestation expected state or current subject mismatch")

@@ -45,6 +45,9 @@ def delivery_details(root: Path, state: Any) -> dict[str, Any] | None:
                 "required_checks_digest": snapshot.checks["digest"],
                 "required_checks": [{"source": item["source"], "id": item["id"]}
                                     for item in snapshot.checks["checks"]],
+                "required_project_checks": sum(
+                    item["source"] == "user" for item in snapshot.checks["checks"]
+                ),
                 "builtin_checks_version": snapshot.policy.builtin_checks_version,
                 "code_review_required": required, "code_review_reason": reason,
                 "current_subject_id": current["subject_id"],

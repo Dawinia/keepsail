@@ -375,6 +375,7 @@ def status_cmd(ctx: click.Context, slug: str | None, all_changes: bool) -> None:
                                        for item in delivery["required_checks"]) or "none"
                     click.echo(f"  required checks: {checks} "
                                f"({delivery['builtin_checks_version']})")
+                    click.echo(f"  required project checks: {delivery['required_project_checks']}")
                     click.echo(f"  recorded subject matches committed diff: "
                                f"{delivery['subject_matches']}")
                 elif delivery is not None:

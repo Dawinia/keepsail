@@ -673,6 +673,13 @@ def find_ordering_violations(
         raise ValueError("unsupported built-in checks version")
     if not events_file.exists():
         return []
+    current_no_review: object = None
+    if builtin_version == "keepsail-baseline/v1":
+        from keepsail.core.reducer import derive_state
+
+        state = derive_state(events_file).get(change_id)
+        if state is not None and state.current_state not in {"ARCHIVED", "ABANDONED"}:
+            current_no_review = state.no_review_decision
     violations: list[OrderingViolation] = []
     current: str | None = None
     seen: set[str] = set()
@@ -691,7 +698,7 @@ def find_ordering_violations(
 
         if ev.type == "code_review_not_required":
             error: str | None = None
-            if builtin_version == "keepsail-baseline/v1":
+            if builtin_version == "keepsail-baseline/v1" and ev.payload == current_no_review:
                 error = "built-in v1 does not permit a no-review completion"
             else:
                 from keepsail.core.no_review import verify_no_review_binding

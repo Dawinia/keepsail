@@ -96,3 +96,18 @@ def decode_completion(data: bytes) -> list[Event]:
     if raw["change_id"] != events[0].change_id:
         raise EventSchemaError("completion transaction Change does not match")
     return events
+
+
+def wrap_derived_completion(lines: list[str]) -> list[str]:
+    """Restore the physical pair when replaying derived v3 lifecycle rows."""
+    result: list[str] = []
+    for line in lines:
+        event = parse_event_line(line)
+        if event.type == "code_review_not_required":
+            if not result:
+                raise EventSchemaError("derived no-review completion has no preceding event")
+            previous = parse_event_line(result.pop())
+            result.append(encode_completion([previous, event]).decode("utf-8").rstrip("\n"))
+        else:
+            result.append(line)
+    return result

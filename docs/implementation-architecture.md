@@ -205,8 +205,9 @@ sedimentation arm's territory.)
 
 ## 9. Attestation
 
-`attest write` snapshots a change's complete, ordered event slice to
-`.harness/attestations/<slug>.jsonl`; the CI `attest-verify` job blocks a merge
+`attest write` snapshots a change's complete, ordered event slice under
+`.harness/attestations/`: legacy evidence uses `<slug>.jsonl`, while active v2
+delivery policy uses `v3/<slug>.jsonl`. The CI `attest-verify` job blocks a merge
 unless every changed file is covered by such an attestation. For a new-contract
 Change, the attestation must also carry an applicable plan approval, complete
 Git code subject, implementation coverage, and verification bound to that same

@@ -383,6 +383,7 @@ def report_cmd(ctx: click.Context, since: str | None, until: str | None, brief: 
                 click.echo(f"    code review required: {policy['code_review_required']} "
                            f"({policy['code_review_reason']}); required checks: {checks} "
                            f"({policy['builtin_checks_version']})")
+                click.echo(f"    required project checks: {policy['required_project_checks']}")
         if r.no_review_decisions:
             click.echo("\nRecorded no-review decisions (historical):")
             for decision in r.no_review_decisions:

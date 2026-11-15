@@ -305,6 +305,7 @@ def attest_verify(ctx: click.Context, base: str, head: str, repository_id: str |
                 click.echo(f"  code review required: {decision['code_review_required']} "
                            f"({decision['reason']}); required checks: {checks} "
                            f"({decision['builtin_checks_version']})")
+                click.echo(f"  required project checks: {decision['required_project_checks']}")
             # Iterates slugs rather than the flattened `independence` list, which now
             # carries two rows per attestation: driving the hold line off that list
             # would print it once per role.

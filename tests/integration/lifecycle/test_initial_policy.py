@@ -4,6 +4,7 @@ import base64
 import json
 import subprocess
 import sys
+from dataclasses import replace
 from unittest.mock import patch
 
 import pytest
@@ -15,7 +16,9 @@ from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 from keepsail.cli import main
 from keepsail.core.approval import ApprovalError, canonical_json
 from keepsail.core.attestation_v3_verify import verify_v2_activation
+from keepsail.core.effective_policy import load_effective_v2
 from keepsail.core.emit_validation import find_ordering_violations
+from keepsail.core.events import Actor, Event, serialize_event
 from keepsail.core.paths import events_path
 from keepsail.core.reducer import derive_state
 
@@ -165,8 +168,24 @@ def test_init_first_trust_and_light_delivery(tmp_path):
     assert delivery["code_review_required"] is False
     assert delivery["subject_matches"] is True
     assert delivery["required_checks"] == [{"source": "user", "id": "fixture"}]
+    assert delivery["required_project_checks"] == 1
     status_text = cli("status", "light")
     assert "required checks: user/fixture" in status_text.output
+    assert "required project checks: 1" in status_text.output
+    snapshot = load_effective_v2(root, trusted)
+    adapter_only = replace(snapshot, checks={**snapshot.checks, "checks": [
+        {"source": "adapter:framework", "id": "adapter-check"}
+    ]})
+    with patch("keepsail.engineering.delivery_policy.load_effective_v2",
+               return_value=adapter_only):
+        zero = cli("--json", "status", "light")
+        zero_policy = json.loads(zero.output)["data"]["changes"][0]["delivery_policy"]
+        assert zero_policy["required_project_checks"] == 0
+        assert zero_policy["required_checks"] == [
+            {"source": "adapter:framework", "id": "adapter-check"}
+        ]
+        assert "required project checks: 0" in cli("status", "light").output
+        assert "required project checks: 0" in cli("report").output
     report = cli("--json", "report")
     assert report.exit_code == 0, report.output
     policies = json.loads(report.output)["data"]["current_delivery_policies"]
@@ -174,9 +193,11 @@ def test_init_first_trust_and_light_delivery(tmp_path):
     assert reported["trusted_base"] == trusted
     assert reported["policy_digest"] == proposal["policy"]["policy_digest"]
     assert reported["required_checks"] == [{"source": "user", "id": "fixture"}]
+    assert reported["required_project_checks"] == 1
     assert reported["code_review_required"] is False
     report_text = cli("report")
     assert "required checks: user/fixture" in report_text.output
+    assert "required project checks: 1" in report_text.output
     assert "code review required: False" in report_text.output
     body = ("<!-- keepsail:metadata -->\nChange: light\nTier: Normal\n"
             "Verification: passed\nkeepsail version: 0.1.0\n<!-- /keepsail:metadata -->\n")
@@ -185,6 +206,14 @@ def test_init_first_trust_and_light_delivery(tmp_path):
     assert validated.exit_code == 0, validated.output
     old_violations = find_ordering_violations(events_path(root), "light")
     assert any("built-in v1 does not permit" in item.reason for item in old_violations)
+    historical = harness / "historical-events-test.jsonl"
+    reopened = Event(event_id="fixture-reopen", type="implementation_invalidated",
+                     change_id="light", timestamp="2026-11-15T00:00:00Z",
+                     actor=Actor(type="human", identifier="fixture"), framework="plain",
+                     payload={"reason": "new implementation epoch"})
+    historical.write_bytes(events_path(root).read_bytes()
+                           + (serialize_event(reopened) + "\n").encode())
+    assert not find_ordering_violations(historical, "light", repository_root=root)
     with (patch("keepsail.cli.pr.gh.view_pr", return_value={"body": body}),
           patch("keepsail.cli.pr.load_effective_v2", side_effect=ApprovalError("unavailable"))):
         unavailable = cli("--json", "pr", "validate", "7")
@@ -203,11 +232,13 @@ def test_init_first_trust_and_light_delivery(tmp_path):
     decision = json.loads(verified.output)["data"]["delivery_decisions"]["light"]
     assert not decision["code_review_required"]
     assert decision["required_checks"] == [{"source": "user", "id": "fixture"}]
+    assert decision["required_project_checks"] == 1
     assert decision["builtin_checks_version"] == "keepsail-baseline/v2"
     verified_text = cli("attest", "verify", "--base", trusted, "--head", "HEAD",
                         "--repository-id", "owner/project", "--target-ref", "refs/heads/main")
     assert verified_text.exit_code == 0, verified_text.output
     assert "required checks: user/fixture" in verified_text.output
+    assert "required project checks: 1" in verified_text.output
     assert "code review required: False" in verified_text.output
     blob = subprocess.check_output(["git", "hash-object", "-w", "--stdin"], cwd=root,
                                    input=b"unsupported path\n").decode().strip()
