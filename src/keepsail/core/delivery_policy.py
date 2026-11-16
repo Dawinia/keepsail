@@ -110,7 +110,7 @@ def parse_delivery_policy(value: object) -> DeliveryPolicy:
         if set(code) != {"mode"}:
             raise ApprovalError("full/off code review cannot contain scope or unknown fields")
         scope = ()
-    if mode in {"off", "scope"} and baseline != "keepsail-baseline/v2":
+    if mode == "off" and baseline != "keepsail-baseline/v2":
         raise ApprovalError("policies permitting no code review require built-in contract v2")
     processes = value["processes_by_kind"]
     if (not isinstance(processes, dict) or not {"plan"} <= set(processes)

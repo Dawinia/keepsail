@@ -80,13 +80,20 @@ def test_off_and_full_have_explicit_opposite_results():
     assert parse_delivery_policy(policy("full")).review_requirement([{"path": "x"}])[0]
 
 
-@pytest.mark.parametrize("mode", ["off", "scope"])
-def test_no_review_modes_require_a_baseline_that_supports_completion(mode):
-    value = policy(mode)
+def test_off_requires_a_baseline_that_supports_no_review_completion():
+    value = policy("off")
     value["builtin_checks_version"] = "keepsail-baseline/v1"
     with pytest.raises(ApprovalError, match="require built-in contract v2"):
         parse_delivery_policy(redigest(value))
-    assert parse_delivery_policy(policy(mode)).builtin_checks_version == "keepsail-baseline/v2"
+    assert parse_delivery_policy(policy("off")).builtin_checks_version == "keepsail-baseline/v2"
+
+
+def test_existing_scoped_v1_policy_remains_readable():
+    value = policy("scope")
+    value["builtin_checks_version"] = "keepsail-baseline/v1"
+    parsed = parse_delivery_policy(redigest(value))
+    assert parsed.review_requirement([{"path": "src/secure/a.py"}])[0]
+    assert not parsed.review_requirement([{"path": "docs/a.md"}])[0]
 
 
 def test_full_review_can_preserve_the_v1_baseline():
