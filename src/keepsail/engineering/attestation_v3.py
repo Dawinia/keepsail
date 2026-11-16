@@ -39,6 +39,8 @@ def build_v3_attestation(root: Path, events_file: Path, change: str) -> dict[str
         raise ApprovalError("v3 attestation requires current plan and code subjects")
     base = resolve_contract_base(root)
     basis = validate_delivery_obligations(root, events_file, state, code)
+    if "builtin_version" not in basis and basis["mode"] not in {"transition", "recovery"}:
+        raise ApprovalError("v3 under a v1 policy requires an authorized policy transition")
     policy_digest = basis["policy_digest"]
     config = parse_verification_config(regular_blob_text(root, base, ".harness/verification.yaml"))
     verify_check_evidence(state.current_verification, subject_id=code["subject_id"],
@@ -88,5 +90,11 @@ def build_v3_attestation(root: Path, events_file: Path, change: str) -> dict[str
     bases = {"plan": {k: v for k, v in plan_basis.items() if k != "trusted_base"},
              "code": ({k: v for k, v in code_basis.items() if k != "trusted_base"}
                       if code_basis is not None else None)}
+    if basis["mode"] == "recovery":
+        from keepsail.core.policy_authority import require_recovery_basis
+
+        for kind in (("plan", "code") if code_basis is not None else ("plan",)):
+            require_recovery_basis(bases[kind], kind=kind,
+                                   authorization_digest=basis["authorization_digest"])
     return make_v3(change_id=change, trusted_base=base, policy_digest=policy_digest,
                    recognition_basis=bases, authorization=authorization, snapshot=snapshot)

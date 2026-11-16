@@ -17,7 +17,10 @@ from keepsail.cli import main
 from keepsail.core.approval import ApprovalError, canonical_json
 from keepsail.core.attestation_v3_verify import verify_v2_activation
 from keepsail.core.effective_policy import load_effective_v2
-from keepsail.core.emit_validation import find_ordering_violations
+from keepsail.core.emit_validation import (
+    find_mixed_policy_ordering_violations,
+    find_ordering_violations,
+)
 from keepsail.core.events import Actor, Event, serialize_event
 from keepsail.core.paths import events_path
 from keepsail.core.reducer import derive_state
@@ -213,7 +216,9 @@ def test_init_first_trust_and_light_delivery(tmp_path):
                      payload={"reason": "new implementation epoch"})
     historical.write_bytes(events_path(root).read_bytes()
                            + (serialize_event(reopened) + "\n").encode())
-    assert not find_ordering_violations(historical, "light", repository_root=root)
+    assert any("built-in v1 does not permit" in item.reason for item in
+               find_ordering_violations(historical, "light", repository_root=root))
+    assert not find_mixed_policy_ordering_violations(historical, "light", repository_root=root)
     with (patch("keepsail.cli.pr.gh.view_pr", return_value={"body": body}),
           patch("keepsail.cli.pr.load_effective_v2", side_effect=ApprovalError("unavailable"))):
         unavailable = cli("--json", "pr", "validate", "7")

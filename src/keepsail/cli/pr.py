@@ -43,7 +43,7 @@ from keepsail.cli.output import json_envelope
 from keepsail.core.approval import ApprovalError, load_recognition, resolve_contract_base
 from keepsail.core.clock import utc_now_iso
 from keepsail.core.effective_policy import load_effective_v2
-from keepsail.core.emit_validation import find_ordering_violations
+from keepsail.core.emit_validation import find_mixed_policy_ordering_violations
 from keepsail.core.events import Actor, Event
 from keepsail.core.git_objects import regular_blob_text
 from keepsail.core.paths import (
@@ -156,8 +156,8 @@ def pr_validate(ctx: click.Context, pr_number: int) -> None:
                     load_recognition(root, ref=base)
             # The v2 ordering check replays each no-review decision against its
             # historical trusted policy and frozen subject.
-            valid_sequence = not find_ordering_violations(
-                events_path(root), change_id, builtin_version=builtin_version, repository_root=root
+            valid_sequence = not find_mixed_policy_ordering_violations(
+                events_path(root), change_id, builtin_version=builtin_version, repository_root=root,
             )
         except (ApprovalError, GitScopeError, OSError, ValueError) as exc:
             blockers.append(f"trusted delivery policy unavailable for {change_id}: {exc}")

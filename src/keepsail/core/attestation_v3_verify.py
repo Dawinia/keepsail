@@ -35,6 +35,7 @@ from keepsail.core.git_objects import regular_blob_bytes, regular_blob_text
 from keepsail.core.policy_authority import (
     parse_authority_yaml,
     parse_unique_yaml,
+    require_recovery_basis,
     verify_policy_authorization,
     verify_recovery_evidence,
     verify_v2_review_evidence,
@@ -138,6 +139,12 @@ def verify_v3_transition(
         new_policy=candidate, new_checks=new_checks,
     )
     require_signed_obligation_changes(changes, authorization)
+    if authorization["kind"] == "recovery":
+        from keepsail.core.approval import digest_record
+
+        for kind in ("plan", "code"):
+            require_recovery_basis(record["recognition_basis"][kind], kind=kind,
+                                   authorization_digest=digest_record(authorization))
 
     def verify_review(evidence: dict[str, Any], kind: str) -> None:
         basis = record["recognition_basis"][kind]
@@ -420,6 +427,12 @@ def verify_v3_delivery(
         elif authorization.get("obligation_changes", []):
             raise ApprovalError("key rotation cannot change delivery obligations")
     required, reason = snapshot.policy.review_requirement(code["manifest"])
+    if isinstance(authorization, dict) and authorization.get("kind") == "recovery":
+        from keepsail.core.approval import digest_record
+
+        for kind in (("plan", "code") if required else ("plan",)):
+            require_recovery_basis(record["recognition_basis"][kind], kind=kind,
+                                   authorization_digest=digest_record(authorization))
     if (record["recognition_basis"]["code"] is None) != (not required):
         raise ApprovalError("v3 code recognition basis disagrees with the active policy")
     path = f".harness/attestations/v3/{change}.jsonl"

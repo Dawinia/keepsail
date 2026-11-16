@@ -19,6 +19,7 @@ from keepsail.core.git_objects import optional_regular_blob_text, regular_blob_t
 from keepsail.core.policy_authority import (
     parse_authority_yaml,
     parse_unique_yaml,
+    require_recovery_basis,
     validate_authorization_import,
 )
 from keepsail.core.policy_obligations import (
@@ -167,6 +168,13 @@ def validate_delivery_obligations(
                     require_signed_obligation_changes(changes, record)
                 elif record.get("obligation_changes", []):
                     raise ApprovalError("key rotation cannot alter delivery obligations")
+                if record["kind"] == "recovery":
+                    from keepsail.core.review_basis import validate_effective_plan_basis
+
+                    require_recovery_basis(
+                        validate_effective_plan_basis(root, events_file, state), kind="plan",
+                        authorization_digest=event.payload["authorization_digest"],
+                    )
             except (ApprovalError, ValueError, KeyError, TypeError):
                 continue
             return {**result, "mode": record["kind"],
@@ -252,6 +260,13 @@ def validate_delivery_obligations(
                 require_signed_obligation_changes(changes, record)
             elif record.get("obligation_changes", []):
                 raise ApprovalError("key rotation cannot alter delivery obligations")
+            if record["kind"] == "recovery":
+                from keepsail.core.review_basis import validate_effective_plan_basis
+
+                require_recovery_basis(
+                    validate_effective_plan_basis(root, events_file, state), kind="plan",
+                    authorization_digest=event.payload["authorization_digest"],
+                )
         except (ApprovalError, ValueError, KeyError, TypeError):
             continue
         return {"trusted_base": base, "policy_digest": old_recognition.policy_digest,

@@ -20,7 +20,7 @@ def verify_check_evidence(
         raise ApprovalError("verification does not prove the frozen code subject passed")
     layers, expected = check_definitions(required_contract)
     builtin = builtin_check_contract(builtin_version)
-    project_count = len(expected)
+    project_count = sum(source == "user" for source, _ in expected)
     if layers["baseline"]:
         expected.update({(row["source"], row["id"]): row["definition_digest"]
                          for row in builtin["checks"] if row["must_pass"]})

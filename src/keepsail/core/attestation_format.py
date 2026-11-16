@@ -13,9 +13,12 @@ from typing import Any
 from keepsail.core.approval import (
     ApprovalError,
     digest_record,
+    evidence_digest,
     has_unresolved_candidate,
     validate_approval,
     validate_code_subject,
+    validate_evidence,
+    validate_evidence_reuse,
     validate_retained_lineage,
 )
 from keepsail.core.events import Event, parse_event_line, serialize_event
@@ -27,6 +30,23 @@ REPRESENTATION = "derived-not-original-event-bytes"
 def _require(value: object, message: str) -> None:
     if not value:
         raise ApprovalError(message)
+
+
+def _validate_evidence_chain(rows: list[Any], change: str) -> None:
+    prior: list[dict[str, Any]] = []
+    for row in rows:
+        if not isinstance(row, dict) or row.get("type") != "review_evidence_imported":
+            continue
+        payload = row.get("payload")
+        _require(isinstance(payload, dict), "invalid retained review evidence")
+        assert isinstance(payload, dict)
+        evidence = validate_evidence(payload.get("evidence"), change_id=change)
+        _require(payload.get("subject_id") == evidence["subject_id"]
+                 and payload.get("evidence_digest") == evidence_digest(evidence),
+                 "retained review evidence binding does not match")
+        outcome = validate_evidence_reuse(evidence, prior, subject_id=evidence["subject_id"])
+        if outcome == "new":
+            prior.append(evidence)
 
 
 def make_attestation(change: str, inputs: Any, checkpoint: dict[str, Any],
@@ -55,6 +75,22 @@ def make_attestation(change: str, inputs: Any, checkpoint: dict[str, Any],
             "source_event_digest": digest_record(json.loads(serialize_event(source))),
         })
 
+    def add_evidence_history(target: dict[str, Any], source: Event) -> None:
+        candidates = [source]
+        if for_v3:
+            candidates = [event for event in originals[:originals.index(source) + 1]
+                          if event.type == "review_evidence_imported"
+                          and isinstance(event.payload.get("evidence"), dict)
+                          and event.payload["evidence"].get("subject_id") == target["subject_id"]]
+        for event in candidates:
+            retained = event.payload["evidence"]
+            if for_v3:
+                _require(event.payload.get("evidence_digest") == evidence_digest(retained),
+                         "retained review evidence digest does not match")
+            add("review_evidence_imported", {"evidence": retained,
+                                            "evidence_digest": evidence_digest(retained),
+                                            "subject_id": retained["subject_id"]}, event)
+
     approved = last("plan_approved", lambda e: e.payload.get("approval", {}).get("approval_id")
                     == approval["approval_id"])
     add("intent_declared", {"description": state.description}, last("intent_declared"))
@@ -64,9 +100,7 @@ def make_attestation(change: str, inputs: Any, checkpoint: dict[str, Any],
     plan_evidence = evidence[approval["evidence_id"]]
     source = last("review_evidence_imported", lambda e: e.payload.get("evidence", {}).get(
         "evidence_id") == plan_evidence["evidence_id"])
-    add("review_evidence_imported", {"evidence": plan_evidence,
-                                    "evidence_digest": digest_record(plan_evidence),
-                                    "subject_id": approval["subject_id"]}, source)
+    add_evidence_history(plan_evidence, source)
     add("plan_approved", {"approval_ref": "current",
                           "review_reference_version": "review-reference/v2",
                           "evidence_id": approval["evidence_id"],
@@ -109,11 +143,9 @@ def make_attestation(change: str, inputs: Any, checkpoint: dict[str, Any],
             add(review.type, review.payload, review)
         elif review is not None:
             conclusion = evidence[review.payload["evidence_id"]]
-            add("review_evidence_imported", {"evidence": conclusion,
-                                            "evidence_digest": digest_record(conclusion),
-                                            "subject_id": code["subject_id"]}, last(
-                "review_evidence_imported", lambda e: e.payload.get("evidence", {}).get(
-                    "evidence_id") == conclusion["evidence_id"]))
+            source = last("review_evidence_imported", lambda e: e.payload.get("evidence", {}).get(
+                "evidence_id") == conclusion["evidence_id"])
+            add_evidence_history(conclusion, source)
             add(review.type, {"code_subject_ref": "current",
                               "review_reference_version": "review-reference/v2",
                               "evidence_id": conclusion["evidence_id"],
@@ -195,6 +227,8 @@ def _expand_attestation(raw: dict[str, Any], *, for_v3: bool = False) -> list[st
     validate_retained_lineage(approval, raw["authorization_lineage"])
     code = validate_code_subject(raw["code_subject"], change_id=raw["change_id"]) if (
         raw["code_subject"] is not None) else None
+    if for_v3:
+        _validate_evidence_chain(raw["lifecycle"], raw["change_id"])
     result = []
     for index, row in enumerate(raw["lifecycle"]):
         _require(isinstance(row, dict) and set(row) == {

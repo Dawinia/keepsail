@@ -639,6 +639,26 @@ def find_ordering_violations(
     events_file: Path, change_id: str, *, builtin_version: str = "keepsail-baseline/v1",
     repository_root: Path | None = None,
 ) -> list[OrderingViolation]:
+    """Apply one fixed built-in contract to the complete supplied stream."""
+    return _find_ordering_violations(
+        events_file, change_id, builtin_version=builtin_version,
+        repository_root=repository_root, historical_policy_replay=False,
+    )
+
+
+def find_mixed_policy_ordering_violations(
+    events_file: Path, change_id: str, *, builtin_version: str = "keepsail-baseline/v1",
+    repository_root: Path | None = None,
+) -> list[OrderingViolation]:
+    """Replay older no-review epochs under their own trusted v2 policy."""
+    return _find_ordering_violations(events_file, change_id, builtin_version=builtin_version,
+                                     repository_root=repository_root, historical_policy_replay=True)
+
+
+def _find_ordering_violations(
+    events_file: Path, change_id: str, *, builtin_version: str = "keepsail-baseline/v1",
+    repository_root: Path | None = None, historical_policy_replay: bool,
+) -> list[OrderingViolation]:
     """Forward-walk a change's events; report transitions the table rejects.
 
     The whole-stream sibling of `validate_preconditions` (which only vets a
@@ -668,13 +688,17 @@ def find_ordering_violations(
     Returns:
         Violations in append order. Empty list for a clean stream (or a
         nonexistent file / a change with no events).
+
+    The default applies the chosen built-in contract to the whole input. Local
+    whole-history callers may instead replay superseded no-review decisions
+    against their own trusted v2 basis while keeping the current v1 epoch strict.
     """
     if builtin_version not in {"keepsail-baseline/v1", "keepsail-baseline/v2"}:
         raise ValueError("unsupported built-in checks version")
     if not events_file.exists():
         return []
     current_no_review: object = None
-    if builtin_version == "keepsail-baseline/v1":
+    if builtin_version == "keepsail-baseline/v1" and historical_policy_replay:
         from keepsail.core.reducer import derive_state
 
         state = derive_state(events_file).get(change_id)
@@ -698,7 +722,8 @@ def find_ordering_violations(
 
         if ev.type == "code_review_not_required":
             error: str | None = None
-            if builtin_version == "keepsail-baseline/v1" and ev.payload == current_no_review:
+            if (builtin_version == "keepsail-baseline/v1"
+                    and (not historical_policy_replay or ev.payload == current_no_review)):
                 error = "built-in v1 does not permit a no-review completion"
             else:
                 from keepsail.core.no_review import verify_no_review_binding

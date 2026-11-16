@@ -220,11 +220,23 @@ def _validate_processes(value: object) -> None:
                        label="recovery process")
         if not isinstance(item["kind"], str) or item["kind"] not in {"plan", "code"}:
             raise ApprovalError("unknown recovery review kind")
+        if (not isinstance(item["evidence_form"], str)
+                or item["evidence_form"] not in {"json", "signed-plan-decision"}):
+            raise ApprovalError("unsupported recovery evidence form")
+        if item["kind"] != "plan" and item["evidence_form"] == "signed-plan-decision":
+            raise ApprovalError("signed plan decisions cannot authorize code review")
         identity = tuple(_text(item[k], k) for k in ("kind", "id", "version", "issuer",
                                                        "evidence_form"))
         if identity in seen:
             raise ApprovalError("duplicate recovery review process")
         seen.add(identity)
+
+
+def require_recovery_basis(basis: object, *, kind: str, authorization_digest: str) -> None:
+    """A recovery delivery may use only the review basis named by its authorization."""
+    if (not isinstance(basis, dict) or basis.get("mode") != "recovery"
+            or basis.get("authorization_digest") != authorization_digest):
+        raise ApprovalError(f"{kind} review is not bound to the selected recovery authorization")
 
 
 def _validate_continuations(value: object) -> None:

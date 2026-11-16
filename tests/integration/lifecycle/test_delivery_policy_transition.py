@@ -25,8 +25,10 @@ from keepsail.core.approval import (
     digest_record,
     recognition_policy_digest,
 )
+from keepsail.core.attestation_format import expand_attestation
 from keepsail.core.attestation_v3 import parse_v3_line
 from keepsail.core.delivery_policy import parse_delivery_policy
+from keepsail.core.effective_policy import continued_plan_basis, load_effective_v2
 from keepsail.core.paths import events_path
 from keepsail.core.policy_authority import parse_authority
 from keepsail.core.policy_obligations import changed_obligations
@@ -306,6 +308,12 @@ def test_recovery_plan_review_uses_only_the_signed_process_and_digest(
     code = derive_state(events_path(root))["recovery"].current_code_subject
     code_evidence = {**evidence, "evidence_id": "backup-code", "kind": "code",
                      "subject_id": code["subject_id"]}
+    old_code = {**code_evidence, "evidence_id": "old-code", "issuer": "old-reviewer",
+                "process": {"id": "old-review", "version": "v1"},
+                "provenance": {"policy_digest": policy["process"]["policy_digest"]}}
+    refused = cli("review", "import", "recovery", "--evidence", "-", data=json.dumps(old_code))
+    assert refused.exit_code == 2, refused.output
+    assert "selected recovery authorization" in refused.output
     reviewed = cli("review", "import", "recovery", "--evidence", "-",
                    data=json.dumps(code_evidence))
     assert reviewed.exit_code == 0, reviewed.output
@@ -329,6 +337,21 @@ def test_recovery_plan_review_uses_only_the_signed_process_and_digest(
     assert verdict["builtin_checks_version"] == "keepsail-baseline/v1"
     assert verdict["required_checks"] == [{"source": "user", "id": "fixture"}]
     assert verdict["code_review_required"] is True
+    valid_head = git(root, "rev-parse", "HEAD")
+    for kind in ("plan", "code"):
+        altered = deepcopy(record)
+        altered["recognition_basis"][kind] = {
+            "mode": "current", "policy_digest": policy["process"]["policy_digest"]}
+        altered["digest"] = digest_record({k: v for k, v in altered.items() if k != "digest"})
+        git(root, "switch", "-qc", f"recovery-current-{kind}", valid_head)
+        attestation_path = harness / "attestations/v3/recovery.jsonl"
+        attestation_path.write_text(canonical_json(altered) + "\n", encoding="utf-8")
+        git(root, "add", str(attestation_path.relative_to(root)))
+        git(root, "commit", "-qm", "attempt a recovery with current-policy evidence")
+        with pytest.raises(ApprovalError, match="selected recovery authorization"):
+            verify_v3_transition(root, altered, base=base, head="HEAD",
+                                 repository_id="owner/project", target_ref="refs/heads/main")
+        git(root, "switch", "-q", "candidate")
     verified = cli("--json", "attest", "verify", "--base", base, "--head", "HEAD",
                    "--repository-id", "owner/project", "--target-ref", "refs/heads/main")
     assert verified.exit_code == 0, verified.output
@@ -344,6 +367,23 @@ def test_recovery_plan_review_uses_only_the_signed_process_and_digest(
     installed = verify_with_installed_base(root, base, active_base, label="activation-reader")
     assert installed.returncode == 0, installed.stdout + installed.stderr
     git(root, "update-ref", "refs/heads/main", active_base)
+    carry_state = derive_state(events_path(root))["carry"]
+    carry_evidence = next(item for item in carry_state.evidence_references
+                          if item["evidence_id"] == carry_approval["evidence_id"])
+    active_snapshot = load_effective_v2(root, active_base)
+    assert continued_plan_basis(root, active_snapshot, carry_state, carry_evidence)[
+        "mode"] == "continued_plan"
+    for field, value in (("evidence_id", "other"), ("subject_id", "plan:other"),
+                         ("decision", "reject"), ("original_evidence", {"decision": "changed"}),
+                         ("provenance", {"policy_digest": "0" * 64})):
+        changed = deepcopy(carry_evidence)
+        changed[field] = value
+        with pytest.raises(ApprovalError):
+            continued_plan_basis(root, active_snapshot, carry_state, changed)
+    changed_state = deepcopy(carry_state)
+    changed_state.effective_approval["approval_id"] = "approval:other"
+    with pytest.raises(ApprovalError):
+        continued_plan_basis(root, active_snapshot, changed_state, carry_evidence)
     continued = cli("implementation", "start", "carry")
     assert continued.exit_code == 0, continued.output
     unlisted = cli("implementation", "start", "another")
@@ -380,8 +420,13 @@ def test_recovery_plan_review_uses_only_the_signed_process_and_digest(
     signed = {"version": "signed-plan-decision/v1", "repository_id": "owner/project",
               "target_ref": "refs/heads/main", "policy_digest": target["policy_digest"],
               "change_id": "after-activation", "subject_id": current_subject,
-              "decision": "approve", "evidence_id": "maintainer-plan", "supersedes": None,
+              "decision": "approve", "evidence_id": "maintainer-plan",
+              "supersedes": "maintainer-rejected",
               "key_id": authority["keys"][0]["key_id"]}
+    rejected_body = {**signed, "decision": "reject", "evidence_id": "maintainer-rejected",
+                     "supersedes": None}
+    rejected_body["signature"] = base64.b64encode(
+        key.sign(canonical_json(rejected_body).encode())).decode()
     signed["signature"] = base64.b64encode(key.sign(canonical_json(signed).encode())).decode()
     signed_evidence = {"version": "review-evidence/v1", "evidence_id": "maintainer-plan",
                        "kind": "plan", "subject_id": current_subject, "decision": "approve",
@@ -389,11 +434,23 @@ def test_recovery_plan_review_uses_only_the_signed_process_and_digest(
                                    "version": "maintainer-plan-review/v1"},
                        "issuer": "maintainer", "form": "signed-plan-decision",
                        "original_evidence": signed,
+                       "supersedes": "maintainer-rejected",
                        "provenance": {"policy_digest": target["policy_digest"]}}
     altered_evidence = deepcopy(signed_evidence)
     altered_evidence["original_evidence"]["subject_id"] = "plan:" + "0" * 64
     assert cli("review", "import", "after-activation", "--evidence", "-",
                data=json.dumps(altered_evidence)).exit_code == 2
+    rejected_evidence = {**signed_evidence, "evidence_id": "maintainer-rejected",
+                         "decision": "reject", "original_evidence": rejected_body,
+                         "supersedes": None}
+    rejected = cli("review", "import", "after-activation", "--evidence", "-",
+                   data=json.dumps(rejected_evidence))
+    assert rejected.exit_code == 0, rejected.output
+    ready = cli("plan", "ready", "after-activation", "--plan", "plan.md",
+                "--scope", "[plan.md]", "--commitment", "goal=Deliver under the activated policy")
+    assert ready.exit_code == 0, ready.output
+    assert derive_state(events_path(root))["after-activation"].pending_revision[
+        "subject"]["subject_id"] == current_subject
     imported = cli("review", "import", "after-activation", "--evidence", "-",
                    data=json.dumps(signed_evidence))
     assert imported.exit_code == 0, imported.output
@@ -427,6 +484,23 @@ def test_recovery_plan_review_uses_only_the_signed_process_and_digest(
                for item in json.loads(report.output)["data"]["no_review_decisions"])
     ordinary_attested = cli("attest", "write", "after-activation", "--format", "v3")
     assert ordinary_attested.exit_code == 0, ordinary_attested.output
+    ordinary_record = parse_v3_line(
+        (harness / "attestations/v3/after-activation.jsonl").read_bytes())
+    plan_rows = [row for row in ordinary_record["snapshot"]["lifecycle"]
+                 if row["type"] == "review_evidence_imported"
+                 and row["payload"]["evidence"]["kind"] == "plan"]
+    assert [row["payload"]["evidence"]["evidence_id"] for row in plan_rows] == [
+        "maintainer-rejected", "maintainer-plan"]
+    broken_snapshot = deepcopy(ordinary_record["snapshot"])
+    broken_row = next(row for row in broken_snapshot["lifecycle"]
+                      if row["type"] == "review_evidence_imported"
+                      and row["payload"]["evidence"]["evidence_id"] == "maintainer-plan")
+    broken_row["payload"]["evidence"]["supersedes"] = "missing"
+    broken_row["payload"]["evidence_digest"] = digest_record(broken_row["payload"]["evidence"])
+    broken_snapshot["digest"] = digest_record({k: v for k, v in broken_snapshot.items()
+                                               if k != "digest"})
+    with pytest.raises(ApprovalError, match="supersede"):
+        expand_attestation(broken_snapshot, for_v3=True)
     git(root, "add", ".harness/attestations/v3/after-activation.jsonl")
     git(root, "commit", "-qm", "retain ordinary v3 delivery evidence")
     ordinary_verified = cli("--json", "attest", "verify", "--base", active_base, "--head", "HEAD",

@@ -49,7 +49,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal
 from keepsail.core.approval import ApprovalError, make_code_subject, resolve_contract_base
 from keepsail.core.baseline_contract import builtin_check_contract
 from keepsail.core.clock import utc_now_iso
-from keepsail.core.emit_validation import find_ordering_violations
+from keepsail.core.emit_validation import find_mixed_policy_ordering_violations
 from keepsail.core.events import Actor, Event
 from keepsail.core.git_objects import regular_blob_text
 from keepsail.core.paths import (
@@ -374,9 +374,10 @@ def _baseline_lifecycle_ordering(
     Always must_pass.
     """
     t0 = time.perf_counter()
-    violations = find_ordering_violations(events_path(context.workspace_root), change_id,
-                                          builtin_version=builtin_version,
-                                          repository_root=context.workspace_root)
+    violations = find_mixed_policy_ordering_violations(
+        events_path(context.workspace_root), change_id, builtin_version=builtin_version,
+        repository_root=context.workspace_root,
+    )
     report = None
     if violations:
         report = (

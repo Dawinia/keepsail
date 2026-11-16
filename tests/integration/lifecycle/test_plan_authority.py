@@ -257,6 +257,9 @@ def test_added_fixture_completes_real_verification_under_same_approval(
     assert "verification_failed" in types and "verification_passed" in types
 
     # Final CI coverage must use the assessed fixture, not the initial plan path.
+    invalid_v3 = cli("attest", "write", "c", "--format", "v3")
+    assert invalid_v3.exit_code != 0, invalid_v3.output
+    assert "v3 under a v1 policy requires" in invalid_v3.output
     assert cli("attest", "write", "c").exit_code == 0
     attestation = root / ".harness/attestations/c.jsonl"
     original_attestation = attestation.read_text(encoding="utf-8")

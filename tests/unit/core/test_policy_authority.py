@@ -168,6 +168,10 @@ def test_recovery_requires_its_own_purpose_explicit_reason_and_processes():
     with pytest.raises(ApprovalError, match="review processes"):
         verify(sign(invalid, key), trusted)
     invalid = deepcopy(record)
+    invalid["review_processes"][0].update(kind="code", evidence_form="signed-plan-decision")
+    with pytest.raises(ApprovalError, match="cannot authorize code review"):
+        verify(sign(invalid, key), trusted)
+    invalid = deepcopy(record)
     invalid["reason"] = ""
     with pytest.raises(ApprovalError, match="reason"):
         verify(sign(invalid, key), trusted)

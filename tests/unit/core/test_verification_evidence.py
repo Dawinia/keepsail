@@ -47,7 +47,7 @@ def test_results_bind_subject_source_id_and_inherited_definition():
     summary = verify_check_evidence(verification, subject_id="code:one",
                                     required_contract=required_check_contract(cfg),
                                     builtin_version="keepsail-baseline/v1", trusted_base="a" * 40)
-    assert summary == {"required_project_checks": 2, "required_total_checks": 3}
+    assert summary == {"required_project_checks": 1, "required_total_checks": 3}
 
 
 @pytest.mark.parametrize("mutation", [

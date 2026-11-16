@@ -3,8 +3,10 @@ from copy import deepcopy
 
 import pytest
 
-from keepsail.core.approval import ApprovalError, canonical_json, digest_record
+from keepsail.core.approval import ApprovalError, canonical_json, digest_record, evidence_digest
+from keepsail.core.attestation_format import _validate_evidence_chain
 from keepsail.core.attestation_v3 import make_v3, parse_v3_line, validate_v3
+from keepsail.core.policy_authority import require_recovery_basis
 
 
 def v3():
@@ -58,3 +60,30 @@ def test_recovery_basis_requires_the_exact_signed_authorization():
         validate_v3(record)
     with pytest.raises(ApprovalError, match="not canonical"):
         parse_v3_line((json.dumps(v3()) + "\n").encode())
+
+
+def test_recovery_cannot_use_current_or_another_authorization():
+    require_recovery_basis({"mode": "recovery", "authorization_digest": "signed"},
+                           kind="plan", authorization_digest="signed")
+    for basis in ({"mode": "current"}, {"mode": "recovery", "authorization_digest": "other"}):
+        with pytest.raises(ApprovalError, match="selected recovery authorization"):
+            require_recovery_basis(basis, kind="plan", authorization_digest="signed")
+
+
+def test_v3_replays_retained_evidence_supersession_and_id_consistency():
+    first = {"version": "review-evidence/v1", "evidence_id": "first", "kind": "plan",
+             "subject_id": "plan:one", "decision": "reject", "issuer": "owner",
+             "process": {"id": "review", "version": "v1"}, "form": "json",
+             "original_evidence": {"decision": "reject"}, "provenance": {}}
+    second = {**first, "evidence_id": "second", "decision": "approve", "supersedes": "first"}
+
+    def row(evidence):
+        return {"type": "review_evidence_imported", "payload": {
+            "evidence": evidence, "evidence_digest": evidence_digest(evidence),
+            "subject_id": evidence["subject_id"]}}
+
+    _validate_evidence_chain([row(first), row(second)], "delivery")
+    with pytest.raises(ApprovalError, match="supersedes"):
+        _validate_evidence_chain([row(second)], "delivery")
+    with pytest.raises(ApprovalError, match="reused"):
+        _validate_evidence_chain([row(first), row({**first, "decision": "approve"})], "delivery")

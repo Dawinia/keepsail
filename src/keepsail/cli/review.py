@@ -352,6 +352,19 @@ def import_evidence(ctx: click.Context, change: str, evidence_path: str) -> None
                                            expected_base=base)
         subject_id, subject = _subject_for_change(root, change, str(evidence["kind"]))
         historical_only = evidence.get("subject_id") != subject_id
+        if evidence["kind"] == "code" and not historical_only and any(
+            event.type == "policy_authorization_imported"
+            and isinstance(event.payload.get("authorization"), dict)
+            and event.payload["authorization"].get("kind") == "recovery"
+            for event in read_change_events(events_path(root), change)
+        ):
+            from keepsail.core.policy_authority import require_recovery_basis
+            from keepsail.core.transition_guard import validate_delivery_obligations
+
+            delivery = validate_delivery_obligations(root, events_path(root), state, subject)
+            if delivery["mode"] == "recovery":
+                require_recovery_basis(basis, kind="code",
+                                       authorization_digest=delivery["authorization_digest"])
         prior = _prior_evidence(root, change)
         same_id = [item for item in prior if item.get("evidence_id") == evidence["evidence_id"]]
         if same_id:
