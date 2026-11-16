@@ -39,7 +39,9 @@ def build_v3_attestation(root: Path, events_file: Path, change: str) -> dict[str
         raise ApprovalError("v3 attestation requires current plan and code subjects")
     base = resolve_contract_base(root)
     basis = validate_delivery_obligations(root, events_file, state, code)
-    if "builtin_version" not in basis and basis["mode"] not in {"transition", "recovery"}:
+    if "builtin_version" not in basis and basis["mode"] not in {
+        "transition", "recovery", "rotate_key"
+    }:
         raise ApprovalError("v3 under a v1 policy requires an authorized policy transition")
     policy_digest = basis["policy_digest"]
     config = parse_verification_config(regular_blob_text(root, base, ".harness/verification.yaml"))

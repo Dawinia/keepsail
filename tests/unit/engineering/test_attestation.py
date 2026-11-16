@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -99,6 +100,36 @@ def test_write_attestation_roundtrips(tmp_path):
     out = write_attestation(ef, tmp_path / "att", "a")
     assert out.name == "a.jsonl"
     assert out.read_text().strip() == _ev_line("a", "intent_declared")
+
+
+@pytest.mark.parametrize("mode", ["transition", "recovery", "rotate_key", "unauthorized"])
+def test_v1_authorized_delivery_selects_v3_by_default(tmp_path, monkeypatch, mode):
+    from keepsail.core import approval, git_objects, knowledge, transition_guard
+    from keepsail.engineering import attestation_v3
+
+    events = tmp_path / ".harness/events.jsonl"
+    state = SimpleNamespace(effective_approval={}, current_code_subject={"subject_id": "code:test"})
+    monkeypatch.setattr(approval, "resolve_contract_base", lambda root: "a" * 40)
+    monkeypatch.setattr(git_objects, "optional_regular_blob_text", lambda *args:
+                        "version: review-recognition/v1\nenabled: true\n")
+    monkeypatch.setattr(knowledge, "read_inputs", lambda *args, **kwargs:
+                        SimpleNamespace(states={"delivery": state}))
+    monkeypatch.setattr(knowledge, "load_policy", lambda root: None)
+    def validate(*args):
+        if mode == "unauthorized":
+            raise approval.ApprovalError("missing signed authorization")
+        return {"mode": mode}
+
+    monkeypatch.setattr(transition_guard, "validate_delivery_obligations", validate)
+    monkeypatch.setattr(attestation_v3, "build_v3_attestation", lambda *args: {"format": "v3"})
+
+    if mode == "unauthorized":
+        with pytest.raises(approval.ApprovalError, match="missing signed authorization"):
+            write_attestation(events, tmp_path / ".harness/attestations", "delivery")
+        return
+    path = write_attestation(events, tmp_path / ".harness/attestations", "delivery")
+    assert path == tmp_path / ".harness/attestations/v3/delivery.jsonl"
+    assert json.loads(path.read_text(encoding="utf-8")) == {"format": "v3"}
 
 
 # --------------------------------------------------------------------------- #

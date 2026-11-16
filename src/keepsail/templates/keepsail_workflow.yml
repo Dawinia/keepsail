@@ -169,10 +169,12 @@ jobs:
           base_cli="$(env -u PYTHONPATH "$verifier/python" -I -c 'import pathlib, tomllib; print(tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["name"])')"
           cli="$verifier/$base_cli"
           if env -u PYTHONPATH "$cli" attest verify --help | grep -q -- '--repository-id'; then
-            env -u PYTHONPATH "$cli" attest verify --base "$BASE_SHA" --head "$HEAD_SHA" \
+            sudo unshare --net --setgid="$(id -g)" --setuid="$(id -u)" -- \
+              env -u PYTHONPATH "$cli" attest verify --base "$BASE_SHA" --head "$HEAD_SHA" \
               --repository-id "$GITHUB_REPOSITORY" --target-ref "$TARGET_REF"
           else
-            env -u PYTHONPATH "$cli" attest verify --base "$BASE_SHA" --head "$HEAD_SHA"
+            sudo unshare --net --setgid="$(id -g)" --setuid="$(id -u)" -- \
+              env -u PYTHONPATH "$cli" attest verify --base "$BASE_SHA" --head "$HEAD_SHA"
           fi
 
   candidate-acceptance:

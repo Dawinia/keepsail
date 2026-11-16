@@ -14,6 +14,7 @@ from typing import Any, ParamSpec, TypeVar
 
 from keepsail.core.approval import (
     ApprovalError,
+    _recognition_from_mapping,
     evidence_is_recognized,
     load_recognition,
     validate_approval,
@@ -109,36 +110,58 @@ def verify_v3_transition(
         raise ApprovalError("v3 activation attestation must be newly added in the exact diff")
     if parse_v3_line(regular_blob_bytes(root, head_sha, attestation_path)) != record:
         raise ApprovalError("v3 attestation does not match the committed Git blob")
-    target = read_policy_snapshot(root, head_sha, repository_id=repository_id,
-                                  target_ref=target_ref)
-    candidate = target.policy
-    if candidate.activation != {"kind": "transition", "change": change}:
-        raise ApprovalError("v3 activation does not identify this transition")
     old_config = parse_verification_config(regular_blob_text(root, base_sha,
                                                               ".harness/verification.yaml"))
     old_checks = required_check_contract(old_config)
-    new_checks = target.checks
     authority = parse_authority_yaml(regular_blob_text(root, base_sha,
                                                        ".harness/policy-authority.yaml"))
-    target_authority = target.authority
     authorization = record["authorization"]
     if not isinstance(authorization, dict) or authorization.get("kind") not in {
-        "transition", "recovery"
+        "transition", "recovery", "rotate_key"
     }:
         raise ApprovalError("v3 policy transition requires its signed authorization")
+    if authorization["kind"] == "rotate_key":
+        candidate_raw = parse_unique_yaml(regular_blob_text(
+            root, head_sha, ".harness/review-recognition.yaml"))
+        if (not isinstance(candidate_raw, dict)
+                or candidate_raw.get("version") != "review-recognition/v1"
+                or _recognition_from_mapping(candidate_raw).policy_digest
+                != recognition.policy_digest):
+            raise ApprovalError("key rotation cannot change the trusted v1 policy")
+        new_checks = required_check_contract(parse_verification_config(regular_blob_text(
+            root, head_sha, ".harness/verification.yaml"), strict=True))
+        if new_checks["digest"] != old_checks["digest"]:
+            raise ApprovalError("key rotation cannot change required checks")
+        if authorization.get("obligation_changes", []):
+            raise ApprovalError("key rotation cannot alter delivery obligations")
+        target_authority = parse_authority_yaml(regular_blob_text(
+            root, head_sha, ".harness/policy-authority.yaml"))
+        if target_authority.digest == authority.digest:
+            raise ApprovalError("key rotation requires a changed authority")
+        target_policy_digest = recognition.policy_digest
+    else:
+        target = read_policy_snapshot(root, head_sha, repository_id=repository_id,
+                                      target_ref=target_ref)
+        candidate = target.policy
+        if candidate.activation != {"kind": "transition", "change": change}:
+            raise ApprovalError("v3 activation does not identify this transition")
+        new_checks = target.checks
+        target_authority = target.authority
+        target_policy_digest = candidate.policy_digest
     verify_policy_authorization(
         authorization, authority, repository_id=repository_id, target_ref=target_ref,
         base_sha=base_sha, predecessor_policy_digest=recognition.policy_digest,
-        target_policy_digest=candidate.policy_digest, change_id=change,
+        target_policy_digest=target_policy_digest, change_id=change,
         plan_subject_id=approval["subject_id"], actual_paths=paths,
         target_authority=target_authority, frozen_plan_paths=plan_paths,
     )
-    changes = changed_obligations(
-        old_processes={kind: recognition for kind in recognition.kinds}, old_code_review="full",
-        old_scope=(), old_builtin="keepsail-baseline/v1", old_checks=old_checks,
-        new_policy=candidate, new_checks=new_checks,
-    )
-    require_signed_obligation_changes(changes, authorization)
+    if authorization["kind"] != "rotate_key":
+        changes = changed_obligations(
+            old_processes={kind: recognition for kind in recognition.kinds}, old_code_review="full",
+            old_scope=(), old_builtin="keepsail-baseline/v1", old_checks=old_checks,
+            new_policy=candidate, new_checks=new_checks,
+        )
+        require_signed_obligation_changes(changes, authorization)
     if authorization["kind"] == "recovery":
         from keepsail.core.approval import digest_record
 
@@ -156,12 +179,12 @@ def verify_v3_transition(
                     or not isinstance(provenance, dict)
                     or provenance.get("policy_digest") != recognition.policy_digest):
                 raise ApprovalError("review does not match the trusted old recognition")
-        elif basis["mode"] == "recovery":
+        elif basis["mode"] == "recovery" and authorization["kind"] == "recovery":
             observed = verify_recovery_evidence(
                 evidence, authorization, authority, repository_id=repository_id,
                 target_ref=target_ref, base_sha=base_sha,
                 base_policy_digest=record["policy_digest"],
-                target_policy_digest=candidate.policy_digest, change_id=change,
+                target_policy_digest=target_policy_digest, change_id=change,
                 plan_subject_id=approval["subject_id"], frozen_plan_paths=plan_paths,
                 actual_paths=paths, target_authority=target_authority,
             )
@@ -201,14 +224,14 @@ def verify_v3_transition(
             raise ApprovalError("; ".join(blockers))
     return {"change": change, "trusted_base": base_sha, "head": head_sha,
             "policy_digest": recognition.policy_digest,
-            "target_policy_digest": candidate.policy_digest,
+            "target_policy_digest": target_policy_digest,
             "required_checks_digest": old_checks["digest"],
             "required_checks": [{"source": item["source"], "id": item["id"]}
                                 for item in old_checks["checks"]],
             **checks_summary,
             "builtin_checks_version": "keepsail-baseline/v1",
             "code_review_required": True,
-            "code_review_reason": "trusted v1 policy requires code review for this transition",
+            "code_review_reason": "trusted v1 policy requires code review for this delivery",
             "coverage": [row["path"] for row in state.coverage_manifest],
             "independence": independence, "gate_bypass": disclosure}
 

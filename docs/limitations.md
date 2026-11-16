@@ -64,8 +64,9 @@ unobserved changes in another workspace or service.
 - **Hardlink residual:** a hardlink from a marked `.md` name to a source file shares an
   inode that path resolution cannot detect. This requires the shell to create (the same
   unhooked primitive already conceded), most edit tools break it via write-temp-rename,
-  and the content still passes plan + code review + attestation — it is not a new
-  capability beyond the conceded shell primitive.
+  and the content still requires plan approval, applicable code review, required
+  checks and attestation — it is not a new capability beyond the conceded shell
+  primitive.
 
 **Plan-path authoring allowance (`INTENT_DECLARED`):**
 - Coverage is **path-shaped**. A pattern in `.harness/plan-paths.yaml` must contain
