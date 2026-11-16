@@ -1,7 +1,8 @@
 """EventWriter — append-only writer for .harness/events.jsonl.
 
 Atomicity guarantees (per lifecycle-event-model §2 + §3.9 #1):
-- Single line per event (newline-terminated JSON)
+- A single newline-terminated JSON line per event, except the strictly validated
+  completion transaction, which stores its two events in one indivisible line
 - POSIX O_APPEND ensures kernel-atomic append across processes
 - A cross-platform exclusive lock on `.harness/.events.lock` serializes the WHOLE
   validate→append critical section across writers (F4 fix). O_APPEND alone keeps

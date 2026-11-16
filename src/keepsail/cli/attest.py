@@ -183,7 +183,7 @@ def _git_name_status(base: str, head: str, cwd: Path) -> str:
     Raises ``_GitError`` on a non-zero git exit (the CLI translates that into a
     FAIL-CLOSED exit 4 — an unreachable merge-base must never become a pass).
     """
-    # @decision:d-policy-replay-offline
+    # @decision:d-policy-replay-offline-v2
     proc = subprocess.run(
         ["git", "diff", "--name-status", "-z", "--find-renames", f"{base}...{head}"],
         cwd=str(cwd),

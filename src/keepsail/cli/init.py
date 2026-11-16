@@ -2,7 +2,8 @@
 
 Creates the canonical directory layout (4 subdirs + 6 skeleton files) per
 `engineering-integration` §2.1. Idempotent without `--force`; `--force`
-overwrites all skeleton files including user edits. Per `cli-command-surface` §2.3.
+overwrites skeleton files except the owner-managed review recognition and policy
+authority files, which are preserved. Per `cli-command-surface` §2.3.
 """
 
 from __future__ import annotations

@@ -1,11 +1,12 @@
 ---
 id: d-policy-replay-offline
-status: ratified
+status: superseded
 ratified_by: codex-implementation-session
 ratified_at: '2026-11-14T19:10:34.912383Z'
-authoring_time: true
 supersedes: d-keepsail-merge-gate-pure-git
+superseded_by: d-policy-replay-offline-v2
 ratified_text_hash: sha256:92979f6bf833034cd14023665e4d6463e300e0de1ce321132aee8b1fa8e55b72
+authoring_time: true
 ---
 Policy trust and attestation replay read committed Git objects and do not access the network.
 
