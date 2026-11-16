@@ -80,6 +80,21 @@ def test_off_and_full_have_explicit_opposite_results():
     assert parse_delivery_policy(policy("full")).review_requirement([{"path": "x"}])[0]
 
 
+@pytest.mark.parametrize("mode", ["off", "scope"])
+def test_no_review_modes_require_a_baseline_that_supports_completion(mode):
+    value = policy(mode)
+    value["builtin_checks_version"] = "keepsail-baseline/v1"
+    with pytest.raises(ApprovalError, match="require built-in contract v2"):
+        parse_delivery_policy(redigest(value))
+    assert parse_delivery_policy(policy(mode)).builtin_checks_version == "keepsail-baseline/v2"
+
+
+def test_full_review_can_preserve_the_v1_baseline():
+    value = policy("full")
+    value["builtin_checks_version"] = "keepsail-baseline/v1"
+    assert parse_delivery_policy(redigest(value)).builtin_checks_version == "keepsail-baseline/v1"
+
+
 def test_reserved_plan_identity_cannot_be_impersonated_by_json_or_unverified_signature():
     value = policy()
     value["processes_by_kind"]["plan"]["evidence_forms"].append("json")
