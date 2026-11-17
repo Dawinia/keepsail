@@ -47,6 +47,17 @@ def validate_legacy_initial_authority(root: Path) -> None:
         if proposed is not None and proposed.enabled:
             raise ApprovalError(
                 "initial enabled trust needs separate owner establishment") from None
+        try:
+            head = resolve_commit(root)
+        except GitScopeError:
+            return
+        policy_text = optional_regular_blob_text(root, head, _POLICY)
+        authority_text = optional_regular_blob_text(root, head, _AUTHORITY)
+        policy = parse_unique_yaml(policy_text) if policy_text is not None else None
+        authority = parse_authority_yaml(authority_text) if authority_text is not None else None
+        if ((isinstance(policy, dict) and policy.get("enabled") is True)
+                or (authority is not None and authority.enabled)):
+            raise ApprovalError("enabled trust requires a reachable trusted baseline") from None
         return
     try:
         head = resolve_commit(root)
@@ -77,6 +88,8 @@ def committed_transition_required(
             proposed = parse_unique_yaml(regular_blob_text(root, head, _POLICY))
             if isinstance(proposed, dict) and proposed.get("version") == "review-recognition/v2":
                 raise ApprovalError("initial v2 trust needs separate owner establishment")
+            if isinstance(proposed, dict) and proposed.get("enabled") is True:
+                raise ApprovalError("initial enabled trust needs separate owner establishment")
         if _AUTHORITY in changed_paths:
             before = optional_regular_blob_text(root, base, _AUTHORITY)
             after = optional_regular_blob_text(root, head, _AUTHORITY)

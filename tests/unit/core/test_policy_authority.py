@@ -46,7 +46,7 @@ def sign(record, key):
 @pytest.mark.parametrize("old_policy", [None, "version: review-recognition/v1\nenabled: false\n"])
 @pytest.mark.parametrize("existing_skeleton", [False, True])
 def test_disabled_or_missing_policy_cannot_introduce_enabled_authority(
-    tmp_path, old_policy, existing_skeleton,
+    tmp_path, old_policy, existing_skeleton, monkeypatch,
 ):
     import subprocess
 
@@ -123,6 +123,35 @@ def test_disabled_or_missing_policy_cannot_introduce_enabled_authority(
         result = CliRunner().invoke(main, ["--workspace", str(tmp_path), *command])
         assert result.exit_code == 2, result.output
         assert "initial v2 trust" in result.output
+
+    # Enabling v1 is also a new recognition policy, not an owner-established baseline.
+    policy_path.write_text("version: review-recognition/v1\nenabled: true\n", encoding="utf-8")
+    git("add", ".harness/review-recognition.yaml")
+    git("commit", "-qm", "introduce proposed v1 policy")
+    if old_policy:
+        policy_path.write_text(old_policy, encoding="utf-8")
+    else:
+        policy_path.unlink()
+    from keepsail.core.git_diff import DiffEntry
+    from keepsail.engineering.attestation import verify_attestations
+
+    verdict = verify_attestations(tmp_path, [DiffEntry("A", (".harness/review-recognition.yaml",))],
+                                  base=base, head="HEAD")
+    assert not verdict.ok
+    assert any("initial enabled trust" in message for message in verdict.blockers)
+    for command in (("done", "delivery", "--skip-verify"), ("verify", "delivery")):
+        result = CliRunner().invoke(main, ["--workspace", str(tmp_path), *command])
+        assert result.exit_code == 2, result.output
+        assert "initial enabled trust" in result.output
+
+    from keepsail.core import transition_guard
+
+    def no_base(root):
+        raise ApprovalError("no trusted base")
+
+    monkeypatch.setattr(transition_guard, "resolve_contract_base", no_base)
+    with pytest.raises(ApprovalError, match="trusted baseline"):
+        transition_guard.validate_legacy_initial_authority(tmp_path)
 
 
 def authorization(key, old, *, kind="transition"):
