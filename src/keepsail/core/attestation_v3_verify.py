@@ -448,13 +448,17 @@ def verify_v3_delivery(
         if policy_changed:
             old_processes = {kind: process for kind in ("plan", "code")
                              if (process := snapshot.policy.recognition_for(kind))}
-            changes = changed_obligations(
+            obligation_args: dict[str, Any] = dict(
                 old_processes=old_processes, old_code_review=snapshot.policy.code_review,
                 old_scope=snapshot.policy.scope, old_builtin=snapshot.policy.builtin_checks_version,
                 old_checks=snapshot.checks, new_policy=candidate.policy,
-                new_checks=candidate.checks, historical_replay=_historical_replay,
+                new_checks=candidate.checks,
             )
-            require_signed_obligation_changes(changes, authorization)
+            changes = changed_obligations(**obligation_args)
+            historical_changes = (changed_obligations(**obligation_args, historical_replay=True)
+                                  if _historical_replay else None)
+            require_signed_obligation_changes(changes, authorization,
+                                              historical_changes=historical_changes)
         elif authorization.get("obligation_changes", []):
             raise ApprovalError("key rotation cannot change delivery obligations")
     required, reason = snapshot.policy.review_requirement(code["manifest"])

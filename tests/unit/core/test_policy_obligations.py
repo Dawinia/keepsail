@@ -1,4 +1,5 @@
 from copy import deepcopy
+from types import SimpleNamespace
 
 import pytest
 
@@ -87,6 +88,75 @@ def test_scoped_v1_to_v2_requires_authorizing_the_effective_review_reduction():
         new_checks=checks, historical_replay=True,
     )
     assert [item["kind"] for item in historical] == ["builtin_contract"]
+    current_signed = [{**item, "reason": "owner explicitly approves"} for item in changes]
+    historical_signed = [{**item, "reason": "owner explicitly approved"} for item in historical]
+    require_signed_obligation_changes(changes, {"obligation_changes": current_signed},
+                                      historical_changes=historical)
+    require_signed_obligation_changes(changes, {"obligation_changes": historical_signed},
+                                      historical_changes=historical)
+    with pytest.raises(ApprovalError, match="exactly authorized"):
+        require_signed_obligation_changes(changes, {"obligation_changes": historical_signed})
+
+
+def test_narrowing_scoped_v1_names_its_effective_full_review_obligation():
+    raw, old, checks = setup_policy("scope", ["src/secure"])
+    raw["builtin_checks_version"] = "keepsail-baseline/v2"
+    changes = compare(raw, old, checks, old_mode="scope", old_scope=("src",))
+    review = next(item for item in changes if item["kind"] == "code_review")
+    assert review["old_digest"] == digest_record({"mode": "full", "scope": []})
+
+
+@pytest.mark.parametrize(("replaying", "old_inventory", "accepted"), [
+    (False, False, True), (True, False, True), (True, True, True), (False, True, False),
+])
+def test_v3_replay_uses_the_signed_current_or_historical_inventory(
+    tmp_path, monkeypatch, replaying, old_inventory, accepted,
+):
+    from keepsail.core import attestation_v3_verify as replay
+    from keepsail.core import git_objects
+    from keepsail.core.delivery_policy import DeliveryPolicy
+
+    raw, _, checks = setup_policy("scope", ["src"])
+    old_policy = parse_delivery_policy(raw)
+    raw["builtin_checks_version"] = "keepsail-baseline/v2"
+    raw["activation"] = {"kind": "transition", "change": "delivery"}
+    raw["policy_digest"] = digest_record({k: v for k, v in raw.items() if k != "policy_digest"})
+    target = parse_delivery_policy(raw)
+    processes = {kind: old_policy.recognition_for(kind) for kind in ("plan", "code")}
+    assert all(processes.values())
+    args = dict(old_processes=processes, old_code_review="scope", old_scope=("src",),
+                old_builtin="keepsail-baseline/v1", old_checks=checks, new_policy=target,
+                new_checks=checks)
+    changes = changed_obligations(**args, historical_replay=old_inventory)
+    signed = [{**item, "reason": "owner explicitly approved"} for item in changes]
+    authority = SimpleNamespace(digest="same-authority")
+    before = SimpleNamespace(policy=old_policy, authority=authority, checks=checks)
+    after = SimpleNamespace(policy=target, authority=authority, checks=checks)
+    record = {"trusted_base": "base", "policy_digest": old_policy.policy_digest,
+              "change_id": "delivery", "snapshot": {},
+              "authorization": {"kind": "transition", "obligation_changes": signed}}
+    monkeypatch.setattr(replay, "validate_v3", lambda value: value)
+    monkeypatch.setattr(replay, "resolve_commit", lambda root, ref: ref)
+    monkeypatch.setattr(replay, "verify_v2_activation", lambda *args, **kwargs: None)
+    monkeypatch.setattr(replay, "read_policy_snapshot",
+                        lambda root, ref, **kwargs: before if ref == "base" else after)
+    monkeypatch.setattr(git_objects, "optional_regular_blob_bytes", lambda *args: None)
+    monkeypatch.setattr(replay, "validate_code_subject", lambda *args, **kwargs: {"manifest": []})
+    monkeypatch.setattr(replay, "validate_approval", lambda *args, **kwargs: {
+        "subject_id": "plan:test", "subject": {"artifacts": []}})
+    monkeypatch.setattr(replay, "verify_policy_authorization", lambda *args, **kwargs: None)
+
+    class ReachedReviewRequirement(Exception):
+        pass
+
+    def stop_after_obligations(*args):
+        raise ReachedReviewRequirement
+
+    monkeypatch.setattr(DeliveryPolicy, "review_requirement", stop_after_obligations)
+    with pytest.raises(ReachedReviewRequirement if accepted else ApprovalError):
+        replay.verify_v3_delivery(tmp_path, record, base="base", head="head",
+                                  repository_id="owner/project", target_ref="refs/heads/main",
+                                  _historical_replay=replaying)
 
 
 @pytest.mark.parametrize(

@@ -97,8 +97,8 @@ def changed_obligations(
     effective_weaker = not _review_not_weaker(
         old_effective, old_scope, new_effective, new_policy.scope)
     if raw_weaker or effective_weaker:
-        before_mode = old_code_review if raw_weaker else old_effective
-        after_mode = new_policy.code_review if raw_weaker else new_effective
+        before_mode = old_effective if effective_weaker else old_code_review
+        after_mode = new_effective if effective_weaker else new_policy.code_review
         add("code_review", "policy", "scope",
             {"mode": before_mode, "scope": list(old_scope) if before_mode == "scope" else []},
             {"mode": after_mode, "scope": list(new_policy.scope) if after_mode == "scope" else []})
@@ -128,7 +128,8 @@ def changed_required_checks(
 
 
 def require_signed_obligation_changes(
-    changes: list[dict[str, Any]], authorization: dict[str, Any],
+    changes: list[dict[str, Any]], authorization: dict[str, Any], *,
+    historical_changes: list[dict[str, Any]] | None = None,
 ) -> None:
     """Require the already signature-verified record to enumerate exact changes."""
     signed = authorization.get("obligation_changes", [])
@@ -146,5 +147,5 @@ def require_signed_obligation_changes(
         normalized.sort(key=lambda row: (row["kind"], row["source"], row["id"]))
     except TypeError as exc:
         raise ApprovalError("signed obligation change identity is invalid") from exc
-    if normalized != changes:
+    if normalized != changes and normalized != historical_changes:
         raise ApprovalError("old obligation changes are not exactly authorized")
