@@ -12,7 +12,7 @@ On 2026-11-15, in implementation chat
 concrete replacement: keep the no-network requirement, extend the check to the
 policy parsing and signature verification paths, and allow local Git and
 temporary-file I/O. The recorded response to callback
-`call_3745396e29d2463caf47418d47176e87` was `批准该替代`.
+call_3745396e29d2463caf47418d47176e87 was `批准该替代`.
 
 This file is an implementation-session report of that callback, not a
 cryptographically authenticated owner signature. The confirmation concerns this
