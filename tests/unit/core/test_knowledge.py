@@ -84,7 +84,7 @@ def version(
 
 
 class Workspace:
-    def __init__(self, root: Path):
+    def __init__(self, root: Path, verification_config: dict | None = None):
         self.root = root
         self.runner = CliRunner()
         self.counter = 0
@@ -107,6 +107,13 @@ class Workspace:
         self.review = review
         (root / ".harness/review-recognition.yaml").write_text(
             yaml.safe_dump(review), encoding="utf-8"
+        )
+        if verification_config is None:
+            verification_config = {"layers": {"baseline": {"enabled": False},
+                                               "framework_adapter": {"enabled": False},
+                                               "user_checks": {"enabled": False}}}
+        (root / ".harness/verification.yaml").write_text(
+            yaml.safe_dump(verification_config), encoding="utf-8"
         )
         (root / "plan.md").write_text("# Persist with PostgreSQL\n", encoding="utf-8")
         (root / ".gitignore").write_text(

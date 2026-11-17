@@ -193,16 +193,18 @@ def test_template_has_attest_verify_job() -> None:
     )
     assert checkout["with"]["fetch-depth"] == 0
     template = _load_template()
-    assert template.count("attest verify --base") == 1
+    assert template.count("attest verify --base") == 2  # trusted reader and legacy fallback
     assert "Checkout trusted baseline verifier source" in template
     assert "env -u PYTHONPATH" in template
+    assert template.count("sudo unshare --net") == 2
     assert "candidate-acceptance" in parsed["jobs"]
 
 
 @pytest.mark.skipif(sys.version_info < (3, 11), reason="CI verifier runs Python 3.12")
 @pytest.mark.parametrize("source", ["template", "self-host"])
+@pytest.mark.parametrize("supports_identity", [False, True])
 def test_trusted_baseline_command_is_executed_from_its_own_metadata(
-    tmp_path: Path, source: str,
+    tmp_path: Path, source: str, supports_identity: bool,
 ) -> None:
     bash = shutil.which("bash")
     if os.name == "nt":
@@ -234,8 +236,10 @@ def test_trusted_baseline_command_is_executed_from_its_own_metadata(
     )
     python.chmod(0o755)
     cli = verifier / "baseline-tool"
+    help_output = "--repository-id" if supports_identity else "legacy verifier"
     cli.write_text(
         '#!/bin/sh\ntest -z "${PYTHONPATH+x}" || exit 99\n'
+        f'if [ "$3" = "--help" ]; then printf "%s\\n" "{help_output}"; exit 0; fi\n'
         'printf "%s\\n" "$@"\n',
         encoding="utf-8",
         newline="\n",
@@ -252,16 +256,32 @@ def test_trusted_baseline_command_is_executed_from_its_own_metadata(
     for directory in (tmp_path, candidate):
         for module in ("pathlib", "tomllib"):
             (directory / (module + ".py")).write_text(poison, encoding="utf-8")
-    env = {**os.environ, "GITHUB_WORKSPACE": tmp_path.as_posix(),
+    fakebin = tmp_path / "fakebin"
+    fakebin.mkdir()
+    sudo = fakebin / "sudo"
+    sudo.write_text(
+        '#!/bin/sh\n[ "$1" = unshare ] && [ "$2" = --net ] || exit 90\n'
+        'shift 2\ncase "$1" in --setgid=*) shift;; *) exit 91;; esac\n'
+        'case "$1" in --setuid=*) shift;; *) exit 92;; esac\n'
+        '[ "$1" = -- ] || exit 93\nshift\nexec "$@"\n',
+        encoding="utf-8", newline="\n",
+    )
+    sudo.chmod(0o755)
+    env = {**os.environ, "PATH": str(fakebin) + os.pathsep + os.environ.get("PATH", ""),
+           "GITHUB_WORKSPACE": tmp_path.as_posix(),
            "RUNNER_TEMP": tmp_path.as_posix(), "BASE_SHA": "base-subject",
-           "HEAD_SHA": "head-subject", "PYTHONPATH": candidate.as_posix()}
+           "HEAD_SHA": "head-subject", "PYTHONPATH": candidate.as_posix(),
+           "GITHUB_REPOSITORY": "owner/project", "TARGET_REF": "refs/heads/main"}
     result = subprocess.run([bash, "-e", "-c", command], env=env,
                             capture_output=True, text=True, check=False)
     assert result.returncode == 0, result.stderr
     assert not sentinel.exists()
-    assert result.stdout.splitlines() == [
+    expected = [
         "attest", "verify", "--base", "base-subject", "--head", "head-subject",
     ]
+    if supports_identity:
+        expected.extend(["--repository-id", "owner/project", "--target-ref", "refs/heads/main"])
+    assert result.stdout.splitlines() == expected
 
 
 def test_template_has_doc_check_job() -> None:

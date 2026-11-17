@@ -30,7 +30,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from keepsail.core.events import EventSchemaError, parse_event_line
+from keepsail.core.events import EventSchemaError, effective_event_lines, parse_event_line
 from keepsail.core.file_lock import exclusive_file_lock
 from keepsail.core.paths import events_path, lock_path, state_path
 from keepsail.core.reducer import derive_state
@@ -53,17 +53,17 @@ def refresh_state_after_emit(workspace_root: Path) -> None:
         events_file = events_path(workspace_root)
         derived = derive_state(events_file)
         # last_reduced_event_id semantics per spec §3.8.2 + §3.8.3: the
-        # literal event_id of the last non-blank parseable line in
-        # events.jsonl (file-position truth, NOT dict-iteration order).
+        # event_id of the last non-blank parseable effective event, including
+        # events expanded from a completion transaction.
         # Same fix as cli/state.py state_rebuild — keep these in lockstep.
         last_id = ""
         if events_file.exists():
-            for line in reversed(events_file.read_text(encoding="utf-8").splitlines()):
+            lines = events_file.read_bytes().decode("utf-8").splitlines(keepends=True)
+            for line in effective_event_lines(lines):
                 if not line.strip():
                     continue
                 try:
                     last_id = parse_event_line(line).event_id
-                    break
                 except EventSchemaError:
                     # Mirror reducer's tolerance: skip malformed tail lines
                     # rather than crash. Reducer warns at WARNING; we stay

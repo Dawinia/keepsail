@@ -257,6 +257,9 @@ def test_added_fixture_completes_real_verification_under_same_approval(
     assert "verification_failed" in types and "verification_passed" in types
 
     # Final CI coverage must use the assessed fixture, not the initial plan path.
+    invalid_v3 = cli("attest", "write", "c", "--format", "v3")
+    assert invalid_v3.exit_code != 0, invalid_v3.output
+    assert "v3 under a v1 policy requires" in invalid_v3.output
     assert cli("attest", "write", "c").exit_code == 0
     attestation = root / ".harness/attestations/c.jsonl"
     original_attestation = attestation.read_text(encoding="utf-8")
@@ -273,6 +276,8 @@ def test_added_fixture_completes_real_verification_under_same_approval(
         ("unrelated", "implementation coverage omits"),
         ("approval", "requires an effective plan approval"),
         ("verification", "verification is for a different code subject"),
+        ("verification-evidence", "required check missing"),
+        ("verification-evidence-missing", "verification check evidence"),
         ("code", "code subject does not match"),
         ("missing-evidence", "code review evidence is not retained"),
         ("malformed-evidence", "not backed by recognized code evidence"),
@@ -303,6 +308,11 @@ def test_added_fixture_completes_real_verification_under_same_approval(
                 payload.pop("approval", None)
             elif defect == "verification" and record["type"] == "verification_passed":
                 payload["verification"]["subject_id"] = "code:stale"
+            elif defect == "verification-evidence" and record["type"] == "verification_passed":
+                payload["verification"]["check_evidence"]["results"] = []
+            elif (defect == "verification-evidence-missing"
+                  and record["type"] == "verification_passed"):
+                payload["verification"].pop("check_evidence", None)
             elif defect == "code" and record["type"] in {
                 "implementation_complete", "code_review_passed"
             }:
@@ -353,6 +363,9 @@ def test_external_plan_and_code_evidence_drive_only_matching_subjects(tmp_path: 
     root = tmp_path
     (root / ".harness").mkdir()
     _recognition(root)
+    (root / ".harness" / "verification.yaml").write_text(
+        "layers:\n  baseline: {enabled: false}\nchecks: []\n", encoding="utf-8"
+    )
     (root / "plan.md").write_text("# plan\n", encoding="utf-8")
     (root / "src").mkdir()
     (root / "src" / "a.py").write_text("value = 1\n", encoding="utf-8")
@@ -362,6 +375,7 @@ def test_external_plan_and_code_evidence_drive_only_matching_subjects(tmp_path: 
     subprocess.run(["git", "add", "-A"], cwd=root, check=True)
     subprocess.run(["git", "commit", "-qm", "base"], cwd=root, check=True)
     base = _git(root, "rev-parse", "HEAD")
+    subprocess.run(["git", "switch", "-qc", "candidate"], cwd=root, check=True)
 
     writer = EventWriter(events_path(root))
     writer.emit(_event("c", "intent_declared"))
@@ -461,6 +475,12 @@ def test_external_plan_and_code_evidence_drive_only_matching_subjects(tmp_path: 
             },
         )
     )
+    # The frozen subject cannot complete after the trusted target advances.
+    git_head = _git(root, "rev-parse", "HEAD")
+    subprocess.run(["git", "update-ref", "refs/heads/main", git_head], cwd=root, check=True)
+    with pytest.raises(EmitPreconditionError, match="current complete Git diff"):
+        writer.emit(_event("c", "implementation_complete", {"code_subject": code_subject}))
+    subprocess.run(["git", "update-ref", "refs/heads/main", base], cwd=root, check=True)
     writer.emit(_event("c", "implementation_complete", {"code_subject": code_subject}))
     code_evidence = _evidence(
         root, kind="code", subject_id=code_subject["subject_id"], evidence_id="code-1"
@@ -540,15 +560,6 @@ def test_verification_rejects_a_scope_change_during_execution(
     (root / "src").mkdir()
     source = root / "src" / "a.py"
     source.write_text("value = 1\n", encoding="utf-8")
-    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=root, check=True)
-    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)
-    subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
-    subprocess.run(["git", "add", "-A"], cwd=root, check=True)
-    subprocess.run(["git", "commit", "-qm", "base"], cwd=root, check=True)
-    subprocess.run(["git", "checkout", "-qb", "candidate"], cwd=root, check=True)
-    source.write_text("value = 2\n", encoding="utf-8")
-    subprocess.run(["git", "add", "src/a.py"], cwd=root, check=True)
-    subprocess.run(["git", "commit", "-qm", "implementation"], cwd=root, check=True)
     (root / ".harness" / "verification.yaml").write_text(
         """\
 layers:
@@ -573,6 +584,15 @@ adapter_provided: []
 """,
         encoding="utf-8",
     )
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=root, check=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
+    subprocess.run(["git", "add", "-A"], cwd=root, check=True)
+    subprocess.run(["git", "commit", "-qm", "base"], cwd=root, check=True)
+    subprocess.run(["git", "checkout", "-qb", "candidate"], cwd=root, check=True)
+    source.write_text("value = 2\n", encoding="utf-8")
+    subprocess.run(["git", "add", "src/a.py"], cwd=root, check=True)
+    subprocess.run(["git", "commit", "-qm", "implementation"], cwd=root, check=True)
 
     writer = EventWriter(events_path(root))
     writer.emit(_event("c", "intent_declared"))
@@ -603,8 +623,11 @@ adapter_provided: []
     ).exit_code == 0
 
     original_run_checks = verification_runner.run_checks
+    checks_invoked = False
 
     def change_scope_before_checks(*args: object, **kwargs: object) -> list[object]:
+        nonlocal checks_invoked
+        checks_invoked = True
         source.write_text("value = 3\n", encoding="utf-8")
         return original_run_checks(*args, **kwargs)  # type: ignore[arg-type,return-value]
 
@@ -614,6 +637,7 @@ adapter_provided: []
         WorkspaceContext(workspace_root=root, active_change_id="c"),
     )
     assert result.status == "fail"
+    assert checks_invoked
     event = result.emit_events[0]
     assert event.type == "verification_failed"
     assert event.payload["verification"]["snapshot_unchanged"] is False

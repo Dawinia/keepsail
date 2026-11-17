@@ -183,9 +183,11 @@ with git add or --include-path; unrelated untracked files stay outside. Renames
 include both ends. The writer rechecks the generation basis before recording.
 Reasons, affected commitments and within-approval judgment remain explicit.
 
-With an active knowledge protocol, attest write produces
-`.harness/attestations/v2/<change>.jsonl` using attestation/v2 and
-knowledge-checkpoint/v2. These are explicitly derived records, not original event
+With an active knowledge protocol, attest write retains knowledge-checkpoint/v2.
+An active v2 delivery policy selects `.harness/attestations/v3/<change>.jsonl`;
+otherwise the knowledge protocol selects the v2 attestation location. The v3
+envelope preserves the v2 knowledge checkpoint and adds delivery-policy basis.
+These are explicitly derived records, not original event
 bytes. They retain the complete current approval/review and code subject once,
 necessary lifecycle facts, knowledge operations and explicit source identities.
 Trusted baseline checkpoints are resolved from local Git; only subsequent facts

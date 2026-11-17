@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -18,6 +19,7 @@ from keepsail.engineering.attestation import (
     extract_change_events,
     independence_for_attestation,
     parse_name_status,
+    parse_name_status_z,
     verify_attestations,
     write_attestation,
 )
@@ -54,6 +56,17 @@ def test_parse_name_status_canonicalizes_paths():
     assert entries[0].paths == ("src/x.py",)
 
 
+def test_parse_name_status_z_preserves_unusual_names_and_both_rename_paths():
+    raw = "R100\0old\tname\0new\nname\0A\0 leading and trailing \0"
+    assert parse_name_status_z(raw) == [
+        DiffEntry("R100", ("old\tname", "new\nname")),
+        DiffEntry("A", (" leading and trailing ",)),
+    ]
+    for invalid in ("A\0unterminated", "R100\0old\0", "A\0\0", "A123\0path\0"):
+        with pytest.raises(ValueError):
+            parse_name_status_z(invalid)
+
+
 # --------------------------------------------------------------------------- #
 # Task 3: extract + write
 # --------------------------------------------------------------------------- #
@@ -87,6 +100,36 @@ def test_write_attestation_roundtrips(tmp_path):
     out = write_attestation(ef, tmp_path / "att", "a")
     assert out.name == "a.jsonl"
     assert out.read_text().strip() == _ev_line("a", "intent_declared")
+
+
+@pytest.mark.parametrize("mode", ["transition", "recovery", "rotate_key", "unauthorized"])
+def test_v1_authorized_delivery_selects_v3_by_default(tmp_path, monkeypatch, mode):
+    from keepsail.core import approval, git_objects, knowledge, transition_guard
+    from keepsail.engineering import attestation_v3
+
+    events = tmp_path / ".harness/events.jsonl"
+    state = SimpleNamespace(effective_approval={}, current_code_subject={"subject_id": "code:test"})
+    monkeypatch.setattr(approval, "resolve_contract_base", lambda root: "a" * 40)
+    monkeypatch.setattr(git_objects, "optional_regular_blob_text", lambda *args:
+                        "version: review-recognition/v1\nenabled: true\n")
+    monkeypatch.setattr(knowledge, "read_inputs", lambda *args, **kwargs:
+                        SimpleNamespace(states={"delivery": state}))
+    monkeypatch.setattr(knowledge, "load_policy", lambda root: None)
+    def validate(*args):
+        if mode == "unauthorized":
+            raise approval.ApprovalError("missing signed authorization")
+        return {"mode": mode}
+
+    monkeypatch.setattr(transition_guard, "validate_delivery_obligations", validate)
+    monkeypatch.setattr(attestation_v3, "build_v3_attestation", lambda *args: {"format": "v3"})
+
+    if mode == "unauthorized":
+        with pytest.raises(approval.ApprovalError, match="missing signed authorization"):
+            write_attestation(events, tmp_path / ".harness/attestations", "delivery")
+        return
+    path = write_attestation(events, tmp_path / ".harness/attestations", "delivery")
+    assert path == tmp_path / ".harness/attestations/v3/delivery.jsonl"
+    assert json.loads(path.read_text(encoding="utf-8")) == {"format": "v3"}
 
 
 # --------------------------------------------------------------------------- #
@@ -366,6 +409,21 @@ def test_verify_one_bad_attestation_fails_whole_run(tmp_path):
     v = verify_attestations(tmp_path, diff)
     assert not v.ok
     assert any("bad" in b and "READY_TO_MERGE" in b for b in v.blockers)
+
+
+def test_recognized_delivery_requires_a_trusted_base(tmp_path, monkeypatch):
+    from keepsail.engineering import attestation as module
+
+    path = tmp_path / ".harness/attestations/v2/delivery.jsonl"
+    path.parent.mkdir(parents=True)
+    path.write_text("{}\n", encoding="utf-8")
+    monkeypatch.setattr(module, "_trusted_recognition", lambda *args, **kw: object())
+    verdict = verify_attestations(tmp_path, [
+        DiffEntry("A", ("src/file.py",)),
+        DiffEntry("A", (".harness/attestations/v2/delivery.jsonl",)),
+    ])
+    assert not verdict.ok
+    assert any("requires a trusted base" in blocker for blocker in verdict.blockers)
 
 
 def test_verify_empty_scope_attestation_covers_nothing(tmp_path):

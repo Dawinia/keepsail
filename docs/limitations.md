@@ -24,6 +24,14 @@ Historical Changes without a knowledge protocol are reported as `not_recorded`,
 not retrospectively compliant. Retained snapshots prove the recorded cut, not
 unobserved changes in another workspace or service.
 
+**Delivery attestation transition:** The new verifier requires trusted check
+evidence for newly added recognized deliveries, including v1/v2 attestations.
+Historical attestations already in the trusted base remain readable. An old v2
+attestation without that evidence cannot be added as a new delivery under the
+new verifier; replay a historical delivery with the verifier from its historical
+trusted base. A candidate cannot upgrade an old trusted verifier, and consistent
+recorded check results alone do not independently prove where checks executed.
+
 **Framework adapters (v0.2+):**
 - Spec Kit framework adapter
 - BMAD framework adapter
@@ -64,8 +72,9 @@ unobserved changes in another workspace or service.
 - **Hardlink residual:** a hardlink from a marked `.md` name to a source file shares an
   inode that path resolution cannot detect. This requires the shell to create (the same
   unhooked primitive already conceded), most edit tools break it via write-temp-rename,
-  and the content still passes plan + code review + attestation — it is not a new
-  capability beyond the conceded shell primitive.
+  and the content still requires plan approval, applicable code review, required
+  checks and attestation — it is not a new capability beyond the conceded shell
+  primitive.
 
 **Plan-path authoring allowance (`INTENT_DECLARED`):**
 - Coverage is **path-shaped**. A pattern in `.harness/plan-paths.yaml` must contain

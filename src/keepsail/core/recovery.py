@@ -60,25 +60,32 @@ def _unique(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 def strict_events(text: str, change: str | None = None) -> list[Event]:
     out: list[Event] = []
     seen: set[str] = set()
-    for line in text.splitlines():
+    for line in text.splitlines(keepends=True):
         if not line.strip():
             continue
         raw = json.loads(line, object_pairs_hook=_unique)
-        event = parse_event_line(line)
-        _need(isinstance(event.event_id, str) and event.event_id not in seen,
-              "duplicate or malformed event ID")
-        _need(isinstance(raw, dict) and isinstance(raw.get("payload", {}), dict),
-              "malformed event payload")
-        seen.add(event.event_id)
-        if change is not None:
-            _need(set(raw) <= set(asdict(event)), "unsupported source event fields")
-            _need(event.change_id == change, "source contains another Change")
-            _need(event.type in KNOWN_EVENT_TYPES and event.type != RECOVERY_EVENT,
-                  "unknown or nested source event")
-            _need(not event.type.startswith("knowledge_") and
-                  "knowledge_basis" not in json.dumps(event.payload),
-                  "knowledge dependency closure is not supported by recovery v1")
-        out.append(event)
+        if isinstance(raw, dict) and raw.get("schema_version") == "completion-transaction/v1":
+            from keepsail.core.completion_transaction import decode_completion
+
+            _need(change is None, "completion transactions are not historical recovery v1 sources")
+            rows = [(event, asdict(event)) for event in decode_completion(line.encode("utf-8"))]
+        else:
+            rows = [(parse_event_line(line), raw)]
+        for event, event_raw in rows:
+            _need(isinstance(event.event_id, str) and event.event_id not in seen,
+                  "duplicate or malformed event ID")
+            _need(isinstance(event_raw, dict) and isinstance(event_raw.get("payload", {}), dict),
+                  "malformed event payload")
+            seen.add(event.event_id)
+            if change is not None:
+                _need(set(event_raw) <= set(asdict(event)), "unsupported source event fields")
+                _need(event.change_id == change, "source contains another Change")
+                _need(event.type in KNOWN_EVENT_TYPES and event.type != RECOVERY_EVENT,
+                      "unknown or nested source event")
+                _need(not event.type.startswith("knowledge_") and
+                      "knowledge_basis" not in json.dumps(event.payload),
+                      "knowledge dependency closure is not supported by recovery v1")
+            out.append(event)
     return out
 
 
@@ -303,12 +310,13 @@ def prepare_recovery(
         _need(len(prior) == 1 and all(prior[0].payload.get(k) == v for k, v in identity.items()) and
               prior[0].payload.get("merge_fact") == fact, "conflicting recovery already recorded")
         retained_history(prior[0].payload, change)
-        replay = derive_state_from_lines(physical.decode().splitlines()).get(change)
+        replay = derive_state_from_lines(physical.decode().splitlines(keepends=True)).get(change)
         _need(replay is not None and replay.current_state == "ARCHIVED" and
               replay.merge_commit_sha == source_commit, "recovered state no longer matches")
         return {"idempotent_replay": True, "expected_revision": sha256(physical).hexdigest(),
                 "merge_commit_sha": source_commit, "change_id": change}
-    effective = strict_events("\n".join(effective_event_lines(physical.decode().splitlines())))
+    effective = strict_events("\n".join(effective_event_lines(
+        physical.decode().splitlines(keepends=True))))
     existing = [e for e in effective if e.change_id == change]
     _need([asdict(e) for e in existing] == [asdict(e) for e in events[:len(existing)]],
           "target history is not an exact ordered source prefix")
@@ -373,12 +381,12 @@ def validate_recovery(events_file: Path, event: Event) -> None:
     expected = prepare_recovery(events_file.parent.parent, event.change_id,
                                 payload["source_commit"], payload["pr"], events_file=events_file)
     _need(not expected["idempotent_replay"], "recovery was already recorded")
-    existing = strict_events(events_file.read_text(encoding="utf-8"))
+    existing = strict_events(events_file.read_bytes().decode("utf-8"))
     ids = {e.event_id for e in existing}
     from keepsail.core.events import effective_event_lines
 
     effective = strict_events("\n".join(effective_event_lines(
-        events_file.read_text(encoding="utf-8").splitlines())))
+        events_file.read_bytes().decode("utf-8").splitlines(keepends=True))))
     ids.update(e.event_id for e in effective)
     source_ids = {e.event_id for e in strict_events(payload["source_text"], event.change_id)}
     merged_id = payload["merged_event"]["event_id"]

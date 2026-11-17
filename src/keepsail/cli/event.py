@@ -19,7 +19,7 @@ import click
 
 from keepsail.cli.errors import format_error
 from keepsail.cli.output import json_envelope
-from keepsail.core.events import Event, EventSchemaError, parse_event_line
+from keepsail.core.events import Event, EventSchemaError, effective_event_lines, parse_event_line
 from keepsail.core.paths import (
     HarnessNotInitialized,
     events_path,
@@ -65,7 +65,8 @@ def event_log(
     events: list[Event] = []
     f = events_path(root)
     if f.exists():
-        for line in f.read_text(encoding="utf-8").splitlines():
+        lines = f.read_bytes().decode("utf-8").splitlines(keepends=True)
+        for line in effective_event_lines(lines):
             if not line.strip():
                 continue
             try:

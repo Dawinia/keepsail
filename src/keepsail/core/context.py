@@ -850,9 +850,9 @@ def _approval_lineage(root: Path, change: str, approval: dict[str, Any] | None, 
     if not prior_id:
         return []
     approvals = {}
-    source = lines if lines is not None else (root / ".harness/events.jsonl").read_text(
-        encoding="utf-8",
-    ).splitlines()
+    source = lines if lines is not None else (root / ".harness/events.jsonl").read_bytes().decode(
+        "utf-8"
+    ).splitlines(keepends=True)
     for line in source if effective else effective_event_lines(source):
         try:
             event = parse_event_line(line)

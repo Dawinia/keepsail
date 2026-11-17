@@ -12,9 +12,14 @@ INTENT_DECLARED
   → PLAN_APPROVED             (plan_approved, from a reviewer verdict)
   → IMPLEMENTATION_IN_PROGRESS (implementation_started)
   → AWAITING_CODE_REVIEW      (implementation_complete, emitted by `done`)
-  → READY_TO_MERGE            (code_review_passed, from a reviewer verdict)
+  → READY_TO_MERGE            (code_review_passed, when review is required)
   → ARCHIVED                  (merged, after the PR lands on main)
 ```
+
+When the active policy determines code review is not required, `done` records
+`implementation_complete` and `code_review_not_required` together and reaches
+READY_TO_MERGE without a reviewer verdict. The decision is bound to the trusted
+policy and the actual implementation.
 
 Reviews can send a change back: a rejected plan goes to PLAN_REJECTED (re-emit
 `plan_ready` to retry) and a failed code review goes to CODE_REVIEW_REJECTED; a
@@ -80,9 +85,9 @@ new fixtures, file additions and implementation-method changes use
 `implementation record --assessment` to retain reasoning and actual coverage.
 Changing commitments or relaxing restrictions requires `plan redeclare --plan`
 and approval of the new candidate. A changed Git HEAD alone does not revoke plan
-approval; code review and verification still need an accurate current subject.
+approval; applicable code review and verification still need an accurate current subject.
 Use `implementation reopen` for code fixes after freezing completion, then refresh
-verification and code evidence. Finish or explicitly withdraw a pending revision
+verification and any required code evidence. Finish or explicitly withdraw a pending revision
 before delivery under the previously approved commitments.
 
 After `CODE_REVIEW_REJECTED`, edits are allowed but the rejected code subject stays
@@ -91,8 +96,9 @@ implementation or replace that frozen subject. For corrected code, run
 `implementation reopen <change> --reason "<why>"`, update the implementation
 assessment/coverage, commit, and run `done <change>`. This preserves plan approval
 and rejection history, clears the previous code/verification projection, and then
-freezes the freshly verified subject in `AWAITING_CODE_REVIEW`. Import recognized
-external evidence for that exact subject to reach `READY_TO_MERGE`. An approval
+freezes the freshly verified subject. If the active policy requires code review,
+import recognized external evidence for that exact subject to reach `READY_TO_MERGE`;
+otherwise `done` records the policy-bound no-review decision. An approval
 for an older subject cannot approve the new commit. A rejected plan still requires
 plan revision and recognized plan approval; code recovery cannot bypass it.
 

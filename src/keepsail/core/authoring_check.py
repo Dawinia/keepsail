@@ -169,7 +169,8 @@ def run_authoring_check(
     try:
         t0 = clock()  # inside the try so an injected clock that raises still fails open
         decisions, _errors = load_decisions(workspace_root)
-        opted = [d for d in decisions if d.authoring_time and _integrity_ok(d)]
+        opted = [d for d in decisions
+                 if d.status == "ratified" and d.authoring_time and _integrity_ok(d)]
         if not opted:
             return Verdict(violations=[])
         results = _run_checks_parallel(
@@ -183,7 +184,8 @@ def run_authoring_check(
             decisions, _errors = load_decisions(workspace_root)
             ids = sorted(
                 d.id for d in decisions
-                if d.authoring_time and _integrity_ok(d) and has_runnable_check(d)
+                if (d.status == "ratified" and d.authoring_time and _integrity_ok(d)
+                    and has_runnable_check(d))
             )
         except Exception:
             ids = []

@@ -210,20 +210,14 @@ def test_init_creates_harness_dir(tmp_path: Path):
     assert (tmp_path / ".harness").is_dir()
     assert (tmp_path / ".harness" / "events.jsonl").exists()
     assert not (tmp_path / ".harness" / "policy.yaml").exists()
-    governance = yaml.safe_load((tmp_path / ".harness" / "review-governance.yaml").read_text())
-    review = governance["review"]
-    assert review["sources"] == {"human": {"kind": "human"}}
-    assert review["roles"]["plan-reviewer"] == {
-        "participants": ["human"],
-        "min_independent": 1,
-        # Per-role: plan review gets 6 automatic rounds per change, code review 4.
-        "max_automatic_rounds": 6,
-    }
-    assert review["roles"]["code-reviewer"] == {
-        "participants": ["human"],
-        "min_independent": 1,
-        "max_automatic_rounds": 4,
-    }
+    from keepsail.core.policy_authority import parse_authority_yaml
+
+    authority = parse_authority_yaml(
+        (tmp_path / ".harness" / "policy-authority.yaml").read_text(encoding="utf-8")
+    )
+    assert authority.enabled is False
+    assert authority.public_key is None
+    assert not (tmp_path / ".harness" / "review-governance.yaml").exists()
     assert not (tmp_path / ".harness" / "review-profiles.local.yaml").exists()
     assert (tmp_path / ".harness" / "sensors.yaml").exists()
     assert (tmp_path / ".harness" / "verification.yaml").exists()
@@ -850,11 +844,8 @@ def test_init_guided_without_configured_models_uses_human_only_review(
     result = CliRunner().invoke(main, ["--workspace", str(tmp_path), "init"])
 
     assert result.exit_code == 0, result.output
-    governance = yaml.safe_load((tmp_path / ".harness" / "review-governance.yaml").read_text())[
-        "review"
-    ]
-    assert governance["sources"] == {"human": {"kind": "human"}}
-    assert governance["roles"]["plan-reviewer"]["participants"] == ["human"]
+    assert not (tmp_path / ".harness" / "review-governance.yaml").exists()
+    assert (tmp_path / ".harness" / "policy-authority.yaml").exists()
     assert not (tmp_path / ".harness" / "review-profiles.local.yaml").exists()
 
 
@@ -1267,12 +1258,16 @@ def test_init_force_preserves_review_files_without_new_flags(
     first = runner.invoke(main, ["--workspace", str(tmp_path), "init"])
     assert first.exit_code == 0, first.output
     governance = tmp_path / ".harness" / "review-governance.yaml"
+    governance.write_bytes(b"historical governance\n")
     before = governance.read_bytes()
+    authority = tmp_path / ".harness" / "policy-authority.yaml"
+    authority.write_bytes(b"owner-managed authority\n")
 
     forced = runner.invoke(main, ["--workspace", str(tmp_path), "init", "--force"])
 
     assert forced.exit_code == 0, forced.output
     assert governance.read_bytes() == before
+    assert authority.read_bytes() == b"owner-managed authority\n"
 
 
 def test_init_creates_all_subdirs(tmp_path: Path):
@@ -1723,18 +1718,7 @@ def test_every_skeleton_file_is_announced_in_the_frozen_plan() -> None:
     assert written <= announced, f"written but never announced: {sorted(written - announced)}"
 
 
-def test_init_emits_per_role_round_budgets(tmp_path: Path):
-    """A freshly init-ed repo's governance must load without error and carry the two
-    different budgets. The old key is a hard error, so a generator left behind would
-    emit a config that fails its own first governance load."""
-    from keepsail.engineering.review_governance import load_review_governance
-
+def test_init_does_not_generate_historical_review_governance(tmp_path: Path):
     r = CliRunner().invoke(main, ["--workspace", str(tmp_path), "init"])
     assert r.exit_code == 0, r.output
-
-    text = (tmp_path / ".harness" / "review-governance.yaml").read_text(encoding="utf-8")
-    assert "max_automatic_rounds_per_epoch" not in text
-
-    governance = load_review_governance(tmp_path)
-    assert governance.roles["plan-reviewer"].max_automatic_rounds == 6
-    assert governance.roles["code-reviewer"].max_automatic_rounds == 4
+    assert not (tmp_path / ".harness" / "review-governance.yaml").exists()

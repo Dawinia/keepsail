@@ -294,6 +294,7 @@ def test_file_actions_are_ordered_before_any_apply_boundary(tmp_path: Path) -> N
         ".harness/state.yaml",
         ".harness/adapters.yaml",
         ".harness/review-recognition.yaml",
+        ".harness/policy-authority.yaml",
         ".harness/sensors.yaml",
         ".harness/gates.yaml",
         ".harness/source-paths.yaml",
@@ -316,6 +317,7 @@ def test_file_actions_are_ordered_before_any_apply_boundary(tmp_path: Path) -> N
     assert by_path[".harness/adapters.yaml"].action is FileAction.CREATE
     assert by_path[".harness/verification.yaml"].action is FileAction.CREATE
     assert by_path[".harness/review-recognition.yaml"].action is FileAction.CREATE
+    assert by_path[".harness/policy-authority.yaml"].action is FileAction.CREATE
     assert by_path[".harness/review-governance.yaml"].action is FileAction.SKIP
     assert by_path[".harness/review-governance.yaml"].review_write is ReviewWrite.PRESERVE
     assert by_path[".harness/review-profiles.local.yaml"].action is FileAction.SKIP
