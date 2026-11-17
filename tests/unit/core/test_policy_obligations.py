@@ -74,6 +74,21 @@ def test_scope_may_become_broader_without_dropping_the_old_review_requirement():
     assert [(x["kind"], x["id"]) for x in changes] == [("code_review", "scope")]
 
 
+def test_scoped_v1_to_v2_requires_authorizing_the_effective_review_reduction():
+    raw, old, checks = setup_policy("scope", ["src"])
+    raw["builtin_checks_version"] = "keepsail-baseline/v2"
+    changes = compare(raw, old, checks, old_mode="scope", old_scope=("src",))
+    assert {item["kind"] for item in changes} == {"code_review", "builtin_contract"}
+    parsed = parse_delivery_policy(raw | {"policy_digest": digest_record(
+        {k: v for k, v in raw.items() if k != "policy_digest"})})
+    historical = changed_obligations(
+        old_processes=old, old_code_review="scope", old_scope=("src",),
+        old_builtin="keepsail-baseline/v1", old_checks=checks, new_policy=parsed,
+        new_checks=checks, historical_replay=True,
+    )
+    assert [item["kind"] for item in historical] == ["builtin_contract"]
+
+
 @pytest.mark.parametrize(
     ("old_scope", "new_scope", "weakened"),
     [

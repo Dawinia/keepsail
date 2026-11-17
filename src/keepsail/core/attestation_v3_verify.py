@@ -31,6 +31,7 @@ from keepsail.core.attestation_replay import (
 )
 from keepsail.core.attestation_v3 import parse_v3_line, validate_v3
 from keepsail.core.completion_transaction import wrap_derived_completion
+from keepsail.core.delivery_policy import require_activatable_policy
 from keepsail.core.git_diff import parse_name_status_z, require_literal_paths
 from keepsail.core.git_objects import regular_blob_bytes, regular_blob_text
 from keepsail.core.policy_authority import (
@@ -79,6 +80,7 @@ def _with_activation_scope(function: Callable[_P, _R]) -> Callable[_P, _R]:
 @_with_activation_scope
 def verify_v3_transition(
     root: Path, value: object, *, base: str, head: str, repository_id: str, target_ref: str,
+    _historical_replay: bool = False,
 ) -> dict[str, Any]:
     """Replay an activation using the old v1 baseline and committed Git objects."""
     record = validate_v3(value)
@@ -143,6 +145,8 @@ def verify_v3_transition(
         target = read_policy_snapshot(root, head_sha, repository_id=repository_id,
                                       target_ref=target_ref)
         candidate = target.policy
+        if not _historical_replay:
+            require_activatable_policy(candidate)
         if candidate.activation != {"kind": "transition", "change": change}:
             raise ApprovalError("v3 activation does not identify this transition")
         new_checks = target.checks
@@ -320,7 +324,8 @@ def _verify_v2_activation(
                 and predecessor_policy.get("version") == "review-recognition/v2"
                 else verify_v3_transition)
     result = verifier(root, record, base=predecessor, head=introduction,
-                      repository_id=repository_id, target_ref=target_ref)
+                      repository_id=repository_id, target_ref=target_ref,
+                      _historical_replay=True)
     if result["target_policy_digest"] != snapshot.policy.policy_digest:
         raise ApprovalError("active policy does not match the replayed transition")
     rotation = None
@@ -378,6 +383,7 @@ def _verify_current_rotation(root: Path, trusted: str, policy_digest: str, autho
 @_with_activation_scope
 def verify_v3_delivery(
     root: Path, value: object, *, base: str, head: str, repository_id: str, target_ref: str,
+    _historical_replay: bool = False,
 ) -> dict[str, Any]:
     """Replay delivery and any signed transition under the active v2 obligations."""
     from keepsail.core.effective_policy import continued_plan_basis
@@ -411,6 +417,8 @@ def verify_v3_delivery(
     policy_changed = candidate.policy.policy_digest != snapshot.policy.policy_digest
     authority_changed = candidate.authority.digest != snapshot.authority.digest
     checks_changed = candidate.checks["digest"] != snapshot.checks["digest"]
+    if policy_changed and not _historical_replay:
+        require_activatable_policy(candidate.policy)
     authorization = record["authorization"]
     if not policy_changed and not authority_changed:
         if checks_changed or authorization is not None:
@@ -444,7 +452,7 @@ def verify_v3_delivery(
                 old_processes=old_processes, old_code_review=snapshot.policy.code_review,
                 old_scope=snapshot.policy.scope, old_builtin=snapshot.policy.builtin_checks_version,
                 old_checks=snapshot.checks, new_policy=candidate.policy,
-                new_checks=candidate.checks,
+                new_checks=candidate.checks, historical_replay=_historical_replay,
             )
             require_signed_obligation_changes(changes, authorization)
         elif authorization.get("obligation_changes", []):

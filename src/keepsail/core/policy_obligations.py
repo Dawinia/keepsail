@@ -71,7 +71,7 @@ def check_definitions(contract: object) -> tuple[dict[str, bool], dict[tuple[str
 def changed_obligations(
     *, old_processes: dict[str, Recognition], old_code_review: str, old_scope: tuple[str, ...],
     old_builtin: str, old_checks: dict[str, Any], new_policy: DeliveryPolicy,
-    new_checks: dict[str, Any],
+    new_checks: dict[str, Any], historical_replay: bool = False,
 ) -> list[dict[str, Any]]:
     """Describe reductions/replacements; never infer their authorization from the candidate."""
     changes: list[dict[str, Any]] = []
@@ -86,10 +86,22 @@ def changed_obligations(
         new = _process(new_policy.recognition_for(kind))
         if old is not None and old != new:
             add("recognition", "review", kind, old, new)
-    if not _review_not_weaker(old_code_review, old_scope, new_policy.code_review, new_policy.scope):
+    raw_weaker = not _review_not_weaker(
+        old_code_review, old_scope, new_policy.code_review, new_policy.scope)
+    old_effective = ("full" if not historical_replay and old_code_review == "scope"
+                     and old_builtin == "keepsail-baseline/v1"
+                     else old_code_review)
+    new_effective = ("full" if not historical_replay and new_policy.code_review == "scope"
+                     and new_policy.builtin_checks_version == "keepsail-baseline/v1"
+                     else new_policy.code_review)
+    effective_weaker = not _review_not_weaker(
+        old_effective, old_scope, new_effective, new_policy.scope)
+    if raw_weaker or effective_weaker:
+        before_mode = old_code_review if raw_weaker else old_effective
+        after_mode = new_policy.code_review if raw_weaker else new_effective
         add("code_review", "policy", "scope",
-            {"mode": old_code_review, "scope": list(old_scope)},
-            {"mode": new_policy.code_review, "scope": list(new_policy.scope)})
+            {"mode": before_mode, "scope": list(old_scope) if before_mode == "scope" else []},
+            {"mode": after_mode, "scope": list(new_policy.scope) if after_mode == "scope" else []})
     if old_builtin != new_policy.builtin_checks_version:
         add("builtin_contract", "baseline", "version", old_builtin,
             new_policy.builtin_checks_version)

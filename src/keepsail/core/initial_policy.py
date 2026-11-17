@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from keepsail.core.approval import ApprovalError
+from keepsail.core.delivery_policy import require_activatable_policy
 from keepsail.core.git_objects import regular_blob_bytes
 from keepsail.core.policy_authority import parse_unique_yaml
 from keepsail.core.policy_snapshot import PolicySnapshot, read_policy_snapshot
@@ -67,7 +68,7 @@ def require_no_prior_enabled_policy(root: Path, initial_commit: str) -> None:
 
 def prepare_initial_confirmation(
     root: Path, *, initial_commit: str, repository_id: str, target_ref: str,
-    owner_confirmation: object,
+    owner_confirmation: object, _historical_replay: bool = False,
 ) -> dict[str, Any]:
     """Construct a retained claim about an exact initial commit; grants no authority."""
     required = {"owner", "statement", "evidence_reference", "original_evidence"}
@@ -80,6 +81,8 @@ def prepare_initial_confirmation(
         raise ApprovalError("initial trust requires a full commit object ID")
     first = read_policy_snapshot(root, initial_commit, repository_id=repository_id,
                                  target_ref=target_ref)
+    if not _historical_replay:
+        require_activatable_policy(first.policy)
     if first.policy.activation != {"kind": "initial"}:
         raise ApprovalError("initial confirmation must identify an initial policy")
     require_no_prior_enabled_policy(root, initial_commit)
@@ -126,7 +129,7 @@ def verify_initial_policy(
         raise ApprovalError("initial confirmation changed or is not after the initial commit")
     expected = prepare_initial_confirmation(
         root, initial_commit=initial, repository_id=repository_id, target_ref=target_ref,
-        owner_confirmation=confirmation,
+        owner_confirmation=confirmation, _historical_replay=True,
     )
     if record != expected or expected["policy_digest"] != snapshot.policy.policy_digest:
         raise ApprovalError("initial confirmation does not match the committed first policy")

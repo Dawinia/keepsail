@@ -63,6 +63,8 @@ class DeliveryPolicy:
         matches = sorted(path for path in paths if covered_by_scope(path, list(self.scope)))
         if matches:
             return True, "policy scope matched: " + ", ".join(matches)
+        if self.builtin_checks_version == "keepsail-baseline/v1":
+            return True, "legacy built-in v1 requires code review outside the policy scope"
         return False, "no actual changed path matched the policy scope"
 
 
@@ -137,6 +139,12 @@ def parse_delivery_policy(value: object) -> DeliveryPolicy:
         parsed[kind] = Recognition("review-recognition/v2", pid, version, frozenset({kind}),
                                    issuers, forms, dict(process["requirements"]), claimed)
     return DeliveryPolicy(claimed, parsed, mode, scope, checks, baseline, dict(activation))
+
+
+def require_activatable_policy(policy: DeliveryPolicy) -> None:
+    """New policies must support their advertised no-review decisions."""
+    if policy.code_review != "full" and policy.builtin_checks_version != "keepsail-baseline/v2":
+        raise ApprovalError("new no-review policies require built-in contract v2")
 
 
 def parse_delivery_policy_yaml(text: str) -> DeliveryPolicy:

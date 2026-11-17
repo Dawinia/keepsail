@@ -4,7 +4,11 @@ import pytest
 import yaml
 
 from keepsail.core.approval import ApprovalError, digest_record, evidence_is_recognized
-from keepsail.core.delivery_policy import parse_delivery_policy, parse_delivery_policy_yaml
+from keepsail.core.delivery_policy import (
+    parse_delivery_policy,
+    parse_delivery_policy_yaml,
+    require_activatable_policy,
+)
 
 
 def policy(mode="scope"):
@@ -93,7 +97,11 @@ def test_existing_scoped_v1_policy_remains_readable():
     value["builtin_checks_version"] = "keepsail-baseline/v1"
     parsed = parse_delivery_policy(redigest(value))
     assert parsed.review_requirement([{"path": "src/secure/a.py"}])[0]
-    assert not parsed.review_requirement([{"path": "docs/a.md"}])[0]
+    required, reason = parsed.review_requirement([{"path": "docs/a.md"}])
+    assert required and "v1 requires code review" in reason
+    with pytest.raises(ApprovalError, match="require built-in contract v2"):
+        require_activatable_policy(parsed)
+    require_activatable_policy(parse_delivery_policy(policy("scope")))
 
 
 def test_full_review_can_preserve_the_v1_baseline():

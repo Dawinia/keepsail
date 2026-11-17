@@ -13,7 +13,7 @@ from keepsail.core.approval import (
     resolve_contract_base,
     validate_code_subject,
 )
-from keepsail.core.delivery_policy import parse_delivery_policy
+from keepsail.core.delivery_policy import parse_delivery_policy, require_activatable_policy
 from keepsail.core.git_diff import require_literal_git_diff
 from keepsail.core.git_objects import optional_regular_blob_text, regular_blob_text
 from keepsail.core.policy_authority import (
@@ -131,6 +131,8 @@ def validate_delivery_obligations(
         policy_changed = candidate_policy.policy_digest != snapshot.policy.policy_digest
         authority_changed = candidate_authority.digest != snapshot.authority.digest
         checks_changed = checks["digest"] != snapshot.checks["digest"]
+        if policy_changed:
+            require_activatable_policy(candidate_policy)
         if authority_changed and (policy_changed or checks_changed):
             raise ApprovalError("key rotation must be a separate authority-only transition")
         if policy_changed and candidate_policy.activation != {
@@ -199,6 +201,7 @@ def validate_delivery_obligations(
         policy_changed = candidate.policy_digest != old_recognition.policy_digest
     elif candidate_version == "review-recognition/v2":
         candidate_v2 = parse_delivery_policy(candidate_raw)
+        require_activatable_policy(candidate_v2)
         policy_changed = True
         if (candidate_v2.activation != {"kind": "transition", "change": state.change_id}
                 or candidate_v2.required_checks_digest != new_checks["digest"]):
