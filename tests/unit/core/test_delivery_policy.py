@@ -110,6 +110,15 @@ def test_full_review_can_preserve_the_v1_baseline():
     assert parse_delivery_policy(redigest(value)).builtin_checks_version == "keepsail-baseline/v1"
 
 
+@pytest.mark.parametrize("path", ["C:/src", "C:src", "~/src", "~"])
+def test_new_scope_rejects_ambiguous_nonportable_path_without_breaking_historical_parse(path):
+    value = policy("scope")
+    value["code_review"]["scope"] = [path]
+    parsed = parse_delivery_policy(redigest(value))
+    with pytest.raises(ApprovalError, match="repository-relative"):
+        require_activatable_policy(parsed)
+
+
 def test_reserved_plan_identity_cannot_be_impersonated_by_json_or_unverified_signature():
     value = policy()
     value["processes_by_kind"]["plan"]["evidence_forms"].append("json")

@@ -12,6 +12,7 @@ from keepsail.core.policy_obligations import check_definitions
 def verify_check_evidence(
     verification: object, *, subject_id: str, required_contract: dict[str, Any],
     builtin_version: str, trusted_base: str,
+    permitted_missing: frozenset[tuple[str, str]] = frozenset(),
 ) -> dict[str, int]:
     """Require every enabled, mandatory check to pass for the frozen code subject."""
     if (not isinstance(verification, dict) or verification.get("subject_id") != subject_id
@@ -24,6 +25,8 @@ def verify_check_evidence(
     if layers["baseline"]:
         expected.update({(row["source"], row["id"]): row["definition_digest"]
                          for row in builtin["checks"] if row["must_pass"]})
+    if not permitted_missing <= expected.keys():
+        raise ApprovalError("permitted missing checks are not in the trusted contract")
     evidence = verification.get("check_evidence")
     if (not isinstance(evidence, dict) or set(evidence) != {
         "version", "required_checks_digest", "trusted_base", "builtin_checks_version",
@@ -53,6 +56,8 @@ def verify_check_evidence(
         seen[key] = row
     for key, definition_digest in expected.items():
         row = seen.get(key)
+        if row is None and key in permitted_missing:
+            continue
         if (row is None or row["status"] != "pass" or row["exit_code"] != 0
                 or row["must_pass"] is not True
                 or row["definition_digest"] != definition_digest):

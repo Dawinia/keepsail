@@ -37,6 +37,25 @@ _AUTHORITY = ".harness/policy-authority.yaml"
 _VERIFICATION = ".harness/verification.yaml"
 
 
+def validate_legacy_initial_authority(root: Path) -> None:
+    """A legacy completion cannot establish or replace enabled authority."""
+    path = root / _AUTHORITY
+    proposed = parse_authority_yaml(path.read_text(encoding="utf-8")) if path.exists() else None
+    try:
+        base = resolve_contract_base(root)
+    except ApprovalError:
+        if proposed is not None and proposed.enabled:
+            raise ApprovalError(
+                "initial enabled trust needs separate owner establishment") from None
+        return
+    previous_text = optional_regular_blob_text(root, base, _AUTHORITY)
+    previous = parse_authority_yaml(previous_text) if previous_text is not None else None
+    if ((previous is not None and previous.enabled)
+            or (proposed is not None and proposed.enabled)):
+        if previous is None or proposed is None or previous.digest != proposed.digest:
+            raise ApprovalError("initial enabled trust needs separate owner establishment")
+
+
 def committed_transition_required(
     root: Path, *, base: str, head: str, changed_paths: set[str],
 ) -> bool:
@@ -46,6 +65,10 @@ def committed_transition_required(
     old_text = optional_regular_blob_text(root, base, _POLICY)
     old_raw = parse_unique_yaml(old_text) if old_text is not None else None
     if not isinstance(old_raw, dict) or old_raw.get("enabled") is not True:
+        if _POLICY in changed_paths:
+            proposed = parse_unique_yaml(regular_blob_text(root, head, _POLICY))
+            if isinstance(proposed, dict) and proposed.get("version") == "review-recognition/v2":
+                raise ApprovalError("initial v2 trust needs separate owner establishment")
         if _AUTHORITY in changed_paths:
             before = optional_regular_blob_text(root, base, _AUTHORITY)
             after = optional_regular_blob_text(root, head, _AUTHORITY)
@@ -56,10 +79,6 @@ def committed_transition_required(
                 if (old_authority is None or new_authority is None
                         or old_authority.digest != new_authority.digest):
                     raise ApprovalError("initial enabled trust needs separate owner establishment")
-        if _POLICY in changed_paths:
-            proposed = parse_unique_yaml(regular_blob_text(root, head, _POLICY))
-            if isinstance(proposed, dict) and proposed.get("version") == "review-recognition/v2":
-                raise ApprovalError("initial v2 trust needs separate owner establishment")
         return False
     if old_raw.get("version") == "review-recognition/v2":
         # The v3 verifier checks the entire candidate policy, authority and check

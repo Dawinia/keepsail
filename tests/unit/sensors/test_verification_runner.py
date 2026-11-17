@@ -988,10 +988,13 @@ def test_runner_check_only_ids_via_payload(tmp_path: Path) -> None:
     assert res.status == "pass"
 
 
-@pytest.mark.parametrize("selected", [["ghost"], ["first", "ghost"], ["first"],
-                                      ["first", "second"]])
+@pytest.mark.parametrize(("selected", "fault"), [
+    (["ghost"], None), (["first", "ghost"], None), (["first"], None),
+    (["first", "second"], None), (["first"], "digest"),
+    (["first", "second"], "contract"), (["first"], "error"),
+])
 def test_approved_filtered_verification_uses_trusted_checks(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, selected: list[str],
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, selected: list[str], fault: str | None,
 ) -> None:
     from types import SimpleNamespace
 
@@ -1025,11 +1028,26 @@ checks:
     monkeypatch.setattr(module, "run_checks", lambda tasks, **kw: [
         CheckResult(task.id, "pass", 0, 1, task.must_pass, task.id, None) for task in tasks
     ])
+    original_evidence = module.check_evidence
+
+    def evidence(*args, **kw):
+        if fault == "error":
+            from keepsail.core.approval import ApprovalError
+
+            raise ApprovalError("broken evidence generation")
+        result = original_evidence(*args, **kw)
+        if fault == "digest":
+            result["results"][0]["definition_digest"] = "f" * 64
+        if fault == "contract":
+            result["trusted_base"] = "b" * 40
+        return result
+
+    monkeypatch.setattr(module, "check_evidence", evidence)
     result = VerificationRunner().check(
         Activity(type="cli_verify", change_id="ch", payload={"checks": selected}),
         WorkspaceContext(workspace_root=root),
     )
-    if "ghost" in selected:
+    if "ghost" in selected or fault:
         assert result.status == "fail"
         assert not any(event.type == "verification_passed" for event in result.emit_events)
     elif selected == ["first"]:

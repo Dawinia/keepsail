@@ -70,6 +70,7 @@ def test_disabled_or_missing_policy_cannot_introduce_enabled_authority(
     git("add", ".")
     git("commit", "-qm", "before initial authority")
     base = git("rev-parse", "HEAD")
+    git("switch", "-qc", "candidate")
     new = authority(Ed25519PrivateKey.generate(), ["policy-transition"])
     (tmp_path / ".harness/policy-authority.yaml").write_text(yaml.safe_dump(new), encoding="utf-8")
     git("add", ".")
@@ -77,6 +78,27 @@ def test_disabled_or_missing_policy_cannot_introduce_enabled_authority(
     with pytest.raises(ApprovalError, match="initial enabled trust"):
         committed_transition_required(tmp_path, base=base, head="HEAD",
                                       changed_paths={".harness/policy-authority.yaml"})
+
+    from click.testing import CliRunner
+
+    from keepsail.cli import main
+    from keepsail.core.events import Actor, Event
+    from keepsail.core.paths import events_path
+    from keepsail.core.ulid import new_event_id
+    from keepsail.core.writer import EventWriter
+
+    writer = EventWriter(events_path(tmp_path))
+    for kind in ("intent_declared", "plan_ready", "plan_approved", "implementation_started"):
+        writer.emit(Event(event_id=new_event_id(), type=kind, change_id="delivery",
+                          timestamp="2026-11-17T00:00:00Z",
+                          actor=Actor(type="human", identifier="fixture"), framework="plain"))
+    result = CliRunner().invoke(main, ["--workspace", str(tmp_path), "done", "delivery",
+                                       "--skip-verify"])
+    assert result.exit_code == 2, result.output
+    assert "initial enabled trust" in result.output
+    result = CliRunner().invoke(main, ["--workspace", str(tmp_path), "verify", "delivery"])
+    assert result.exit_code == 2, result.output
+    assert "initial enabled trust" in result.output
 
 
 def authorization(key, old, *, kind="transition"):

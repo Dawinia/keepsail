@@ -276,6 +276,8 @@ def test_added_fixture_completes_real_verification_under_same_approval(
         ("unrelated", "implementation coverage omits"),
         ("approval", "requires an effective plan approval"),
         ("verification", "verification is for a different code subject"),
+        ("verification-evidence", "required check missing"),
+        ("verification-evidence-missing", "verification check evidence"),
         ("code", "code subject does not match"),
         ("missing-evidence", "code review evidence is not retained"),
         ("malformed-evidence", "not backed by recognized code evidence"),
@@ -306,6 +308,11 @@ def test_added_fixture_completes_real_verification_under_same_approval(
                 payload.pop("approval", None)
             elif defect == "verification" and record["type"] == "verification_passed":
                 payload["verification"]["subject_id"] = "code:stale"
+            elif defect == "verification-evidence" and record["type"] == "verification_passed":
+                payload["verification"]["check_evidence"]["results"] = []
+            elif (defect == "verification-evidence-missing"
+                  and record["type"] == "verification_passed"):
+                payload["verification"].pop("check_evidence", None)
             elif defect == "code" and record["type"] in {
                 "implementation_complete", "code_review_passed"
             }:

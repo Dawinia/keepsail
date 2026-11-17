@@ -203,17 +203,32 @@ def verify_cmd(
         )
         sys.exit(EXIT_VALIDATION)
 
-    # Pre-load + validate verification.yaml *before* dispatch so config errors
-    # are clean, precise exits — NOT swallowed sensor crashes. The sensor re-loads
-    # the config during its run (the double-load is cheap); this pre-load exists
-    # purely so a missing / syntax-corrupt / wrong-shape / bad-placeholder config
-    # surfaces correctly instead of being caught by the dispatcher's broad
-    # `except Exception` → sensor_crashed → empty results → the imprecise
-    # EXIT_GENERIC below. FileNotFoundError → EXIT_NO_CONFIG; yaml.YAMLError
-    # (syntax) and the VerificationConfigError/ValueError family (wrong shape /
-    # bad enum / dup id / non-allowlisted ${NAME} placeholder) → EXIT_VALIDATION.
+    _cs = derive_state(events_path(root)).get(resolved)
+    if _cs is not None and _cs.effective_approval is None:
+        from keepsail.core.approval import ApprovalError
+        from keepsail.core.transition_guard import validate_legacy_initial_authority
+
+        try:
+            validate_legacy_initial_authority(root)
+        except (ApprovalError, OSError, ValueError) as exc:
+            click.echo(format_error(subcommand="verify", message=str(exc)), err=True)
+            sys.exit(EXIT_VALIDATION)
+
+    # Pre-load the same configuration the runner will execute, so configuration
+    # errors are precise and a candidate cannot select the trusted check list.
+    trusted = _cs is not None and isinstance(_cs.effective_approval, dict)
+    config_label = ("trusted baseline .harness/verification.yaml" if trusted
+                    else str(verification_yaml_path(root)))
     try:
-        cfg = load_verification_config(verification_yaml_path(root))
+        if trusted:
+            from keepsail.core.approval import resolve_contract_base
+            from keepsail.core.git_objects import regular_blob_text
+            from keepsail.engineering.verification_config import parse_verification_config
+
+            cfg = parse_verification_config(regular_blob_text(
+                root, resolve_contract_base(root), ".harness/verification.yaml"))
+        else:
+            cfg = load_verification_config(verification_yaml_path(root))
     except FileNotFoundError:
         click.echo(
             format_error(
@@ -228,7 +243,7 @@ def verify_cmd(
         click.echo(
             format_error(
                 subcommand="verify",
-                message=f"{verification_yaml_path(root)} is not valid YAML: {e}",
+                message=f"{config_label} is not valid YAML: {e}",
                 hint="Fix the YAML syntax in `.harness/verification.yaml`.",
             ),
             err=True,
@@ -245,8 +260,7 @@ def verify_cmd(
 
     # Legacy work uses this workspace precheck. With an approval, the runner
     # validates selected IDs against the trusted configuration it will execute.
-    _cs = derive_state(events_path(root)).get(resolved)
-    if check and not (_cs is not None and isinstance(_cs.effective_approval, dict)):
+    if check:
         collectable = collectable_check_ids(cfg, layer=layer)
         unknown = [c for c in check if c not in collectable]
         if unknown:
@@ -254,8 +268,10 @@ def verify_cmd(
             click.echo(
                 format_error(
                     subcommand="verify",
-                    message=f"no such check{in_layer}: {', '.join(sorted(unknown))}",
-                    hint="Check the ids in `.harness/verification.yaml`"
+                    message=f"no such {'trusted ' if trusted else ''}check{in_layer}: "
+                            f"{', '.join(sorted(unknown))}",
+                    hint=("Check the trusted baseline's check IDs" if trusted else
+                          "Check the ids in `.harness/verification.yaml`")
                     + (" or drop `--layer`." if layer else "."),
                 ),
                 err=True,

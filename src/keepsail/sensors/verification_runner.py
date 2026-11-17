@@ -1110,9 +1110,10 @@ def _verification_identity_snapshot(
         approval_id=approval_id,
         base=resolve_contract_base(root),
     )
-    config_digest = sha256(
-        verification_yaml_path(root).read_bytes()
-    ).hexdigest()
+    try:
+        config_digest = sha256(verification_yaml_path(root).read_bytes()).hexdigest()
+    except FileNotFoundError:
+        config_digest = None
     return {
         "subject_id": code_subject["subject_id"],
         "code_subject": code_subject,
@@ -1342,21 +1343,30 @@ class VerificationRunner(Sensor):
 
         partial = False
         if verification is not None and trusted_base is not None and verdict == "passed":
+            from keepsail.core.policy_obligations import check_definitions
             from keepsail.core.verification_evidence import verify_check_evidence
 
             try:
+                contract = required_check_contract(cfg)
+                layers, expected = check_definitions(contract)
+                if layers["baseline"]:
+                    expected.update({(row["source"], row["id"]): row["definition_digest"]
+                                     for row in builtin_check_contract(builtin_version)["checks"]
+                                     if row["must_pass"]})
+                scheduled = {(task.source, task.id) for task in tasks}
+                missing = frozenset(expected.keys() - scheduled)
                 verify_check_evidence(
                     verification, subject_id=str(verification.get("subject_id")),
-                    required_contract=required_check_contract(cfg),
+                    required_contract=contract,
                     builtin_version=builtin_version, trusted_base=trusted_base,
+                    permitted_missing=missing if layer is not None or only_ids is not None
+                    else frozenset(),
                 )
+                partial = bool(missing)
             except ApprovalError as exc:
-                if layer is not None or only_ids is not None:
-                    partial = True
-                else:
-                    verdict = "failed"
-                    verification["outcome"] = verdict
-                    verification["check_evidence_error"] = str(exc)
+                verdict = "failed"
+                verification["outcome"] = verdict
+                verification["check_evidence_error"] = str(exc)
 
         write_summary_json(archive, results, verdict)
 
@@ -1370,10 +1380,13 @@ class VerificationRunner(Sensor):
             "verification_passed" if verdict == "passed" else "verification_failed"
         )
         status: SensorStatus = "pass" if verdict == "passed" else "fail"
+        evidence_error = (verification or {}).get("check_evidence_error")
+        suffix = f"; check evidence invalid: {evidence_error}" if evidence_error else ""
         return SensorResult(
             status=status,
             summary=(
                 f"verification {verdict} ({len(results)} checks, {len(must_pass_failed)} failed)"
+                + suffix
             ),
             details=verify_data_block(change_id, results, archive, root),
             emit_events=[

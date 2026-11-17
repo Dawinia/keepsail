@@ -7,6 +7,7 @@ only after resolving and validating it from its independently trusted baseline.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import PureWindowsPath
 from typing import Any
 
 from keepsail.core.approval import ApprovalError, Recognition, digest_record
@@ -142,9 +143,12 @@ def parse_delivery_policy(value: object) -> DeliveryPolicy:
 
 
 def require_activatable_policy(policy: DeliveryPolicy) -> None:
-    """New policies must support their advertised no-review decisions."""
+    """New policies must have usable, portable review obligations."""
     if policy.code_review != "full" and policy.builtin_checks_version != "keepsail-baseline/v2":
         raise ApprovalError("new no-review policies require built-in contract v2")
+    if any(PureWindowsPath(path).drive or path == "~" or path.startswith("~/")
+           for path in policy.scope):
+        raise ApprovalError("new review scopes must use literal repository-relative paths")
 
 
 def parse_delivery_policy_yaml(text: str) -> DeliveryPolicy:

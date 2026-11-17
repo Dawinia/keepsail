@@ -411,6 +411,21 @@ def test_verify_one_bad_attestation_fails_whole_run(tmp_path):
     assert any("bad" in b and "READY_TO_MERGE" in b for b in v.blockers)
 
 
+def test_recognized_delivery_requires_a_trusted_base(tmp_path, monkeypatch):
+    from keepsail.engineering import attestation as module
+
+    path = tmp_path / ".harness/attestations/v2/delivery.jsonl"
+    path.parent.mkdir(parents=True)
+    path.write_text("{}\n", encoding="utf-8")
+    monkeypatch.setattr(module, "_trusted_recognition", lambda *args, **kw: object())
+    verdict = verify_attestations(tmp_path, [
+        DiffEntry("A", ("src/file.py",)),
+        DiffEntry("A", (".harness/attestations/v2/delivery.jsonl",)),
+    ])
+    assert not verdict.ok
+    assert any("requires a trusted base" in blocker for blocker in verdict.blockers)
+
+
 def test_verify_empty_scope_attestation_covers_nothing(tmp_path):
     att_dir = tmp_path / ".harness" / "attestations"
     att_dir.mkdir(parents=True, exist_ok=True)

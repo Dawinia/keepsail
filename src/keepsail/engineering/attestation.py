@@ -530,6 +530,9 @@ def verify_attestations(
         except ApprovalError as exc:
             blockers.append(f"attestation {slug}: review recognition is not usable: {exc}")
             continue
+        if recognition is not None and base is None:
+            blockers.append(f"attestation {slug}: recognized delivery requires a trusted base")
+            continue
         # Historical rounds do not select the current review contract. When a
         # trusted contract is active, its full authority checks below replace
         # legacy receipt checks; an evidence marker alone grants no exemption.
@@ -562,6 +565,30 @@ def verify_attestations(
             blockers.extend(att_blockers)
             if att_blockers:
                 continue
+            if base is not None:
+                from keepsail.core.git_objects import regular_blob_text
+                from keepsail.core.verification_config import (
+                    parse_verification_config,
+                    required_check_contract,
+                )
+                from keepsail.core.verification_evidence import verify_check_evidence
+
+                try:
+                    trusted_base = resolve_commit(root, base)
+                    trusted_config = parse_verification_config(regular_blob_text(
+                        root, trusted_base, ".harness/verification.yaml"))
+                    if not isinstance(cs.current_code_subject, dict):
+                        raise ApprovalError("verification has no current code subject")
+                    verify_check_evidence(
+                        cs.current_verification,
+                        subject_id=str(cs.current_code_subject["subject_id"]),
+                        required_contract=required_check_contract(trusted_config),
+                        builtin_version="keepsail-baseline/v1", trusted_base=trusted_base,
+                    )
+                except (ApprovalError, GitScopeError, OSError, ValueError, KeyError) as exc:
+                    blockers.append(f"attestation {slug}: verification check evidence invalid: "
+                                    f"{exc}")
+                    continue
         # Recognized approvals validate actual coverage above. Initial scope is
         # only an estimate in that contract; historical lifecycles retain it.
         this_covered = (

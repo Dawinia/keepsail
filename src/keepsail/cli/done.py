@@ -291,6 +291,14 @@ def done_cmd(
             err=True,
         )
         sys.exit(EXIT_VALIDATION)
+    if current_change is not None and current_change.effective_approval is None:
+        from keepsail.core.transition_guard import validate_legacy_initial_authority
+
+        try:
+            validate_legacy_initial_authority(root)
+        except (ApprovalError, OSError, ValueError) as exc:
+            click.echo(format_error(subcommand="done", message=str(exc)), err=True)
+            sys.exit(EXIT_VALIDATION)
     if current_change is not None and isinstance(current_change.effective_approval, dict):
         if not current_change.implementation_assessments:
             click.echo(

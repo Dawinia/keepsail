@@ -88,6 +88,14 @@ def test_candidate_check_removal_runs_old_check_and_blocks_done(tmp_path):
     assert selected_json["status"] == "warning"
     assert selected_json["errors"][0]["code"] == "partial_verification"
     assert derive_state(events_path(root))["feature"].current_verification is None
+    (harness / "verification.yaml").write_text("checks: [\n", encoding="utf-8")
+    invalid_candidate = cli("--json", "verify", "feature", "--check", "trusted-test")
+    assert invalid_candidate.exit_code == 0, invalid_candidate.output
+    assert json.loads(invalid_candidate.output)["status"] == "warning"
+    (harness / "verification.yaml").unlink()
+    missing_candidate = cli("--json", "verify", "feature", "--check", "trusted-test")
+    assert missing_candidate.exit_code == 0, missing_candidate.output
+    assert json.loads(missing_candidate.output)["status"] == "warning"
     (harness / "verification.yaml").write_text("checks: []\n", encoding="utf-8")
     verified = cli("verify", "feature")
     assert verified.exit_code == 0, verified.output
