@@ -46,6 +46,16 @@ def committed_transition_required(
     old_text = optional_regular_blob_text(root, base, _POLICY)
     old_raw = parse_unique_yaml(old_text) if old_text is not None else None
     if not isinstance(old_raw, dict) or old_raw.get("enabled") is not True:
+        if _AUTHORITY in changed_paths:
+            before = optional_regular_blob_text(root, base, _AUTHORITY)
+            after = optional_regular_blob_text(root, head, _AUTHORITY)
+            old_authority = parse_authority_yaml(before) if before is not None else None
+            new_authority = parse_authority_yaml(after) if after is not None else None
+            if ((old_authority is not None and old_authority.enabled)
+                    or (new_authority is not None and new_authority.enabled)):
+                if (old_authority is None or new_authority is None
+                        or old_authority.digest != new_authority.digest):
+                    raise ApprovalError("initial enabled trust needs separate owner establishment")
         if _POLICY in changed_paths:
             proposed = parse_unique_yaml(regular_blob_text(root, head, _POLICY))
             if isinstance(proposed, dict) and proposed.get("version") == "review-recognition/v2":

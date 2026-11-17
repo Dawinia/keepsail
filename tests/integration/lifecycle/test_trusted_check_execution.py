@@ -32,7 +32,8 @@ def test_candidate_check_removal_runs_old_check_and_blocks_done(tmp_path):
     script = f"from pathlib import Path; Path({str(marker)!r}).write_text('ran')"
     config = {"layers": {"baseline": {"enabled": False}, "framework_adapter": {"enabled": False},
                          "user_checks": {"enabled": True}},
-              "checks": [{"id": "trusted-test", "command": [sys.executable, "-c", script]}]}
+              "checks": [{"id": "trusted-test", "command": [sys.executable, "-c", script]},
+                         {"id": "another-required", "command": [sys.executable, "-c", "pass"]}]}
     original = yaml.safe_dump(config)
     (harness / "verification.yaml").write_text(original, encoding="utf-8")
     (root / "plan.md").write_text("# Implement the product change\n", encoding="utf-8")
@@ -75,6 +76,19 @@ def test_candidate_check_removal_runs_old_check_and_blocks_done(tmp_path):
     recorded = cli("implementation", "record", "feature", "--assessment", "-",
                    data=json.dumps(assessment))
     assert recorded.exit_code == 0, recorded.output
+    (harness / "verification.yaml").write_text(
+        original.replace("trusted-test", "ghost"), encoding="utf-8")
+    ghost = cli("verify", "feature", "--check", "ghost")
+    assert ghost.exit_code == 2, ghost.output
+    assert "no such trusted check" in ghost.output
+    selected = cli("--json", "verify", "feature", "--check", "trusted-test")
+    assert selected.exit_code == 0, selected.output
+    assert marker.read_text() == "ran"
+    selected_json = json.loads(selected.output)
+    assert selected_json["status"] == "warning"
+    assert selected_json["errors"][0]["code"] == "partial_verification"
+    assert derive_state(events_path(root))["feature"].current_verification is None
+    (harness / "verification.yaml").write_text("checks: []\n", encoding="utf-8")
     verified = cli("verify", "feature")
     assert verified.exit_code == 0, verified.output
     assert marker.read_text() == "ran"

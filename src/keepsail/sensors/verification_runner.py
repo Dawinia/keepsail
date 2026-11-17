@@ -1212,6 +1212,14 @@ class VerificationRunner(Sensor):
         payload = getattr(trigger, "payload", {}) or {}
         layer = payload.get("layer")
         only_ids = payload.get("checks")
+        if only_ids is not None:
+            if (not isinstance(only_ids, list) or not only_ids
+                    or any(not isinstance(item, str) for item in only_ids)):
+                return SensorResult(status="fail", summary="invalid selected verification checks")
+            unknown = sorted(set(only_ids) - collectable_check_ids(cfg, layer=layer))
+            if unknown:
+                message = "no such trusted check: " + ", ".join(unknown)
+                return SensorResult(status="fail", summary=message)
 
         before_snapshot: dict[str, Any] | None = None
         snapshot_error: str | None = None
@@ -1332,7 +1340,31 @@ class VerificationRunner(Sensor):
                 # Legacy output is retained; v3 cannot claim missing check evidence.
                 verification["check_evidence_error"] = str(exc)
 
+        partial = False
+        if verification is not None and trusted_base is not None and verdict == "passed":
+            from keepsail.core.verification_evidence import verify_check_evidence
+
+            try:
+                verify_check_evidence(
+                    verification, subject_id=str(verification.get("subject_id")),
+                    required_contract=required_check_contract(cfg),
+                    builtin_version=builtin_version, trusted_base=trusted_base,
+                )
+            except ApprovalError as exc:
+                if layer is not None or only_ids is not None:
+                    partial = True
+                else:
+                    verdict = "failed"
+                    verification["outcome"] = verdict
+                    verification["check_evidence_error"] = str(exc)
+
         write_summary_json(archive, results, verdict)
+
+        if partial:
+            return SensorResult(status="pass", summary="partial verification passed; "
+                                "no lifecycle verification recorded",
+                                details=verify_data_block(change_id, results, archive, root),
+                                suggested_action="Run all required checks for completion.")
 
         evt_type: Literal["verification_passed", "verification_failed"] = (
             "verification_passed" if verdict == "passed" else "verification_failed"

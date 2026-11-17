@@ -83,3 +83,42 @@ def test_empty_project_checks_are_reported_separately():
                                     required_contract=required_check_contract(cfg),
                                     builtin_version="keepsail-baseline/v1", trusted_base="a" * 40)
     assert summary == {"required_project_checks": 0, "required_total_checks": 1}
+
+
+@pytest.mark.parametrize("incomplete", [False, True])
+def test_unchanged_v1_completion_requires_all_trusted_checks(tmp_path, monkeypatch, incomplete):
+    from types import SimpleNamespace
+
+    from keepsail.core import emit_validation, git_objects, reducer, review_basis, transition_guard
+    from keepsail.core.events import Actor, Event
+
+    _, verification = fixture()
+    if incomplete:
+        verification["check_evidence"]["results"].pop()
+    state = SimpleNamespace(effective_approval={"approval_id": "approval:one"},
+                            current_verification=verification)
+    monkeypatch.setattr(reducer, "derive_state", lambda path: {"delivery": state})
+    monkeypatch.setattr(emit_validation, "recognition_contract_active", lambda root: True)
+    monkeypatch.setattr(emit_validation, "validate_authority_context", lambda *args, **kw: None)
+    monkeypatch.setattr(review_basis, "validate_effective_plan_basis", lambda *args: None)
+    monkeypatch.setattr(transition_guard, "validate_delivery_obligations", lambda *args: {
+        "mode": "unchanged", "trusted_base": "a" * 40})
+    config = """\
+checks:
+  - id: shared
+    command: [python, -m, pytest]
+adapter_provided:
+  - id: shared
+    command: [adapter, check]
+    provided_by: framework
+"""
+    monkeypatch.setattr(git_objects, "regular_blob_text", lambda *args: config)
+    event = Event(event_id="event", type="implementation_complete", change_id="delivery",
+                  timestamp="2026-11-17T00:00:00Z", actor=Actor(type="agent", identifier="test"),
+                  framework="plain", payload={"code_subject": {"subject_id": "code:one"}})
+    path = tmp_path / ".harness/events.jsonl"
+    if incomplete:
+        with pytest.raises(emit_validation.EmitPreconditionError, match="required check missing"):
+            emit_validation._validate_authority(path, event)
+    else:
+        emit_validation._validate_authority(path, event)

@@ -242,17 +242,16 @@ def _validate_authority(events_file: Path, new_event: Event) -> None:
 
             code = new_event.payload.get("code_subject")
             basis = validate_delivery_obligations(root, events_file, current, code)
-            if basis["mode"] != "unchanged" or "builtin_version" in basis:
-                trusted_text = regular_blob_text(root, basis["trusted_base"],
-                                                 ".harness/verification.yaml")
-                contract = required_check_contract(parse_verification_config(trusted_text))
-                assert isinstance(code, dict)
-                verify_check_evidence(current.current_verification,
-                                      subject_id=str(code["subject_id"]),
-                                      required_contract=contract,
-                                      builtin_version=basis.get("builtin_version",
-                                                                "keepsail-baseline/v1"),
-                                      trusted_base=basis["trusted_base"])
+            trusted_text = regular_blob_text(root, basis["trusted_base"],
+                                             ".harness/verification.yaml")
+            contract = required_check_contract(parse_verification_config(trusted_text))
+            assert isinstance(code, dict)
+            verify_check_evidence(current.current_verification,
+                                  subject_id=str(code["subject_id"]),
+                                  required_contract=contract,
+                                  builtin_version=basis.get("builtin_version",
+                                                            "keepsail-baseline/v1"),
+                                  trusted_base=basis["trusted_base"])
         if new_event.type == "implementation_recorded" and "coverage_basis" in new_event.payload:
             validate_generated_coverage(root, new_event.payload)
         if new_event.type == "policy_authorization_imported":

@@ -43,6 +43,42 @@ def sign(record, key):
     return record
 
 
+@pytest.mark.parametrize("old_policy", [None, "version: review-recognition/v1\nenabled: false\n"])
+@pytest.mark.parametrize("existing_skeleton", [False, True])
+def test_disabled_or_missing_policy_cannot_introduce_enabled_authority(
+    tmp_path, old_policy, existing_skeleton,
+):
+    import subprocess
+
+    from keepsail.core.transition_guard import committed_transition_required
+
+    def git(*args):
+        return subprocess.check_output(["git", *args], cwd=tmp_path, text=True).strip()
+
+    (tmp_path / ".harness").mkdir()
+    if old_policy:
+        (tmp_path / ".harness/review-recognition.yaml").write_text(old_policy, encoding="utf-8")
+    if existing_skeleton:
+        skeleton = {"version": "policy-authority/v1", "repository_id": "owner/project",
+                    "target_ref": "refs/heads/main", "enabled": False, "keys": []}
+        (tmp_path / ".harness/policy-authority.yaml").write_text(
+            yaml.safe_dump(skeleton), encoding="utf-8")
+    (tmp_path / "project.txt").write_text("existing\n", encoding="utf-8")
+    git("init", "-q", "-b", "main")
+    git("config", "user.email", "fixture@example.invalid")
+    git("config", "user.name", "fixture")
+    git("add", ".")
+    git("commit", "-qm", "before initial authority")
+    base = git("rev-parse", "HEAD")
+    new = authority(Ed25519PrivateKey.generate(), ["policy-transition"])
+    (tmp_path / ".harness/policy-authority.yaml").write_text(yaml.safe_dump(new), encoding="utf-8")
+    git("add", ".")
+    git("commit", "-qm", "introduce enabled authority")
+    with pytest.raises(ApprovalError, match="initial enabled trust"):
+        committed_transition_required(tmp_path, base=base, head="HEAD",
+                                      changed_paths={".harness/policy-authority.yaml"})
+
+
 def authorization(key, old, *, kind="transition"):
     return sign({
         "version": "policy-authorization/v1",

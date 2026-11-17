@@ -243,9 +243,10 @@ def verify_cmd(
         )
         sys.exit(EXIT_VALIDATION)
 
-    # Reject an unknown `--check <id>` BEFORE dispatch: an id collectable in no
-    # (selected) layer would otherwise silently run 0 checks and "pass" vacuously.
-    if check:
+    # Legacy work uses this workspace precheck. With an approval, the runner
+    # validates selected IDs against the trusted configuration it will execute.
+    _cs = derive_state(events_path(root)).get(resolved)
+    if check and not (_cs is not None and isinstance(_cs.effective_approval, dict)):
         collectable = collectable_check_ids(cfg, layer=layer)
         unknown = [c for c in check if c not in collectable]
         if unknown:
@@ -263,7 +264,6 @@ def verify_cmd(
 
     # HG-01: carry the change's recorded framework so VerificationRunner can
     # resolve ${SPEC_PATH}/${PLAN_PATH} via the adapter. None when unknown.
-    _cs = derive_state(events_path(root)).get(resolved)
     ctx_ws = WorkspaceContext(
         workspace_root=root,
         git_branch=None,
@@ -304,16 +304,20 @@ def verify_cmd(
     result = results[0]
     passed = result.status == "pass"
     exit_code = EXIT_OK if passed else EXIT_VALIDATION
+    partial = passed and result.suggested_action is not None
 
     if ctx.obj.get("json"):
         click.echo(
             json_envelope(
                 command="verify",
-                status="pass" if passed else "fail",
+                status="warning" if partial else "pass" if passed else "fail",
                 exit_code=exit_code,
                 # result.details IS the frozen verify --json data block
                 # (verify_data_block); lift it verbatim — do NOT reshape.
                 data=result.details,
+                errors=([{"code": "partial_verification", "message": result.summary}]
+                        if partial else [{"code": "verification_failed", "message": result.summary}]
+                        if not passed and result.details is None else None),
             )
         )
     elif not ctx.obj.get("quiet"):
