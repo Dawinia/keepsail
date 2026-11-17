@@ -1208,6 +1208,14 @@ class VerificationRunner(Sensor):
                 return SensorResult(status="fail",
                                     summary=f"trusted verification config unavailable: {exc}")
         else:
+            from keepsail.core.approval import recognition_contract_active
+
+            try:
+                if recognition_contract_active(root):
+                    return SensorResult(status="fail", summary="active review recognition requires "
+                                        "an effective plan approval")
+            except ApprovalError as exc:
+                return SensorResult(status="fail", summary=f"review recognition unavailable: {exc}")
             cfg = load_verification_config(verification_yaml_path(root))
         variables = build_variables(change_id, context)
         payload = getattr(trigger, "payload", {}) or {}

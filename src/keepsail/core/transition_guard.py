@@ -29,7 +29,7 @@ from keepsail.core.policy_obligations import (
 )
 from keepsail.core.policy_snapshot import read_policy_snapshot
 from keepsail.core.review_verdict import read_change_events
-from keepsail.core.scope_match import resolve_commit
+from keepsail.core.scope_match import GitScopeError, resolve_commit
 from keepsail.core.verification_config import parse_verification_config, required_check_contract
 
 _POLICY = ".harness/review-recognition.yaml"
@@ -48,6 +48,14 @@ def validate_legacy_initial_authority(root: Path) -> None:
             raise ApprovalError(
                 "initial enabled trust needs separate owner establishment") from None
         return
+    try:
+        head = resolve_commit(root)
+    except GitScopeError as exc:
+        raise ApprovalError("cannot inspect committed authority") from exc
+    changed = {name for name in (_POLICY, _AUTHORITY)
+               if optional_regular_blob_text(root, base, name)
+               != optional_regular_blob_text(root, head, name)}
+    committed_transition_required(root, base=base, head=head, changed_paths=changed)
     previous_text = optional_regular_blob_text(root, base, _AUTHORITY)
     previous = parse_authority_yaml(previous_text) if previous_text is not None else None
     if ((previous is not None and previous.enabled)

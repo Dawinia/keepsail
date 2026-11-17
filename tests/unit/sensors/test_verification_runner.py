@@ -1083,6 +1083,28 @@ def test_runner_change_id_none_returns_fail_without_crash(tmp_path: Path) -> Non
     assert res.emit_events == []
 
 
+def test_active_recognition_without_approval_does_not_run_candidate_checks(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from types import SimpleNamespace
+
+    from keepsail.core import approval
+    from keepsail.sensors import verification_runner as module
+
+    state = SimpleNamespace(effective_approval=None)
+    monkeypatch.setattr(module, "derive_state", lambda path: {"ch": state})
+    monkeypatch.setattr(approval, "recognition_contract_active", lambda root: True)
+    monkeypatch.setattr(module, "load_verification_config", lambda path: pytest.fail(
+        "unapproved candidate checks must not be loaded"))
+    result = VerificationRunner().check(
+        Activity(type="cli_verify", change_id="ch", payload={"checks": ["candidate"]}),
+        WorkspaceContext(workspace_root=tmp_path),
+    )
+    assert result.status == "fail"
+    assert "effective plan approval" in result.summary
+    assert result.emit_events == []
+
+
 # --- builtin registry -------------------------------------------------------
 
 

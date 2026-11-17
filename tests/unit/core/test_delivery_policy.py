@@ -110,7 +110,7 @@ def test_full_review_can_preserve_the_v1_baseline():
     assert parse_delivery_policy(redigest(value)).builtin_checks_version == "keepsail-baseline/v1"
 
 
-@pytest.mark.parametrize("path", ["C:/src", "C:src", "~/src", "~"])
+@pytest.mark.parametrize("path", ["C:/src", "C:src", "~/src", "~", "~user/src", "~user"])
 def test_new_scope_rejects_ambiguous_nonportable_path_without_breaking_historical_parse(path):
     value = policy("scope")
     value["code_review"]["scope"] = [path]

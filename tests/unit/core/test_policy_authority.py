@@ -100,6 +100,30 @@ def test_disabled_or_missing_policy_cannot_introduce_enabled_authority(
     assert result.exit_code == 2, result.output
     assert "initial enabled trust" in result.output
 
+    # A clean-looking workspace must not conceal an enabled authority in HEAD.
+    disabled = {"version": "policy-authority/v1", "repository_id": "owner/project",
+                "target_ref": "refs/heads/main", "enabled": False, "keys": []}
+    (tmp_path / ".harness/policy-authority.yaml").write_text(
+        yaml.safe_dump(disabled), encoding="utf-8")
+    for command in (("done", "delivery", "--skip-verify"), ("verify", "delivery")):
+        result = CliRunner().invoke(main, ["--workspace", str(tmp_path), *command])
+        assert result.exit_code == 2, result.output
+        assert "initial enabled trust" in result.output
+
+    # The same protection applies when HEAD introduces v2 but the worktree hides it.
+    policy_path = tmp_path / ".harness/review-recognition.yaml"
+    policy_path.write_text("version: review-recognition/v2\nenabled: true\n", encoding="utf-8")
+    git("add", ".harness/review-recognition.yaml")
+    git("commit", "-qm", "introduce proposed v2 policy")
+    if old_policy:
+        policy_path.write_text(old_policy, encoding="utf-8")
+    else:
+        policy_path.unlink()
+    for command in (("done", "delivery", "--skip-verify"), ("verify", "delivery")):
+        result = CliRunner().invoke(main, ["--workspace", str(tmp_path), *command])
+        assert result.exit_code == 2, result.output
+        assert "initial v2 trust" in result.output
+
 
 def authorization(key, old, *, kind="transition"):
     return sign({

@@ -586,8 +586,8 @@ def verify_attestations(
                         builtin_version="keepsail-baseline/v1", trusted_base=trusted_base,
                     )
                 except (ApprovalError, GitScopeError, OSError, ValueError, KeyError) as exc:
-                    blockers.append(f"attestation {slug}: verification check evidence invalid: "
-                                    f"{exc}")
+                    blockers.append(f"attestation {slug}: new recognized delivery requires valid "
+                                    f"verification check evidence: {exc}")
                     continue
         # Recognized approvals validate actual coverage above. Initial scope is
         # only an estimate in that contract; historical lifecycles retain it.

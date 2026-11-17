@@ -92,6 +92,9 @@ def test_candidate_check_removal_runs_old_check_and_blocks_done(tmp_path):
     invalid_candidate = cli("--json", "verify", "feature", "--check", "trusted-test")
     assert invalid_candidate.exit_code == 0, invalid_candidate.output
     assert json.loads(invalid_candidate.output)["status"] == "warning"
+    invalid_done = cli("done", "feature")
+    assert invalid_done.exit_code == 2, invalid_done.output
+    assert "uncommitted changes" in invalid_done.output
     (harness / "verification.yaml").unlink()
     missing_candidate = cli("--json", "verify", "feature", "--check", "trusted-test")
     assert missing_candidate.exit_code == 0, missing_candidate.output
