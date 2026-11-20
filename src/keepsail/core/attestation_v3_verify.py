@@ -43,7 +43,7 @@ from keepsail.core.policy_authority import (
     verify_v2_review_evidence,
 )
 from keepsail.core.policy_obligations import changed_obligations, require_signed_obligation_changes
-from keepsail.core.policy_snapshot import read_policy_snapshot
+from keepsail.core.policy_snapshot import PolicySnapshot, read_policy_snapshot
 from keepsail.core.reducer import derive_state
 from keepsail.core.scope_match import is_ancestor, resolve_commit
 from keepsail.core.verification_config import parse_verification_config, required_check_contract
@@ -51,7 +51,9 @@ from keepsail.core.verification_evidence import verify_check_evidence
 
 _P = ParamSpec("_P")
 _R = TypeVar("_R")
-_activation_results: ContextVar[dict[tuple[str, str, str, str], dict[str, Any] | None] | None] = (
+_ActivationResult = tuple[dict[str, Any], PolicySnapshot]
+_ActivationKey = tuple[str, str, str, str]
+_activation_results: ContextVar[dict[_ActivationKey, _ActivationResult | None] | None] = (
     ContextVar("keepsail_activation_replay", default=None)
 )
 
@@ -258,6 +260,26 @@ def verify_v2_activation(
     root: Path, *, trusted_commit: str, repository_id: str, target_ref: str,
 ) -> dict[str, Any]:
     """Replay an activation, avoiding repeated ancestor replay within this call."""
+    result, _ = _verified_v2_activation(
+        root, trusted_commit=trusted_commit, repository_id=repository_id, target_ref=target_ref,
+    )
+    return result
+
+
+@_with_activation_scope
+def _verified_v2_snapshot(
+    root: Path, *, trusted_commit: str, repository_id: str, target_ref: str,
+) -> PolicySnapshot:
+    """Return the exact policy snapshot whose activation was replayed successfully."""
+    _, snapshot = _verified_v2_activation(
+        root, trusted_commit=trusted_commit, repository_id=repository_id, target_ref=target_ref,
+    )
+    return snapshot
+
+
+def _verified_v2_activation(
+    root: Path, *, trusted_commit: str, repository_id: str, target_ref: str,
+) -> _ActivationResult:
     commit = resolve_commit(root, trusted_commit)
     cache = _activation_results.get()
     assert cache is not None
@@ -280,7 +302,7 @@ def verify_v2_activation(
 
 def _verify_v2_activation(
     root: Path, *, trusted_commit: str, repository_id: str, target_ref: str,
-) -> dict[str, Any]:
+) -> _ActivationResult:
     """Replay the exact transition that introduced the active policy's attestation."""
     snapshot = read_policy_snapshot(root, trusted_commit, repository_id=repository_id,
                                     target_ref=target_ref)
@@ -295,12 +317,12 @@ def _verify_v2_activation(
                 root, snapshot.commit, snapshot.policy.policy_digest, snapshot.authority.digest,
                 repository_id, target_ref,
             )
-        return {"trusted_base": snapshot.commit, "activation_commit": initial["initial_commit"],
-                "predecessor_base": None, "policy_digest": snapshot.policy.policy_digest,
-                "required_checks_digest": snapshot.checks["digest"], "change": None,
-                "initial_confirmation": initial["confirmation"],
-                "confirmation_assurance": initial["confirmation_assurance"],
-                "authority_rotation": rotation}
+        return ({"trusted_base": snapshot.commit, "activation_commit": initial["initial_commit"],
+                 "predecessor_base": None, "policy_digest": snapshot.policy.policy_digest,
+                 "required_checks_digest": snapshot.checks["digest"], "change": None,
+                 "initial_confirmation": initial["confirmation"],
+                 "confirmation_assurance": initial["confirmation_assurance"],
+                 "authority_rotation": rotation}, snapshot)
     change = snapshot.policy.activation["change"]
     path = f".harness/attestations/v3/{change}.jsonl"
     trusted_bytes = regular_blob_bytes(root, snapshot.commit, path)
@@ -332,10 +354,10 @@ def _verify_v2_activation(
     if introduced_authority.digest != snapshot.authority.digest:
         rotation = _verify_current_rotation(root, snapshot.commit, snapshot.policy.policy_digest,
                                             snapshot.authority.digest, repository_id, target_ref)
-    return {"trusted_base": snapshot.commit, "activation_commit": introduction,
-            "predecessor_base": predecessor, "policy_digest": snapshot.policy.policy_digest,
-            "required_checks_digest": snapshot.checks["digest"], "change": change,
-            "authority_rotation": rotation}
+    return ({"trusted_base": snapshot.commit, "activation_commit": introduction,
+             "predecessor_base": predecessor, "policy_digest": snapshot.policy.policy_digest,
+             "required_checks_digest": snapshot.checks["digest"], "change": change,
+             "authority_rotation": rotation}, snapshot)
 
 
 def _verify_current_rotation(root: Path, trusted: str, policy_digest: str, authority_digest: str,

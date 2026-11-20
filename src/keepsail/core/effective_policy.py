@@ -14,14 +14,14 @@ from keepsail.core.approval import (
     validate_approval,
 )
 from keepsail.core.attestation_v3 import parse_v3_line
-from keepsail.core.attestation_v3_verify import verify_v2_activation
+from keepsail.core.attestation_v3_verify import _verified_v2_snapshot
 from keepsail.core.git_objects import regular_blob_bytes, regular_blob_text
 from keepsail.core.policy_authority import (
     parse_authority_yaml,
     parse_unique_yaml,
     verify_v2_review_evidence,
 )
-from keepsail.core.policy_snapshot import PolicySnapshot, read_policy_snapshot
+from keepsail.core.policy_snapshot import PolicySnapshot
 from keepsail.core.scope_match import resolve_commit
 
 
@@ -31,10 +31,9 @@ def load_effective_v2(root: Path, base: str) -> PolicySnapshot:
     authority = parse_authority_yaml(
         regular_blob_text(root, commit, ".harness/policy-authority.yaml")
     )
-    verify_v2_activation(root, trusted_commit=commit, repository_id=authority.repository_id,
-                         target_ref=authority.target_ref)
-    return read_policy_snapshot(root, commit, repository_id=authority.repository_id,
-                                target_ref=authority.target_ref)
+    return _verified_v2_snapshot(root, trusted_commit=commit,
+                                 repository_id=authority.repository_id,
+                                 target_ref=authority.target_ref)
 
 
 def continued_plan_basis(

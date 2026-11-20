@@ -1192,12 +1192,19 @@ class KnowledgeInputs:
 
 
 def read_inputs(root: Path, *, events_file: Path | None = None) -> KnowledgeInputs:
-    from keepsail.core.reducer import derive_state_from_lines
-
     path = events_file or root / ".harness/events.jsonl"
     policy, candidate = policy_configuration(root)
     content = path.read_bytes() if path.exists() else b""
     ledger, revision = load_ledger(path, policy, _content=content)
+    return _inputs_from_content(policy, candidate, ledger, revision, content)
+
+
+def _inputs_from_content(
+    policy: dict[str, Any] | None, candidate: dict[str, Any] | None,
+    ledger: dict[str, Any], revision: str, content: bytes,
+) -> KnowledgeInputs:
+    from keepsail.core.reducer import derive_state_from_lines
+
     lines = content.decode("utf-8").splitlines(keepends=True)
     effective_lines = list(effective_event_lines(lines))
     return KnowledgeInputs(policy, candidate, ledger, revision,
@@ -1248,7 +1255,8 @@ def prepare(
     policy = load_policy(root)
     _need(policy is not None, "no owner-activated knowledge policy")
     assert policy is not None
-    ledger, revision = load_ledger(path, policy)
+    content = path.read_bytes() if path.exists() else b""
+    ledger, revision = load_ledger(path, policy, _content=content)
     operation_type = event_type
     if event_type == TRIGGER_EVENT:
         operation_type = "knowledge_imported" if "evidence" in request else "knowledge_recorded"
@@ -1266,8 +1274,9 @@ def prepare(
         }, True
     if request["expected_revision"] != revision:
         raise KnowledgeError("knowledge revision conflict", code="knowledge_conflict", exit_code=5)
+    inputs = _inputs_from_content(policy, None, ledger, revision, content)
     if operation_type == "knowledge_delivered":
-        view = report(root, request["change_id"], events_file=path)
+        view = report(root, request["change_id"], inputs=inputs)
         expected = {
             k: view[k]
             for k in (
@@ -1284,7 +1293,7 @@ def prepare(
         ev = request.get("evidence", {})
         target = ev.get("impact", {}).get("change_id") if ev.get("kind") == "disposition" else None
         if target:
-            view = report(root, target, events_file=path)
+            view = report(root, target, inputs=inputs)
             _need(
                 any(
                     i["impact_id"] == ev.get("subject_id")
@@ -1308,10 +1317,8 @@ def prepare(
         operation_type == "knowledge_recorded"
         and request.get("record", {}).get("outcome") == "verified"
     ):
-        _validate_execution(root, path, ledger, request)
-    from keepsail.core.reducer import derive_state
-
-    states = derive_state(path)
+        _validate_execution(root, inputs, request)
+    states = inputs.states
     approval_context = {
         cid: (s.effective_approval or {}).get("approval_id") for cid, s in states.items()
     }
@@ -1340,15 +1347,13 @@ def prepare(
 
 
 def _validate_execution(
-    root: Path, path: Path, ledger: dict[str, Any], request: dict[str, Any]
+    root: Path, inputs: KnowledgeInputs, request: dict[str, Any]
 ) -> None:
-    from keepsail.core.reducer import derive_state
-
     record = request["record"]
-    disposition = ledger["evidence"].get(record.get("disposition_id"), {})
-    state = derive_state(path).get(request["change_id"])
+    disposition = inputs.ledger["evidence"].get(record.get("disposition_id"), {})
+    state = inputs.states.get(request["change_id"])
     _need(state is not None, "execution names unknown Change")
-    view = report(root, request["change_id"], events_file=path)
+    view = report(root, request["change_id"], inputs=inputs)
     _need(
         any(i["disposition_id"] == record.get("disposition_id") for i in view["impacts"]),
         "execution disposition is stale",

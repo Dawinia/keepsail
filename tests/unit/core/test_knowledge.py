@@ -633,6 +633,54 @@ def test_normal_writer_cannot_skip_knowledge_validation(workspace):
         )
 
 
+def test_delivery_uses_one_snapshot_but_rechecks_changed_base_under_lock(workspace, monkeypatch):
+    import keepsail.core.knowledge as knowledge
+    from keepsail.core.events import Actor, Event
+    from keepsail.core.writer import EmitPreconditionError, EventWriter
+
+    w = workspace
+    w.recognize(version())
+    view = report(w.root, "change-a")
+    request = {
+        "schema_version": PROTOCOL,
+        "operation_id": "snapshot-revalidation",
+        "expected_revision": view["revision"],
+        "change_id": "change-a",
+        "delivery": {
+            key: view[key]
+            for key in (
+                "change_id", "constraints", "basis_digest", "evaluated", "context",
+                "recognition_evidence",
+            )
+        },
+    }
+    calls = 0
+    original = knowledge.policy_configuration
+
+    def counted(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(knowledge, "policy_configuration", counted)
+    payload, replay = knowledge.prepare(w.root, "knowledge_delivered", request)
+    assert not replay
+    assert calls == 1
+
+    empty_tree = subprocess.check_output(["git", "mktree"], cwd=w.root, input=b"").decode().strip()
+    other_base = git(w.root, "commit-tree", empty_tree, "-m", "different trusted base")
+    git(w.root, "update-ref", "refs/heads/main", other_base)
+    log = w.root / ".harness/events.jsonl"
+    before = log.read_bytes()
+    with pytest.raises(EmitPreconditionError):
+        EventWriter(log).emit(Event(
+            event_id="changed-base-test", type="knowledge_delivered", change_id="change-a",
+            timestamp="", actor=Actor(type="agent", identifier="test"), framework="plain",
+            payload=payload,
+        ))
+    assert log.read_bytes() == before
+
+
 def test_unknown_policy_requirements_cannot_be_silently_ignored():
     p = policy()
     p["require_human_confirmation_every_time"] = True
@@ -850,12 +898,30 @@ def test_snapshot_relevance_retains_same_match_and_blocks_path_crossing_or_unkno
         assert changed["blocking_reasons"]
 
 
+@pytest.fixture(scope="module")
+def _continued_template(tmp_path_factory, _workspace_template):
+    target = tmp_path_factory.mktemp("continued-knowledge-template")
+    copytree(_workspace_template.root, target, dirs_exist_ok=True)
+    w = deepcopy(_workspace_template)
+    w.root = target
+    continued_version(w)
+    return w
+
+
+@pytest.fixture
+def continued_workspace(tmp_path, _continued_template):
+    # Each mutation gets its own copy of a template built through native operations.
+    copytree(_continued_template.root, tmp_path, dirs_exist_ok=True)
+    w = deepcopy(_continued_template)
+    w.root = tmp_path
+    return w
+
+
 @pytest.mark.parametrize("mutation", ["missing", "paths", "approval", "subject", "reader"])
-def test_retained_trigger_envelope_rejects_tampering(workspace, mutation):
+def test_retained_trigger_envelope_rejects_tampering(continued_workspace, mutation):
     from keepsail.core.knowledge import _empty, _replay_operation
 
-    w = workspace
-    continued_version(w)
+    w = continued_workspace
     ledger, _ = load_ledger(w.root / ".harness/events.jsonl", policy())
     replay = _empty()
     altered = False
