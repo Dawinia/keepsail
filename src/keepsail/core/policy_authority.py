@@ -26,7 +26,6 @@ from keepsail.core.approval import (
     canonical_json,
     digest_record,
     evidence_is_recognized,
-    load_recognition,
     resolve_contract_base,
     validate_evidence,
     validate_plan_subject,
@@ -490,7 +489,7 @@ def validate_authorization_import(
         if plan_recognition and "signed-plan-decision" in plan_recognition.evidence_forms:
             required_purposes = frozenset({"plan-decision"})
     else:
-        recognition = load_recognition(root, ref=base)
+        recognition = _recognition_from_mapping(policy_raw)
         if recognition.policy_digest is None:
             raise ApprovalError("trusted review recognition has no digest")
         predecessor_digest = recognition.policy_digest

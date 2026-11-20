@@ -21,12 +21,17 @@ from keepsail.core.approval import (
     make_code_subject,
     recognition_policy_digest,
 )
+from keepsail.core.baseline_contract import builtin_check_contract
 from keepsail.core.clock import utc_now_iso
 from keepsail.core.events import Actor, Event
 from keepsail.core.paths import events_path
 from keepsail.core.post_emit import refresh_state_after_emit
 from keepsail.core.reducer import derive_state
 from keepsail.core.ulid import new_event_id
+from keepsail.core.verification_config import (
+    parse_verification_config,
+    required_check_contract,
+)
 from keepsail.core.writer import EmitPreconditionError, EventWriter
 from keepsail.sensors import Activity, WorkspaceContext
 
@@ -98,6 +103,30 @@ def _evidence(
         encoding="utf-8",
     )
     return path
+
+
+def _passed_verification(root: Path, *, base: str, code_subject: dict) -> dict:
+    """A verification payload bound to the trusted contract a real run would report."""
+    contract = required_check_contract(
+        parse_verification_config(
+            (root / ".harness" / "verification.yaml").read_text(encoding="utf-8")
+        )
+    )
+    builtin = builtin_check_contract("keepsail-baseline/v1")
+    return {
+        "subject_id": code_subject["subject_id"],
+        "code_subject": code_subject,
+        "outcome": "passed",
+        "snapshot_unchanged": True,
+        "check_evidence": {
+            "version": "verification-check-evidence/v1",
+            "required_checks_digest": contract["digest"],
+            "trusted_base": base,
+            "builtin_checks_version": "keepsail-baseline/v1",
+            "builtin_checks_digest": builtin["digest"],
+            "results": [],
+        },
+    }
 
 
 @pytest.mark.parametrize("resubmit_rejected", [False, True])
@@ -447,13 +476,7 @@ def test_external_plan_and_code_evidence_drive_only_matching_subjects(tmp_path: 
         _event(
             "c",
             "verification_passed",
-            {
-                "verification": {
-                    "subject_id": code_subject["subject_id"],
-                    "code_subject": code_subject,
-                    "outcome": "passed",
-                }
-            },
+            {"verification": _passed_verification(root, base=base, code_subject=code_subject)},
         )
     )
     with pytest.raises(EmitPreconditionError, match="implementation assessment"):

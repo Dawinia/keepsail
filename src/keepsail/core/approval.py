@@ -651,6 +651,13 @@ def _git_metadata_present(root: Path) -> bool:
 
 def _contract_base_candidates(root: Path) -> tuple[tuple[str, str, str], ...]:
     """Read current trusted refs and their object identities in one Git query."""
+    try:
+        if not _git_metadata_present(root):
+            return ()
+    except OSError:
+        # Let Git and the existing fail-closed error path decide when inspection
+        # itself is inconclusive.
+        pass
     refs = ("refs/remotes/origin/HEAD", "refs/remotes/origin/main", "refs/heads/main")
     try:
         output = _git(root, "for-each-ref",
@@ -710,7 +717,7 @@ def recognition_contract_active(root: Path) -> bool:
 
                 load_effective_v2(root, commit)
             else:
-                load_recognition(root, ref=commit)
+                _recognition_from_mapping(base_raw)
             return True
         # A disabled candidate is not authoritative by itself; continue to
         # inspect the remaining local base candidates before choosing legacy.

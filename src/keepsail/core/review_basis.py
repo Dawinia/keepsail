@@ -7,10 +7,10 @@ from typing import Any
 
 from keepsail.core.approval import (
     ApprovalError,
+    _recognition_from_mapping,
     digest_record,
     evidence_digest,
     evidence_is_recognized,
-    load_recognition,
     make_code_subject,
     resolve_contract_base,
     validate_approval,
@@ -94,7 +94,7 @@ def resolve_local_review_basis(
                     continuation_error = exc
         policy_digest = evidence_policy
     else:
-        current = load_recognition(root, ref=base)
+        current = _recognition_from_mapping(raw_policy)
         if not current.policy_digest:
             raise ApprovalError("trusted review recognition has no digest")
         current_digest = current.policy_digest
