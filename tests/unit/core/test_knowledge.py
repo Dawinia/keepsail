@@ -327,8 +327,8 @@ def test_stdin_duplicate_keys_fail_without_writing_native_events(workspace, comm
 
 
 @pytest.fixture(scope="module")
-def _workspace_template(tmp_path_factory) -> Workspace:
-    return Workspace(tmp_path_factory.mktemp("approved-knowledge-template"))
+def _workspace_template(_knowledge_template) -> Workspace:
+    return _knowledge_template
 
 
 @pytest.fixture

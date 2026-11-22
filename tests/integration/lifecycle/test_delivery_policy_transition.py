@@ -486,6 +486,24 @@ def test_recovery_plan_review_uses_only_the_signed_process_and_digest(
     assert ordinary_attested.exit_code == 0, ordinary_attested.output
     ordinary_record = parse_v3_line(
         (harness / "attestations/v3/after-activation.jsonl").read_bytes())
+    # A no-review delivery must not hide an earlier rejection of the same subject.
+    for rejected_subject, must_fail in (("code:other", False),
+                                        (ordinary_state.current_code_subject["subject_id"], True)):
+        candidate = deepcopy(ordinary_record["snapshot"])
+        failed = {"event_id": "prior-failure", "type": "code_review_failed",
+                  "change_id": "after-activation", "timestamp": "2026-01-01T00:00:00Z",
+                  "actor": {"type": "agent", "identifier": "reviewer"}, "framework": "plain",
+                  "payload": {"code_subject": {"subject_id": rejected_subject}}}
+        candidate["historical_lifecycle_index"].append({
+            "source_event_id": failed["event_id"], "type": failed["type"],
+            "source_event_digest": digest_record(failed), "source_event": failed,
+        })
+        candidate["digest"] = digest_record({k: v for k, v in candidate.items() if k != "digest"})
+        if must_fail:
+            with pytest.raises(ApprovalError, match="rejected code subject"):
+                expand_attestation(candidate, for_v3=True)
+        else:
+            assert expand_attestation(candidate, for_v3=True)
     plan_rows = [row for row in ordinary_record["snapshot"]["lifecycle"]
                  if row["type"] == "review_evidence_imported"
                  and row["payload"]["evidence"]["kind"] == "plan"]

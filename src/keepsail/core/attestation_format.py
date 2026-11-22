@@ -49,6 +49,26 @@ def _validate_evidence_chain(rows: list[Any], change: str) -> None:
             prior.append(evidence)
 
 
+def _validate_historical_review_failures(
+    index: list[dict[str, Any]], change: str, subject_id: str,
+) -> None:
+    for row in index:
+        if row["type"] != "code_review_failed":
+            continue
+        source = row.get("source_event")
+        _require(isinstance(source, dict) and digest_record(source) == row["source_event_digest"],
+                 "historical code review failure requires its original event")
+        event = parse_event_line(json.dumps(source))
+        _require(event.event_id == row["source_event_id"] and event.type == row["type"]
+                 and event.change_id == change, "historical review event identity mismatch")
+        code = event.payload.get("code_subject")
+        _require(isinstance(code, dict) and isinstance(code.get("subject_id"), str),
+                 "historical review failure lacks a code subject")
+        assert isinstance(code, dict)
+        _require(code["subject_id"] != subject_id,
+                 "a rejected code subject cannot bypass its code review")
+
+
 def make_attestation(change: str, inputs: Any, checkpoint: dict[str, Any],
                      lineage: list[dict[str, Any]], *, for_v3: bool = False) -> dict[str, Any]:
     state = inputs.states[change]
@@ -162,7 +182,9 @@ def make_attestation(change: str, inputs: Any, checkpoint: dict[str, Any],
         "expected_state": state.current_state,
         "historical_lifecycle_index": [
             {"source_event_id": e.event_id, "type": e.type,
-             "source_event_digest": digest_record(json.loads(serialize_event(e)))}
+             "source_event_digest": digest_record(json.loads(serialize_event(e))),
+             **({"source_event": json.loads(serialize_event(e))}
+                if for_v3 and e.type == "code_review_failed" else {})}
             for e in originals if e.type not in {"knowledge_checkpointed"}
             and not e.type.startswith("knowledge_")
         ],
@@ -217,10 +239,12 @@ def _expand_attestation(raw: dict[str, Any], *, for_v3: bool = False) -> list[st
     inactive_knowledge = raw["knowledge_checkpoint"] == inactive_knowledge_checkpoint()
     _require(for_v3 or not inactive_knowledge,
              "inactive knowledge sentinel is only permitted inside v3")
+    index_keys = {"source_event_id", "type", "source_event_digest"}
     _require(isinstance(raw["historical_lifecycle_index"], list)
-             and all(isinstance(row, dict) and set(row) == {
-                 "source_event_id", "type", "source_event_digest"}
-                 and all(isinstance(value, str) and value for value in row.values())
+             and all(isinstance(row, dict)
+                 and (set(row) == index_keys or (for_v3 and row.get("type") == "code_review_failed"
+                                                and set(row) == index_keys | {"source_event"}))
+                 and all(isinstance(row[key], str) and row[key] for key in index_keys)
                  for row in raw["historical_lifecycle_index"]),
              "invalid historical lifecycle index")
     approval = validate_approval(raw["approval"], change_id=raw["change_id"])
@@ -229,6 +253,11 @@ def _expand_attestation(raw: dict[str, Any], *, for_v3: bool = False) -> list[st
         raw["code_subject"] is not None) else None
     if for_v3:
         _validate_evidence_chain(raw["lifecycle"], raw["change_id"])
+        if code is not None and any(isinstance(row, dict)
+                and row.get("type") == "code_review_not_required" for row in raw["lifecycle"]):
+            _validate_historical_review_failures(
+                raw["historical_lifecycle_index"], raw["change_id"], code["subject_id"]
+            )
     result = []
     for index, row in enumerate(raw["lifecycle"]):
         _require(isinstance(row, dict) and set(row) == {

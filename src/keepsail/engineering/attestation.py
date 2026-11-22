@@ -159,8 +159,7 @@ def write_attestation(events_file: Path, attestations_dir: Path, slug: str, *,
                 if format_version is not None:
                     raise ValueError("active delivery policy requires v3 attestation")
                 selected = "v3"
-            elif (format_version is None and isinstance(raw, dict)
-                  and raw.get("enabled") is True
+            elif (isinstance(raw, dict) and raw.get("enabled") is True
                   and raw.get("version") == "review-recognition/v1"):
                 state = read_inputs(root, events_file=events_file).states.get(slug)
                 if (state is not None and isinstance(state.effective_approval, dict)
@@ -171,6 +170,8 @@ def write_attestation(events_file: Path, attestations_dir: Path, slug: str, *,
                         root, events_file, state, state.current_code_subject,
                     )
                     if basis["mode"] in {"transition", "recovery", "rotate_key"}:
+                        if format_version is not None:
+                            raise ValueError("policy transition requires v3 attestation")
                         selected = "v3"
     if ATTESTATION_FORMAT == "v1" and selected in {"v2", "v3"}:
         raise ValueError("reader-only release cannot produce v2/v3; upgrade the producer first")

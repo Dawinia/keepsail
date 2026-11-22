@@ -10,11 +10,10 @@ from pathlib import Path
 
 import pytest
 
-from tests.unit.core.test_knowledge import Workspace
 
-
-def test_selected_hook_blocks_missing_context_but_legacy_hook_keeps_contract(tmp_path):
-    Workspace(tmp_path)
+def test_selected_hook_blocks_missing_context_but_legacy_hook_keeps_contract(
+    tmp_path, knowledge_workspace,
+):
     env = {**os.environ, "PYTHONPATH": str(Path(__file__).resolve().parents[3] / "src"),
            "KEEPSAIL_CHANGE_ID": "change-a", "PYTHONDONTWRITEBYTECODE": "1"}
     payload = {"hook_event_name": "PreToolUse", "session_id": "realistic-session-fixture",
@@ -36,16 +35,12 @@ def test_selected_hook_blocks_missing_context_but_legacy_hook_keeps_contract(tmp
     assert missing_session.returncode == 2, missing_session.stderr
 
 
-def test_invalid_tool_returns_do_not_fill_empty_context_observations(tmp_path, monkeypatch):
+def test_invalid_tool_returns_do_not_fill_empty_context_observations(tmp_path, context_workspace):
     from keepsail.core.context import entry_command, entry_readiness
     from keepsail.daemon.context_hook import observe_return, start_session
     from tests.unit.core import test_knowledge as fixtures
 
-    policy = fixtures.policy()
-    policy["observation_issuers"].append("keepsail-cli-observer")
-    policy["policy_digest"] = fixtures.policy_digest(policy)
-    monkeypatch.setattr(fixtures, "policy", lambda: policy)
-    workspace = Workspace(tmp_path)
+    workspace = context_workspace
     entry = start_session(tmp_path, {"hook_event_name": "SessionStart", "session_id": "executor-a",
                                     "source": "startup", "cwd": str(tmp_path)},
                           cli_executable="/tools/keepsail", change="change-a")
@@ -84,10 +79,9 @@ def test_invalid_tool_returns_do_not_fill_empty_context_observations(tmp_path, m
     assert workspace.cli("knowledge", "show")["data"]["observations"] == []
 
 
-def test_same_workspace_subdirectory_is_not_a_different_task_root(tmp_path):
+def test_same_workspace_subdirectory_is_not_a_different_task_root(tmp_path, knowledge_workspace):
     from keepsail.daemon.context_hook import start_session
 
-    Workspace(tmp_path)
     nested = tmp_path / "src"
     nested.mkdir()
     payload = {"hook_event_name": "SessionStart", "session_id": "executor-nested",

@@ -205,6 +205,14 @@ def _new_contract_blockers(
         no_review = next((event for event in reversed(attestation_events)
                           if event.type == "code_review_not_required"), None)
         try:
+            if any(
+                event.type == "code_review_failed"
+                and isinstance(event.payload.get("code_subject"), dict)
+                and event.payload["code_subject"].get("subject_id")
+                == code_subject.get("subject_id")
+                for event in attestation_events
+            ):
+                raise ApprovalError("a rejected code subject cannot bypass its code review")
             if no_review is None or no_review.payload.get("trusted_base") != base:
                 raise ApprovalError("missing current no-review decision")
             verify_no_review_binding(root, no_review, code_subject)

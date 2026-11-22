@@ -132,6 +132,28 @@ def test_v1_authorized_delivery_selects_v3_by_default(tmp_path, monkeypatch, mod
     assert json.loads(path.read_text(encoding="utf-8")) == {"format": "v3"}
 
 
+@pytest.mark.parametrize("mode", ["transition", "recovery", "rotate_key"])
+@pytest.mark.parametrize("requested_format", ["v2", "v1-bootstrap"])
+def test_v1_authorized_policy_change_rejects_explicit_older_format(
+    tmp_path, monkeypatch, mode, requested_format,
+):
+    from keepsail.core import approval, git_objects, knowledge, transition_guard
+
+    events = tmp_path / ".harness/events.jsonl"
+    state = SimpleNamespace(effective_approval={}, current_code_subject={"subject_id": "code:test"})
+    monkeypatch.setattr(approval, "resolve_contract_base", lambda root: "a" * 40)
+    monkeypatch.setattr(git_objects, "optional_regular_blob_text", lambda *args:
+                        "version: review-recognition/v1\nenabled: true\n")
+    monkeypatch.setattr(knowledge, "read_inputs", lambda *args, **kwargs:
+                        SimpleNamespace(states={"delivery": state}))
+    monkeypatch.setattr(knowledge, "load_policy", lambda root: None)
+    monkeypatch.setattr(transition_guard, "validate_delivery_obligations",
+                        lambda *args: {"mode": mode})
+    with pytest.raises(ValueError, match="requires v3 attestation"):
+        write_attestation(events, tmp_path / ".harness/attestations", "delivery",
+                          format_version=requested_format)
+
+
 # --------------------------------------------------------------------------- #
 # Shared lifecycle-stream helpers (emit real ordered events via EventWriter)
 # --------------------------------------------------------------------------- #

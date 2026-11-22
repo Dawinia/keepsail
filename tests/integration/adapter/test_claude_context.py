@@ -11,12 +11,8 @@ from keepsail.core.context import entry_command, session_entry
 from tests.unit.core import test_knowledge as fixtures
 
 
-def test_process_recovery_exposes_v2_without_rewriting_v1(tmp_path, monkeypatch):
-    policy = fixtures.policy()
-    policy["observation_issuers"].append("keepsail-cli-observer")
-    policy["policy_digest"] = fixtures.policy_digest(policy)
-    monkeypatch.setattr(fixtures, "policy", lambda: policy)
-    workspace = fixtures.Workspace(tmp_path)
+def test_process_recovery_exposes_v2_without_rewriting_v1(tmp_path, context_workspace):
+    workspace = context_workspace
     v1 = workspace.recognize(fixtures.version())
     env = {**os.environ, "PYTHONPATH": str(Path(__file__).resolve().parents[3] / "src"),
            "KEEPSAIL_CHANGE_ID": "change-a", "PYTHONDONTWRITEBYTECODE": "1", "PYTHONUTF8": "1"}

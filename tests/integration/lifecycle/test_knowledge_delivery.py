@@ -106,12 +106,12 @@ def test_done_preflights_delivery_and_rechecks_after_execution(tmp_path, monkeyp
     assert derive_state(log)["change-a"].current_state == "AWAITING_CODE_REVIEW"
 
 
-def test_three_native_changes_export_only_new_knowledge_facts(tmp_path):
+def test_three_native_changes_export_only_new_knowledge_facts(knowledge_workspace):
     from keepsail.core.knowledge import load_policy
     from keepsail.core.knowledge_checkpoint import resolve_facts
     from keepsail.engineering.attestation import write_attestation
 
-    w = Workspace(tmp_path)
+    w = knowledge_workspace
     previous_ids = set()
     for index, slug in enumerate(("change-a", "change-b", "change-c")):
         if index:
@@ -160,8 +160,8 @@ def test_three_native_changes_export_only_new_knowledge_facts(tmp_path):
 @pytest.mark.parametrize(
     "selector", [{"global": True}, {"repository_ids": ["test-repo"], "change_ids": ["change-a"]}]
 )
-def test_coverage_refresh_preserves_exact_recognized_impact(tmp_path: Path, selector):
-    w = Workspace(tmp_path)
+def test_coverage_refresh_preserves_exact_recognized_impact(knowledge_workspace, selector):
+    w = knowledge_workspace
     first = w.recognize(version(selector=selector))
     w.deliver()
     w.deliver()  # Multiple supplies must not choose a different impact identity.
@@ -418,8 +418,8 @@ def test_postgresql_adjustment_cross_change_attestation_and_new_session(
         raise AssertionError("corrupted knowledge checkpoint passed")
 
 
-def test_two_processes_cannot_overwrite_the_same_knowledge_revision(tmp_path: Path):
-    w = Workspace(tmp_path)
+def test_two_processes_cannot_overwrite_the_same_knowledge_revision(knowledge_workspace):
+    w = knowledge_workspace
     first = w.operation(version=version())
     second = {
         **first,

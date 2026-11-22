@@ -130,7 +130,7 @@ jobs:
         shell: bash
         run: |
           git -C .harness-trusted-base fetch --no-tags "$GITHUB_WORKSPACE" "$HEAD_SHA"
-          python - <<'PY'
+          env -u PYTHONPATH python -I - <<'PY'
           import os
           import pathlib
           import subprocess

@@ -11,6 +11,21 @@ import pytest
 
 
 @pytest.fixture(scope="session")
+def _knowledge_template(tmp_path_factory):
+    from tests.unit.core.test_knowledge import Workspace
+
+    return Workspace(tmp_path_factory.mktemp("knowledge-template"))
+
+
+@pytest.fixture
+def knowledge_workspace(tmp_path, _knowledge_template):
+    copytree(_knowledge_template.root, tmp_path, dirs_exist_ok=True)
+    workspace = deepcopy(_knowledge_template)
+    workspace.root = tmp_path
+    return workspace
+
+
+@pytest.fixture(scope="session")
 def _approved_context_template(tmp_path_factory):
     """Bootstrap once through native public operations; never share mutable test state."""
     from tests.unit.core import test_knowledge as fixtures

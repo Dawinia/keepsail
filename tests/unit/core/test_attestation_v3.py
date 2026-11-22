@@ -31,6 +31,69 @@ def v3():
                    authorization=None, snapshot=snapshot)
 
 
+@pytest.mark.parametrize("failed_subject,blocked", [("code:current", True), ("code:other", False)])
+def test_no_review_replay_rejects_failure_for_same_subject(
+    tmp_path, monkeypatch, failed_subject, blocked,
+):
+    from keepsail.core import attestation_replay, no_review
+    from keepsail.core.events import Actor, Event
+
+    base = "a" * 40
+    code = {"subject_id": "code:current", "base": base, "head": "b" * 40, "manifest": []}
+    approval = {"approval_id": "approval:one", "evidence_id": "missing"}
+    state = SimpleNamespace(
+        effective_approval=approval, evidence_references=[], current_code_subject=code,
+        coverage_manifest=[],
+        current_verification={"subject_id": "code:current", "outcome": "passed"},
+    )
+    actor = Actor(type="agent", identifier="test")
+    events = [
+        Event(event_id="failed", type="code_review_failed", change_id="delivery", timestamp="",
+              actor=actor, framework="plain",
+              payload={"code_subject": {"subject_id": failed_subject}}),
+        Event(event_id="no-review", type="code_review_not_required", change_id="delivery",
+              timestamp="", actor=actor, framework="plain",
+              payload={"trusted_base": base, "subject_id": "code:current"}),
+    ]
+    monkeypatch.setattr(attestation_replay, "validate_approval", lambda value, **kwargs: value)
+    monkeypatch.setattr(attestation_replay, "has_unresolved_candidate", lambda value: False)
+    monkeypatch.setattr(attestation_replay, "validate_code_subject", lambda value, **kwargs: value)
+    monkeypatch.setattr(attestation_replay, "make_code_subject", lambda *args, **kwargs: code)
+    monkeypatch.setattr(attestation_replay, "events_from_stateful_attestation",
+                        lambda *args, **kwargs: events)
+    monkeypatch.setattr(attestation_replay, "missing_coverage", lambda *args: [])
+    monkeypatch.setattr(attestation_replay, "_review_reference_blockers", lambda *args: [])
+    monkeypatch.setattr(no_review, "verify_no_review_binding", lambda *args: None)
+    blockers = attestation_replay._new_contract_blockers(
+        tmp_path, state, "delivery", [], recognition=SimpleNamespace(policy_digest=None),
+        base=base, head="b" * 40, code_review_required=False,
+    )
+    assert any("rejected code subject" in message for message in blockers) is blocked
+
+
+@pytest.mark.parametrize("case", ["other-subject", "same-subject", "missing", "tampered"])
+def test_v3_no_review_checks_retained_historical_failures(case):
+    from keepsail.core.attestation_format import _validate_historical_review_failures
+
+    original = {
+        "event_id": "failure", "type": "code_review_failed", "change_id": "delivery",
+        "timestamp": "2026-01-01T00:00:00Z", "actor": {"type": "agent", "identifier": "reviewer"},
+        "framework": "plain", "payload": {"code_subject": {"subject_id": (
+            "code:current" if case == "same-subject" else "code:other")}},
+    }
+    row = {"source_event_id": "failure", "type": "code_review_failed",
+           "source_event_digest": digest_record(original), "source_event": original}
+    if case == "missing":
+        del row["source_event"]
+    elif case == "tampered":
+        row["source_event_digest"] = "x" * 64
+    if case == "other-subject":
+        _validate_historical_review_failures([row], "delivery", "code:current")
+    else:
+        with pytest.raises(ApprovalError):
+            _validate_historical_review_failures([row], "delivery", "code:current")
+
+
 @pytest.mark.parametrize("case", ["valid", "bad-signature", "more-purposes", "policy", "checks"])
 def test_v1_rotation_replay_checks_signed_authority_and_unchanged_obligations(
     tmp_path, monkeypatch, case,
