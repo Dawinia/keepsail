@@ -1,8 +1,8 @@
 ---
 id: d-policy-replay-offline-v2
 status: ratified
-ratified_by: codex-implementation-session
-ratified_at: '2026-11-16T16:00:02.399341Z'
+ratified_by: dawinialo@163.com
+ratified_at: '2026-11-23T14:18:01.855506Z'
 supersedes: d-policy-replay-offline
 ratified_text_hash: sha256:3e235237c67668a729ec6230659532c95c7c794d66b2fa13379af18a21013ba9
 authoring_time: true
