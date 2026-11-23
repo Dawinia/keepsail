@@ -357,6 +357,29 @@ def test_added_fixture_completes_real_verification_under_same_approval(
         assert rejected.exit_code != 0 and expected in rejected.output, rejected.output
     attestation.write_text(original_attestation, encoding="utf-8")
 
+    # Re-export a completed legacy lifecycle whose original verification predates
+    # check_evidence. Keep the repository's native event history unchanged.
+    from keepsail.engineering.attestation import write_attestation
+
+    history = root / ".harness/legacy-resign-fixture.jsonl"
+    old_rows = [json.loads(line) for line in events_path(root).read_text(
+        encoding="utf-8").splitlines()]
+    for row in old_rows:
+        if row["type"] == "verification_passed":
+            row["payload"].get("verification", {}).pop("check_evidence", None)
+    history.write_text("".join(json.dumps(row) + "\n" for row in old_rows), encoding="utf-8")
+    assert derive_state(history)["c"].current_state == "READY_TO_MERGE"
+    assert "check_evidence" not in derive_state(history)["c"].current_verification
+    resigned = write_attestation(history, root / ".harness/resign-fixture", "c",
+                                 format_version="v1")
+    assert derive_state(resigned)["c"].current_state == "READY_TO_MERGE"
+    attestation.write_bytes(resigned.read_bytes())
+    _git(root, "add", ".harness/attestations/c.jsonl")
+    _git(root, "commit", "-qm", "retain re-exported legacy attestation")
+    result = cli("attest", "verify", "--base", "main", "--head", "HEAD")
+    assert result.exit_code == 2, result.output
+    assert "verification check evidence" in result.output
+
 
 def test_external_failure_and_empty_output_emit_no_core_review_events(tmp_path: Path) -> None:
     (tmp_path / ".harness").mkdir()

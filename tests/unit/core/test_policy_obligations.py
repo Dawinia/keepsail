@@ -106,38 +106,6 @@ def test_narrowing_scoped_v1_names_its_effective_full_review_obligation():
     assert review["old_digest"] == digest_record({"mode": "full", "scope": []})
 
 
-def test_merge_rejects_initial_activation_over_an_active_policy(tmp_path, monkeypatch):
-    from keepsail.core import attestation_v3_verify as replay
-    from keepsail.core import git_objects
-
-    old_raw, _, checks = setup_policy("full")
-    old = parse_delivery_policy(old_raw)
-    new_raw = deepcopy(old_raw)
-    new_raw["code_review"] = {"mode": "off"}
-    new_raw["builtin_checks_version"] = "keepsail-baseline/v2"
-    new_raw["policy_digest"] = digest_record({k: v for k, v in new_raw.items()
-                                             if k != "policy_digest"})
-    candidate = parse_delivery_policy(new_raw)
-    authority = SimpleNamespace(digest="same-authority")
-    before = SimpleNamespace(policy=old, authority=authority, checks=checks)
-    after = SimpleNamespace(policy=candidate, authority=authority, checks=checks)
-    record = {"trusted_base": "base", "policy_digest": old.policy_digest,
-              "change_id": "delivery", "snapshot": {},
-              "authorization": {"kind": "transition"}}
-    monkeypatch.setattr(replay, "validate_v3", lambda value: value)
-    monkeypatch.setattr(replay, "resolve_commit", lambda root, ref: ref)
-    monkeypatch.setattr(replay, "verify_v2_activation", lambda *args, **kwargs: None)
-    monkeypatch.setattr(replay, "read_policy_snapshot",
-                        lambda root, ref, **kwargs: before if ref == "base" else after)
-    monkeypatch.setattr(git_objects, "optional_regular_blob_bytes", lambda *args: None)
-    monkeypatch.setattr(replay, "validate_code_subject", lambda *args, **kwargs: {"manifest": []})
-    monkeypatch.setattr(replay, "validate_approval", lambda *args, **kwargs: {
-        "subject_id": "plan:test", "subject": {"artifacts": []}})
-    with pytest.raises(ApprovalError, match="target policy does not identify this signed"):
-        replay.verify_v3_delivery(tmp_path, record, base="base", head="head",
-                                  repository_id="owner/project", target_ref="refs/heads/main")
-
-
 @pytest.mark.parametrize(("replaying", "old_inventory", "accepted"), [
     (False, False, True), (True, False, True), (True, True, True), (False, True, False),
 ])

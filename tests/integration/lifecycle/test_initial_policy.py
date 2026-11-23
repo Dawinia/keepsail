@@ -14,7 +14,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
 from keepsail.cli import main
-from keepsail.core.approval import ApprovalError, canonical_json
+from keepsail.core.approval import ApprovalError, canonical_json, digest_record
 from keepsail.core.attestation_v3_verify import verify_v2_activation
 from keepsail.core.effective_policy import load_effective_v2
 from keepsail.core.emit_validation import (
@@ -30,8 +30,9 @@ def git(root, *args):
     return subprocess.check_output(["git", *args], cwd=root, text=True).strip()
 
 
-def test_init_first_trust_and_light_delivery(tmp_path):
-    root = tmp_path
+def test_init_first_trust_and_light_delivery(tmp_path, knowledge_workspace):
+    root = tmp_path / "activated"
+    root.mkdir()
     git(root, "init", "-q", "-b", "main")
     git(root, "config", "user.email", "owner@example.invalid")
     git(root, "config", "user.name", "fixture owner")
@@ -245,6 +246,87 @@ def test_init_first_trust_and_light_delivery(tmp_path):
     assert "required checks: user/fixture" in verified_text.output
     assert "required project checks: 1" in verified_text.output
     assert "code review required: False" in verified_text.output
+    # Supply actual v1/v2 records to the real activated-policy verifier.
+    from keepsail.core.attestation_format import expand_attestation
+    from keepsail.engineering.attestation import write_attestation
+
+    old = knowledge_workspace
+    old.deliver()
+    (old.root / "legacy-product.txt").write_text("old delivery\n", encoding="utf-8")
+    git(old.root, "add", "legacy-product.txt")
+    git(old.root, "commit", "-qm", "implement old-policy delivery")
+    old_assessment = {"affected_commitments": ["db"], "conclusion": "within_approval",
+                      "reasons": ["Exercise the previously approved delivery."],
+                      "references": ["legacy-product.txt"]}
+    old.cli("implementation", "record", "change-a", "--assessment",
+            str(old.write(old_assessment)))
+    old.deliver()
+    old.cli("done", "change-a")
+    old_state = derive_state(old.root / ".harness/events.jsonl")["change-a"]
+    old_code = {"version": "review-evidence/v1", "evidence_id": "old-code-review",
+                "kind": "code", "subject_id": old_state.current_code_subject["subject_id"],
+                "decision": "approve", "process": {"id": "owner-review", "version": "1"},
+                "issuer": "owner", "original_evidence": {"decision": "approve"},
+                "provenance": {"policy_digest": old.review["process"]["policy_digest"]}}
+    old.cli("review", "import", "change-a", "--evidence", str(old.write(old_code)))
+    old_log = old.root / ".harness/events.jsonl"
+    old_dir = old.root / ".harness/attestations"
+    old_v1 = write_attestation(old_log, old_dir, "change-a", format_version="v1-bootstrap")
+    old_v2 = write_attestation(old_log, old_dir, "change-a", format_version="v2")
+    assert derive_state(old_v1)["change-a"].current_state == "READY_TO_MERGE"
+    assert expand_attestation(json.loads(old_v2.read_text(encoding="utf-8")))
+    assert derive_state(old_v2)["change-a"].current_state == "READY_TO_MERGE"
+    delivery_head = git(root, "rev-parse", "HEAD")
+    git(root, "switch", "-qc", "mixed-old-formats")
+    legacy = harness / "attestations/change-a.jsonl"
+    compact = harness / "attestations/v2/change-a.jsonl"
+    compact.parent.mkdir(parents=True, exist_ok=True)
+    legacy.write_bytes(old_v1.read_bytes())
+    compact.write_bytes(old_v2.read_bytes())
+    git(root, "add", str(legacy.relative_to(root)), str(compact.relative_to(root)))
+    git(root, "commit", "-qm", "attempt mixed old-format attestations")
+    mixed = cli("--json", "attest", "verify", "--base", trusted, "--head", "HEAD",
+                "--repository-id", "owner/project", "--target-ref", "refs/heads/main")
+    assert mixed.exit_code == 2, mixed.output
+    mixed_blockers = json.loads(mixed.output)["data"]["blockers"]
+    assert sum("active policy requires v3 evidence" in item for item in mixed_blockers) == 2
+    assert not any("trusted review policy cannot be read" in item for item in mixed_blockers)
+    git(root, "switch", "-q", "candidate")
+
+    # A signed candidate cannot replace an active policy using initial activation.
+    from keepsail.core.attestation_v3 import parse_v3_line
+
+    git(root, "switch", "-qc", "initial-replacement", delivery_head)
+    changed_policy = json.loads(json.dumps(proposal["policy"]))
+    changed_policy["processes_by_kind"]["plan"]["issuers"].append("another-owner")
+    changed_policy["policy_digest"] = digest_record({
+        k: v for k, v in changed_policy.items() if k != "policy_digest"})
+    (harness / "review-recognition.yaml").write_text(yaml.safe_dump(changed_policy),
+                                                       encoding="utf-8")
+    light_path = harness / "attestations/v3/light.jsonl"
+    record = parse_v3_line(light_path.read_bytes())
+    authorization = {"version": "policy-authorization/v1", "repository_id": "owner/project",
+                     "target_ref": "refs/heads/main", "base_sha": trusted,
+                     "predecessor_policy_digest": proposal["policy"]["policy_digest"],
+                     "target_policy_digest": changed_policy["policy_digest"],
+                     "change_id": "light", "plan_subject_id": record["snapshot"]["approval"][
+                         "subject_id"], "kind": "transition", "decision": "approve",
+                     "permitted_paths": ["plan.md", "hello.txt",
+                                         ".harness/review-recognition.yaml"],
+                     "key_id": proposal["authority"]["keys"][0]["key_id"],
+                     "obligation_changes": []}
+    authorization["signature"] = base64.b64encode(
+        key.sign(canonical_json(authorization).encode())).decode()
+    record["authorization"] = authorization
+    record["digest"] = digest_record({k: v for k, v in record.items() if k != "digest"})
+    light_path.write_text(canonical_json(record) + "\n", encoding="utf-8")
+    git(root, "add", ".harness/review-recognition.yaml", str(light_path.relative_to(root)))
+    git(root, "commit", "-qm", "attempt initial replacement of active policy")
+    initial_rejected = cli("--json", "attest", "verify", "--base", trusted, "--head", "HEAD",
+                           "--repository-id", "owner/project", "--target-ref", "refs/heads/main")
+    assert initial_rejected.exit_code == 2, initial_rejected.output
+    assert "target policy does not identify this signed transition" in initial_rejected.output
+    git(root, "switch", "-q", "candidate")
     blob = subprocess.check_output(["git", "hash-object", "-w", "--stdin"], cwd=root,
                                    input=b"unsupported path\n").decode().strip()
     tree = subprocess.check_output(["git", "ls-tree", "-z", "HEAD"], cwd=root)

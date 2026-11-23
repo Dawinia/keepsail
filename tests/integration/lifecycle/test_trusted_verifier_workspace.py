@@ -295,52 +295,6 @@ def test_v2_reader_round_trip_and_malformed_structures(knowledge_workspace, monk
     assert any("invalid lifecycle evidence" in row["message"] for row in failure["errors"])
 
 
-def test_valid_v1_and_v2_records_cannot_downgrade_active_policy(
-    knowledge_workspace, monkeypatch,
-):
-    from keepsail.core.attestation_format import expand_attestation
-    from keepsail.core.git_diff import DiffEntry
-    from keepsail.core.reducer import derive_state
-    from keepsail.engineering import attestation
-    from tests.unit.core.test_policy_obligations import setup_policy
-
-    w = knowledge_workspace
-    w.deliver()
-    log = w.root / ".harness/events.jsonl"
-    directory = w.root / ".harness/attestations"
-    legacy = write_attestation(log, directory, "change-a", format_version="v1-bootstrap")
-    assert derive_state(legacy)["change-a"].effective_approval is not None
-    monkeypatch.setattr(attestation, "ATTESTATION_FORMAT", "v2")
-    compact = write_attestation(log, directory, "change-a", format_version="v2")
-    assert expand_attestation(json.loads(compact.read_text(encoding="utf-8")))
-    assert derive_state(compact)["change-a"].effective_approval is not None
-    legacy_state = derive_state(legacy)["change-a"]
-    compact_state = derive_state(compact)["change-a"]
-    assert legacy_state.current_state == compact_state.current_state
-    assert legacy_state.effective_approval == compact_state.effective_approval
-    assert legacy_state.current_verification == compact_state.current_verification
-
-    # Preserve both valid historical records, then submit them as new evidence
-    # against a committed active-v2 policy. Activation itself is tested elsewhere.
-    active_policy, _, _ = setup_policy()
-    (w.root / ".harness/review-recognition.yaml").write_text(
-        yaml.safe_dump(active_policy), encoding="utf-8")
-    git(w.root, "add", ".harness/review-recognition.yaml")
-    git(w.root, "commit", "-qm", "active policy fixture")
-    base = git(w.root, "rev-parse", "HEAD")
-    git(w.root, "add", str(legacy.relative_to(w.root)), str(compact.relative_to(w.root)))
-    git(w.root, "commit", "-qm", "attempt mixed old-format delivery")
-    head = git(w.root, "rev-parse", "HEAD")
-    monkeypatch.setattr("keepsail.core.attestation_v3_verify.verify_v2_activation",
-                        lambda *args, **kwargs: {})
-    entries = [DiffEntry("A", (p.relative_to(w.root).as_posix(),)) for p in (legacy, compact)]
-    verdict = attestation.verify_attestations(
-        w.root, entries, base=base, head=head, repository_id="owner/project",
-        target_ref="refs/heads/main")
-    assert not verdict.ok
-    assert sum("active policy requires v3 evidence" in item for item in verdict.blockers) == 2
-
-
 @pytest.mark.parametrize("declaration", ["{", "null", "[]", "1",
                                          '{"prior_approvals":null}',
                                          '{"prior_approvals":[null]}'])
