@@ -26,11 +26,14 @@ unobserved changes in another workspace or service.
 
 **Delivery attestation transition:** The new verifier requires trusted check
 evidence for newly added recognized deliveries, including v1/v2 attestations.
-Historical attestations already in the trusted base remain readable. An old v2
-attestation without that evidence cannot be added as a new delivery under the
-new verifier; replay a historical delivery with the verifier from its historical
-trusted base. A candidate cannot upgrade an old trusted verifier, and consistent
-recorded check results alone do not independently prove where checks executed.
+Historical attestations already in the trusted base remain readable. Re-exporting
+a completed v1 lifecycle from before `check_evidence` existed is rejected when
+the new verifier checks it as a new recognized delivery: the old record cannot
+independently prove each required check's result. There is currently no verified
+remedy for that re-export. The equivalent completed-v2 re-export has not been
+tested separately. A candidate cannot upgrade an old trusted verifier, and
+consistent recorded check results alone do not independently prove where checks
+executed.
 
 **Framework adapters (v0.2+):**
 - Spec Kit framework adapter
