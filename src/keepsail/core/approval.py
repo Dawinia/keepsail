@@ -970,7 +970,8 @@ def _attestation_only(paths: Iterable[str]) -> bool:
     return all(is_attestation_path(p) for p in paths)
 
 
-def git_change_manifest(root: Path, *, base: str, head: str) -> list[dict[str, Any]]:
+def git_change_manifest(root: Path, *, base: str, head: str,
+                        literal_paths: bool = False) -> list[dict[str, Any]]:
     """Build a deterministic mode/content manifest, including renames."""
     base_sha = resolve_commit(root, base)
     head_sha = resolve_commit(root, head)
@@ -980,7 +981,8 @@ def git_change_manifest(root: Path, *, base: str, head: str) -> list[dict[str, A
     head_tree = _tree_entries(root, head_sha)
     result: list[dict[str, Any]] = []
     for status, raw_paths in _name_status(statuses):
-        paths = [posixpath.normpath(p.replace("\\", "/")) for p in raw_paths]
+        paths = (list(raw_paths) if literal_paths else
+                 [posixpath.normpath(p.replace("\\", "/")) for p in raw_paths])
         old_path = paths[0] if status.startswith("R") or status.startswith("C") else None
         new_path = paths[-1]
         row: dict[str, Any] = {"status": status, "path": new_path}
@@ -1014,14 +1016,9 @@ def implementation_coverage(
     """
     head = resolve_commit(root)
     base = merge_base_commit(root, resolve_contract_base(root), head)
-    from keepsail.core.git_diff import DiffEntry, require_literal_git_diff, require_literal_paths
-
-    require_literal_git_diff(root, base=base, head=head)
-    committed = git_change_manifest(root, base=base, head=head)
+    committed = git_change_manifest(root, base=base, head=head, literal_paths=True)
     staged = _git(root, "diff", "--cached", "--name-status", "-z", "--find-renames", "HEAD")
     workspace = _git(root, "diff", "--name-status", "-z", "--find-renames")
-    require_literal_paths([DiffEntry(status, paths)
-                           for status, paths in (*_name_status(staged), *_name_status(workspace))])
     index = _git(root, "ls-files", "--stage", "-z")
     paths = set()
     for row in committed:
@@ -1091,6 +1088,7 @@ def make_code_subject(
     head: str = "HEAD",
     verification_config_digest: str | None = None,
     knowledge_basis: dict[str, Any] | None | object = _AUTO_KNOWLEDGE_BASIS,
+    legacy_paths: bool = False,
 ) -> dict[str, Any]:
     requested_base = resolve_commit(root, base)
     resolved_head = resolve_commit(root, head)
@@ -1099,7 +1097,8 @@ def make_code_subject(
     # preparation, verification, and the final gate hash the same change even
     # when the target branch advanced after the candidate branch was created.
     resolved_base = merge_base_commit(root, requested_base, resolved_head)
-    manifest = git_change_manifest(root, base=resolved_base, head=resolved_head)
+    manifest = git_change_manifest(root, base=resolved_base, head=resolved_head,
+                                   literal_paths=not legacy_paths)
     subject: dict[str, Any] = {
         "version": CODE_SUBJECT_VERSION,
         "change_id": change_id,
@@ -1111,6 +1110,9 @@ def make_code_subject(
         "head": resolved_head,
         "manifest": manifest,
     }
+    if not legacy_paths and any("\\" in str(row.get(key, ""))
+                                for row in manifest for key in ("path", "old_path")):
+        subject["path_representation"] = "git-literal/v1"
     if verification_config_digest:
         subject["verification_config_digest"] = verification_config_digest
     # Omitted means live preparation; explicit None means a retained subject
@@ -1132,6 +1134,8 @@ def make_code_subject(
 def validate_code_subject(value: object, *, change_id: str | None = None) -> dict[str, Any]:
     if not isinstance(value, dict) or value.get("version") != CODE_SUBJECT_VERSION:
         raise ApprovalError("unrecognized code subject version")
+    if value.get("path_representation") not in (None, "git-literal/v1"):
+        raise ApprovalError("unrecognized code subject path representation")
     if not isinstance(value.get("change_id"), str) or not value["change_id"]:
         raise ApprovalError("code subject needs a change_id")
     if change_id is not None and value["change_id"] != change_id:
@@ -1179,7 +1183,8 @@ def code_subject_paths(value: object) -> set[str]:
         for key in ("path", "old_path"):
             path = row.get(key)
             if isinstance(path, str) and path:
-                paths.add(posixpath.normpath(path.replace("\\", "/")))
+                paths.add(path if subject.get("path_representation") == "git-literal/v1"
+                          else posixpath.normpath(path.replace("\\", "/")))
     return paths
 
 
@@ -1190,7 +1195,9 @@ def missing_coverage(value: object, coverage: object) -> list[str]:
     if isinstance(coverage, list):
         for item in coverage:
             if isinstance(item, dict) and isinstance(item.get("path"), str):
-                covered.add(posixpath.normpath(item["path"].replace("\\", "/")))
+                subject = validate_code_subject(value)
+                covered.add(item["path"] if subject.get("path_representation") == "git-literal/v1"
+                            else posixpath.normpath(item["path"].replace("\\", "/")))
     return sorted(required - covered)
 
 

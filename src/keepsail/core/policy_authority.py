@@ -307,10 +307,8 @@ def verify_policy_authorization(
            for key, expected in bindings.items()):
         raise ApprovalError("policy authorization does not match its trusted bindings")
     paths = _paths(value["permitted_paths"])
-    if not isinstance(actual_paths, list):
+    if not isinstance(actual_paths, list) or not all(isinstance(p, str) for p in actual_paths):
         raise ApprovalError("actual delivery paths must be a list")
-    for path in actual_paths:
-        _paths([path])
     if any(not covered_by_scope(path, paths) for path in actual_paths):
         raise ApprovalError("actual delivery is outside the authorized paths")
     if "continued_plans" in value:

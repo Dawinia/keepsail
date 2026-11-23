@@ -43,6 +43,40 @@ def sign(record, key):
     return record
 
 
+def test_legacy_completion_cannot_hide_committed_key_rotation(tmp_path):
+    import subprocess
+
+    from keepsail.core.approval import recognition_policy_digest
+    from keepsail.core.transition_guard import validate_legacy_initial_authority
+
+    def git(*args):
+        return subprocess.check_output(["git", *args], cwd=tmp_path, text=True).strip()
+
+    harness = tmp_path / ".harness"
+    harness.mkdir()
+    policy = {"version": "review-recognition/v1", "enabled": True,
+              "process": {"id": "owner", "version": "1", "kinds": ["plan", "code"],
+                          "issuers": ["owner"], "evidence_forms": ["json"]}}
+    policy["process"]["policy_digest"] = recognition_policy_digest(policy)
+    (harness / "review-recognition.yaml").write_text(yaml.safe_dump(policy), encoding="utf-8")
+    authority_path = harness / "policy-authority.yaml"
+    old = yaml.safe_dump(authority(Ed25519PrivateKey.generate(), ["policy-transition"]))
+    new = yaml.safe_dump(authority(Ed25519PrivateKey.generate(), ["policy-transition"]))
+    authority_path.write_text(old, encoding="utf-8")
+    git("init", "-q", "-b", "main")
+    git("config", "user.email", "fixture@example.invalid")
+    git("config", "user.name", "fixture")
+    git("add", ".")
+    git("commit", "-qm", "trusted baseline")
+    git("switch", "-qc", "candidate")
+    authority_path.write_text(new, encoding="utf-8")
+    git("add", ".harness/policy-authority.yaml")
+    git("commit", "-qm", "rotate authority")
+    authority_path.write_text(old, encoding="utf-8")
+    with pytest.raises(ApprovalError, match=r"committed.*transition"):
+        validate_legacy_initial_authority(tmp_path)
+
+
 @pytest.mark.parametrize("old_policy", [None, "version: review-recognition/v1\nenabled: false\n"])
 @pytest.mark.parametrize("existing_skeleton", [False, True])
 def test_disabled_or_missing_policy_cannot_introduce_enabled_authority(
@@ -230,6 +264,30 @@ def test_authorization_uses_trusted_identity_subject_and_scope():
     tampered["unexpected"] = True
     with pytest.raises(ApprovalError, match="unknown"):
         verify(sign(tampered, key), old)
+
+
+@pytest.mark.parametrize("field,value", [
+    ("predecessor_policy_digest", "d" * 64), ("target_policy_digest", "e" * 64),
+    ("decision", "reject"),
+])
+def test_validly_signed_authorization_cannot_change_trusted_bindings(field, value):
+    key = Ed25519PrivateKey.generate()
+    old = parse_authority(authority(key, ["policy-transition"]))
+    record = authorization(key, old)
+    record[field] = value
+    sign(record, key)
+    signed_body = {name: item for name, item in record.items() if name != "signature"}
+    key.public_key().verify(base64.b64decode(record["signature"]),
+                            canonical_json(signed_body).encode("utf-8"))
+    with pytest.raises(ApprovalError, match=r"bindings|non-approval"):
+        verify(record, old)
+
+
+def test_authorized_directory_contains_literal_bracket_name():
+    key = Ed25519PrivateKey.generate()
+    old = parse_authority(authority(key, ["policy-transition"]))
+    record = authorization(key, old)
+    assert verify(record, old, actual_paths=["docs/plans/release[1].md"]) == record
 
 
 @pytest.mark.parametrize("same_key", [False, True])

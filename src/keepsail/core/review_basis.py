@@ -127,6 +127,7 @@ def resolve_local_review_basis(
                 root, change_id=state.change_id, approval_id=code["approval_id"], base=base,
                 verification_config_digest=code.get("verification_config_digest"),
                 knowledge_basis=code.get("knowledge_basis"),
+                legacy_paths=code.get("path_representation") != "git-literal/v1",
             )
             if actual["subject_id"] != code["subject_id"]:
                 raise ApprovalError("recovery code subject is not the current complete Git diff")

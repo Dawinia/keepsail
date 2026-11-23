@@ -72,8 +72,9 @@ def validate_v3(value: object) -> dict[str, Any]:
                 and item["policy_digest"] != policy_digest):
             raise ApprovalError("v3 current basis does not match the trusted policy")
         if item is not None and item["mode"] == "recovery":
-            if (authorization is None
-                    or item["authorization_digest"] != digest_record(authorization)):
+            if authorization is None:
+                raise ApprovalError("v3 recovery requires its signed authorization")
+            if item["authorization_digest"] != digest_record(authorization):
                 raise ApprovalError("v3 recovery basis does not match its signed authorization")
             expected = digest_record({"version": "recovery-recognition/v1",
                                       "base_policy_digest": policy_digest,

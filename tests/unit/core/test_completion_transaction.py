@@ -40,6 +40,11 @@ def test_transaction_round_trip_is_one_complete_line():
     assert decode_completion(data) == events
 
 
+def test_completion_transaction_with_crlf_is_rejected():
+    with pytest.raises(EventSchemaError):
+        decode_completion(encode_completion(pair()).replace(b"\n", b"\r\n"))
+
+
 def test_incomplete_and_modified_transactions_never_expand():
     data = encode_completion(pair())
     for offset in range(len(data)):

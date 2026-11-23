@@ -338,6 +338,26 @@ def test_recovery_plan_review_uses_only_the_signed_process_and_digest(
     assert verdict["required_checks"] == [{"source": "user", "id": "fixture"}]
     assert verdict["code_review_required"] is True
     valid_head = git(root, "rev-parse", "HEAD")
+    # A real committed v3 envelope without its transition authorization must fail.
+    missing_authorization = deepcopy(record)
+    missing_authorization["authorization"] = None
+    missing_authorization["digest"] = digest_record({
+        k: v for k, v in missing_authorization.items() if k != "digest"})
+    git(root, "switch", "-qc", "recovery-missing-authorization", valid_head)
+    missing_path = harness / "attestations/v3/recovery.jsonl"
+    missing_path.write_text(canonical_json(missing_authorization) + "\n", encoding="utf-8")
+    git(root, "add", str(missing_path.relative_to(root)))
+    git(root, "commit", "-qm", "attempt transition without authorization")
+    with pytest.raises(ApprovalError, match="requires its signed authorization"):
+        verify_v3_transition(root, missing_authorization, base=base, head="HEAD",
+                             repository_id="owner/project", target_ref="refs/heads/main")
+    git(root, "switch", "-q", "candidate")
+    # A signed transition is not reusable after the trusted base advances.
+    base_tree = git(root, "rev-parse", f"{base}^{{tree}}")
+    advanced_base = git(root, "commit-tree", base_tree, "-p", base, "-m", "advance base")
+    with pytest.raises(ApprovalError, match="different trusted base"):
+        verify_v3_transition(root, record, base=advanced_base, head=valid_head,
+                             repository_id="owner/project", target_ref="refs/heads/main")
     for kind in ("plan", "code"):
         altered = deepcopy(record)
         altered["recognition_basis"][kind] = {
@@ -471,6 +491,28 @@ def test_recovery_plan_review_uses_only_the_signed_process_and_digest(
     ordinary_state = derive_state(events_path(root))["after-activation"]
     assert ordinary_state.current_state == "READY_TO_MERGE"
     assert ordinary_state.event_counts["code_review_not_required"] == 1
+    # Reconstruct the same local prefix in an isolated log, add a known failure,
+    # and exercise the real strict two-event writer without changing the live log.
+    from keepsail.core.completion_transaction import decode_completion
+    from keepsail.core.events import Actor, Event
+    from keepsail.core.writer import EmitPreconditionError, EventWriter
+
+    event_lines = events_path(root).read_bytes().splitlines(keepends=True)
+    completion_index = next(i for i in range(len(event_lines) - 1, -1, -1)
+                            if b'completion-transaction/v1' in event_lines[i])
+    completion_pair = decode_completion(event_lines[completion_index])
+    local_log = harness / "omitted-failure-fixture.jsonl"
+    local_log.write_bytes(b"".join(event_lines[:completion_index]))
+    known_failure = Event(event_id="known-failure", type="code_review_failed",
+                          change_id="after-activation", timestamp=completion_pair[0].timestamp,
+                          actor=Actor(type="agent", identifier="reviewer"), framework="plain",
+                          payload={"code_subject": ordinary_state.current_code_subject})
+    local_writer = EventWriter(local_log)
+    local_writer.emit(known_failure, skip_validation=True, historical_replay=True)
+    before = local_log.read_bytes()
+    with pytest.raises(EmitPreconditionError, match="local history contains a code review failure"):
+        local_writer.emit_many(completion_pair)
+    assert local_log.read_bytes() == before
     assert ordinary_state.current_verification["check_evidence"][
         "builtin_checks_version"] == "keepsail-baseline/v2"
     status = cli("--json", "status", "after-activation")
@@ -486,7 +528,10 @@ def test_recovery_plan_review_uses_only_the_signed_process_and_digest(
     assert ordinary_attested.exit_code == 0, ordinary_attested.output
     ordinary_record = parse_v3_line(
         (harness / "attestations/v3/after-activation.jsonl").read_bytes())
-    # A no-review delivery must not hide an earlier rejection of the same subject.
+    # CI only sees this retained snapshot; the independently seeded local failure
+    # above is omitted, so replay cannot detect it.
+    assert expand_attestation(ordinary_record["snapshot"], for_v3=True)
+    # Replay checks retained failures for the same subject.
     for rejected_subject, must_fail in (("code:other", False),
                                         (ordinary_state.current_code_subject["subject_id"], True)):
         candidate = deepcopy(ordinary_record["snapshot"])
@@ -500,7 +545,7 @@ def test_recovery_plan_review_uses_only_the_signed_process_and_digest(
         })
         candidate["digest"] = digest_record({k: v for k, v in candidate.items() if k != "digest"})
         if must_fail:
-            with pytest.raises(ApprovalError, match="rejected code subject"):
+            with pytest.raises(ApprovalError, match="retained evidence contains a code review"):
                 expand_attestation(candidate, for_v3=True)
         else:
             assert expand_attestation(candidate, for_v3=True)

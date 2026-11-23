@@ -11,6 +11,7 @@ from pathlib import PureWindowsPath
 from typing import Any
 
 from keepsail.core.approval import ApprovalError, Recognition, digest_record
+from keepsail.core.git_diff import DiffEntry, require_literal_paths
 from keepsail.core.policy_authority import _paths, parse_unique_yaml
 from keepsail.core.scope_match import covered_by_scope
 from keepsail.core.slug import SlugError, validate_slug
@@ -55,12 +56,14 @@ class DeliveryPolicy:
                 if not isinstance(row["old_path"], str):
                     raise ApprovalError("invalid old path in change manifest")
                 paths.append(row["old_path"])
-        for path in paths:
-            _paths([path])
         if self.code_review == "full":
             return True, "policy requires code review for all changes"
         if self.code_review == "off":
             return False, "policy does not require code review"
+        try:
+            require_literal_paths([DiffEntry("M", (path,)) for path in paths])
+        except ValueError as exc:
+            raise ApprovalError(str(exc)) from exc
         matches = sorted(path for path in paths if covered_by_scope(path, list(self.scope)))
         if matches:
             return True, "policy scope matched: " + ", ".join(matches)

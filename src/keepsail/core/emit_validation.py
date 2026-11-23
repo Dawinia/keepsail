@@ -272,7 +272,8 @@ def _validate_authority(events_file: Path, new_event: Event) -> None:
                 prior_subject = prior.payload.get("code_subject")
                 if (prior.type == "code_review_failed" and isinstance(prior_subject, dict)
                         and prior_subject.get("subject_id") == subject_id):
-                    raise ApprovalError("a rejected code subject cannot bypass its code review")
+                    raise ApprovalError(
+                        "local history contains a code review failure for this subject")
     except (ApprovalError, GitScopeError, TypeError, KeyError, ValueError) as exc:
         raise EmitPreconditionError(str(exc)) from exc
 
@@ -597,6 +598,7 @@ def _validate_git_subject(events_file: Path, subject: dict[str, object]) -> None
         approval_id=str(subject["approval_id"]),
         base=str(subject["base"]),
         head=str(subject["head"]),
+        legacy_paths=subject.get("path_representation") != "git-literal/v1",
     )
     if expected["subject_id"] != subject.get("subject_id"):
         raise ApprovalError("code subject does not match the complete Git change set")

@@ -10,7 +10,6 @@ from keepsail.core.approval import (
     validate_code_subject,
 )
 from keepsail.core.effective_policy import load_effective_v2
-from keepsail.core.git_diff import require_literal_git_diff
 from keepsail.core.git_objects import optional_regular_blob_text
 from keepsail.core.policy_authority import parse_unique_yaml
 from keepsail.core.policy_snapshot import PolicySnapshot as PolicySnapshot
@@ -33,11 +32,11 @@ def delivery_details(root: Path, state: Any) -> dict[str, Any] | None:
             return None
         snapshot = load_effective_v2(root, base)
         subject = validate_code_subject(state.current_code_subject, change_id=state.change_id)
-        require_literal_git_diff(root, base=base, head="HEAD")
         current = make_code_subject(
             root, change_id=state.change_id, approval_id=subject["approval_id"], base=base,
             verification_config_digest=subject.get("verification_config_digest"),
             knowledge_basis=subject.get("knowledge_basis"),
+            legacy_paths=subject.get("path_representation") != "git-literal/v1",
         )
         required, reason = snapshot.policy.review_requirement(current["manifest"])
         return {"status": "resolved", "trusted_base": base,

@@ -4,15 +4,14 @@ status: ratified
 ratified_by: dawinialo@163.com
 ratified_at: '2026-06-22T19:25:38.517675Z'
 ratified_text_hash: sha256:8a106295b2f00df8c9f657c22e02af8cf6b37cee29ee005e772647d62be48ed0
-last_reconciled_by: dawinialo@163.com
-last_reconciled_at: '2026-11-12T16:48:21.485557Z'
+last_reconciled_by: codex-implementation-session
+last_reconciled_at: '2026-11-23T07:31:03.554521Z'
 last_reconcile_kind: self
-last_reconcile_justification: 'Reviewed the existing local fold and new fields: each
-  call constructs fresh state from event lines, does not mutate input or module globals,
-  and retains deterministic event order; the existing local accumulator pattern is
-  unchanged.'
+last_reconcile_justification: The reducer clears only per-change derived state based
+  on the current event; it does not mutate event inputs or module globals, and identical
+  event sequences derive identical state.
 reconciled_anchors:
-  src/keepsail/core/reducer.py: sha256:2f98569da037234997964a803b37c1ca2e85a4fd7e83d88f565671d85d9ebf57
+  src/keepsail/core/reducer.py: sha256:347de44b44d51f3c7d6e5429a6cfe5a7998bf9a291ba6211c06362f5e0abd02d
 ---
 State is a pure left-fold over the event log; never mutated in place.
 

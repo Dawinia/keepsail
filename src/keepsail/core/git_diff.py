@@ -43,11 +43,11 @@ def parse_name_status_z(raw: str) -> list[DiffEntry]:
 
 
 def require_literal_paths(entries: list[DiffEntry]) -> None:
-    """Reject Git names the delivery-policy path language cannot represent safely."""
+    """Reject Git names the legacy subject representation would change."""
     for entry in entries:
         for path in entry.paths:
             if (path != path.strip() or posixpath.normpath(path) != path or path.startswith("/")
-                    or any(char in path for char in "\\*?[]\x00")):
+                    or any(char in path for char in "\\\x00")):
                 raise ValueError(f"unsupported literal Git path for delivery policy: {path!r}")
 
 

@@ -258,7 +258,9 @@ def test_init_first_trust_and_light_delivery(tmp_path):
     refused = cli("--json", "attest", "verify", "--base", trusted, "--head", weird,
                   "--repository-id", "owner/project", "--target-ref", "refs/heads/main")
     assert refused.exit_code == 2, refused.output
-    assert "unsupported literal Git path" in refused.output
+    blockers = json.loads(refused.output)["data"]["blockers"]
+    assert any("secure\\name.txt" in message and "not covered" in message
+               for message in blockers), blockers
 
     # A valid light delivery cannot turn off or damage its already trusted key.
     for damage in ("removed", "disabled", "malformed"):

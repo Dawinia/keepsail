@@ -163,6 +163,7 @@ def _new_contract_blockers(
             base=base or str(validated_code["base"]),
             head=head or str(validated_code["head"]),
             knowledge_basis=validated_code.get("knowledge_basis"),
+            legacy_paths=validated_code.get("path_representation") != "git-literal/v1",
         )
     except (ApprovalError, GitScopeError, KeyError) as exc:
         blockers.append(f"attestation {slug}: cannot recompute code subject: {exc}")
@@ -212,7 +213,8 @@ def _new_contract_blockers(
                 == code_subject.get("subject_id")
                 for event in attestation_events
             ):
-                raise ApprovalError("a rejected code subject cannot bypass its code review")
+                raise ApprovalError(
+                    "retained evidence contains a code review failure for this subject")
             if no_review is None or no_review.payload.get("trusted_base") != base:
                 raise ApprovalError("missing current no-review decision")
             verify_no_review_binding(root, no_review, code_subject)

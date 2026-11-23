@@ -60,6 +60,7 @@ def test_policy_rejects_digest_mismatch_and_duplicate_yaml_key():
     lambda p: p["code_review"].update(scope=[]),
     lambda p: p["code_review"].update(scope=["../src"]),
     lambda p: p.update(code_review={"mode": "off", "scope": ["src"]}),
+    lambda p: p.update(code_review={"mode": "full", "scope": ["src"]}),
     lambda p: p["processes_by_kind"].pop("code"),
     lambda p: p["processes_by_kind"]["plan"].update(issuers=["maintainer", "maintainer"]),
     lambda p: p["processes_by_kind"]["code"].update(evidence_forms=["signed-plan-decision"]),
@@ -82,6 +83,23 @@ def test_off_and_full_have_explicit_opposite_results():
     assert not disabled.review_requirement([{"path": "x"}])[0]
     assert disabled.recognition_for("code") is None
     assert parse_delivery_policy(policy("full")).review_requirement([{"path": "x"}])[0]
+
+
+@pytest.mark.parametrize("path", ["docs/notes[1].md", "src/secure/what?.py"])
+def test_literal_git_names_are_not_interpreted_as_scope_patterns(path):
+    manifest = [{"path": path}]
+    assert parse_delivery_policy(policy("full")).review_requirement(manifest)[0]
+    assert not parse_delivery_policy(policy("off")).review_requirement(manifest)[0]
+    required, _ = parse_delivery_policy(policy("scope")).review_requirement(manifest)
+    assert required is path.startswith("src/secure/")
+
+
+def test_backslash_name_is_permitted_for_full_and_off_but_rejected_for_scope():
+    manifest = [{"path": "src/secure\\name.py"}]
+    assert parse_delivery_policy(policy("full")).review_requirement(manifest)[0]
+    assert not parse_delivery_policy(policy("off")).review_requirement(manifest)[0]
+    with pytest.raises(ApprovalError, match="unsupported literal Git path"):
+        parse_delivery_policy(policy("scope")).review_requirement(manifest)
 
 
 def test_off_requires_a_baseline_that_supports_no_review_completion():

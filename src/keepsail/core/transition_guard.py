@@ -14,7 +14,6 @@ from keepsail.core.approval import (
     validate_code_subject,
 )
 from keepsail.core.delivery_policy import parse_delivery_policy, require_activatable_policy
-from keepsail.core.git_diff import require_literal_git_diff
 from keepsail.core.git_objects import optional_regular_blob_text, regular_blob_text
 from keepsail.core.policy_authority import (
     parse_authority_yaml,
@@ -39,18 +38,15 @@ _VERIFICATION = ".harness/verification.yaml"
 
 def validate_legacy_initial_authority(root: Path) -> None:
     """A legacy completion cannot establish or replace enabled authority."""
-    path = root / _AUTHORITY
-    proposed = parse_authority_yaml(path.read_text(encoding="utf-8")) if path.exists() else None
+    try:
+        head = resolve_commit(root)
+    except GitScopeError as exc:
+        raise ApprovalError("cannot inspect committed authority") from exc
+    proposed_text = optional_regular_blob_text(root, head, _AUTHORITY)
+    proposed = parse_authority_yaml(proposed_text) if proposed_text is not None else None
     try:
         base = resolve_contract_base(root)
     except ApprovalError:
-        if proposed is not None and proposed.enabled:
-            raise ApprovalError(
-                "initial enabled trust needs separate owner establishment") from None
-        try:
-            head = resolve_commit(root)
-        except GitScopeError:
-            return
         policy_text = optional_regular_blob_text(root, head, _POLICY)
         authority_text = optional_regular_blob_text(root, head, _AUTHORITY)
         policy = parse_unique_yaml(policy_text) if policy_text is not None else None
@@ -59,14 +55,11 @@ def validate_legacy_initial_authority(root: Path) -> None:
                 or (authority is not None and authority.enabled)):
             raise ApprovalError("enabled trust requires a reachable trusted baseline") from None
         return
-    try:
-        head = resolve_commit(root)
-    except GitScopeError as exc:
-        raise ApprovalError("cannot inspect committed authority") from exc
     changed = {name for name in (_POLICY, _AUTHORITY)
                if optional_regular_blob_text(root, base, name)
                != optional_regular_blob_text(root, head, name)}
-    committed_transition_required(root, base=base, head=head, changed_paths=changed)
+    if committed_transition_required(root, base=base, head=head, changed_paths=changed):
+        raise ApprovalError("committed policy transition requires the authorized v3 path")
     previous_text = optional_regular_blob_text(root, base, _AUTHORITY)
     previous = parse_authority_yaml(previous_text) if previous_text is not None else None
     if ((previous is not None and previous.enabled)
@@ -155,11 +148,11 @@ def validate_delivery_obligations(
     code = validate_code_subject(subject, change_id=state.change_id)
     base = resolve_contract_base(root)
     head = resolve_commit(root)
-    require_literal_git_diff(root, base=base, head=head)
     current_code = make_code_subject(
         root, change_id=state.change_id, approval_id=code["approval_id"], base=base, head=head,
         verification_config_digest=code.get("verification_config_digest"),
         knowledge_basis=code.get("knowledge_basis"),
+        legacy_paths=code.get("path_representation") != "git-literal/v1",
     )
     if current_code["subject_id"] != code["subject_id"]:
         raise ApprovalError("delivery subject does not match the current complete Git diff")

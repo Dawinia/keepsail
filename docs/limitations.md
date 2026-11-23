@@ -166,3 +166,11 @@ local observer boundary. Legacy originals retain their former meaning. Loss of
 unfinished v2 retry material can require reacquisition; successful persistence
 allows readiness without those temporary callbacks. See
 [knowledge formats](knowledge.md#inputs-coverage-and-derived-exports).
+
+# Retained review history and CI
+
+Strict local writes check the local event history for a prior rejection of the
+same code subject. Offline CI can verify only the evidence retained in the
+candidate's attestation. The local event log is not committed, so a candidate
+can omit branch-local failures, skips, or imported reviews without CI detecting
+that omission. CI's replay result does not establish that history is complete.

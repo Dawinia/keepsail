@@ -284,6 +284,7 @@ def prepare_recovery(
             root, change_id=change, approval_id=checked["approval_id"],
             base=checked["base"], head=immutable_head, knowledge_basis=None,
             verification_config_digest=checked.get("verification_config_digest"),
+            legacy_paths=checked.get("path_representation") != "git-literal/v1",
         )
         _need(expected["subject_id"] == checked["subject_id"],
               "historical Git content differs from its reviewed code subject")

@@ -32,7 +32,7 @@ from keepsail.core.attestation_replay import (
 from keepsail.core.attestation_v3 import parse_v3_line, validate_v3
 from keepsail.core.completion_transaction import wrap_derived_completion
 from keepsail.core.delivery_policy import require_activatable_policy
-from keepsail.core.git_diff import parse_name_status_z, require_literal_paths
+from keepsail.core.git_diff import parse_name_status_z
 from keepsail.core.git_objects import regular_blob_bytes, regular_blob_text
 from keepsail.core.policy_authority import (
     parse_authority_yaml,
@@ -106,7 +106,6 @@ def verify_v3_transition(
             cwd=root,
         ).decode("utf-8")
         entries = parse_name_status_z(raw_diff)
-        require_literal_paths(entries)
     except (OSError, subprocess.CalledProcessError, UnicodeDecodeError, ValueError) as exc:
         raise ApprovalError(f"cannot inspect v3 Git diff: {exc}") from exc
     attestation_path = f".harness/attestations/v3/{change}.jsonl"
@@ -499,7 +498,6 @@ def verify_v3_delivery(
             cwd=root,
         ).decode("utf-8")
         entries = parse_name_status_z(diff)
-        require_literal_paths(entries)
     except (OSError, subprocess.CalledProcessError, UnicodeDecodeError, ValueError) as exc:
         raise ApprovalError(f"cannot inspect ordinary delivery Git diff: {exc}") from exc
     if not any(entry.status == "A" and entry.paths == (path,) for entry in entries):

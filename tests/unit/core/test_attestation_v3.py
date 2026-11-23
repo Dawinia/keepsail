@@ -32,7 +32,7 @@ def v3():
 
 
 @pytest.mark.parametrize("failed_subject,blocked", [("code:current", True), ("code:other", False)])
-def test_no_review_replay_rejects_failure_for_same_subject(
+def test_no_review_replay_checks_retained_failure_for_same_subject(
     tmp_path, monkeypatch, failed_subject, blocked,
 ):
     from keepsail.core import attestation_replay, no_review
@@ -68,7 +68,8 @@ def test_no_review_replay_rejects_failure_for_same_subject(
         tmp_path, state, "delivery", [], recognition=SimpleNamespace(policy_digest=None),
         base=base, head="b" * 40, code_review_required=False,
     )
-    assert any("rejected code subject" in message for message in blockers) is blocked
+    assert any("retained evidence contains a code review failure" in message
+               for message in blockers) is blocked
 
 
 @pytest.mark.parametrize("case", ["other-subject", "same-subject", "missing", "tampered"])
@@ -235,6 +236,11 @@ def test_recovery_basis_requires_the_exact_signed_authorization():
                                              "authorization_digest": auth_digest}
     record["digest"] = digest_record({k: v for k, v in record.items() if k != "digest"})
     assert validate_v3(record) == record
+    missing = deepcopy(record)
+    missing["authorization"] = None
+    missing["digest"] = digest_record({k: v for k, v in missing.items() if k != "digest"})
+    with pytest.raises(ApprovalError, match="requires its signed authorization"):
+        validate_v3(missing)
     record["authorization"]["signature"] = "different"
     record["digest"] = digest_record({k: v for k, v in record.items() if k != "digest"})
     with pytest.raises(ApprovalError, match="recovery basis"):

@@ -120,6 +120,12 @@ def derive_state_from_lines(lines: list[str], *, _effective: bool = False
         # The `if cs.last_event_id else None` gate distinguishes "brand-new change_id"
         # (None) from "active change in INTENT_DECLARED" — both look the same by
         # default value alone, but the transition table treats them differently.
+        if ev.type == "code_review_failed" or (
+            ev.type == "review_verdict_recorded"
+            and (ev.payload or {}).get("reviewer") == "code-reviewer"
+            and (ev.payload or {}).get("outcome") in {"reject", "rejected"}
+        ):
+            cs.no_review_decision = None
         target = compute_target_state(cs.current_state if cs.last_event_id else None, ev.type)
         if target == INVALID:
             log.warning(

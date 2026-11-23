@@ -66,7 +66,7 @@ def _validate_historical_review_failures(
                  "historical review failure lacks a code subject")
         assert isinstance(code, dict)
         _require(code["subject_id"] != subject_id,
-                 "a rejected code subject cannot bypass its code review")
+                 "retained evidence contains a code review failure for this subject")
 
 
 def make_attestation(change: str, inputs: Any, checkpoint: dict[str, Any],
