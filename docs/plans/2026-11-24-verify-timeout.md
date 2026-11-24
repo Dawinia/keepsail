@@ -14,7 +14,8 @@ exceeds the configured 2700-second limit with little margin. Change
 run on 2026-11-20 took about 2610s, and its recorded passes took 2532-2649s.
 
 The root cause is product performance on Windows: one profiled test spent about 820
-of 912 seconds waiting on roughly 9,100 `git` subprocesses. That is a product
+of 912 seconds waiting on roughly 9,100 `git` subprocesses (these profile figures are
+author-reported; the raw profiler output was not retained). That is a product
 problem; the owner has decided to address it in a separate "Windows git subprocess
 performance" product Change. This plan does not change product code.
 
@@ -29,11 +30,23 @@ run by parallelism instead.
 
 ## Commitments
 
-1. **xdist** - declare `pytest-xdist` in the existing `dev` extra of
-   `pyproject.toml` (`[project.optional-dependencies]`), constrained to the version
-   installed in the current `.venv` (3.8.0), and update `uv.lock` with `uv lock` so
-   it resolves pytest-xdist 3.8.0. No other dependency is added, removed or
-   re-pinned; if the lock update would change other packages, stop and re-plan.
+1. **xdist** - declare `pytest-xdist>=3.8,<3.9` in the existing `dev` extra of
+   `pyproject.toml` (`[project.optional-dependencies]`) and update `uv.lock` with
+   `uv lock` (uv 0.13.7 from the project `.venv`). The only packages this may add are
+   `pytest-xdist` 3.8.0 and its required transitive dependency `execnet` 2.1.2
+   (pytest-xdist requires `execnet>=2.1`). A trial `uv lock` on a temporary copy of
+   `pyproject.toml` and `uv.lock` added exactly these two packages and no others.
+   The same trial also produced these non-version changes, which are expected:
+   - lock `revision` 3 -> 5 (format written by this uv version);
+   - `exceptiongroup` 1.3.1's `typing-extensions` dependency loses its
+     `python_full_version < '3.13'` marker (no version change);
+   - the `keepsail` package entry gains `pytest-xdist` in its `dev` extra, and its
+     recorded `ruff` and `watchdog` specifiers are synchronized to the ones already
+     in `pyproject.toml` (`>=0.15,<0.16` and `>=4.0,<7`); the committed lock was
+     stale for those two specifiers.
+   Stop and re-plan if the real lock update changes the version of any existing
+   package, removes a package, adds any package other than these two, or differs
+   from the trial in any other way.
 2. **parallel** - the `pytest` check command in `.harness/verification.yaml` becomes
    `[python, -m, scripts.run_project_check, pytest, -q, -n, "2"]`; the other
    arguments are unchanged.
@@ -98,8 +111,10 @@ configuration only after this Change is merged.
 ## Validation
 
 Run `keepsail decision check --changed` and `keepsail doc check`; confirm the diffs
-of `.harness/verification.yaml`, `pyproject.toml` and `uv.lock` touch only the
-committed items, that the configuration still loads and that the lock resolves
-pytest-xdist 3.8.0. This Change's first complete `keepsail verify` on the frozen
+of `.harness/verification.yaml` and `pyproject.toml` touch only the committed items
+and that the configuration still loads. The expected `uv.lock` diff is exactly: new
+package blocks for `pytest-xdist` 3.8.0 and `execnet` 2.1.2, plus the non-version
+changes listed under commitment 1; confirm by comparing old and new lock package
+name/version sets and entries. This Change's first complete `keepsail verify` on the frozen
 implementation is a gate. Obtain and import independently produced recognized reviews
 for the exact frozen plan and code subjects. No merge is authorized by this plan.
