@@ -40,8 +40,12 @@ def validate_legacy_initial_authority(root: Path) -> None:
     """A legacy completion cannot establish or replace enabled authority."""
     try:
         head = resolve_commit(root)
-    except GitScopeError as exc:
-        raise ApprovalError("cannot inspect committed authority") from exc
+    except GitScopeError:
+        path = root / _AUTHORITY
+        proposed = parse_authority_yaml(path.read_text(encoding="utf-8")) if path.exists() else None
+        if proposed is not None and proposed.enabled:
+            raise ApprovalError("initial enabled trust needs separate owner establishment") from None
+        return
     proposed_text = optional_regular_blob_text(root, head, _AUTHORITY)
     proposed = parse_authority_yaml(proposed_text) if proposed_text is not None else None
     try:

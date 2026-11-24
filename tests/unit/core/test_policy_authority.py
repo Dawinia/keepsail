@@ -43,6 +43,19 @@ def sign(record, key):
     return record
 
 
+def test_legacy_completion_rejects_uncommitted_enabled_authority_without_head(tmp_path):
+    from keepsail.core.transition_guard import validate_legacy_initial_authority
+
+    harness = tmp_path / ".harness"
+    harness.mkdir()
+    (harness / "policy-authority.yaml").write_text(
+        yaml.safe_dump(authority(Ed25519PrivateKey.generate(), ["policy-transition"])),
+        encoding="utf-8",
+    )
+    with pytest.raises(ApprovalError, match="initial enabled trust needs separate owner establishment"):
+        validate_legacy_initial_authority(tmp_path)
+
+
 def test_legacy_completion_cannot_hide_committed_key_rotation(tmp_path):
     import subprocess
 
