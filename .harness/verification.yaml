@@ -23,10 +23,15 @@ checks:
   command: [python, -m, scripts.run_project_check, mypy, src]
   must_pass: true
 - id: pytest
-  command: [python, -m, scripts.run_project_check, pytest, -q]
+  command: [python, -m, scripts.run_project_check, pytest, -q, -n, "2"]
   must_pass: true
-  # Local self-host: the non-e2e suite takes ~22 minutes on this machine
-  # (the suite is dominated by lifecycle/integration fixtures, not by a
-  # hang), so the 20-minute default truncated a passing run at 90%+.
-  timeout_seconds: 2700
+  # Local self-host (change 2026-11-24-verify-timeout): the serial suite now
+  # often exceeds 2700s on Windows because of product git-subprocess cost, so
+  # it runs on two pytest-xdist workers (two, not more: this host is memory
+  # constrained). 3300s stays below the one-shot dispatcher ceiling
+  # ONESHOT_DISPATCHER_TIMEOUT_S = 3600 so this check timeout stays
+  # authoritative. Exit: the follow-up Windows git performance Change measures
+  # the serial suite; below 2000s it restores the serial command and 2700s.
+  # Backstop: the owner re-evaluates this relaxation by 2026-12-31.
+  timeout_seconds: 3300
 adapter_provided: []
