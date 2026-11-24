@@ -44,7 +44,8 @@ def validate_legacy_initial_authority(root: Path) -> None:
         path = root / _AUTHORITY
         proposed = parse_authority_yaml(path.read_text(encoding="utf-8")) if path.exists() else None
         if proposed is not None and proposed.enabled:
-            raise ApprovalError("initial enabled trust needs separate owner establishment") from None
+            raise ApprovalError(
+                "initial enabled trust needs separate owner establishment") from None
         return
     proposed_text = optional_regular_blob_text(root, head, _AUTHORITY)
     proposed = parse_authority_yaml(proposed_text) if proposed_text is not None else None

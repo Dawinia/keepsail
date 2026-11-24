@@ -52,7 +52,8 @@ def test_legacy_completion_rejects_uncommitted_enabled_authority_without_head(tm
         yaml.safe_dump(authority(Ed25519PrivateKey.generate(), ["policy-transition"])),
         encoding="utf-8",
     )
-    with pytest.raises(ApprovalError, match="initial enabled trust needs separate owner establishment"):
+    with pytest.raises(ApprovalError,
+                       match="initial enabled trust needs separate owner establishment"):
         validate_legacy_initial_authority(tmp_path)
 
 
