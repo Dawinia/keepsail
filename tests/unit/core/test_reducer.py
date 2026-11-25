@@ -10,11 +10,30 @@ Pins the 5 invariants from §3.8.5:
 import logging
 from pathlib import Path
 
-from keepsail.core.events import Actor, Event
-from keepsail.core.reducer import derive_state
+import pytest
+
+from keepsail.core.events import Actor, Event, serialize_event
+from keepsail.core.reducer import derive_state, derive_state_from_lines
 from keepsail.core.ulid import new_event_id
 from keepsail.core.writer import EventWriter
 from tests.unit.core.test_writer import _make_event
+
+
+@pytest.mark.parametrize("kind,payload,cleared", [
+    ("code_review_failed", {}, True),
+    ("review_verdict_recorded", {"reviewer": "code-reviewer", "outcome": "rejected"}, True),
+    ("review_verdict_recorded", {"reviewer": "code-reviewer", "outcome": "approved"}, False),
+])
+def test_later_review_rejection_clears_no_review_decision(kind, payload, cleared):
+    events = [_make_event("c1", kind) for kind in (
+        "intent_declared", "plan_ready", "plan_approved", "implementation_started",
+        "implementation_complete", "code_review_not_required",
+    )]
+    events[-1].payload.update(subject_id="code:subject")
+    later = _make_event("c1", kind)
+    later.payload.update(payload)
+    state = derive_state_from_lines([serialize_event(e) for e in [*events, later]], _effective=True)
+    assert (state["c1"].no_review_decision is None) is cleared
 
 
 def _seed(tmp: Path, types: list[str], change_id: str = "c1") -> Path:

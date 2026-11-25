@@ -10,6 +10,32 @@ from keepsail.core.writer import EmitPreconditionError, EventWriter
 from tests.unit.core.test_writer import _make_event
 
 
+def test_local_rejection_is_not_detectable_if_candidate_omits_it(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    from keepsail.core import emit_validation, no_review, reducer
+    from keepsail.core.attestation_format import _validate_historical_review_failures
+    from keepsail.core.events import serialize_event
+
+    events = tmp_path / ".harness" / "events.jsonl"
+    events.parent.mkdir()
+    failed = _make_event("c1", "code_review_failed")
+    failed.payload["code_subject"] = {"subject_id": "code:subject"}
+    events.write_text(serialize_event(failed) + "\n", encoding="utf-8")
+    no_review_event = _make_event("c1", "code_review_not_required")
+    no_review_event.payload.update(subject_id="code:subject", trusted_base="base")
+    state = SimpleNamespace(effective_approval=None, current_code_subject={})
+    monkeypatch.setattr(reducer, "derive_state", lambda _: {"c1": state})
+    monkeypatch.setattr(emit_validation, "validate_authority_context", lambda *a, **kw: None)
+    monkeypatch.setattr(emit_validation, "recognition_contract_active", lambda _: False)
+    monkeypatch.setattr(emit_validation, "resolve_contract_base", lambda _: "base")
+    monkeypatch.setattr(no_review, "verify_no_review_binding", lambda *a: None)
+    with pytest.raises(EmitPreconditionError, match="local history contains"):
+        emit_validation._validate_authority(events, no_review_event)
+    # The offline index cannot distinguish an omitted failure from no failure.
+    _validate_historical_review_failures([], "c1", "code:subject")
+
+
 def test_emit_plan_ready_without_intent_declared_rejected(tmp_path: Path):
     w = EventWriter(tmp_path / "events.jsonl")
     with pytest.raises(EmitPreconditionError) as exc:

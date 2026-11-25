@@ -174,7 +174,8 @@ def read_change_events(events_file: Path, change_id: str) -> list[Event]:
     if not events_file.exists():
         return []
     out: list[Event] = []
-    for line in effective_event_lines(events_file.read_text(encoding="utf-8").splitlines()):
+    lines = events_file.read_bytes().decode("utf-8").splitlines(keepends=True)
+    for line in effective_event_lines(lines):
         if not line.strip():
             continue
         try:

@@ -40,16 +40,21 @@ import click
 
 from keepsail.cli.errors import format_error
 from keepsail.cli.output import json_envelope
+from keepsail.core.approval import ApprovalError, load_recognition, resolve_contract_base
 from keepsail.core.clock import utc_now_iso
-from keepsail.core.emit_validation import find_ordering_violations
+from keepsail.core.effective_policy import load_effective_v2
+from keepsail.core.emit_validation import find_mixed_policy_ordering_violations
 from keepsail.core.events import Actor, Event
+from keepsail.core.git_objects import regular_blob_text
 from keepsail.core.paths import (
     HarnessNotInitialized,
     events_path,
     find_harness_root,
 )
+from keepsail.core.policy_authority import parse_unique_yaml
 from keepsail.core.post_emit import refresh_state_after_emit
 from keepsail.core.reducer import derive_state
+from keepsail.core.scope_match import GitScopeError
 from keepsail.core.slug import SlugError, validate_slug
 from keepsail.core.ulid import new_event_id
 from keepsail.core.writer import EmitPreconditionError, EventWriter
@@ -137,14 +142,31 @@ def pr_validate(ctx: click.Context, pr_number: int) -> None:
     valid_sequence = False
     merge_ready = False
     if change_id:
+        cs = derive_state(events_path(root)).get(change_id)
+        builtin_version = "keepsail-baseline/v1"
+        try:
+            if cs is not None and cs.effective_approval is not None:
+                base = resolve_contract_base(root)
+                policy = parse_unique_yaml(regular_blob_text(
+                    root, base, ".harness/review-recognition.yaml"
+                ))
+                if isinstance(policy, dict) and policy.get("version") == "review-recognition/v2":
+                    builtin_version = load_effective_v2(root, base).policy.builtin_checks_version
+                else:
+                    load_recognition(root, ref=base)
+            # The v2 ordering check replays each no-review decision against its
+            # historical trusted policy and frozen subject.
+            valid_sequence = not find_mixed_policy_ordering_violations(
+                events_path(root), change_id, builtin_version=builtin_version, repository_root=root,
+            )
+        except (ApprovalError, GitScopeError, OSError, ValueError) as exc:
+            blockers.append(f"trusted delivery policy unavailable for {change_id}: {exc}")
         # find_ordering_violations returns list[OrderingViolation]; empty-list
         # falsiness IS the "clean stream" signal — do not wrap it.
-        valid_sequence = not find_ordering_violations(events_path(root), change_id)
         # State derivation: derive_state returns dict[str, ChangeState]; the
         # `.current_state` unwrap is mandatory (a bare == on the object is always
         # False). Inlined here per the plan — done._current_state is private and
         # rule-of-three is not met, so we do not import/refactor it.
-        cs = derive_state(events_path(root)).get(change_id)
         current = cs.current_state if cs else None
         merge_ready = current == "READY_TO_MERGE"
         if not valid_sequence:

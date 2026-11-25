@@ -179,7 +179,8 @@ What `init --setup-github` applies after interactive confirmation (or
 immediately when stdin is not a TTY):
 
 1. Creates `.harness/` with `events.jsonl` (the append-only lifecycle log),
-   tracked skeleton configuration, and a disabled `review-recognition.yaml`.
+   tracked skeleton configuration, a disabled `review-recognition.yaml`, and a
+   disabled `policy-authority.yaml` with placeholder identity and no keys.
    The derived `state.yaml` cache appears after the first lifecycle event, while
    `adapters.yaml` is created only when an integration is selected. Existing
    `review-governance.yaml` and `review-profiles.local.yaml` are preserved and
@@ -353,8 +354,8 @@ starts editing. The hot-path gate enforces lifecycle rules:
   tries to `Edit` before the lifecycle permits it, the `PreToolUseGate` blocks
   the tool call.
 - Before `done`, record the implementation assessment and complete coverage
-  manifest. `done` executes verification and freezes the code subject
-  (→ `AWAITING_CODE_REVIEW`); then obtain and import code evidence:
+  manifest. `done` executes the required checks and freezes the code subject.
+  If the trusted policy requires code review, obtain and import code evidence:
 
   ```bash
   keepsail implementation record my-first-change --assessment implementation.json
@@ -362,11 +363,24 @@ starts editing. The hot-path gate enforces lifecycle rules:
   keepsail review import my-first-change --evidence code-review.json
   ```
 
+  Under an active v2 policy, `off` and non-matching `scope` changes instead
+  record `code_review_not_required` with the trusted base, policy and reason.
+  `status` and `report` show that decision. If an interrupted completion leaves
+  a pending transaction, `keepsail change recover-completion my-first-change`
+  resumes the exact append; ordinary event writes wait for recovery.
+
+  Scope rules use literal repository paths and inspect both sides of a rename.
+  New delivery checks reject Git names that cannot be represented safely by
+  those rules, including backslashes, glob characters, and leading or trailing
+  whitespace; they are not silently converted into another path. The status
+  applicability preview uses the committed Git diff, not uncommitted edits.
+
   Evidence is not a claim that a particular model or TTY was used; it is an
   owner-recognized external conclusion bound to the exact subject. Code-only
   fixes can use `implementation reopen`; changes to approved commitments or relaxation of an explicit limit require `plan redeclare --plan ...`, a new plan
   subject, and a new plan conclusion. File additions within approved commitments update assessment/coverage without
-  new plan approval; delivery still requires accurate code and verification evidence.
+  new plan approval; applicable code review and verification still cover the
+  exact current implementation.
 
 > **Note**: `plan_approved` and `code_review_passed` are lifecycle milestones,
 > but the active core can emit them only from imported, recognized evidence. A
@@ -430,9 +444,54 @@ change from `IMPLEMENTATION_IN_PROGRESS` to `AWAITING_CODE_REVIEW`, use
 keepsail done
 ```
 
-`done` runs `verify` internally, and on pass emits an
-`implementation_complete` event that flips state to
-`AWAITING_CODE_REVIEW`. If verify fails, `done` exits 2 without advancing.
+`done` runs `verify` internally. When code review applies it emits
+`implementation_complete` and enters `AWAITING_CODE_REVIEW`. When an active v2
+policy does not require it, the completion and `code_review_not_required`
+events are recorded as one recoverable transaction and the Change reaches
+`READY_TO_MERGE`. If a prerequisite fails, `done` does not advance.
+
+### Establishing an initial delivery policy
+
+Initialization alone does not enable a review process or establish a trust root.
+For a first adoption, the owner can prepare a proposed light policy and public
+key configuration (the command prints JSON and changes no authority):
+
+```sh
+keepsail --json policy initial prepare --repository-id OWNER/REPO \
+  --target-ref refs/heads/main --public-key BASE64_ED25519_PUBLIC_KEY
+```
+
+Place the returned `data.policy` and `data.authority` mappings in
+`.harness/review-recognition.yaml` and `.harness/policy-authority.yaml`,
+respectively, and commit the proposed first policy. Select any applicable
+existing code-review and check obligations before doing so; the light proposal
+does not automatically discover hosted protections. To retain the owner's
+confirmation of that exact commit, provide JSON with `owner`, `statement`,
+`evidence_reference`, and the full `original_evidence` string:
+
+```sh
+keepsail policy initial confirmation --initial-commit FIRST_COMMIT_SHA \
+  --repository-id OWNER/REPO --target-ref refs/heads/main --evidence - \
+  < owner-confirmation.json > .harness/policy-initial-trust.json
+```
+
+Commit that record and establish the resulting commit through the project's
+owner-controlled release process. The record preserves the supplied confirmation;
+it does not independently authenticate its author. The verifier checks that the
+first commit is reachable, that no ancestor contained an enabled review policy,
+and that the retained confirmation has not changed. A candidate cannot use its
+own confirmation to bypass an existing trusted gate. Projects with an enabled
+old policy must deliver the new reader first and then use a signed transition;
+they cannot relabel the replacement as `initial`.
+
+For transitions, `policy authorization import` retains the signed record and
+does not itself approve the plan or activate the target. The old policy's review
+and required checks still apply to the transition. Routine key rotation may
+retain or remove existing purposes; adding a purpose requires a separate
+owner-controlled trust establishment. The generated workflow passes the host's
+repository and target ref to supported trusted readers, but actual branch
+protection and a candidate-independent required execution source must be
+verified in the hosting platform separately.
 
 ---
 

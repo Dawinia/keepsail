@@ -37,6 +37,7 @@ from keepsail.core.paths import (
 )
 from keepsail.core.reducer import derive_state
 from keepsail.core.scope_match import GitScopeError
+from keepsail.engineering.delivery_policy import delivery_details
 from keepsail.exit_codes import EXIT_NO_CONFIG, EXIT_OK, EXIT_VALIDATION
 from keepsail.gates.decisions import SUGGESTIONS
 
@@ -158,15 +159,41 @@ def status_cmd(ctx: click.Context, slug: str | None, all_changes: bool) -> None:
         from keepsail.engineering.review_governance import (
             ReviewGovernanceError,
             load_review_governance,
+            review_governance_path,
         )
 
         reviewer = REVIEW_STATE_REVIEWER.get(cs.current_state)
         if reviewer is None:
             return None, None
+        if not review_governance_path(root).exists():
+            return None, None
         governance = load_review_governance(root)
         if reviewer not in governance.roles:
             raise ReviewGovernanceError(f"review role {reviewer!r} is not configured")
         return reviewer, governance
+
+    def _next_step(cs: Any, reviewer: str | None) -> str | None:
+        if reviewer is None and cs.current_state in {
+            "AWAITING_PLAN_REVIEW", "AWAITING_CODE_REVIEW",
+        }:
+            return (
+                "Use the current review recognition contract and import applicable evidence with "
+                f"`keepsail review import {cs.change_id} --evidence -`."
+            )
+        return SUGGESTIONS.get(cs.current_state)
+
+    def _no_review_details(cs: Any) -> dict[str, Any] | None:
+        if cs.no_review_decision is None:
+            return None
+        from keepsail.core.approval import ApprovalError, resolve_contract_base
+
+        try:
+            current_base: str | None = resolve_contract_base(root)
+        except (ApprovalError, GitScopeError):
+            current_base = None
+        return {**cs.no_review_decision, "current_trusted_base": current_base,
+                "base_matches": (current_base == cs.no_review_decision.get("trusted_base")
+                                 if current_base is not None else None)}
 
     def _review_progress(
         change_id: str, reviewer: str, governance: Any
@@ -297,8 +324,10 @@ def status_cmd(ctx: click.Context, slug: str | None, all_changes: bool) -> None:
             changes_data = []
             for cs in target:
                 entry = asdict(cs)
-                entry["next"] = SUGGESTIONS.get(cs.current_state)
+                entry["no_review_decision"] = _no_review_details(cs)
+                entry["delivery_policy"] = delivery_details(root, cs)
                 reviewer, governance = _reviewer_info(cs)
+                entry["next"] = _next_step(cs, reviewer)
                 if reviewer is not None:
                     assert governance is not None
                     entry["reviewer"] = reviewer
@@ -336,6 +365,29 @@ def status_cmd(ctx: click.Context, slug: str | None, all_changes: bool) -> None:
                         f"  verification: {cs.current_verification.get('subject_id')} "
                         f"({cs.current_verification.get('outcome', 'unknown')})"
                     )
+                delivery = delivery_details(root, cs)
+                if delivery is not None and delivery["status"] == "resolved":
+                    click.echo(f"  trusted policy: {delivery['policy_digest']} "
+                               f"at {delivery['trusted_base']}")
+                    click.echo(f"  code review required: {delivery['code_review_required']} "
+                               f"({delivery['code_review_reason']})")
+                    checks = ", ".join(f"{item['source']}/{item['id']}"
+                                       for item in delivery["required_checks"]) or "none"
+                    click.echo(f"  required checks: {checks} "
+                               f"({delivery['builtin_checks_version']})")
+                    click.echo(f"  required project checks: {delivery['required_project_checks']}")
+                    click.echo(f"  recorded subject matches committed diff: "
+                               f"{delivery['subject_matches']}")
+                elif delivery is not None:
+                    click.echo(f"  delivery policy unavailable: {delivery['reason']}")
+                if cs.no_review_decision is not None:
+                    decision = _no_review_details(cs)
+                    assert decision is not None
+                    click.echo(f"  code review not required: {decision.get('reason')}")
+                    click.echo(f"  decision base: {decision.get('trusted_base')}")
+                    click.echo(f"  decision policy: {decision.get('policy_digest')}")
+                    click.echo(f"  current trusted base: {decision.get('current_trusted_base')} "
+                               f"(matches: {decision.get('base_matches')})")
                 if cs.evidence_references:
                     click.echo(f"  external evidence: {len(cs.evidence_references)} record(s)")
                 # `scope` is `dict[str, Any]` defaulting to {} — empty dict is
@@ -397,7 +449,7 @@ def status_cmd(ctx: click.Context, slug: str | None, all_changes: bool) -> None:
                         if isinstance(options, dict) and options:
                             click.echo(f"      agent_options: {_format_agent_options(options)}")
                     click.echo(f"  review next: {progress['next_command']}")
-                nxt = SUGGESTIONS.get(cs.current_state)
+                nxt = _next_step(cs, reviewer)
                 if nxt:
                     click.echo(f"  next: {nxt}")
     except (ValueError, GitScopeError) as e:

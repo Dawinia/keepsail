@@ -18,6 +18,7 @@ from keepsail.core.knowledge import (
     PROTOCOL,
     TRIGGER_EVENT,
     KnowledgeError,
+    _inputs_from_content,
     check,
     load_ledger,
     load_policy,
@@ -186,7 +187,9 @@ def deliver_knowledge(root: Path, change: str, operation_id: str,
                       expected_revision: str) -> dict[str, Any]:
     """Shared native supply operation; preserves CAS and replay semantics."""
     policy = load_policy(root)
-    ledger, _ = load_ledger(events_path(root), policy)
+    path = events_path(root)
+    content = path.read_bytes() if path.exists() else b""
+    ledger, revision = load_ledger(path, policy, _content=content)
     prior = ledger["operations"].get(operation_id)
     if prior:
         request = prior["request"]
@@ -197,7 +200,8 @@ def deliver_knowledge(root: Path, change: str, operation_id: str,
         ):
             raise KnowledgeError("operation ID reused for a different delivery", exit_code=5)
     else:
-        view = report(root, change)
+        inputs = _inputs_from_content(policy, None, ledger, revision, content)
+        view = report(root, change, inputs=inputs)
         if view["coverage"] == "not_recorded":
             raise KnowledgeError("no owner-activated knowledge policy", exit_code=3)
         request = {

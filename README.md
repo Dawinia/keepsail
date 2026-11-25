@@ -89,12 +89,15 @@ owner-recognized review process, submit a plan and import its conclusion. The
 normal path is:
 
 ```text
-Declare → Plan review → Implement → Verify → Code review → Merge and archive
+Declare → Plan review → Implement → Verify → Applicable code review → Merge and archive
 ```
 
 Keepsail imports review conclusions from your chosen process; it does not run
 reviewers. Once approved, the agent can record implementation adjustments within
 the plan's bounds. Changing those commitments requires appropriate new approval.
+The trusted delivery policy selects full, scoped, or no code review; plan
+approval remains required. Initialization creates disabled policy and trust
+skeletons, so an owner must establish the initial trusted baseline first.
 
 ### Knowledge and session context
 

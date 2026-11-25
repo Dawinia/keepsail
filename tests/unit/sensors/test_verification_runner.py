@@ -988,6 +988,77 @@ def test_runner_check_only_ids_via_payload(tmp_path: Path) -> None:
     assert res.status == "pass"
 
 
+@pytest.mark.parametrize(("selected", "fault"), [
+    (["ghost"], None), (["first", "ghost"], None), (["first"], None),
+    (["first", "second"], None), (["first"], "digest"),
+    (["first", "second"], "contract"), (["first"], "error"),
+])
+def test_approved_filtered_verification_uses_trusted_checks(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, selected: list[str], fault: str | None,
+) -> None:
+    from types import SimpleNamespace
+
+    from keepsail.sensors import verification_runner as module
+
+    root = tmp_path
+    (root / ".harness").mkdir()
+    trusted = """\
+layers:
+  baseline: { enabled: false }
+  framework_adapter: { enabled: false }
+  user_checks: { enabled: true }
+checks:
+  - id: first
+    command: [python, -c, pass]
+  - id: second
+    command: [python, -c, pass]
+"""
+    (root / ".harness/verification.yaml").write_text(
+        trusted.replace("first", "ghost"), encoding="utf-8")
+    state = SimpleNamespace(effective_approval={"approval_id": "approval:one"},
+                            scope={"files": []})
+    monkeypatch.setattr(module, "derive_state", lambda path: {"ch": state})
+    monkeypatch.setattr(module, "resolve_contract_base", lambda path: "a" * 40)
+    monkeypatch.setattr(module, "regular_blob_text", lambda root, base, path: (
+        trusted if path.endswith("verification.yaml")
+        else "version: review-recognition/v1\nenabled: true\n"))
+    snapshot = {"subject_id": "code:one", "code_subject": {"subject_id": "code:one"},
+                "config_digest": "same", "working_tree_digest": "same"}
+    monkeypatch.setattr(module, "_verification_identity_snapshot", lambda *args, **kw: snapshot)
+    monkeypatch.setattr(module, "run_checks", lambda tasks, **kw: [
+        CheckResult(task.id, "pass", 0, 1, task.must_pass, task.id, None) for task in tasks
+    ])
+    original_evidence = module.check_evidence
+
+    def evidence(*args, **kw):
+        if fault == "error":
+            from keepsail.core.approval import ApprovalError
+
+            raise ApprovalError("broken evidence generation")
+        result = original_evidence(*args, **kw)
+        if fault == "digest":
+            result["results"][0]["definition_digest"] = "f" * 64
+        if fault == "contract":
+            result["trusted_base"] = "b" * 40
+        return result
+
+    monkeypatch.setattr(module, "check_evidence", evidence)
+    result = VerificationRunner().check(
+        Activity(type="cli_verify", change_id="ch", payload={"checks": selected}),
+        WorkspaceContext(workspace_root=root),
+    )
+    if "ghost" in selected or fault:
+        assert result.status == "fail"
+        assert not any(event.type == "verification_passed" for event in result.emit_events)
+    elif selected == ["first"]:
+        assert result.status == "pass"
+        assert not any(event.type == "verification_passed" for event in result.emit_events)
+        assert "partial" in result.summary
+    else:
+        assert result.status == "pass"
+        assert result.emit_events[0].type == "verification_passed"
+
+
 def test_runner_falls_back_to_context_change_id(tmp_path: Path) -> None:
     root = _write_workspace(tmp_path, failing_must_pass="false")
     runner = VerificationRunner()
@@ -1010,6 +1081,28 @@ def test_runner_change_id_none_returns_fail_without_crash(tmp_path: Path) -> Non
     assert "no change_id" in res.summary
     # No crash, no events emitted.
     assert res.emit_events == []
+
+
+def test_active_recognition_without_approval_does_not_run_candidate_checks(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from types import SimpleNamespace
+
+    from keepsail.core import approval
+    from keepsail.sensors import verification_runner as module
+
+    state = SimpleNamespace(effective_approval=None)
+    monkeypatch.setattr(module, "derive_state", lambda path: {"ch": state})
+    monkeypatch.setattr(approval, "recognition_contract_active", lambda root: True)
+    monkeypatch.setattr(module, "load_verification_config", lambda path: pytest.fail(
+        "unapproved candidate checks must not be loaded"))
+    result = VerificationRunner().check(
+        Activity(type="cli_verify", change_id="ch", payload={"checks": ["candidate"]}),
+        WorkspaceContext(workspace_root=tmp_path),
+    )
+    assert result.status == "fail"
+    assert "effective plan approval" in result.summary
+    assert result.emit_events == []
 
 
 # --- builtin registry -------------------------------------------------------

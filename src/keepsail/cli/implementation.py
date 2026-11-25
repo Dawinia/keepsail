@@ -339,7 +339,7 @@ def record(ctx: click.Context, slug: str, assessment: str, include_paths: tuple[
             coverage = value.get("coverage", value.get("coverage_manifest"))
         else:
             coverage, basis = implementation_coverage(root, include_paths=include_paths)
-    except (ApprovalError, GitScopeError) as exc:
+    except (ApprovalError, GitScopeError, ValueError) as exc:
         click.echo(format_error(subcommand=subcommand, message=str(exc)), err=True)
         sys.exit(EXIT_VALIDATION)
     if not isinstance(assessment_value, dict) or not isinstance(coverage, list):

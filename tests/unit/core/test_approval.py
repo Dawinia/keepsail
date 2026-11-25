@@ -275,6 +275,40 @@ def test_new_contract_base_ignores_legacy_review_governance(tmp_path: Path) -> N
     assert len(resolve_contract_base(tmp_path)) == 40
 
 
+def test_base_lookup_finds_environment_git_dir_after_non_repository(tmp_path, monkeypatch):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    for name in ("GIT_DIR", "GIT_COMMON_DIR", "GIT_WORK_TREE"):
+        monkeypatch.delenv(name, raising=False)
+    with monkeypatch.context() as patch:
+        def unexpected_git(*args, **kwargs):
+            raise AssertionError("non-repository lookup should not start Git")
+
+        patch.setattr(subprocess, "run", unexpected_git)
+        with pytest.raises(ApprovalError, match="reachable trusted baseline"):
+            resolve_contract_base(outside)
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=repo, check=True)
+    subprocess.run(["git", "-c", "user.name=Test", "-c", "user.email=test@example.com",
+                    "commit", "--allow-empty", "-qm", "base"], cwd=repo, check=True)
+    expected = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
+    monkeypatch.setenv("GIT_DIR", str(repo / ".git"))
+    assert resolve_contract_base(outside) == expected
+    monkeypatch.delenv("GIT_DIR")
+
+    worktree = tmp_path / "worktree"
+    subprocess.run(["git", "worktree", "add", "--detach", "-q", str(worktree)],
+                   cwd=repo, check=True)
+    assert resolve_contract_base(worktree) == expected
+
+    bare = tmp_path / "bare"
+    subprocess.run(["git", "clone", "--bare", "-q", str(repo), str(bare)],
+                   cwd=tmp_path, check=True)
+    assert resolve_contract_base(bare) == expected
+
+
 def test_base_lookup_is_bounded_and_tracks_live_ref_priority(tmp_path, monkeypatch):
     def git(*args):
         return subprocess.check_output(["git", *args], cwd=tmp_path, text=True).strip()
@@ -362,6 +396,17 @@ def test_recognition_contract_activation_fails_closed(tmp_path: Path) -> None:
     subprocess.run(["git", "commit", "-qm", "enable recognition"], cwd=tmp_path, check=True)
     path.write_text("version: review-recognition/v1\nenabled: false\n", encoding="utf-8")
     assert recognition_contract_active(tmp_path) is True
+
+    # A later trusted base with an invalid policy must not reuse the prior verdict,
+    # even when the candidate working tree contains a valid policy.
+    policy["process"]["policy_digest"] = "invalid"
+    path.write_text(yaml.safe_dump(policy, sort_keys=False), encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-qm", "corrupt trusted policy"], cwd=tmp_path, check=True)
+    policy["process"]["policy_digest"] = recognition_policy_digest(policy)
+    path.write_text(yaml.safe_dump(policy, sort_keys=False), encoding="utf-8")
+    with pytest.raises(ApprovalError):
+        recognition_contract_active(tmp_path)
 
 
 def test_recognition_contract_uses_default_remote_head_and_skips_disabled_ref(

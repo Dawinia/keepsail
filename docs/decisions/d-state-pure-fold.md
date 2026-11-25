@@ -4,16 +4,14 @@ status: ratified
 ratified_by: dawinialo@163.com
 ratified_at: '2026-06-22T19:25:38.517675Z'
 ratified_text_hash: sha256:8a106295b2f00df8c9f657c22e02af8cf6b37cee29ee005e772647d62be48ed0
-last_reconciled_by: dawinialo@163.com
-last_reconciled_at: '2026-10-30T18:11:25.181720Z'
+last_reconciled_by: codex-implementation-session
+last_reconciled_at: '2026-11-23T07:31:03.554521Z'
 last_reconcile_kind: self
-last_reconcile_justification: 'Reviewed the reducer and shared per-action replay:
-  effective event expansion is validated once, then the same deterministic fold constructs
-  fresh state from immutable input lines. No persistent state/cache or global mutation
-  was introduced; unsupported/corrupt derived envelopes fail closed. Independent exact
-  code review remains required.'
+last_reconcile_justification: The reducer clears only per-change derived state based
+  on the current event; it does not mutate event inputs or module globals, and identical
+  event sequences derive identical state.
 reconciled_anchors:
-  src/keepsail/core/reducer.py: sha256:b71f5832b077fb63158f6020a66e8d22427b5ed3b5e301dd66f07b3cd39978fa
+  src/keepsail/core/reducer.py: sha256:347de44b44d51f3c7d6e5429a6cfe5a7998bf9a291ba6211c06362f5e0abd02d
 ---
 State is a pure left-fold over the event log; never mutated in place.
 

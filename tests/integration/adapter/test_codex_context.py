@@ -11,19 +11,16 @@ import pytest
 
 from keepsail.adapters.agent.codex import CodexAdapter
 from keepsail.core.context import entry_command, read_entry
-from tests.unit.core import test_knowledge as fixtures
 
 
 @pytest.mark.skipif(os.name != "nt", reason="selected Windows Codex desktop transport")
 @pytest.mark.parametrize("shell", ["powershell.exe", "pwsh.exe"])
-def test_native_powershell_hook_and_cli_roundtrip_from_space_paths(tmp_path, monkeypatch, shell):
+def test_native_powershell_hook_and_cli_roundtrip_from_space_paths(
+    tmp_path, context_workspace, shell,
+):
     if not shutil.which(shell):
         pytest.skip("optional PowerShell executable unavailable: " + shell)
-    policy = fixtures.policy()
-    policy["observation_issuers"].append("keepsail-cli-observer")
-    policy["policy_digest"] = fixtures.policy_digest(policy)
-    monkeypatch.setattr(fixtures, "policy", lambda: policy)
-    workspace = fixtures.Workspace(tmp_path)
+    workspace = context_workspace
     runtime = tmp_path / "runtime with space"
     runtime.mkdir()
     cli, hook = [runtime / n for n in ("keepsail.exe", "keepsail-hook.exe")]

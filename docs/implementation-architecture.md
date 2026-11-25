@@ -63,7 +63,8 @@ A **change** (identified by a kebab-case slug, carried in PR metadata / artifact
 frontmatter — not the branch name) moves through an ordered set of states:
 `INTENT_DECLARED → AWAITING_PLAN_REVIEW → PLAN_APPROVED →
 IMPLEMENTATION_IN_PROGRESS → AWAITING_CODE_REVIEW → READY_TO_MERGE → ARCHIVED`,
-with rejection/abandon branches. Transitions are driven by events; the full
+with rejection/abandon branches. An active policy may instead authorize the
+`code_review_not_required` event after completion. Transitions are driven by events; the full
 state × event transition table is generated into
 [`state-machine.md`](./state-machine.md) (kept in sync by `doc check`).
 
@@ -131,7 +132,9 @@ Adapters keep the core framework- and agent-agnostic:
 in `.harness/verification.yaml`: **baseline** checks (lifecycle ordering,
 scope-vs-plan), **adapter-provided** checks (e.g. OpenSpec strict validate), and
 **user** checks. `done` runs `verify` internally and, on pass, advances the change to
-`AWAITING_CODE_REVIEW`. Checks are fail-closed and report per-check verdicts.
+`AWAITING_CODE_REVIEW` when the active policy requires review; otherwise it records
+the policy-bound no-review decision and reaches `READY_TO_MERGE`. Checks are
+fail-closed and report per-check verdicts.
 
 ## 7. Decision conformance — the core "decisions bind code" subsystem
 
@@ -177,7 +180,7 @@ retained delivery and observable acquisition/agent statement separation. Changes
 recover supplied versions, effective approval references and unresolved impacts
 through `change resume`. Correction retains the old grounds; a recognized process
 decides continuation, adjustment or renewed approval. Execution reports do not
-replace actual verification and code review.
+replace actual verification or any code review required by the active policy.
 
 The shared predicate is in `core/knowledge.py`; CLI, strict event emission and
 attestation use it. Cross-governing-Change knowledge is retained in a generated
@@ -202,12 +205,15 @@ sedimentation arm's territory.)
 
 ## 9. Attestation
 
-`attest write` snapshots a change's complete, ordered event slice to
-`.harness/attestations/<slug>.jsonl`; the CI `attest-verify` job blocks a merge
+`attest write` snapshots a change's complete, ordered event slice under
+`.harness/attestations/`: legacy evidence uses `<slug>.jsonl`, the knowledge
+protocol can use `v2/<slug>.jsonl`, and an active v2 delivery policy or an
+authorized transition uses `v3/<slug>.jsonl`. The CI `attest-verify` job blocks a merge
 unless every changed file is covered by such an attestation. For a new-contract
 Change, the attestation must also carry an applicable plan approval, complete
 Git code subject, implementation coverage, and verification bound to that same
-subject. `review import` evidence must be recognized by the owner policy and
+subject. Code review or a no-review decision is required according to the active
+delivery policy. `review import` evidence must be recognized by the owner policy and
 retain its original object; an empty result, failure to produce evidence, or old
 skip record is never treated as approval. This is a trail and floor, not
 cryptographic proof of the external process; see §11.

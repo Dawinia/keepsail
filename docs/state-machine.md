@@ -8,6 +8,7 @@ Generated from `keepsail.core.transitions`. Each row is a legal `(from, event) -
 |------|-------|----|
 | `(start)` | `intent_declared` | `INTENT_DECLARED` |
 | `AWAITING_CODE_REVIEW` | `code_review_failed` | `CODE_REVIEW_REJECTED` |
+| `AWAITING_CODE_REVIEW` | `code_review_not_required` | `READY_TO_MERGE` |
 | `AWAITING_CODE_REVIEW` | `code_review_passed` | `READY_TO_MERGE` |
 | `AWAITING_CODE_REVIEW` | `implementation_invalidated` | `IMPLEMENTATION_IN_PROGRESS` |
 | `AWAITING_CODE_REVIEW` | `implementation_restarted` | `PLAN_APPROVED` |
@@ -88,6 +89,7 @@ These events are legal but leave the state unchanged (informational sensor signa
 - `merged_reverted`
 - `plan_revision_submitted`
 - `plan_withdrawn`
+- `policy_authorization_imported`
 - `pr_opened`
 - `review_budget_exceeded`
 - `review_evidence_imported`

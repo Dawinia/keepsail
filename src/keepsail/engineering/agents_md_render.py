@@ -92,6 +92,14 @@ failed/empty result into approval. Import the exact retained conclusion with
 the current subject and an explicit decision. A skipped review is disclosure,
 not approval.
 
+An active delivery policy always requires plan approval. It requires code review
+for `full` and matching `scope` changes; `off` and non-matching changes use
+`code_review_not_required` with a recorded trusted base and policy. Use v3
+attestations for new deliveries under an active v2 policy. Policy transitions
+must retain old obligations or carry the exact signed authorization to change
+them. A key rotation cannot add purposes. Recovery and initial trust require
+their own pre-established owner-controlled paths.
+
 ### File scope
 
 Implement within the approved commitments and explicit restrictions. The initial
@@ -100,7 +108,7 @@ adjustments with `implementation record --assessment <path>`, referencing the
 effective approval and updating actual coverage before completion. New files or
 HEAD changes alone do not require plan approval again. Changed commitments or
 relaxed restrictions require a new plan candidate and recognized review approval.
-Code review and verification must still cover the exact current implementation.
+Applicable code review and verification must still cover the exact current implementation.
 
 ### Decision conformance
 

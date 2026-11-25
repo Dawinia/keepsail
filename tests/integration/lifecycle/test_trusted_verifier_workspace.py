@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -15,12 +16,12 @@ import yaml
 from keepsail.core.knowledge import KnowledgeError, read_inputs, validate_checkpoint
 from keepsail.core.knowledge_checkpoint import make_checkpoint, resolve_facts
 from keepsail.engineering.attestation import write_attestation
-from tests.unit.core.test_knowledge import Workspace, git, policy, version
+from tests.unit.core.test_knowledge import git, policy, version
 
 
-def projection_program() -> str:
+def projection_program(workflow_path: str) -> str:
     workflow = yaml.safe_load(
-        (Path(__file__).resolve().parents[3] / ".github/workflows/merge-gate.yml").read_text(
+        (Path(__file__).resolve().parents[3] / workflow_path).read_text(
             encoding="utf-8")
     )
     step = next(
@@ -28,7 +29,34 @@ def projection_program() -> str:
         for s in workflow["jobs"]["attest-verify"]["steps"]
         if s.get("name") == "Prepare trusted BASE workspace with exact target evidence"
     )
-    return step["run"].split("python - <<'PY'\n", 1)[1].rsplit("\nPY", 1)[0]
+    return step["run"].split("<<'PY'\n", 1)[1].rsplit("\nPY", 1)[0]
+
+
+@pytest.mark.parametrize("workflow_path", [".github/workflows/merge-gate.yml",
+                                           "src/keepsail/templates/keepsail_workflow.yml"])
+def test_projection_interpreter_ignores_candidate_and_pythonpath(tmp_path, workflow_path):
+    workflow = yaml.safe_load((Path(__file__).resolve().parents[3] / workflow_path).read_text(
+        encoding="utf-8"))
+    step = next(s for s in workflow["jobs"]["attest-verify"]["steps"]
+                if s.get("name") == "Prepare trusted BASE workspace with exact target evidence")
+    invocation = next(line for line in step["run"].splitlines() if "<<'PY'" in line)
+    args = shlex.split(invocation.split("<<", 1)[0])
+    candidate = tmp_path / "candidate"
+    candidate.mkdir()
+    external = tmp_path / "external"
+    external.mkdir()
+    (candidate / "pathlib.py").write_text('print("candidate module executed")\n', encoding="utf-8")
+    (external / "sitecustomize.py").write_text('print("pythonpath executed")\n', encoding="utf-8")
+    env = {**os.environ, "PYTHONPATH": str(external)}
+    if args[:3] == ["env", "-u", "PYTHONPATH"]:
+        env.pop("PYTHONPATH")
+        args = args[3:]
+    assert args and args[0] == "python"
+    result = subprocess.run([sys.executable, *args[1:]], cwd=candidate, env=env,
+                            input="import pathlib\nprint('trusted interpreter')\n",
+                            capture_output=True, text=True, timeout=30)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "trusted interpreter"
 
 
 @pytest.mark.parametrize("outcome", ["success", "failure", "cancelled", "skipped", ""])
@@ -58,9 +86,11 @@ def test_required_verifier_rejects_unsuccessful_candidate_acceptance(outcome):
     assert (result.returncode == 0) == (outcome == "success")
 
 
-@pytest.mark.parametrize("case", ["valid", "v2", "unknown-directory", "deep-directory",
+@pytest.mark.parametrize("workflow_path", [".github/workflows/merge-gate.yml",
+                                           "src/keepsail/templates/keepsail_workflow.yml"])
+@pytest.mark.parametrize("case", ["valid", "v2", "v3", "unknown-directory", "deep-directory",
                                   "missing-object", "symlink", "wrong-base"])
-def test_workflow_projects_only_regular_target_evidence(tmp_path, case):
+def test_workflow_projects_only_regular_target_evidence(tmp_path, case, workflow_path):
     source = tmp_path / "source"
     source.mkdir()
     (source / ".harness").mkdir()
@@ -72,6 +102,7 @@ def test_workflow_projects_only_regular_target_evidence(tmp_path, case):
     git(source, "commit", "-qm", "trusted base")
     base = git(source, "rev-parse", "HEAD")
     relative = {"v2": ".harness/attestations/v2/probe.jsonl",
+                "v3": ".harness/attestations/v3/probe.jsonl",
                 "unknown-directory": ".harness/attestations/unknown/probe.jsonl",
                 "deep-directory": ".harness/attestations/v2/deep/probe.jsonl"}.get(
                     case, ".harness/attestations/probe.jsonl")
@@ -102,7 +133,7 @@ def test_workflow_projects_only_regular_target_evidence(tmp_path, case):
     subprocess.run(["git", "clone", "-q", "--shared", str(source), str(trusted)], check=True)
     git(trusted, "checkout", "-q", "--detach", base)
     result = subprocess.run(
-        [sys.executable, "-c", projection_program()],
+        [sys.executable, "-c", projection_program(workflow_path)],
         capture_output=True,
         env={
             **os.environ,
@@ -111,23 +142,23 @@ def test_workflow_projects_only_regular_target_evidence(tmp_path, case):
             "HEAD_SHA": "0" * 40 if case == "missing-object" else head,
         },
     )
-    assert (result.returncode == 0) == (case in {"valid", "v2"}), result.stderr
+    assert (result.returncode == 0) == (case in {"valid", "v2", "v3"}), result.stderr
     assert (trusted / "source.py").read_text() == "trusted source\n"
     assert not (trusted / ".harness/knowledge-recognition.yaml").exists()
     assert git(trusted, "rev-parse", "HEAD") == base
     target = trusted / relative
-    if case in {"valid", "v2"}:
+    if case in {"valid", "v2", "v3"}:
         assert target.read_bytes() == original
     else:
         assert not target.exists()
 
 
 def test_reader_bootstrap_legacy_output_preserves_native_fact_identity(
-    tmp_path,
+    knowledge_workspace,
 ):
     from keepsail.core.knowledge_checkpoint import compact_facts
 
-    w = Workspace(tmp_path)
+    w = knowledge_workspace
     w.deliver()
     log = w.root / ".harness/events.jsonl"
     original = log.read_bytes()
@@ -159,9 +190,9 @@ def test_reader_bootstrap_legacy_output_preserves_native_fact_identity(
 
 
 def test_reader_bootstrap_cannot_drop_target_knowledge_or_acquisition(
-    tmp_path,
+    knowledge_workspace,
 ):
-    w = Workspace(tmp_path)
+    w = knowledge_workspace
     w.recognize(version())
     w.deliver()
     log = w.root / ".harness/events.jsonl"
@@ -172,10 +203,10 @@ def test_reader_bootstrap_cannot_drop_target_knowledge_or_acquisition(
     assert log.read_bytes() == before
 
 
-def test_reader_only_release_rejects_explicit_v2_before_append(tmp_path, monkeypatch):
+def test_reader_only_release_rejects_explicit_v2_before_append(knowledge_workspace, monkeypatch):
     from keepsail.engineering import attestation
 
-    w = Workspace(tmp_path)
+    w = knowledge_workspace
     log = w.root / ".harness/events.jsonl"
     before = log.read_bytes()
     monkeypatch.setattr(attestation, "ATTESTATION_FORMAT", "v1")
@@ -187,12 +218,12 @@ def test_reader_only_release_rejects_explicit_v2_before_append(tmp_path, monkeyp
 
 
 def test_reader_bootstrap_preserves_other_task_statement_source_without_rehash(
-    tmp_path,
+    knowledge_workspace,
 ):
     from keepsail.core.approval import resolve_contract_base
     from keepsail.core.knowledge_checkpoint import compact_facts
 
-    w = Workspace(tmp_path)
+    w = knowledge_workspace
     digest = w.recognize(version(selector={"change_ids": ["change-a"]}))
     delivery = w.deliver()
     w.submit("record", w.operation(record={"kind": "statement", "decision": "adopt",
@@ -218,7 +249,7 @@ def test_reader_bootstrap_preserves_other_task_statement_source_without_rehash(
     assert resolve_facts(w.root, new, policy())[:len(original)] == original
 
 
-def test_v2_reader_round_trip_and_malformed_structures(tmp_path, monkeypatch):
+def test_v2_reader_round_trip_and_malformed_structures(knowledge_workspace, monkeypatch):
     from copy import deepcopy
 
     from keepsail.core.approval import ApprovalError, digest_record
@@ -228,7 +259,7 @@ def test_v2_reader_round_trip_and_malformed_structures(tmp_path, monkeypatch):
 
     # Exercise the future producer seam even in the reader-only release.
     monkeypatch.setattr(attestation, "ATTESTATION_FORMAT", "v2")
-    w = Workspace(tmp_path)
+    w = knowledge_workspace
     out = write_attestation(w.root / ".harness/events.jsonl", w.root / ".harness/attestations",
                             "change-a", format_version="v2")
     original = json.loads(out.read_text(encoding="utf-8"))

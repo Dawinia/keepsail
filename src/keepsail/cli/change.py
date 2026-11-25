@@ -79,6 +79,28 @@ def change_group() -> None:
     """Declare / abandon / list lifecycle changes."""
 
 
+@change_group.command("recover-completion")
+@click.argument("slug")
+@click.pass_context
+def recover_completion(ctx: click.Context, slug: str) -> None:
+    """Resume an interrupted no-review completion without rewriting history."""
+    try:
+        validate_slug(slug)
+        root = find_harness_root(Path(ctx.obj.get("workspace") or "."))
+        recovered = EventWriter(events_path(root)).recover_completion(change=slug)
+        if recovered:
+            refresh_state_after_emit(root)
+        data = {"change_id": slug, "recovered": recovered}
+        if ctx.obj.get("json"):
+            click.echo(json_envelope(command="change recover-completion", status="pass",
+                                     exit_code=EXIT_OK, data=data))
+        elif not ctx.obj.get("quiet"):
+            click.echo(f"completion recovery {'finished' if recovered else 'not needed'}: {slug}")
+    except (ValueError, OSError, HarnessNotInitialized) as exc:
+        click.echo(format_error(subcommand="change recover-completion", message=str(exc)), err=True)
+        raise SystemExit(EXIT_VALIDATION) from exc
+
+
 @change_group.command("recover")
 @click.argument("slug")
 @click.option("--source-commit", required=True,
@@ -340,7 +362,8 @@ def _tail_events_for_change(events_file: Path, slug: str, limit: int) -> list[Ev
     if not events_file.exists():
         return []
     matched: list[Event] = []
-    for line in effective_event_lines(events_file.read_text(encoding="utf-8").splitlines()):
+    lines = events_file.read_bytes().decode("utf-8").splitlines(keepends=True)
+    for line in effective_event_lines(lines):
         if not line.strip():
             continue
         try:

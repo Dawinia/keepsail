@@ -24,6 +24,17 @@ Historical Changes without a knowledge protocol are reported as `not_recorded`,
 not retrospectively compliant. Retained snapshots prove the recorded cut, not
 unobserved changes in another workspace or service.
 
+**Delivery attestation transition:** The new verifier requires trusted check
+evidence for newly added recognized deliveries, including v1/v2 attestations.
+Historical attestations already in the trusted base remain readable. Re-exporting
+a completed v1 lifecycle from before `check_evidence` existed is rejected when
+the new verifier checks it as a new recognized delivery: the old record cannot
+independently prove each required check's result. There is currently no verified
+remedy for that re-export. The equivalent completed-v2 re-export has not been
+tested separately. A candidate cannot upgrade an old trusted verifier, and
+consistent recorded check results alone do not independently prove where checks
+executed.
+
 **Framework adapters (v0.2+):**
 - Spec Kit framework adapter
 - BMAD framework adapter
@@ -64,8 +75,9 @@ unobserved changes in another workspace or service.
 - **Hardlink residual:** a hardlink from a marked `.md` name to a source file shares an
   inode that path resolution cannot detect. This requires the shell to create (the same
   unhooked primitive already conceded), most edit tools break it via write-temp-rename,
-  and the content still passes plan + code review + attestation — it is not a new
-  capability beyond the conceded shell primitive.
+  and the content still requires plan approval, applicable code review, required
+  checks and attestation — it is not a new capability beyond the conceded shell
+  primitive.
 
 **Plan-path authoring allowance (`INTENT_DECLARED`):**
 - Coverage is **path-shaped**. A pattern in `.harness/plan-paths.yaml` must contain
@@ -157,3 +169,11 @@ local observer boundary. Legacy originals retain their former meaning. Loss of
 unfinished v2 retry material can require reacquisition; successful persistence
 allows readiness without those temporary callbacks. See
 [knowledge formats](knowledge.md#inputs-coverage-and-derived-exports).
+
+# Retained review history and CI
+
+Strict local writes check the local event history for a prior rejection of the
+same code subject. Offline CI can verify only the evidence retained in the
+candidate's attestation. The local event log is not committed, so a candidate
+can omit branch-local failures, skips, or imported reviews without CI detecting
+that omission. CI's replay result does not establish that history is complete.

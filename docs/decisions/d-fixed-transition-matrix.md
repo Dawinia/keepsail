@@ -5,14 +5,12 @@ ratified_by: dawinialo@163.com
 ratified_at: '2026-06-26T09:45:27.695262Z'
 ratified_text_hash: sha256:bd22ae2dcac7f0630529e2d42457b809858d2ca19e33a4bf870b1bc76b1ba52b
 last_reconciled_by: dawinialo@163.com
-last_reconciled_at: '2026-10-24T05:51:17.338404Z'
+last_reconciled_at: '2026-11-12T16:48:15.165052Z'
 last_reconcile_kind: self
-last_reconcile_justification: 'Reviewed the complete transitions.py diff: knowledge
-  signals are declared informational in the single existing table; compute_target_state
-  and lifecycle transitions are unchanged and no ad-hoc state assignment was introduced.
-  Independent code review remains required for this Change.'
+last_reconcile_justification: 'Reviewed transition handling: the no-review event has
+  one explicit matrix entry, and reducer state changes continue to use compute_target_state.'
 reconciled_anchors:
-  src/keepsail/core/transitions.py: sha256:21b04c4ac7b8b5327b0f7846ca2d29febc93daf5a9edd237933b3f4e12c55e11
+  src/keepsail/core/transitions.py: sha256:724a5c540a5445a1c5e088fa3853d5cf322b1a3cfae059ceb5fc93f694d4517b
 ---
 State transitions come only from the fixed declared matrix; no ad-hoc transition.
 

@@ -50,7 +50,8 @@ CLOCK_DRIFT_WARN_THRESHOLD_S = 60
 def derive_state(events_file: Path) -> dict[str, ChangeState]:
     if not events_file.exists():
         return {}
-    return derive_state_from_lines(events_file.read_text(encoding="utf-8").splitlines())
+    lines = events_file.read_bytes().decode("utf-8").splitlines(keepends=True)
+    return derive_state_from_lines(lines)
 
 
 def derive_state_from_lines(lines: list[str], *, _effective: bool = False
@@ -61,11 +62,8 @@ def derive_state_from_lines(lines: list[str], *, _effective: bool = False
 
     Tolerance rules:
     - Malformed JSON / missing required fields → log.warning + skip line
-    - Truncated last line (partial write) → surfaces as malformed JSON → skip.
-      (`splitlines()` cannot see a missing trailing newline on an otherwise-
-      complete JSON line, and the writer emits `line + "\n"` in one atomic write,
-      so the only observable torn write is incomplete JSON — there is no separate
-      newline check.)
+    - Malformed legacy last lines are skipped. A completion transaction expands
+      only after its complete newline-terminated envelope validates.
     - Unknown event types → log.warning + skip (not counted in event_counts)
     - Illegal transitions (e.g. plan_ready before intent_declared) → log.warning,
       preserve current_state but still update last_event_* fields (audit trail).
@@ -122,6 +120,12 @@ def derive_state_from_lines(lines: list[str], *, _effective: bool = False
         # The `if cs.last_event_id else None` gate distinguishes "brand-new change_id"
         # (None) from "active change in INTENT_DECLARED" — both look the same by
         # default value alone, but the transition table treats them differently.
+        if ev.type == "code_review_failed" or (
+            ev.type == "review_verdict_recorded"
+            and (ev.payload or {}).get("reviewer") == "code-reviewer"
+            and (ev.payload or {}).get("outcome") in {"reject", "rejected"}
+        ):
+            cs.no_review_decision = None
         target = compute_target_state(cs.current_state if cs.last_event_id else None, ev.type)
         if target == INVALID:
             log.warning(
@@ -175,6 +179,7 @@ def derive_state_from_lines(lines: list[str], *, _effective: bool = False
                         "submitted_event_id": ev.event_id,
                     }
         elif ev.type == "implementation_complete":
+            cs.no_review_decision = None
             if "pr_url" in p:
                 cs.pr_url = p["pr_url"]
             subject = p.get("code_subject")
@@ -188,6 +193,7 @@ def derive_state_from_lines(lines: list[str], *, _effective: bool = False
             "implementation_restarted",
             "implementation_invalidated",
         }:
+            cs.no_review_decision = None
             if cs.effective_approval is not None:
                 # A new implementation epoch cannot inherit code or
                 # verification evidence from the previous candidate.
@@ -219,6 +225,7 @@ def derive_state_from_lines(lines: list[str], *, _effective: bool = False
                         # for the newly approved subject.
                         cs.current_code_subject = None
                         cs.current_verification = None
+                        cs.no_review_decision = None
             elif p.get("skipped") is True:
                 # Historical baseline evidence remains readable.  It is not
                 # accepted by the new writer as an authorizing record.
@@ -296,14 +303,23 @@ def derive_state_from_lines(lines: list[str], *, _effective: bool = False
             verification = p.get("verification")
             if isinstance(verification, dict):
                 cs.current_verification = dict(verification)
+                if (cs.no_review_decision is not None
+                        and (verification.get("outcome") != "passed"
+                             or verification.get("subject_id")
+                             != cs.no_review_decision.get("subject_id"))):
+                    cs.no_review_decision = None
         elif ev.type == "code_review_passed":
+            cs.no_review_decision = None
             subject = p.get("code_subject")
             if isinstance(subject, dict):
                 try:
                     cs.current_code_subject = validate_code_subject(subject, change_id=ev.change_id)
                 except ValueError:
                     log.warning("line %d: invalid code subject; ignoring payload", line_num)
+        elif ev.type == "code_review_not_required":
+            cs.no_review_decision = dict(p)
         elif ev.type in ("intent_redeclared", "plan_redeclared"):
+            cs.no_review_decision = None
             cs.redeclaration_history.append(
                 {
                     "event_id": ev.event_id,
@@ -321,6 +337,7 @@ def derive_state_from_lines(lines: list[str], *, _effective: bool = False
                 cs.pending_revision = None
                 cs.current_code_subject = None
                 cs.current_verification = None
+                cs.no_review_decision = None
             else:
                 # A new intent is a new commitment object.  It cannot inherit
                 # authority for the previous intent, although the old event

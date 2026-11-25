@@ -4,18 +4,17 @@ status: ratified
 ratified_by: dawinialo@163.com
 ratified_at: '2026-06-26T09:45:08.963090Z'
 ratified_text_hash: sha256:8db7275f6ea859c6e8ada8b4e77ec8a954024d45bffcc6a822ede1d62f69254b
-last_reconciled_by: dawinialo@163.com
-last_reconciled_at: '2026-10-30T18:11:24.428017Z'
+last_reconciled_by: codex-implementation-session
+last_reconciled_at: '2026-11-23T07:31:12.466939Z'
 last_reconcile_kind: self
-last_reconcile_justification: 'Reviewed native writer and derived v2 readers: existing
-  physical events are never edited or truncated. New review references and checkpoints
-  append through EventWriter. Derived exports use new identities and canonical source
-  digests, retain legacy originals, and validate their Git closure. Lazy recovery-prefix
-  normalization preserves exact original prefix comparison. Independent exact code
-  review remains required.'
+last_reconcile_justification: The writer adds a completion journal, staged validation,
+  binary append and recovery by appending the verified missing suffix; readers expand
+  only complete validated transactions. Existing event bytes are not edited, reordered
+  or truncated, and state remains derived from the log.
 reconciled_anchors:
-  src/keepsail/core/events.py: sha256:5eed02f5ae5f51038081ee7c9cc5f0b68aa2178d13168b44c75a70bfea3cc196
-  src/keepsail/core/writer.py: sha256:041af786a49ec5d1538e58f9c11084992a5ab011c4cf19661eca5d64d2c77f1c
+  src/keepsail/core/completion_transaction.py: sha256:f29f29265adeca0210bd7adc839d9abcbf10e131b7970aa4d027c2aee4883b70
+  src/keepsail/core/events.py: sha256:8f03174f371da76beace629706cbff2c7238c952572dee309f1d31a23bb84a94
+  src/keepsail/core/writer.py: sha256:db4d1ab1b29f581f20c588a14c128e6a8dcc09981f59bf47140d7669c3360f39
 ---
 Events are append-only; the log is the source of truth, state is derived.
 
