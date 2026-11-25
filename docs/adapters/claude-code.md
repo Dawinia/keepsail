@@ -53,28 +53,65 @@ claude-code`; to skip the auto-install during `init`, pass `init --no-agent`.
 keepsail adapter install claude-code
 ```
 
+### Minimum Claude Code version
+
+keepsail writes every hook in Claude Code's **exec form**: `command` is the
+absolute executable and `args` is the argument vector, which Claude Code spawns
+directly with no shell on every OS. No quoting or path separators depend on Git
+Bash, PowerShell or `sh`. This requires **Claude Code 2.1.332 or newer**; there is
+no shell-form fallback.
+
+Before writing anything, install resolves the `claude` CLI and runs
+`claude --version` (5-second timeout). If `claude` is not on PATH, does not answer,
+reports no parseable version, or reports an older version, install refuses and
+writes nothing: an older host could run the gate hook without its arguments, and
+`keepsail-hook` with no arguments allows every tool call by design. `init` reports
+the same refusal as a per-integration plan error. To recover, install or upgrade
+the Claude Code CLI so `claude --version` reports at least 2.1.332, or configure
+other integrations with `init --integrations ...` / `init --no-agent`.
+
+**Only the CLI is verified.** Claude Code also fires hooks from IDE extensions, the
+Desktop app and cloud sessions, which read the same settings file but may run a
+different version. Every surface used with the workspace must also be 2.1.332 or
+newer; keepsail cannot check them, and the install message says so. Downgrading
+Claude Code below the minimum after install is unsupported. The merge gate remains
+the authoritative floor for any edit made while the authoring-time gate was not
+running. Uninstall performs no version check.
+
 Mechanics:
 
 1. Resolves `keepsail-hook` and `keepsail` to absolute paths via
    `shutil.which` — a missing binary raises `RuntimeError` before any write.
    Resolution happens at *install* time (not hook runtime) because Claude
    Code runs hooks with a minimal PATH; a bare reference would fail there.
+   On Windows both must be real `.exe` files (exec form cannot spawn a `.cmd`).
 2. Freezes the original settings bytes, complete desired bytes, and both
    resolved executable paths as one reviewed transaction. Apply revalidates
    those inputs before any backup or write.
 3. Plans a **PreToolUse** entry: `matcher: "Edit|Write|MultiEdit|NotebookEdit"`,
-   `command: "<abs keepsail-hook> --agent claude-code"`, `timeout: 10`.
+   `command: "<abs keepsail-hook>"`, `args: ["--agent", "claude-code"]`,
+   `timeout: 10`.
 4. Plans a **SessionStart** entry (no `matcher` → fires on every session
-   source): `command: "<abs keepsail> change resume"`, `timeout: 10`.
-   Plans a **Stop** entry (no `matcher` → fires on every turn end):
-   `command: "<abs keepsail-hook> --agent claude-code --event stop"`,
-   `timeout: 10` (the outer bound; the inner authoring check budget is 8s).
+   source): `command: "<abs keepsail>"`, `args: ["change", "resume"]`,
+   `timeout: 10`. Plans a **Stop** entry (no `matcher` → fires on every turn
+   end): `command: "<abs keepsail-hook>"`,
+   `args: ["--agent", "claude-code", "--event", "stop"]`, `timeout: 10` (the
+   outer bound; the inner authoring check budget is 8s).
 5. Under an exclusive sibling lock, confirms the settings and executable paths
    still match the reviewed transaction, then writes the complete settings file
    once with an atomic replace.
 6. Persists the row in `.harness/adapters.yaml` and injects the
    `<!-- keepsail agent: claude-code -->` subsection into `AGENTS.md`
    (replacing the no-agent anchor written by `init`).
+
+Existing keepsail entries are recognized and replaced, never duplicated: exec-form
+entries by their executable and arguments, and older shell-string entries
+(including raw Windows paths such as `E:\...\keepsail.EXE change resume` that Git
+Bash could not run) by a `keepsail`/`keepsail-hook` executable followed by the
+keepsail arguments. A user hook such as `othertool change resume` is left alone.
+Re-running `keepsail adapter install claude-code` therefore repairs an install
+written by an older keepsail. Never hand-edit `.claude/settings.local.json` to do
+this: it is the gate's own registration.
 
 An absent settings file creates no backup. Changing an existing file creates
 exactly one sibling
@@ -126,6 +163,14 @@ The marker comments are load-bearing — install / uninstall locate the block
 by exact marker match. Re-run `adapter install claude-code` if it drifts.
 
 ## Common issues
+
+- **`adapter install claude-code` refuses with "require Claude Code 2.1.332 or
+  newer".** See [Minimum Claude Code version](#minimum-claude-code-version):
+  install or upgrade the Claude Code CLI so `claude --version` reports at least
+  that version, then re-run.
+- **SessionStart shows `E:Work...: command not found`.** The workspace still has
+  shell-string hooks from an older keepsail. Re-run
+  `keepsail adapter install claude-code`; it replaces them with exec-form hooks.
 
 - **`adapter install claude-code` exits with `keepsail-hook not found
   on PATH`.** The PreToolUse shim is a separate console entry point that

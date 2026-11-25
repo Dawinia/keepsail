@@ -14,8 +14,7 @@ API stability: experimental (v0.1).
 
 from __future__ import annotations
 
-import json
-import shlex
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -23,7 +22,17 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from keepsail.adapters import AgentAdapter
 from keepsail.adapters.agent import _stop_protocol
+from keepsail.adapters.agent._hook_invocation import (
+    HookInvocation,
+    PosixSh,
+    PowerShellWrapped,
+    context_session_start_installed,
+    lit,
+    owner_predicate,
+    path,
+)
 from keepsail.adapters.agent._settings_merge import (
+    ManagedHook,
     SettingsMergePlan,
     apply_settings_merge_plan,
     plan_settings_merge,
@@ -38,34 +47,21 @@ __all__ = ["CodexAdapter"]
 _HOOK_BINARY = "keepsail-hook"
 _CLI_BINARY = "keepsail"
 _CODEX_MATCHER = "^(apply_patch|Edit|Write)$"
-_CODEX_MARKER = "--agent codex"
-# Codex-specific Stop marker: merge_stop_hook defaults to the CLAUDE pair
-# (`_STOP_OURS_MARKER`), so passing this explicitly is what makes a Codex reinstall
-# REPLACE the prior Stop entry instead of appending a duplicate (two objects on stdout
-# → Codex "Stop Failed"). Mirrors the PreToolUse `_CODEX_MARKER` pattern.
-_CODEX_STOP_MARKER = "--agent codex --event stop"
-_CONTEXT_MARKERS = {event: f"--agent codex --event {name}" for event, name in (
-    ("SessionStart", "session-start"), ("UserPromptSubmit", "user-prompt-submit"),
-    ("PostToolUse", "post-tool-use"),
-)}
+_AGENT = "codex"
+# Codex documents ``command`` as a string and does not say which shell runs it.
+# On Windows keepsail names the interpreter itself (valid whether Codex hands the
+# string to cmd or PowerShell); elsewhere the documented examples imply a POSIX
+# shell. Decoding accepts every form so existing installs are recognized.
+_POWERSHELL = PowerShellWrapped()
+_DECODERS = (_POWERSHELL, PosixSh())
+_LEGACY_MARKERS = ("--agent codex", "change resume")
+_OWNS = owner_predicate(transports=_DECODERS, agent=_AGENT, legacy_markers=_LEGACY_MARKERS)
+_EVENTS = ("PreToolUse", "SessionStart", "Stop", "UserPromptSubmit", "PostToolUse")
 
 
-def _context_installed(raw: bytes | None) -> bool:
-    for group in json.loads(raw or b"{}").get("hooks", {}).get("SessionStart", []):
-        for hook in group.get("hooks", []) if isinstance(group, dict) else []:
-            command = hook.get("command", "") if isinstance(hook, dict) else ""
-            if not isinstance(command, str) or _CONTEXT_MARKERS["SessionStart"] not in command:
-                continue
-            tokens = shlex.split(command)
-            if tokens[:4] != ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command"]:
-                continue
-            inner = shlex.split(tokens[4]) if len(tokens) == 5 else []
-            if (len(inner) == 9 and inner[0] == "&"
-                    and Path(inner[1]).name.lower() in {"keepsail-hook", "keepsail-hook.exe"}
-                    and inner[2:8] == ["--agent", "codex", "--event", "session-start",
-                                       "--context", "--cli"]):
-                return True
-    return False
+class CodexContextUnsupportedError(RuntimeError):
+    """Codex knowledge-context mode cannot run on this OS."""
+
 
 _AGENTS_MD_BEGIN = "<!-- keepsail agent: codex -->"
 _AGENTS_MD_END = "<!-- /keepsail agent: codex -->"
@@ -157,8 +153,16 @@ Like the PreToolUse gate, the Stop hook is INACTIVE until you `/hooks`-trust it.
 
 
 class CodexAdapter(AgentAdapter):
-    def __init__(self, knowledge_context: bool | None = None) -> None:
+    # Target OS for install planning (``os.name`` when ``None``); injectable so the
+    # Windows and POSIX branches are tested on every platform.
+    target_os: str | None = None
+
+    def __init__(
+        self, knowledge_context: bool | None = None, target_os: str | None = None,
+    ) -> None:
         self.knowledge_context = knowledge_context
+        if target_os is not None:
+            self.target_os = target_os
     name: ClassVar[str] = "codex"
     version: ClassVar[str] = "0.1.0"
     capabilities: ClassVar[dict[str, bool]] = {
@@ -201,45 +205,54 @@ class CodexAdapter(AgentAdapter):
     def plan_hook_install(
         self, workspace: Path, *, hook_executable: str, cli_executable: str
     ) -> SettingsMergePlan:
-        legacy = plan_settings_merge(
-            workspace / ".codex" / "hooks.json",
-            workspace_root=workspace,
-            pre_tool_use_command=f"{hook_executable} --agent codex",
-            session_start_command=f"{cli_executable} change resume",
-            stop_command=f"{hook_executable} --agent codex --event stop",
-            pre_tool_use_matcher=_CODEX_MATCHER,
-            pre_tool_use_marker=_CODEX_MARKER,
-            stop_marker=_CODEX_STOP_MARKER,
-        )
+        settings_path = workspace / ".codex" / "hooks.json"
+        windows = (self.target_os or os.name) == "nt"
         enabled = self.knowledge_context
         if enabled is None:
-            enabled = _context_installed(legacy.original_bytes)
-        if not enabled and self.knowledge_context is not False:
-            return legacy
+            original = settings_path.read_bytes() if settings_path.exists() else None
+            enabled = context_session_start_installed(
+                original, transports=_DECODERS, agent=_AGENT
+            )
+        if enabled and not windows:
+            raise CodexContextUnsupportedError(
+                "Codex knowledge-context hooks are Windows-only: their retrieval "
+                "protocol is pinned to the powershell-exit/v1 transport. Install the "
+                "default Codex hooks with `keepsail adapter install codex "
+                "--no-knowledge-context`."
+            )
+        transport = _POWERSHELL if windows else PosixSh()
 
-        def command(arguments: str) -> str:
-            hook, cli = (p.replace("\\", "/") for p in (hook_executable, cli_executable))
-            if any('"' in p or "\n" in p or "\r" in p for p in (hook, cli)):
-                raise ValueError("unsupported quote/newline in Codex hook executable path")
-            invocation = "& '" + hook.replace("'", "''") + "' --agent codex " + arguments
-            if "--event session-start" in arguments:
-                invocation += " --cli '" + cli.replace("'", "''") + "'"
-            return 'powershell.exe -NoProfile -NonInteractive -Command "' + invocation + '"'
+        def hook(*args: str, cli: bool = False) -> dict[str, Any]:
+            items = [lit(arg) for arg in args]
+            if cli:
+                items += [lit("--cli"), path(cli_executable)]
+            return transport.encode(HookInvocation(hook_executable, tuple(items)))
 
+        agent = ("--agent", _AGENT)
+        context = ("--context",) if enabled else ()
+        hooks = [
+            ManagedHook("PreToolUse", hook(*agent, *context), matcher=_CODEX_MATCHER),
+            ManagedHook(
+                "SessionStart",
+                hook(*agent, "--event", "session-start", "--context", cli=True)
+                if enabled
+                else transport.encode(
+                    HookInvocation(cli_executable, (lit("change"), lit("resume")))
+                ),
+            ),
+            ManagedHook("Stop", hook(*agent, "--event", "stop")),
+        ]
+        if enabled:
+            hooks += [
+                ManagedHook("UserPromptSubmit",
+                            hook(*agent, "--event", "user-prompt-submit", "--context")),
+                ManagedHook("PostToolUse", hook(*agent, "--event", "post-tool-use", "--context"),
+                            matcher="Bash"),
+            ]
+        elif self.knowledge_context is False:
+            hooks += [ManagedHook("UserPromptSubmit", None), ManagedHook("PostToolUse", None)]
         return plan_settings_merge(
-            workspace / ".codex/hooks.json", workspace_root=workspace,
-            pre_tool_use_command=command("--context") if enabled else (
-                f"{hook_executable} --agent codex"),
-            session_start_command=command("--event session-start --context") if enabled else (
-                f"{cli_executable} change resume"),
-            stop_command=command("--event stop") if enabled else (
-                f"{hook_executable} --agent codex --event stop"),
-            pre_tool_use_matcher=_CODEX_MATCHER, pre_tool_use_marker=_CODEX_MARKER,
-            stop_marker=_CODEX_STOP_MARKER, context_markers=_CONTEXT_MARKERS,
-            context_commands={
-                "UserPromptSubmit": command("--event user-prompt-submit --context"),
-                "PostToolUse": command("--event post-tool-use --context"),
-            } if enabled else {},
+            settings_path, workspace_root=workspace, hooks=hooks, owns=_OWNS
         )
 
     def inject_context(self, change_id: str) -> str:
@@ -280,12 +293,13 @@ class CodexAdapter(AgentAdapter):
 
     def on_uninstall(self, workspace: Path) -> None:
         hooks_path = workspace / ".codex" / "hooks.json"
+        original = hooks_path.read_bytes() if hooks_path.exists() else None
         restore_or_remove_managed_hooks(
             hooks_path,
-            pre_tool_use_marker=_CODEX_MARKER,
-            stop_marker=_CODEX_STOP_MARKER,
+            owns=_OWNS,
+            events=_EVENTS,
             workspace_root=workspace,
-            context_events=(_context_installed(hooks_path.read_bytes())
-                            if hooks_path.exists() else False),
-            context_markers=_CONTEXT_MARKERS,
+            context_events=context_session_start_installed(
+                original, transports=_DECODERS, agent=_AGENT
+            ),
         )

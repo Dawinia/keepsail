@@ -6,8 +6,14 @@ import pytest
 
 from keepsail.adapters.agent.codex import CodexAdapter
 
+# POSIX-style fake paths and POSIX-shell expectations unless a test sets the
+# Windows target itself.
+pytestmark = pytest.mark.usefixtures("posix_hook_target")
+
 
 def test_context_optin_is_explicit_preserved_and_reversible(tmp_path, monkeypatch):
+    # Codex knowledge-context hooks are Windows-only (powershell-exit/v1).
+    monkeypatch.setattr(CodexAdapter, "target_os", "nt")
     monkeypatch.setattr(shutil, "which", lambda name: f"C:/Program Files/Keepsail/{name}.exe")
     settings = tmp_path / ".codex/hooks.json"
     settings.parent.mkdir()
@@ -218,7 +224,8 @@ def test_codex_uninstall_without_backup_strips_only_managed_markers(tmp_path):
                         {"hooks": [{"type": "command", "command": "keep-me"}]},
                         {
                             "hooks": [
-                                {"type": "command", "command": "/h --agent codex --event stop"}
+                                {"type": "command",
+                                 "command": "/h/keepsail-hook --agent codex --event stop"}
                             ]
                         },
                     ]

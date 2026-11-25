@@ -32,6 +32,10 @@ import yaml
 from click.testing import CliRunner
 
 from keepsail.cli import main
+from tests.conftest import hook_argv
+
+# POSIX-style fake executable paths; the Windows transport is covered elsewhere.
+pytestmark = pytest.mark.usefixtures("posix_hook_target")
 
 _FAKE_HOOK = "/usr/local/bin/keepsail-hook"
 
@@ -104,7 +108,7 @@ def test_install_claude_code_writes_hook_and_agent_entry(
     assert _settings(tmp_path).exists()
     settings = json.loads(_settings(tmp_path).read_text())
     commands = [
-        h["command"]
+        hook_argv(h)
         for entry in settings["hooks"]["PreToolUse"]
         for h in entry["hooks"]
     ]

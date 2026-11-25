@@ -9,8 +9,13 @@ settings file — NEVER the committed shared ``settings.json`` — because the h
 - a **PreToolUse** hook whose ``command`` points at the ``keepsail-hook``
   binary (no ``.sh`` wrapper; input parsing lives inside that binary, see
   sensor-gate §3.2.1 + daemon §3.5), and
-- a **SessionStart** hook whose ``command`` is ``<keepsail> change resume``
+- a **SessionStart** hook that runs ``<keepsail> change resume``
   (no slug → active change): Claude Code injects its stdout as session context.
+
+Every handler is exec form (``command`` = executable, ``args`` = argument vector),
+which Claude Code spawns without a shell, so no quoting or path separator depends
+on Git Bash, PowerShell or ``sh``. That requires Claude Code
+``MINIMUM_CLAUDE_CODE_VERSION``; install checks the ``claude`` CLI first.
 
 Scope deltas baked in per spec §3.5:
 - **DELTA 2026-05-28 (Phase 5)**: no ``.sh`` script is written — the hook
@@ -28,10 +33,11 @@ API stability: **experimental** (v0.1).
 
 from __future__ import annotations
 
-import json
-import shlex
+import os
+import re
 import shutil
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar
 
@@ -40,7 +46,17 @@ from keepsail.adapters.agent import _stop_protocol
 
 if TYPE_CHECKING:
     from keepsail.core.authoring_check import Verdict
+from keepsail.adapters.agent._hook_invocation import (
+    ExecArgv,
+    HookInvocation,
+    PosixSh,
+    context_session_start_installed,
+    lit,
+    owner_predicate,
+    path,
+)
 from keepsail.adapters.agent._settings_merge import (
+    ManagedHook,
     SettingsMergePlan,
     apply_settings_merge_plan,
     plan_settings_merge,
@@ -142,26 +158,71 @@ refresh, independent-work checks, evidence boundaries and opt-out.
 {_AGENTS_MD_END}"""
 
 
-def _context_hook_installed(raw: bytes | None) -> bool:
-    """Only an actual managed SessionStart registration selects the existing mode."""
-    settings = json.loads(raw or b"{}")
-    for entry in settings.get("hooks", {}).get("SessionStart", []):
-        if not isinstance(entry, dict) or not isinstance(entry.get("hooks"), list):
-            continue
-        for hook in entry["hooks"]:
-            if not isinstance(hook, dict) or hook.get("type") != "command":
-                continue
-            command = hook.get("command")
-            if (not isinstance(command, str)
-                    or "--agent claude-code --event session-start" not in command):
-                continue
-            tokens = shlex.split(command)
-            if (len(tokens) == 8
-                    and Path(tokens[0]).name.lower() in {"keepsail-hook", "keepsail-hook.exe"}
-                    and tokens[1:7] == ["--agent", "claude-code", "--event", "session-start",
-                                       "--context", "--cli"]):
-                return True
-    return False
+_AGENT = "claude-code"
+_MATCHER = "Edit|Write|MultiEdit|NotebookEdit"
+# Claude Code spawns exec-form handlers (``command`` + ``args``) without a shell on
+# every OS. Decoding also accepts the earlier shell-string forms so existing
+# installs are recognized, replaced and uninstalled.
+_EXEC = ExecArgv()
+_DECODERS = (_EXEC, PosixSh())
+_LEGACY_MARKERS = ("--agent claude-code", "change resume")
+_OWNS = owner_predicate(transports=_DECODERS, agent=_AGENT, legacy_markers=_LEGACY_MARKERS)
+_EVENTS = ("PreToolUse", "SessionStart", "Stop", "UserPromptSubmit", "PostToolUse")
+
+# Minimum Claude Code that honours exec-form ``args``. An older host could run the
+# bare ``command``; ``keepsail-hook`` with no arguments allows every tool call by
+# design, so the gate would be silently inactive. Install therefore refuses below it.
+MINIMUM_CLAUDE_CODE_VERSION = (2, 1, 332)
+_MINIMUM_TEXT = ".".join(str(part) for part in MINIMUM_CLAUDE_CODE_VERSION)
+_VERSION_TIMEOUT_SECONDS = 5
+_VERSION_RE = re.compile(r"(\d+)\.(\d+)\.(\d+)")
+
+
+class ClaudeCodeHostError(RuntimeError):
+    """The Claude Code host cannot safely run keepsail's exec-form hooks."""
+
+
+def _host_error(problem: str) -> ClaudeCodeHostError:
+    return ClaudeCodeHostError(
+        f"{problem} keepsail's Claude Code hooks require Claude Code {_MINIMUM_TEXT} or "
+        "newer: an older host could run the gate hook without its arguments, which "
+        "allows every edit. Install or upgrade the Claude Code CLI so `claude` on PATH "
+        "reports at least that version, or configure other integrations "
+        "(`init --integrations ...` / `init --no-agent`)."
+    )
+
+
+def probe_claude_code_version(
+    executable_lookup: Callable[[str], str | None] = shutil.which,
+) -> str:
+    """Resolve ``claude`` and return its ``--version`` (``"X.Y.Z"``).
+
+    Raises :class:`ClaudeCodeHostError` when it is missing, does not answer within
+    the timeout, cannot be parsed, or is below the minimum. This single function
+    owns both resolution and the version run, so tests replace it as one seam.
+    """
+    resolved = executable_lookup("claude")
+    if resolved is None:
+        raise _host_error("The Claude Code CLI (`claude`) was not found on PATH.")
+    try:
+        result = subprocess.run(
+            [resolved, "--version"], capture_output=True, text=True,
+            timeout=_VERSION_TIMEOUT_SECONDS, check=False,
+        )
+    except subprocess.TimeoutExpired:
+        raise _host_error(
+            f"`{resolved} --version` did not answer within {_VERSION_TIMEOUT_SECONDS}s."
+        ) from None
+    except OSError as error:
+        raise _host_error(f"`{resolved} --version` could not run ({error}).") from error
+    match = _VERSION_RE.search(result.stdout or "")
+    if result.returncode != 0 or match is None:
+        raise _host_error(f"Could not read a version from `{resolved} --version`.")
+    found = tuple(int(part) for part in match.groups())
+    version = ".".join(match.groups())
+    if found < MINIMUM_CLAUDE_CODE_VERSION:
+        raise _host_error(f"The Claude Code CLI reports {version}.")
+    return version
 
 
 class ClaudeCodeAdapter(AgentAdapter):
@@ -174,6 +235,11 @@ class ClaudeCodeAdapter(AgentAdapter):
     name: ClassVar[str] = "claude-code"
     version: ClassVar[str] = "0.1.0"
     knowledge_context: bool | None = None
+    # Target OS for install planning (``os.name`` when ``None``); injectable so the
+    # Windows and POSIX branches are tested on every platform.
+    target_os: str | None = None
+    # The CLI version verified by the last successful preflight (install messaging).
+    verified_host_version: str | None = None
     capabilities: ClassVar[dict[str, bool]] = {
         "pre_tool_use_hook": True,  # Claude Code PreToolUse hook
         "post_tool_use_hook": True,  # Claude Code PostToolUse hook
@@ -200,17 +266,22 @@ class ClaudeCodeAdapter(AgentAdapter):
         per-machine, conventionally-gitignored ``settings.local.json`` — never
         the committed shared ``settings.json``:
 
-        - **PreToolUse**: ``command`` = ``<abs keepsail-hook> --agent
-          claude-code`` (deterministic gate enforcement).
-        - **SessionStart**: ``command`` = ``<abs keepsail> change resume``
-          (no slug → active change); Claude Code injects its stdout as context.
+        Every handler is exec form (``command`` = absolute executable, ``args`` =
+        argument vector), which Claude Code spawns without a shell on every OS:
+
+        - **PreToolUse**: ``<abs keepsail-hook> --agent claude-code``
+          (deterministic gate enforcement).
+        - **SessionStart**: ``<abs keepsail> change resume`` (no slug → active
+          change); Claude Code injects its stdout as context.
+        - **Stop**: ``<abs keepsail-hook> --agent claude-code --event stop``.
 
         Per spec §3.5 this writes NO ``.sh`` script.
 
         Raises:
             RuntimeError: if ``keepsail-hook`` or ``keepsail`` is not
-                resolvable on PATH (a broken install the user must fix by
-                reinstalling) — raised BEFORE any write.
+                resolvable on PATH, or the Claude Code CLI is missing or below
+                the exec-form minimum (:class:`ClaudeCodeHostError`) — raised
+                BEFORE any write.
         """
         resolved_hook = shutil.which(_HOOK_BINARY)
         if resolved_hook is None:
@@ -230,45 +301,75 @@ class ClaudeCodeAdapter(AgentAdapter):
         plan = self.plan_hook_install(
             workspace, hook_executable=resolved_hook, cli_executable=resolved_cli
         )
-        assert plan is not None
+        self.preflight_host()
         apply_settings_merge_plan(plan)
+
+    def preflight_host(
+        self, executable_lookup: Callable[[str], str | None] | None = None,
+    ) -> None:
+        """Refuse a Claude Code CLI below the exec-form minimum (before any write).
+
+        Only the ``claude`` CLI can be checked; other surfaces sharing the settings
+        file (IDE extension, Desktop, cloud) are stated, not verified.
+        """
+        self.verified_host_version = probe_claude_code_version(
+            executable_lookup or shutil.which
+        )
+
+    def _windows(self) -> bool:
+        return (self.target_os or os.name) == "nt"
 
     def plan_hook_install(
         self, workspace: Path, *, hook_executable: str, cli_executable: str
     ) -> SettingsMergePlan:
-        legacy = plan_settings_merge(
-            workspace / ".claude" / "settings.local.json",
-            workspace_root=workspace,
-            pre_tool_use_command=f"{hook_executable} --agent claude-code",
-            session_start_command=f"{cli_executable} change resume",
-            stop_command=f"{hook_executable} --agent claude-code --event stop",
-        )
+        settings_path = workspace / ".claude" / "settings.local.json"
         enabled = self.knowledge_context
         if enabled is None:
-            enabled = _context_hook_installed(legacy.original_bytes)
-        if not enabled:
-            if self.knowledge_context is False:
-                return plan_settings_merge(
-                    workspace / ".claude" / "settings.local.json", workspace_root=workspace,
-                    pre_tool_use_command=f"{hook_executable} --agent claude-code",
-                    session_start_command=f"{cli_executable} change resume",
-                    stop_command=f"{hook_executable} --agent claude-code --event stop",
-                    context_commands={},
-                )
-            return legacy
-        hook = shlex.quote(hook_executable.replace("\\", "/"))
-        cli = shlex.quote(cli_executable.replace("\\", "/"))
-        base = f"{hook} --agent claude-code"
-        return plan_settings_merge(
-            workspace / ".claude" / "settings.local.json", workspace_root=workspace,
-            pre_tool_use_command=f"{base} --context",
-            session_start_command=f"{base} --event session-start --context --cli {cli}",
-            stop_command=f"{base} --event stop",
-            context_commands={
-                "UserPromptSubmit": f"{base} --event user-prompt-submit --context",
-                "PostToolUse": f"{base} --event post-tool-use --context",
-            },
+            original = settings_path.read_bytes() if settings_path.exists() else None
+            enabled = context_session_start_installed(
+                original, transports=_DECODERS, agent=_AGENT
+            )
+
+        def hook(*args: str, cli: bool = False) -> dict[str, Any]:
+            items = [lit(arg) for arg in args]
+            if cli:
+                items += [lit("--cli"), path(cli_executable)]
+            return _EXEC.encode(HookInvocation(hook_executable, tuple(items)))
+
+        agent = ("--agent", _AGENT)
+        context = ("--context",) if enabled else ()
+        hooks = [
+            ManagedHook("PreToolUse", hook(*agent, *context), matcher=_MATCHER),
+            ManagedHook(
+                "SessionStart",
+                hook(*agent, "--event", "session-start", "--context", cli=True)
+                if enabled
+                else _EXEC.encode(HookInvocation(cli_executable, (lit("change"), lit("resume")))),
+            ),
+            ManagedHook("Stop", hook(*agent, "--event", "stop")),
+        ]
+        if enabled:
+            hooks += [
+                ManagedHook("UserPromptSubmit",
+                            hook(*agent, "--event", "user-prompt-submit", "--context")),
+                ManagedHook("PostToolUse", hook(*agent, "--event", "post-tool-use", "--context"),
+                            matcher="Bash"),
+            ]
+        elif self.knowledge_context is False:
+            hooks += [ManagedHook("UserPromptSubmit", None), ManagedHook("PostToolUse", None)]
+        plan = plan_settings_merge(
+            settings_path, workspace_root=workspace, hooks=hooks, owns=_OWNS
         )
+        # After settings planning, so a malformed settings file is reported first.
+        if self._windows():
+            for executable in (hook_executable, cli_executable):
+                if not executable.lower().endswith(".exe"):
+                    raise RuntimeError(
+                        f"{executable} is not a .exe; Claude Code on Windows spawns "
+                        "exec-form hooks directly and needs a real executable. "
+                        "Reinstall keepsail so its console scripts are .exe files."
+                    )
+        return plan
 
     def stop_should_check(self, payload: dict[str, Any]) -> bool:
         """Skip the continuation turn a prior block created (loop-safety). Delegates to
@@ -315,21 +416,27 @@ class ClaudeCodeAdapter(AgentAdapter):
         return ".claude/settings.local.json"
 
     def installed_detail(self) -> str:
+        verified = (
+            f"verified Claude Code CLI {self.verified_host_version}"
+            if self.verified_host_version else "Claude Code CLI version not verified"
+        )
         return (
             "PreToolUse gate + SessionStart context + Stop authoring-check hooks "
-            "registered in .claude/settings.local.json"
+            f"registered in .claude/settings.local.json ({verified}). Every other "
+            "Claude Code surface using this workspace (IDE extension, Desktop, cloud) "
+            f"must also be {_MINIMUM_TEXT} or newer; keepsail does not verify them"
         )
 
     def on_uninstall(self, workspace: Path) -> None:
-        """Restore the earliest pristine backup or remove marker-owned hooks."""
+        """Restore the earliest pristine backup or remove keepsail-owned hooks."""
         settings_path = workspace / ".claude" / "settings.local.json"
-        preview = self.plan_hook_install(workspace, hook_executable="keepsail-hook",
-                                         cli_executable="keepsail")
-        context_events = _context_hook_installed(preview.original_bytes)
+        original = settings_path.read_bytes() if settings_path.exists() else None
         restore_or_remove_managed_hooks(
             settings_path,
-            pre_tool_use_marker="--agent claude-code",
-            stop_marker="--agent claude-code --event stop",
+            owns=_OWNS,
+            events=_EVENTS,
             workspace_root=workspace,
-            context_events=context_events,
+            context_events=context_session_start_installed(
+                original, transports=_DECODERS, agent=_AGENT
+            ),
         )

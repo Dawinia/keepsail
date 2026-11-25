@@ -8,10 +8,13 @@ import sysconfig
 from importlib.metadata import distribution
 from pathlib import Path
 
+import pytest
+
 from keepsail.adapters.agent._settings_merge import (
+    SettingsMergePlan,
     apply_settings_merge_plan,
-    plan_settings_merge,
 )
+from keepsail.adapters.agent.claude_code import ClaudeCodeAdapter
 
 
 def test_installed_namespace_and_console_entries_are_canonical_only(tmp_path: Path) -> None:
@@ -43,6 +46,7 @@ def test_installed_namespace_and_console_entries_are_canonical_only(tmp_path: Pa
         assert ("Keepsail" if flag == "--help" else "0.1.0") in result.stdout
 
 
+@pytest.mark.usefixtures("posix_hook_target")
 def test_current_hook_refresh_is_idempotent_and_preserves_user_hooks(tmp_path: Path) -> None:
     path = tmp_path / ".claude" / "settings.local.json"
     path.parent.mkdir()
@@ -55,12 +59,12 @@ def test_current_hook_refresh_is_idempotent_and_preserves_user_hooks(tmp_path: P
                        }.items()}}
     original = json.dumps(prior).encode()
     path.write_bytes(original)
-    kwargs = {
-        "pre_tool_use_command": "/new/keepsail-hook --agent claude-code",
-        "session_start_command": "/new/keepsail change resume",
-        "stop_command": "/new/keepsail-hook --agent claude-code --event stop",
-    }
-    apply_settings_merge_plan(plan_settings_merge(path, **kwargs))
+    def plan() -> SettingsMergePlan:
+        return ClaudeCodeAdapter().plan_hook_install(
+            tmp_path, hook_executable="/new/keepsail-hook", cli_executable="/new/keepsail",
+        )
+
+    apply_settings_merge_plan(plan())
     updated = path.read_bytes()
     assert b"/prior/" not in updated
     for entries in json.loads(updated)["hooks"].values():
@@ -69,8 +73,8 @@ def test_current_hook_refresh_is_idempotent_and_preserves_user_hooks(tmp_path: P
     backups = list(path.parent.glob("*.keepsail-backup.*"))
     assert len(backups) == 1
     assert backups[0].read_bytes() == original
-    plan = plan_settings_merge(path, **kwargs)
-    assert not plan.changed
-    apply_settings_merge_plan(plan)
+    refreshed = plan()
+    assert not refreshed.changed
+    apply_settings_merge_plan(refreshed)
     assert path.read_bytes() == updated
     assert list(path.parent.glob("*.keepsail-backup.*")) == backups

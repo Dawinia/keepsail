@@ -17,6 +17,7 @@ from keepsail.adapters.install import (
     install_agent_integration,
     preview_agent_integration,
 )
+from tests.conftest import hook_argv
 
 
 def _adapters_yaml(root: Path) -> Path:
@@ -120,6 +121,7 @@ def test_corrupt_yaml_error_propagates(tmp_path: Path) -> None:
         ),
     ],
 )
+@pytest.mark.usefixtures("posix_hook_target")
 def test_install_agent_integration_installs_hooks_and_registry_entry(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -138,7 +140,7 @@ def test_install_agent_integration_installs_hooks_and_registry_entry(
 
     config = json.loads((tmp_path / config_relpath).read_text(encoding="utf-8"))
     commands = [
-        hook["command"] for entry in config["hooks"]["PreToolUse"] for hook in entry["hooks"]
+        hook_argv(hook) for entry in config["hooks"]["PreToolUse"] for hook in entry["hooks"]
     ]
     assert expected_command in commands
     assert adapter.name == name
@@ -188,3 +190,42 @@ def test_frozen_integration_plan_cannot_be_reused_in_another_workspace(
     assert not (requested / ".codex" / "hooks.json").exists()
     assert not _adapters_yaml(reviewed).exists()
     assert not _adapters_yaml(requested).exists()
+
+
+@pytest.mark.usefixtures("posix_hook_target")
+def test_claude_code_preview_refuses_old_cli_after_settings_and_writes_nothing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from keepsail.adapters.agent import claude_code
+    from keepsail.adapters.install import preview_agent_integration
+
+    def old_cli(_lookup: object) -> str:
+        raise claude_code.ClaudeCodeHostError("The Claude Code CLI reports 2.1.100.")
+
+    monkeypatch.setattr(claude_code, "probe_claude_code_version", old_cli)
+    with pytest.raises(RuntimeError, match=r"2.1.100"):
+        preview_agent_integration(
+            tmp_path, "claude-code", executable_lookup=lambda name: f"/opt/{name}"
+        )
+    assert not (tmp_path / ".claude").exists()
+
+
+@pytest.mark.usefixtures("posix_hook_target")
+def test_claude_code_preview_reports_malformed_settings_before_the_host_check(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from keepsail.adapters.agent import claude_code
+    from keepsail.adapters.install import preview_agent_integration
+
+    settings = tmp_path / ".claude" / "settings.local.json"
+    settings.parent.mkdir()
+    settings.write_text("{not json", encoding="utf-8")
+
+    def unreachable(_lookup: object) -> str:
+        raise AssertionError("host check must run after settings planning")
+
+    monkeypatch.setattr(claude_code, "probe_claude_code_version", unreachable)
+    with pytest.raises(ValueError, match="not valid JSON"):
+        preview_agent_integration(
+            tmp_path, "claude-code", executable_lookup=lambda name: f"/opt/{name}"
+        )

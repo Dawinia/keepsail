@@ -41,7 +41,7 @@ from __future__ import annotations
 
 import inspect
 from abc import ABC, abstractmethod
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar
 
@@ -144,6 +144,16 @@ class AgentAdapter(ABC):
         cli_executable: str,
     ) -> SettingsMergePlan | None:
         """Return a non-mutating settings transaction when the adapter supports it."""
+        return None
+
+    def preflight_host(
+        self, executable_lookup: Callable[[str], str | None] | None = None,
+    ) -> None:
+        """Refuse, before any write, a host that cannot run this adapter's hooks.
+
+        Adapters whose transport depends on a minimum host version override this
+        and raise ``RuntimeError`` with a recovery hint. Default: nothing to check.
+        """
         return None
 
     def local_config_relpath(self) -> str:

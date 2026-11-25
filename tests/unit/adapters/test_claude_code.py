@@ -27,6 +27,11 @@ from pathlib import Path
 import pytest
 
 from keepsail.adapters.agent.claude_code import ClaudeCodeAdapter
+from tests.conftest import hook_argv
+
+# These tests use POSIX-style fake executable paths; the Windows `.exe` rule and
+# transport are covered in tests/unit/adapters/test_hook_invocation.py and below.
+pytestmark = pytest.mark.usefixtures("posix_hook_target")
 
 _RESOLVED = "/abs/bin/keepsail-hook"
 _EXPECTED_COMMAND = f"{_RESOLVED} --agent claude-code"
@@ -60,7 +65,9 @@ def test_context_opt_in_is_one_transaction_and_survives_reinstall(tmp_path):
     commands = _session_commands(desired)
     assert "user-start" in commands
     assert sum("--event session-start" in command for command in commands) == 1
-    assert not any("change resume" in command for command in commands)
+    # `old-keepsail` is not a keepsail executable, so its hook is the user's and stays;
+    # keepsail's own `change resume` handler is replaced by the context handler.
+    assert [c for c in commands if "change resume" in c] == ["old-keepsail change resume"]
     assert "UserPromptSubmit" in desired["hooks"]
     assert len(desired["hooks"]["PostToolUse"]) == 2
     apply_settings_merge_plan(plan)
@@ -116,7 +123,7 @@ def _session_commands(settings: dict[str, object]) -> list[str]:
     out: list[str] = []
     for entry in entries:
         for hook in entry.get("hooks", []):  # type: ignore[union-attr]
-            out.append(hook["command"])
+            out.append(hook_argv(hook))
     return out
 
 
@@ -141,7 +148,7 @@ def _commands(settings: dict[str, object]) -> list[str]:
     out: list[str] = []
     for entry in entries:
         for hook in entry.get("hooks", []):  # type: ignore[union-attr]
-            out.append(hook["command"])
+            out.append(hook_argv(hook))
     return out
 
 
@@ -529,7 +536,7 @@ def test_install_registers_stop(tmp_path, monkeypatch):
     f = _install_into(tmp_path, monkeypatch, pre_existing=None)
     events = json.loads(f.read_text())["hooks"]
     assert "Stop" in events and "PreToolUse" in events
-    assert any("--event stop" in h["command"] for e in events["Stop"] for h in e["hooks"])
+    assert any("--event stop" in hook_argv(h) for e in events["Stop"] for h in e["hooks"])
 
 
 def test_uninstall_round_trip_removes_stop(tmp_path, monkeypatch):

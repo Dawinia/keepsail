@@ -31,13 +31,14 @@ import json
 import os
 import tempfile
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 __all__ = [
+    "ManagedHook",
     "SettingsMergePlan",
     "SettingsUpdateInProgressError",
     "StaleSettingsPlanError",
@@ -81,11 +82,6 @@ _STOP_OURS_MARKER = "--agent claude-code --event stop"
 # Per-hook timeout (seconds) for the Stop authoring-check command; matches the
 # PreToolUse/SessionStart budget shape and is the OUTER bound the inner check must beat.
 _STOP_TIMEOUT = 10
-_CONTEXT_MARKERS = {
-    "SessionStart": "--agent claude-code --event session-start",
-    "UserPromptSubmit": "--agent claude-code --event user-prompt-submit",
-    "PostToolUse": "--agent claude-code --event post-tool-use",
-}
 # A crash can leave the O_EXCL lock empty or partially written. Refuse such
 # locks while fresh; only reclaim after this conservative grace period.
 _CORRUPT_LOCK_STALE_SECONDS = 5 * 60
@@ -118,53 +114,59 @@ class SettingsMergePlan:
             object.__setattr__(self, "workspace_root", Path(self.workspace_root))
 
 
+@dataclass(frozen=True)
+class ManagedHook:
+    """One keepsail hook entry for an event.
+
+    ``handler`` holds the transport-produced fields (``type``, ``command`` and, for
+    exec form, ``args``); ``None`` means "remove ours from this event, add nothing".
+    """
+
+    event: str
+    handler: dict[str, Any] | None
+    matcher: str | None = None
+    timeout: int = _TIMEOUT
+
+
+OwnsHandler = Callable[[Any], bool]
+
+
 def plan_settings_merge(
     settings_path: Path,
     *,
     workspace_root: Path | None = None,
-    pre_tool_use_command: str,
-    session_start_command: str,
-    stop_command: str,
-    pre_tool_use_matcher: str = _MATCHER,
-    pre_tool_use_marker: str = _OURS_MARKER,
-    session_start_marker: str = _SESSION_OURS_MARKER,
-    stop_marker: str = _STOP_OURS_MARKER,
-    context_commands: dict[str, str] | None = None,
-    context_markers: dict[str, str] | None = None,
+    hooks: Sequence[ManagedHook],
+    owns: OwnsHandler,
 ) -> SettingsMergePlan:
-    """Purely compute the complete three-hook settings transaction."""
+    """Purely compute the complete settings transaction for keepsail's hooks.
+
+    For every event named in ``hooks``, handlers that ``owns`` recognizes as
+    keepsail's are removed, then the desired entries are appended in order. User
+    handlers, other events and other top-level keys are preserved; an event left
+    empty is dropped.
+    """
     _reject_symlink_settings(settings_path, workspace_root=workspace_root)
     original_bytes = settings_path.read_bytes() if settings_path.exists() else None
     original = (
         _parse_settings_bytes(settings_path, original_bytes) if original_bytes is not None else {}
     )
     settings = copy.deepcopy(original)
-    hooks = _ensure_hooks_dict(settings)
+    hook_map = _ensure_hooks_dict(settings)
 
-    pre_tool_use = _ensure_event_list(hooks, "PreToolUse")
-    _strip_entries(pre_tool_use, pre_tool_use_marker)
-    pre_tool_use.append(_hook_entry(pre_tool_use_command, pre_tool_use_matcher))
-
-    session_start = _ensure_event_list(hooks, "SessionStart")
-    _strip_entries(session_start, session_start_marker)
-    markers = context_markers or _CONTEXT_MARKERS
-    if context_commands is not None:
-        _strip_entries(session_start, markers["SessionStart"])
-    session_start.append(_session_start_entry(session_start_command))
-
-    stop = _ensure_event_list(hooks, "Stop")
-    _strip_entries(stop, stop_marker)
-    stop.append(_stop_entry(stop_command))
-    if context_commands is not None:
-        for event in ("UserPromptSubmit", "PostToolUse"):
-            entries = _ensure_event_list(hooks, event)
-            _strip_entries(entries, markers[event])
-            command = context_commands.get(event)
-            if command:
-                entries.append(_hook_entry(command, "Bash") if event == "PostToolUse"
-                               else _session_start_entry(command))
-            if not entries:
-                hooks.pop(event, None)
+    events = list(dict.fromkeys(hook.event for hook in hooks))
+    for event in events:
+        _strip_entries(_ensure_event_list(hook_map, event), owns)
+    for hook in hooks:
+        if hook.handler is None:
+            continue
+        handler = {**hook.handler, "timeout": hook.timeout}
+        entry: dict[str, Any] = {"hooks": [handler]}
+        if hook.matcher is not None:
+            entry = {"matcher": hook.matcher, **entry}
+        hook_map[hook.event].append(entry)
+    for event in events:
+        if not hook_map[event]:
+            hook_map.pop(event)
 
     changed = settings != original
     desired_bytes = (
@@ -200,17 +202,22 @@ def apply_settings_merge_plan(plan: SettingsMergePlan) -> None:
 def restore_or_remove_managed_hooks(
     settings_path: Path,
     *,
-    pre_tool_use_marker: str,
-    session_start_marker: str = _SESSION_OURS_MARKER,
-    stop_marker: str,
+    owns: OwnsHandler,
+    events: Iterable[str],
     workspace_root: Path | None = None,
     context_events: bool = False,
-    context_markers: dict[str, str] | None = None,
 ) -> None:
-    """Restore the pristine backup, or remove only marker-owned hook entries."""
+    """Restore the pristine backup, or remove only keepsail-owned hook entries.
+
+    Without context mode the earliest pristine backup is restored. In context mode
+    (or with no backup) only handlers that ``owns`` recognizes are removed from
+    ``events``; if a backup exists, the keepsail handlers it held are put back so
+    the pre-context install is restored without touching later user edits.
+    """
     _reject_symlink_settings(settings_path, workspace_root=workspace_root)
     if not settings_path.parent.exists():
         return
+    events = tuple(events)
     with _settings_lock(settings_path, workspace_root=workspace_root):
         _reject_symlink_settings(settings_path, workspace_root=workspace_root)
         backups = sorted(
@@ -229,19 +236,12 @@ def restore_or_remove_managed_hooks(
         if not isinstance(hooks, dict):
             return
         changed = False
-        markers = [
-            ("PreToolUse", pre_tool_use_marker),
-            ("SessionStart", session_start_marker),
-            ("Stop", stop_marker),
-        ]
-        if context_events:
-            markers.extend((context_markers or _CONTEXT_MARKERS).items())
-        for event, marker in markers:
+        for event in events:
             entries = hooks.get(event)
             if not isinstance(entries, list):
                 continue
             before = copy.deepcopy(entries)
-            _strip_entries(entries, marker)
+            _strip_entries(entries, owns)
             if entries != before:
                 changed = True
             if not entries:
@@ -250,11 +250,16 @@ def restore_or_remove_managed_hooks(
             return
         if context_events and backups:
             baseline = _parse_settings_bytes(backups[0], backups[0].read_bytes())
-            for event in {event for event, _ in markers}:
-                for old_entry in baseline.get("hooks", {}).get(event, []):
-                    managed = [h for h in old_entry.get("hooks", []) if any(
-                        _command_contains(h, marker) for ev, marker in markers if ev == event
-                    )]
+            baseline_hooks = baseline.get("hooks", {})
+            if not isinstance(baseline_hooks, dict):
+                baseline_hooks = {}
+            for event in events:
+                old_entries = baseline_hooks.get(event, [])
+                for old_entry in old_entries if isinstance(old_entries, list) else []:
+                    if not isinstance(old_entry, dict):
+                        continue
+                    inner = old_entry.get("hooks")
+                    managed = [h for h in inner if owns(h)] if isinstance(inner, list) else []
                     if managed:
                         hooks.setdefault(event, []).append({**old_entry, "hooks": managed})
         if not hooks:
@@ -731,14 +736,24 @@ def _ensure_event_list(hooks: dict[str, Any], event: str) -> list[Any]:
     return entries
 
 
-def _strip_entries(entries: list[Any], marker: str) -> None:
-    """Remove hooks whose ``command`` contains ``marker``, in place.
+def _strip_entries(entries: list[Any], owns: str | OwnsHandler) -> None:
+    """Remove keepsail-owned hooks, in place.
 
-    For each entry, drop any hook command containing ``marker`` (regardless of
-    binary path). If stripping our hook(s) leaves an entry with an empty
-    ``hooks`` list, drop the whole entry. Entries with no match (and any entry
-    with surviving hooks) are kept untouched, preserving their order.
+    ``owns`` is an ownership predicate over one handler (adapters pass a
+    transport-decoding predicate) or, for the legacy ``merge_*_hook`` writers, a
+    marker substring of the ``command``. If stripping our hook(s) leaves an entry
+    with an empty ``hooks`` list, drop the whole entry. Entries with no match (and
+    any entry with surviving hooks) are kept untouched, preserving their order.
     """
+    predicate: OwnsHandler
+    if isinstance(owns, str):
+        marker = owns
+
+        def predicate(hook: Any) -> bool:
+            return _command_contains(hook, marker)
+    else:
+        predicate = owns
+
     survivors: list[Any] = []
     for entry in entries:
         if not isinstance(entry, dict):
@@ -748,7 +763,7 @@ def _strip_entries(entries: list[Any], marker: str) -> None:
         if not isinstance(inner, list):
             survivors.append(entry)
             continue
-        kept_hooks = [hook for hook in inner if not _command_contains(hook, marker)]
+        kept_hooks = [hook for hook in inner if not predicate(hook)]
         if len(kept_hooks) == len(inner):
             # Nothing of ours in this entry — keep it verbatim.
             survivors.append(entry)

@@ -63,6 +63,8 @@ def preview_agent_integration(
     )
     if settings is None:
         raise RuntimeError(f"{name!r} does not support non-mutating hook planning")
+    # After settings planning, so a malformed settings file is reported first.
+    adapter.preflight_host(executable_lookup)
     return AgentIntegrationPlan(name, resolved_hook, resolved_cli, settings)
 
 

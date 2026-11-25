@@ -254,8 +254,20 @@ later.)
   (the per-machine, conventionally-gitignored settings file — not the committed
   `.claude/settings.json` — because the hook command pins a machine-specific
   absolute path) so Claude Code consults keepsail before every `Edit` /
-  `Write` tool call.
+  `Write` tool call. The hooks use Claude Code's exec form (`command` + `args`,
+  no shell), which requires **Claude Code 2.1.332 or newer**.
+- Checks `claude --version` first and refuses, writing nothing, if the Claude
+  Code CLI is missing or older. Recovery: install or upgrade the Claude Code CLI,
+  or run `init --integrations ...` / `init --no-agent` to configure other
+  integrations. Only the CLI is checked; any IDE extension, Desktop app or cloud
+  session used with the workspace must also be at least 2.1.332. Details:
+  [Claude Code adapter](adapters/claude-code.md#minimum-claude-code-version).
 - Extends `AGENTS.md` with a Claude-Code-specific subsection.
+
+On macOS/Linux, `adapter install codex --knowledge-context` is refused (that mode
+is Windows-only); if an earlier context install makes `init` report a Codex plan
+error, run `keepsail adapter install codex --no-knowledge-context` first. See
+[Codex adapter](adapters/codex.md#hook-command-form).
 
 Confirm both registered:
 

@@ -20,6 +20,9 @@ from keepsail.cli.init_plan import (
     inspect_workspace,
 )
 
+# POSIX-style fake executable paths; the Windows transport is covered elsewhere.
+pytestmark = pytest.mark.usefixtures("posix_hook_target")
+
 
 def _lookup(*available: str):
     installed = frozenset((*available, "keepsail-hook", "keepsail"))
