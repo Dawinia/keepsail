@@ -21,7 +21,9 @@ The PreToolUse gate and the Stop hook use the same form, so **the edit gate has 
 run in this workspace since the file was rewritten on 2026-11-22**. The command that
 rewrote it is not recorded; its content matches a non-context install.
 
-Reproduction: `bash -c 'echo E:\\Work\\keepsail\\.venv'` prints `E:Workkeepsail.venv`.
+Reproduction (Git Bash on this machine, 2026-11-26):
+`bash -c 'E:\Work\keepsail\.venv\Scripts\keepsail.EXE --version'` prints
+`bash: line 1: E:Workkeepsail.venvScriptskeepsail.EXE: command not found` (exit 127).
 
 ## Root cause
 
@@ -56,7 +58,9 @@ depends on guessing which shell the host will use.
   shell"; on Windows `command` must be a real executable such as a `.exe`. `timeout`
   is a common field. The version that introduced `args` is not stated in the docs or
   in the visible changelog, and what an older host does with an `args` field is
-  unknown.
+  unknown. Hooks fire "wherever it runs: sessions in the terminal, IDE extensions,
+  the Desktop app, and cloud sessions"; those surfaces read the same settings file
+  but may run a different Claude Code version than the `claude` CLI on PATH.
 - **Codex** (https://learn.chatgpt.com/docs/hooks and the config reference, read
   2026-11-26): `command` is a string; the docs do not state how it is executed on any
   platform and document no argv form. A Windows-only `commandWindows` override exists.
@@ -72,7 +76,10 @@ depends on guessing which shell the host will use.
   (`src/keepsail/daemon/hook_entry.py:122-127`, "harness must not block tools it
   doesn't understand"). A host that ran an exec-form handler's `command` without its
   `args` would therefore disable the gate silently. This plan does not change that
-  runtime rule; it prevents such hosts at install time (commitment 3).
+  runtime rule. It refuses install when the `claude` CLI is below the minimum
+  (commitment 3); it cannot verify other surfaces, and states that boundary at install
+  and in the docs instead of claiming it. The merge gate remains the authoritative
+  floor for any edit made while the authoring-time gate was inactive.
 
 ## Design
 
@@ -90,10 +97,9 @@ Path-ness is declared by the adapter when it builds the invocation (`--cli <path
 a path item); transports never infer it from token text.
 
 The transport is chosen by the adapter from the host's documented contract and the
-OS. Users do not pass a shell option, and install does not probe for a shell: what
+target OS (injectable, so that both branches are tested on every platform). Users do not pass a shell option, and install does not probe for a shell: what
 the install-time environment can see is not what the host uses when it runs the hook
 (for example, Claude Code's Git Bash discovery and `CLAUDE_CODE_GIT_BASH_PATH`). The
-OS is an injectable input so that both branches are tested on every platform. The
 preference order is: no shell (exec) > a shell keepsail names explicitly (wrapper) >
 host-documented POSIX shell.
 
@@ -104,29 +110,39 @@ host-documented POSIX shell.
    - `EXEC_ARGV`: handler `{"type": "command", "command": <exe>, "args": [...]}`. No
      quoting, no path rewriting.
    - `POWERSHELL_WRAPPED`: the existing Codex wrapper moved verbatim (forward
-     slashes, `'`-doubling), refusing any path containing `"`, `%`, `!`, CR or LF
-     (the current refusal set plus the `cmd` expansion characters).
-   - `POSIX_SH`: `\`→`/` in the executable and path items, `shlex.quote` on every
-     token.
+     slashes, `'`-doubling), refusing any path containing `"`, `%`, `!`, `$`, a
+     backtick, CR or LF: the current refusal set plus the characters `cmd` (`%`, `!`)
+     or an outer PowerShell (`$`, backtick) could expand inside the double-quoted
+     `-Command` argument, since Codex's Windows shell is unknown. `&` and `^` are
+     allowed: literal inside double quotes for `cmd` and inside single quotes for
+     PowerShell.
+   - `POSIX_SH`: `shlex.quote` on every token; `\`→`/` in the executable and path
+     items only when the target OS is Windows (on POSIX a backslash is a legal path
+     character and is preserved).
 
-   Every `encode` is checked by its own `decode` (round trip, executable and path
-   items compared after `\`→`/`) and raises before anything is written if it fails.
+   Every `encode` is checked by its own `decode` (exact round trip, with the
+   Windows-only separator normalization applied to both sides) and raises before anything is written if it fails.
 2. **Claude Code uses exec form on every OS**, in both modes and for every hook it
    writes (PreToolUse, SessionStart, Stop, UserPromptSubmit, PostToolUse). On Windows,
    install fails before writing if a resolved executable is not a `.exe`. No
    shell-form fallback is kept.
-3. **Claude Code host preflight** — minimum supported Claude Code is **2.1.332** (the
-   acceptance target of this change; the version on the owner's machine). Before
-   writing hooks, `adapter install claude-code` and `init`'s Claude Code integration
-   plan resolve `claude` and parse `claude --version`. If `claude` cannot be found,
-   its version cannot be parsed, or it is below 2.1.332, install refuses with a clear
-   error stating the minimum version and that an older host would run the gate
-   without its arguments; nothing is written. `init` reports this as the existing
-   per-integration plan error (`init_plan.py:383`) rather than partially writing.
-   The version lookup is injectable for tests. Uninstall performs no version check.
-   Documented in `docs/adapters/claude-code.md` and `docs/getting-started.md`,
-   including that downgrading Claude Code below the minimum after install is
-   unsupported.
+3. **Claude Code host preflight and support boundary** — minimum supported Claude Code
+   is **2.1.332** (the acceptance target of this change; the version on the owner's
+   machine). Before writing hooks, `adapter install claude-code` and `init`'s Claude
+   Code integration plan resolve `claude` and run `claude --version` (5-second
+   timeout). If `claude` cannot be found, does not answer in time, its version cannot
+   be parsed, or it is below 2.1.332, install refuses with a clear error stating the
+   minimum version and that an older host would run the gate without its arguments;
+   nothing is written. `init` reports this as the existing per-integration plan error
+   (`init_plan.py:383`) rather than partially writing; the error and
+   `docs/getting-started.md` name the recovery (upgrade Claude Code, or choose other
+   integrations with `--integrations`/`--no-agent`). The version lookup is one
+   module-level function, injectable for tests. Uninstall performs no version check.
+   **Boundary:** the check verifies the `claude` CLI only. A successful install prints
+   the verified CLI version and states that every other Claude Code surface using the
+   workspace (IDE extension, Desktop, cloud) must also be at least 2.1.332, which
+   keepsail does not verify. `docs/adapters/claude-code.md` states the same, and that
+   downgrading below the minimum after install is unsupported.
 4. **Codex transport by OS** — Windows: `POWERSHELL_WRAPPED` in both modes. Other OS:
    `POSIX_SH` in default mode. Codex `--knowledge-context` on a non-Windows OS is
    refused before writing, whether requested explicitly or carried over from an
@@ -141,38 +157,64 @@ host-documented POSIX shell.
    the adapter's transports and matching the executable basename (`keepsail-hook`,
    `keepsail`, with or without `.exe`, with either path separator) and the argument
    signature. For legacy string-form handlers that no transport decodes, the
-   fallback requires both that basename on the first token and the current marker
-   substring, so existing installs — including the broken one observed on
+   fallback takes the text before the current marker substring, trims whitespace and
+   one pair of surrounding `'` or `"`, and requires its Windows-aware basename
+   (`ntpath.basename`, which accepts both separators and spaces; no `shlex` parsing)
+   to be one of those names; so existing installs — including the broken one observed on
    2026-11-25 — are recognized, replaced and uninstalled, while a user hook such as
    `othertool change resume` is no longer treated as keepsail's. One detector
    replaces `_context_hook_installed` and `_context_installed`; permission prose and
    user hooks never opt in.
 7. **unchanged handlers where nothing is broken** — for the same resolved paths, Codex
    on Windows in `--knowledge-context` mode produces handler objects identical to
-   today's (every field, not only `command`), pinned by a test using the exact
-   entries in the current `.codex/hooks.json`; therefore no `/hooks` re-trust is
+   today's (the whole entry including `matcher` and `timeout`, not only `command`),
+   pinned by a test whose fixture embeds the exact entries of the owner's current
+   `.codex/hooks.json` (that file is gitignored, so it is copied into the test, not
+   read); therefore no `/hooks` re-trust is
    expected (inference, see host facts). Codex default mode on Windows changes form
    and needs re-trust once; stated in `docs/adapters/codex.md`.
 8. **reinstall repairs broken installs** — installing over the exact broken file
    observed on 2026-11-25 replaces all three entries with working handlers and leaves
    no duplicates.
 9. **extension contract documented** — `docs/adapters/` gains a short section on how
-   a new agent adapter declares its transport, encoder and host preflight. No `dsh`
-   or `pi` adapter is implemented here.
+   a new agent adapter declares its transport, encoder and host preflight, as a
+   checklist with how each is tested (round trip, real execution, preflight refusal,
+   legacy recognition). No `dsh` or `pi` adapter is implemented here.
 
 ## Tests
 
 The full `pytest` suite and `keepsail verify` must pass on the frozen implementation.
 
+**How existing tests keep working.** Two seams, so that tests do not each need to
+know about the preflight:
+
+- `tests/conftest.py` gets an autouse fixture that replaces the Claude Code version
+  lookup with one returning `2.1.332` for in-process tests. Preflight tests opt out
+  with a marker and inject their own lookup. This covers every in-process install
+  path, including tests that monkeypatch `shutil.which` for all names (for example
+  `tests/integration/cli/test_sync.py:53-57`).
+- Tests that run the installed `keepsail` binary in a subprocess
+  (`tests/e2e/test_pre_tool_use_claude_code.py`,
+  `tests/e2e/openspec_claude_code/test_full_lifecycle.py`) put a fake `claude` that
+  prints `2.1.332 (Claude Code)` on PATH for the install step (as the lifecycle test
+  already does for `gh`), so the real preflight runs.
+
+Any other existing test that fails only because of the handler shape or the preflight
+is updated under commitments 1-3; that is a test adjustment within this approval, not
+a scope change.
+
 - New `tests/unit/adapters/test_hook_invocation.py`: encode/decode round trips for
   each transport on POSIX paths, Windows drive and UNC paths, paths with spaces, `'`,
-  `$`, `&`; `POWERSHELL_WRAPPED` refusal of `"`, `%`, `!`, CR, LF; path items vs
-  literals; the commitment 7 handler-identity case.
-- **Real execution tests** (same file): a stub executable in a directory whose name
-  contains a space; assert it receives the exact argv when the handler is executed
-  the way the host does — direct spawn for `EXEC_ARGV`, `bash -c` for `POSIX_SH`
-  (skipped only when no `bash` is on PATH), `powershell.exe` for `POWERSHELL_WRAPPED`
-  on Windows.
+  `&`, `^`, and (POSIX) a backslash that must be preserved; `POWERSHELL_WRAPPED`
+  refusal of `"`, `%`, `!`, `$`, backtick, CR, LF; path items vs literals; the
+  commitment 7 whole-entry identity case from the embedded fixture.
+- **Real execution tests** (same file), using a directory whose name contains a
+  space: `EXEC_ARGV` spawns the real `sys.executable` with a stub script in that
+  directory as a path item and asserts the exact argv the script receives (no copied
+  or compiled `.exe` is needed on Windows); `POSIX_SH` runs the same through
+  `bash -c` (skipped only when no `bash` is on PATH); `POWERSHELL_WRAPPED` runs it
+  through `powershell.exe` on Windows, and through `cmd /c` as well, since either may
+  be Codex's host shell.
 - Updated for the structured handler / exec form, with Windows-path cases for every
   hook in both modes and the OS injected both ways:
   `tests/unit/adapters/test_claude_code.py`, `tests/unit/adapters/test_codex.py`,
@@ -182,12 +224,18 @@ The full `pytest` suite and `keepsail verify` must pass on the frozen implementa
   `tests/integration/cli/test_keepsail_installation.py`,
   `tests/integration/cli/test_init.py`, `tests/unit/cli/test_init_plan.py`,
   `tests/e2e/test_pre_tool_use_claude_code.py`,
-  `tests/e2e/openspec_claude_code/test_full_lifecycle.py`.
-- New cases: commitment 3 (below-minimum, missing and unparsable `claude` refuse and
-  write nothing; at-minimum installs; init reports the plan error; uninstall needs no
-  `claude`); commitment 4 refusals and their `--no-knowledge-context` hint; commitment
-  6 legacy recognition including the negative `othertool change resume` case and
-  exec-form uninstall; commitment 8 repair.
+  `tests/e2e/openspec_claude_code/test_full_lifecycle.py`, and
+  `tests/integration/cli/test_sync.py` (only if the autouse seam is not enough).
+- New cases: commitment 3 (below-minimum, missing, unparsable and timed-out `claude`
+  refuse and write nothing; at-minimum installs on a machine with no real `claude`
+  via the injected lookup; the success message states the verified CLI version and
+  the other-surfaces boundary; init reports the plan error with the recovery hint;
+  uninstall needs no `claude`); commitment 4 refusals and their
+  `--no-knowledge-context` hint; commitment 6 legacy recognition for (a) the exact
+  broken file, (b) a raw executable path containing spaces such as
+  `C:\Program Files\keepsail\keepsail-hook.EXE --agent claude-code`, (c) a quoted
+  executable path, (d) the negative `othertool change resume` case, and exec-form
+  uninstall; commitment 8 repair.
 - `.github/workflows/test.yml`: add `tests/unit/adapters/test_hook_invocation.py`,
   `tests/unit/adapters/test_claude_code.py` and `tests/unit/adapters/test_codex.py`
   to the existing `verification-cross-platform` job (runs on `windows-latest`). No
@@ -200,8 +248,8 @@ The full `pytest` suite and `keepsail verify` must pass on the frozen implementa
   `src/keepsail/adapters/agent/claude_code.py`, `src/keepsail/adapters/agent/codex.py`,
   `src/keepsail/adapters/__init__.py` and `src/keepsail/adapters/install.py` (host
   preflight hook), `src/keepsail/cli/init_plan.py` and `src/keepsail/cli/adapter.py`
-  (only to pass the injectable version lookup and surface the refusal), the tests
-  above, `.github/workflows/test.yml`, `docs/adapters/claude-code.md`,
+  (only to pass the injectable version lookup and surface the refusal),
+  `tests/conftest.py`, the tests above, `.github/workflows/test.yml`, `docs/adapters/claude-code.md`,
   `docs/adapters/codex.md`, `docs/adapters/README.md` (new, commitment 9),
   `docs/getting-started.md`, and this plan.
 - Not changed: the gate (`src/keepsail/gates/`) and its allowances; `hook_entry.py`'s
@@ -252,14 +300,29 @@ The full `pytest` suite and `keepsail verify` must pass on the frozen implementa
   (commitment 7), `--no-knowledge-context` hint (commitment 4), Windows CI placement
   and injectable OS (Tests, Design), limitations rationale (Boundaries), acceptance
   target wording (commitment 3), `cmd` metacharacters (commitment 1).
+- Candidate `plan:ae5995b7…` (commit `ed4c00d`) was rejected on 2026-11-26 (evidence
+  `dsh-plan-ae5995b7c723-ed4c00d-20261126`); it confirmed B1 and B2 resolved. New
+  blocking findings: the preflight would break the unlisted
+  `tests/integration/cli/test_sync.py` (B3; addressed by the two test seams and the
+  general test-adjustment rule in Tests); the first-token legacy fallback missed raw
+  paths with spaces or quotes (B4; commitment 6 and its tests); the preflight checks
+  only the CLI while the plan claimed all surfaces (B5; commitment 3 boundary, host
+  facts, install message, docs). Non-blocking N1-N12 addressed: `$`/backtick refusal
+  (commitment 1), fixture source (commitment 7), reproduction (Problem), POSIX
+  backslashes (commitment 1), init recovery (commitment 3), `&`/`^` rationale
+  (commitment 1), Stop hook acceptance (Validation), Windows exec real-execution
+  construction (Tests), preflight timeout (commitment 3), whole-entry identity
+  (commitment 7), docs checklist (commitment 9), `which` monkeypatches (Tests).
 
 ## Validation
 
 `keepsail decision check --changed`, `keepsail doc check`, and the full
 `keepsail verify` on the frozen implementation. Acceptance on this Windows machine
-with Claude Code 2.1.332: reinstall into this workspace, start a new session and
-confirm no SessionStart hook error, and confirm the PreToolUse gate blocks a source
-`Edit` in a state that forbids it. Codex on Windows: confirm the context-mode
+with the Claude Code 2.1.332 CLI in a terminal session (the surface exercised; other
+surfaces are not accepted here): reinstall into this workspace, start a new session
+and confirm no SessionStart hook error, confirm the PreToolUse gate blocks a source
+`Edit` in a state that forbids it, and confirm the Stop hook runs without a hook
+error at turn end. Codex on Windows: confirm the context-mode
 handlers are identical and that default-mode hooks run after `/hooks` trust.
 Obtain and import recognized reviews for the exact frozen plan and code subjects.
 No merge is authorized by this plan.
