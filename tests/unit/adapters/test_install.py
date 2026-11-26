@@ -229,3 +229,52 @@ def test_claude_code_preview_reports_malformed_settings_before_the_host_check(
         preview_agent_integration(
             tmp_path, "claude-code", executable_lookup=lambda name: f"/opt/{name}"
         )
+
+
+@pytest.mark.usefixtures("posix_hook_target")
+def test_init_path_carries_the_verified_claude_version_to_the_installed_adapter(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from keepsail.adapters.agent import claude_code
+    from keepsail.adapters.install import preview_agent_integration
+
+    (tmp_path / ".harness").mkdir()
+    monkeypatch.setattr(claude_code, "probe_claude_code_version", lambda _lookup: "2.1.400")
+    monkeypatch.setattr(shutil, "which", lambda name: f"/opt/{name}")
+    plan = preview_agent_integration(tmp_path, "claude-code",
+                                     executable_lookup=lambda name: f"/opt/{name}")
+    assert plan.host_version == "2.1.400"
+
+    def unreachable(_lookup: object) -> str:
+        raise AssertionError("a preview-verified plan must not be re-probed")
+
+    monkeypatch.setattr(claude_code, "probe_claude_code_version", unreachable)
+    adapter = install_agent_integration(tmp_path, "claude-code", plan=plan)
+    assert "verified Claude Code CLI 2.1.400" in adapter.installed_detail()
+
+
+@pytest.mark.usefixtures("posix_hook_target")
+def test_frozen_plan_without_a_verified_host_is_checked_before_any_write(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import dataclasses
+
+    from keepsail.adapters.agent import claude_code
+    from keepsail.adapters.install import preview_agent_integration
+
+    (tmp_path / ".harness").mkdir()
+    monkeypatch.setattr(shutil, "which", lambda name: f"/opt/{name}")
+    plan = dataclasses.replace(
+        preview_agent_integration(tmp_path, "claude-code",
+                                  executable_lookup=lambda name: f"/opt/{name}"),
+        host_version=None,
+    )
+
+    def old_cli(*_args: object) -> str:
+        raise claude_code.ClaudeCodeHostError("The Claude Code CLI reports 2.1.100.")
+
+    monkeypatch.setattr(claude_code, "probe_claude_code_version", old_cli)
+    with pytest.raises(RuntimeError, match=r"2\.1\.100"):
+        install_agent_integration(tmp_path, "claude-code", plan=plan)
+    assert not (tmp_path / ".claude").exists()
+    assert _read_adapter_entries(_adapters_yaml(tmp_path)) == []

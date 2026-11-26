@@ -61,8 +61,9 @@ so keepsail chooses the form by OS instead of guessing:
 - **macOS / Linux** — POSIX-shell quoting (`shlex`), so paths with spaces work.
 
 Existing keepsail entries are recognized and replaced, never duplicated. In
-`--knowledge-context` mode on Windows the entries are byte-for-byte what earlier
-keepsail versions wrote, so no re-trust is expected. Default-mode hooks on Windows
+`--knowledge-context` mode on Windows the keepsail entries are identical, field for
+field, to what earlier keepsail versions wrote for the same executable paths, so no
+re-trust is expected (Codex does not document which fields its trust hash covers). Default-mode hooks on Windows
 changed to the PowerShell form in this release: re-run `/hooks` and trust them once.
 
 `--knowledge-context` is **Windows-only**: its retrieval protocol is pinned to the

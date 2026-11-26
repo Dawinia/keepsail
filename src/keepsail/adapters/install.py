@@ -31,6 +31,8 @@ class AgentIntegrationPlan:
     hook_executable: str
     cli_executable: str
     settings: SettingsMergePlan
+    # Host version verified by the adapter's preflight during preview, if any.
+    host_version: str | None = None
 
 
 def _builtin_agent(name: str) -> AgentAdapter:
@@ -65,7 +67,10 @@ def preview_agent_integration(
         raise RuntimeError(f"{name!r} does not support non-mutating hook planning")
     # After settings planning, so a malformed settings file is reported first.
     adapter.preflight_host(executable_lookup)
-    return AgentIntegrationPlan(name, resolved_hook, resolved_cli, settings)
+    return AgentIntegrationPlan(
+        name, resolved_hook, resolved_cli, settings,
+        host_version=getattr(adapter, "verified_host_version", None),
+    )
 
 
 def install_agent_integration(
@@ -97,6 +102,12 @@ def install_agent_integration(
             "keepsail executable path changed after review; rerun init and review "
             "the refreshed integration plan."
         )
+    if frozen.host_version is not None and hasattr(adapter, "verified_host_version"):
+        adapter.verified_host_version = frozen.host_version
+    else:
+        # A plan that did not come through preview's preflight is checked here,
+        # still before any write; adapters without a host check do nothing.
+        adapter.preflight_host()
     apply_settings_merge_plan(frozen.settings)
     _persist_install_entry(root, name=adapter.name, kind="agent", version=adapter.version)
     return adapter

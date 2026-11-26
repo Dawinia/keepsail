@@ -73,7 +73,10 @@ other integrations with `init --integrations ...` / `init --no-agent`.
 **Only the CLI is verified.** Claude Code also fires hooks from IDE extensions, the
 Desktop app and cloud sessions, which read the same settings file but may run a
 different version. Every surface used with the workspace must also be 2.1.332 or
-newer; keepsail cannot check them, and the install message says so. Downgrading
+newer; keepsail cannot check them, and the install message says so. `init`
+checks the CLI while it previews integrations, so a missing or old `claude` is
+reported there (up to the 5-second timeout) even when Claude Code is not selected;
+it only blocks when Claude Code is selected. Downgrading
 Claude Code below the minimum after install is unsupported. The merge gate remains
 the authoritative floor for any edit made while the authoring-time gate was not
 running. Uninstall performs no version check.

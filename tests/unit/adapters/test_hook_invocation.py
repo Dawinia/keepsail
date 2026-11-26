@@ -335,7 +335,8 @@ _STUB = "import json, sys\nprint(json.dumps(sys.argv[1:]))\n"
 
 @pytest.fixture
 def spaced_stub(tmp_path: Path) -> Path:
-    directory = tmp_path / "dir with space"
+    # A space and a single quote: both must survive every host shell intact.
+    directory = tmp_path / "dir with space it's"
     directory.mkdir()
     stub = directory / "stub.py"
     stub.write_text(_STUB)
