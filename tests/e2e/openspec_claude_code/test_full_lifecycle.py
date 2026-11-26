@@ -25,6 +25,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from tests.conftest import fake_claude_cli_env
 from tests.e2e.conftest import (
     MockGh,
     _derive_and_read,
@@ -48,17 +49,22 @@ def test_full_openspec_claude_lifecycle(demo_repo: Path, mock_gh: MockGh) -> Non
     # === Phase A — bootstrap ============================================
     _run(["keepsail", "init"], cwd=demo_repo)
     _run(["keepsail", "adapter", "install", "openspec"], cwd=demo_repo)
-    _run(["keepsail", "adapter", "install", "claude-code"], cwd=demo_repo)
+    # The real Claude Code host preflight runs against a fake `claude` at the
+    # minimum supported version (CI has no Claude Code install).
+    subprocess.run(
+        ["keepsail", "adapter", "install", "claude-code"], cwd=str(demo_repo),
+        capture_output=True, check=True,
+        env=fake_claude_cli_env(demo_repo.parent / "fake-claude-bin"),
+    )
     assert (demo_repo / ".harness" / "events.jsonl").exists()
     settings = json.loads((demo_repo / ".claude" / "settings.local.json").read_text())
     pre_tool = settings["hooks"]["PreToolUse"]
-    # The adapter writes the **absolute** path of the hook binary into
-    # `command` (adapters/agent/claude_code.py:121 uses
-    # `shutil.which("keepsail-hook")`), not the bare name, so we match
-    # by substring.
+    # The adapter writes an exec-form handler: the **absolute** path of the hook
+    # binary in `command` (resolved with `shutil.which("keepsail-hook")`) and the
+    # argument vector in `args`.
     assert any(
         "keepsail-hook" in h.get("command", "")
-        and "--agent claude-code" in h.get("command", "")
+        and h.get("args", [])[:2] == ["--agent", "claude-code"]
         for entry in pre_tool
         for h in entry["hooks"]
     ), (

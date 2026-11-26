@@ -27,6 +27,10 @@ from keepsail.cli.init_ui import (
 )
 from keepsail.engineering.gh import GhError
 from keepsail.version import __version__
+from tests.conftest import hook_argv
+
+# POSIX-style fake executable paths; the Windows transport is covered elsewhere.
+pytestmark = pytest.mark.usefixtures("posix_hook_target")
 
 _FAKE_HOOK = "/usr/local/bin/keepsail-hook"
 
@@ -1542,11 +1546,11 @@ def test_init_force_reinjects_installed_adapters(tmp_path: Path, monkeypatch: py
     # 2b) settings.local.json STILL has our PreToolUse + SessionStart hooks (unchanged).
     settings = json.loads((tmp_path / ".claude" / "settings.local.json").read_text())
     pre_commands = [
-        h["command"] for entry in settings["hooks"]["PreToolUse"] for h in entry["hooks"]
+        hook_argv(h) for entry in settings["hooks"]["PreToolUse"] for h in entry["hooks"]
     ]
     assert pre_commands == [f"{_FAKE_HOOK} --agent claude-code"]
     session_commands = [
-        h["command"] for entry in settings["hooks"]["SessionStart"] for h in entry["hooks"]
+        hook_argv(h) for entry in settings["hooks"]["SessionStart"] for h in entry["hooks"]
     ]
     assert session_commands == [f"{_FAKE_HOOK} change resume"]
 

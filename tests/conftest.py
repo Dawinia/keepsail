@@ -50,3 +50,59 @@ def context_workspace(tmp_path, _approved_context_template, monkeypatch):
     policy = yaml.safe_load((tmp_path / ".harness/knowledge-recognition.yaml").read_text())
     monkeypatch.setattr(fixtures, "policy", lambda: deepcopy(policy))
     return workspace
+
+
+@pytest.fixture(autouse=True)
+def _claude_code_cli_at_minimum(monkeypatch):
+    """Report the minimum Claude Code CLI to in-process installs.
+
+    The Claude Code adapter refuses to write exec-form hooks unless the `claude`
+    CLI is at least the supported minimum. Most tests are not about that preflight
+    (and CI has no `claude`), so this single seam -- resolution plus version run --
+    answers with the minimum. Preflight tests replace it again with their own fake.
+    """
+    from keepsail.adapters.agent import claude_code
+
+    minimum = ".".join(str(part) for part in claude_code.MINIMUM_CLAUDE_CODE_VERSION)
+    monkeypatch.setattr(claude_code, "probe_claude_code_version", lambda *_args: minimum)
+
+
+@pytest.fixture
+def posix_hook_target(monkeypatch):
+    """Plan agent hooks for a POSIX host, whatever OS runs the test.
+
+    For tests that use POSIX-style fake executable paths; the Windows transport and
+    `.exe` rules are covered by tests that set the target explicitly.
+    """
+    from keepsail.adapters.agent.claude_code import ClaudeCodeAdapter
+    from keepsail.adapters.agent.codex import CodexAdapter
+
+    monkeypatch.setattr(ClaudeCodeAdapter, "target_os", "posix")
+    monkeypatch.setattr(CodexAdapter, "target_os", "posix")
+
+
+def hook_argv(handler):
+    """A handler's argument vector joined by spaces, for exec and string forms."""
+    return " ".join([handler["command"], *handler.get("args", [])])
+
+
+def fake_claude_cli_env(directory, version="2.1.332"):
+    """Environment whose PATH starts with a fake `claude` printing ``version``.
+
+    For tests that run the installed `keepsail` binary in a subprocess, where the
+    in-process preflight seam does not apply: the real preflight resolves and runs
+    this fake instead of a Claude Code install that CI does not have.
+    """
+    import os
+    import stat
+    from pathlib import Path
+
+    directory = Path(directory)
+    directory.mkdir(parents=True, exist_ok=True)
+    if os.name == "nt":
+        (directory / "claude.cmd").write_text(f"@echo {version} (Claude Code)\r\n")
+    else:
+        script = directory / "claude"
+        script.write_text(f"#!/bin/sh\necho '{version} (Claude Code)'\n")
+        script.chmod(script.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+    return {**os.environ, "PATH": str(directory) + os.pathsep + os.environ.get("PATH", "")}

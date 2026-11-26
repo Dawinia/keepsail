@@ -20,6 +20,9 @@ from keepsail.cli.init_plan import (
     inspect_workspace,
 )
 
+# POSIX-style fake executable paths; the Windows transport is covered elsewhere.
+pytestmark = pytest.mark.usefixtures("posix_hook_target")
+
 
 def _lookup(*available: str):
     installed = frozenset((*available, "keepsail-hook", "keepsail"))
@@ -625,3 +628,20 @@ def test_resolved_github_file_decisions_drive_truthful_file_actions(
 
     assert actions[".github/pull_request_template.md"] is FileAction.PRESERVE
     assert actions[".github/workflows/keepsail.yml"] is FileAction.UPDATE
+
+
+def test_old_claude_code_is_an_integration_plan_error_naming_the_recovery(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from keepsail.adapters.agent import claude_code
+
+    def old_cli(*_args: object) -> str:
+        raise claude_code._host_error("The Claude Code CLI reports 2.1.100.")
+
+    monkeypatch.setattr(claude_code, "probe_claude_code_version", old_cli)
+    preflight = inspect_workspace(_request(tmp_path), _lookup("claude"))
+    error = preflight.integration_plan_errors["claude-code"]
+    assert "2.1.332 or newer" in error
+    assert "--integrations" in error and "--no-agent" in error
+    assert "claude-code" not in preflight.integration_plans
+    assert not (tmp_path / ".claude").exists()

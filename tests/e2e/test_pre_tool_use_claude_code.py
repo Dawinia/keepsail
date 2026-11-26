@@ -30,13 +30,12 @@ precisely because of the upstream Edit-deny caveat above).
 from __future__ import annotations
 
 import json
-import os
-import shlex
 import subprocess
 from pathlib import Path
 
 from keepsail.core.state import ChangeState
 from keepsail.core.state_yaml import write_state_yaml
+from tests.conftest import fake_claude_cli_env
 from tests.e2e.conftest import _wait_for_returncode
 
 # Claude-Code-shaped PreToolUse payload for an Edit on a source file. The shim
@@ -51,19 +50,18 @@ _PAYLOAD = json.dumps(
 )
 
 
-def _registered_command(ws: Path) -> str:
-    """Extract the keepsail PreToolUse hook command from settings.local.json.
+def _registered_argv(ws: Path) -> list[str]:
+    """Extract the keepsail PreToolUse hook's exec-form argv from settings.local.json.
 
-    Asserting on the EXACT registered string (rather than reconstructing it)
-    proves the adapter wrote a runnable hook and that we invoke precisely what
-    Claude Code would.
+    Claude Code spawns an exec-form handler (`command` + `args`) directly, with no
+    shell. Running EXACTLY that argument vector proves the adapter wrote a runnable
+    hook and that we invoke precisely what Claude Code would.
     """
     data = json.loads((ws / ".claude" / "settings.local.json").read_text())
     for entry in data["hooks"]["PreToolUse"]:
         for hook in entry["hooks"]:
-            if "--agent claude-code" in hook["command"]:
-                command: str = hook["command"]
-                return command
+            if hook.get("args", [])[:2] == ["--agent", "claude-code"]:
+                return [hook["command"], *hook["args"]]
     raise AssertionError("keepsail PreToolUse hook not registered in settings.local.json")
 
 
@@ -80,13 +78,15 @@ def test_pre_tool_use_blocks_then_allows(tmp_path: Path) -> None:
     assert (ws / ".harness").is_dir(), "init did not create .harness/"
 
     # 2. Install the claude-code adapter (registers the hook in settings.local.json).
+    #    The real host preflight runs against a fake `claude` at the minimum version.
     subprocess.run(
         ["keepsail", "--workspace", str(ws), "adapter", "install", "claude-code"],
         check=True,
         capture_output=True,
         text=True,
+        env=fake_claude_cli_env(tmp_path / "fake-claude-bin"),
     )
-    cmd = _registered_command(ws)
+    argv = _registered_argv(ws)
 
     state_path = ws / ".harness" / "state.yaml"
 
@@ -98,16 +98,15 @@ def test_pre_tool_use_blocks_then_allows(tmp_path: Path) -> None:
         )
 
     def run_hook() -> subprocess.CompletedProcess[str]:
-        # Invoke the EXACT registered command with the Claude-Code JSON payload
-        # on stdin, from inside the workspace so the hook walks up to .harness/.
-        command = cmd if os.name == "nt" else shlex.split(cmd)
+        # Spawn the EXACT registered argv (no shell, as Claude Code does) with the
+        # Claude-Code JSON payload on stdin, from inside the workspace so the hook
+        # walks up to .harness/.
         return subprocess.run(
-            command,
+            argv,
             input=_PAYLOAD,
             text=True,
             capture_output=True,
             cwd=ws,
-            shell=os.name == "nt",
         )
 
     # Blocking state → exit 2 (Claude Code BLOCK) — decided in-process, no host.

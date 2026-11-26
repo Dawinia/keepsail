@@ -30,6 +30,9 @@ from click.testing import CliRunner
 from keepsail.cli import main
 from keepsail.version import __version__
 
+# POSIX-style fake executable paths; the Windows transport is covered elsewhere.
+pytestmark = pytest.mark.usefixtures("posix_hook_target")
+
 _FAKE_HOOK = "/usr/local/bin/keepsail-hook"
 _VERSION_STAMP = (
     f"<!-- keepsail section begin · v{__version__} · DO NOT EDIT MANUALLY -->"

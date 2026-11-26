@@ -40,6 +40,7 @@ from pathlib import Path
 from click.testing import CliRunner
 
 from keepsail.cli import main
+from tests.conftest import hook_argv
 
 
 def _expected_pre_tool_use() -> str:
@@ -103,7 +104,7 @@ def _hook_commands(ws: Path, event: str) -> list[str]:
     commands: list[str] = []
     for entry in data.get("hooks", {}).get(event, []):
         for hook in entry.get("hooks", []):
-            commands.append(hook["command"])
+            commands.append(hook_argv(hook))
     return commands
 
 

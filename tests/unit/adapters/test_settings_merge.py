@@ -18,6 +18,7 @@ import pytest
 
 from keepsail.adapters.agent import _settings_merge as settings_merge_module
 from keepsail.adapters.agent._settings_merge import (
+    ManagedHook,
     StaleSettingsPlanError,
     apply_settings_merge_plan,
     merge_pre_tool_use_hook,
@@ -26,6 +27,25 @@ from keepsail.adapters.agent._settings_merge import (
     plan_settings_merge,
     restore_or_remove_managed_hooks,
 )
+
+
+def _string_handler(command: str) -> dict[str, object]:
+    return {"type": "command", "command": command}
+
+
+# Ownership for these merge-mechanics tests: the keepsail hook commands below.
+_OWNS = lambda handler: isinstance(handler, dict) and str(  # noqa: E731
+    handler.get("command", "")
+).startswith(("/bin/hook --agent claude-code", "/bin/keepsail change resume"))
+_THREE_HOOKS: dict[str, object] = {
+    "hooks": (
+        ManagedHook("PreToolUse", _string_handler("/bin/hook --agent claude-code"),
+                    matcher="Edit|Write|MultiEdit|NotebookEdit"),
+        ManagedHook("SessionStart", _string_handler("/bin/keepsail change resume")),
+        ManagedHook("Stop", _string_handler("/bin/hook --agent claude-code --event stop")),
+    ),
+    "owns": _OWNS,
+}
 
 _COMMAND = "/abs/bin/keepsail-hook --agent claude-code"
 _MATCHER = "Edit|Write|MultiEdit|NotebookEdit"
@@ -504,11 +524,7 @@ def test_merge_stop_preserves_unrelated_stop_hook(tmp_path):
 
 def test_batch_merge_has_one_backup_only_for_changed_existing_file(tmp_path: Path) -> None:
     path = tmp_path / ".claude" / "settings.local.json"
-    kwargs = {
-        "pre_tool_use_command": "/bin/hook --agent claude-code",
-        "session_start_command": "/bin/keepsail change resume",
-        "stop_command": "/bin/hook --agent claude-code --event stop",
-    }
+    kwargs = _THREE_HOOKS
     apply_settings_merge_plan(plan_settings_merge(path, **kwargs))
     assert list(path.parent.glob("*.keepsail-backup.*")) == []
 
@@ -528,9 +544,7 @@ def test_settings_plan_rejects_byte_drift_before_backup_or_write(tmp_path: Path)
     path.write_bytes(b'{"theme":"dark"}\n')
     plan = plan_settings_merge(
         path,
-        pre_tool_use_command="/bin/hook --agent claude-code",
-        session_start_command="/bin/keepsail change resume",
-        stop_command="/bin/hook --agent claude-code --event stop",
+        **_THREE_HOOKS,
     )
     drifted = b'{"theme":"light"}\n'
     path.write_bytes(drifted)
@@ -555,9 +569,7 @@ def test_settings_plan_atomic_failure_leaves_target_exact(
         path.write_bytes(original)
     plan = plan_settings_merge(
         path,
-        pre_tool_use_command="/bin/hook --agent claude-code",
-        session_start_command="/bin/keepsail change resume",
-        stop_command="/bin/hook --agent claude-code --event stop",
+        **_THREE_HOOKS,
     )
     if failure_stage == "temp-write":
 
@@ -601,9 +613,7 @@ def test_concurrent_settings_apply_fails_clearly_without_overwrite(
     path.write_bytes(original)
     plan = plan_settings_merge(
         path,
-        pre_tool_use_command="/bin/hook --agent claude-code",
-        session_start_command="/bin/keepsail change resume",
-        stop_command="/bin/hook --agent claude-code --event stop",
+        **_THREE_HOOKS,
     )
     real_replace = os.replace
     concurrent_error: list[str] = []
@@ -634,9 +644,7 @@ def test_concurrent_uninstall_cannot_race_install_replace(
     path.write_bytes(original)
     plan = plan_settings_merge(
         path,
-        pre_tool_use_command="/bin/hook --agent claude-code",
-        session_start_command="/bin/keepsail change resume",
-        stop_command="/bin/hook --agent claude-code --event stop",
+        **_THREE_HOOKS,
     )
     real_replace = os.replace
     uninstall_errors: list[str] = []
@@ -645,8 +653,8 @@ def test_concurrent_uninstall_cannot_race_install_replace(
         with pytest.raises(RuntimeError, match="another settings update is in progress") as exc:
             restore_or_remove_managed_hooks(
                 path,
-                pre_tool_use_marker="--agent claude-code",
-                stop_marker="--agent claude-code --event stop",
+                owns=_OWNS,
+                events=("PreToolUse", "SessionStart", "Stop"),
             )
         uninstall_errors.append(str(exc.value))
         real_replace(source, target)
@@ -664,9 +672,7 @@ def test_dead_owner_lock_is_reclaimed(tmp_path: Path, monkeypatch: pytest.Monkey
     path.write_bytes(b'{"theme":"dark"}\n')
     plan = plan_settings_merge(
         path,
-        pre_tool_use_command="/bin/hook --agent claude-code",
-        session_start_command="/bin/keepsail change resume",
-        stop_command="/bin/hook --agent claude-code --event stop",
+        **_THREE_HOOKS,
     )
     lock = path.with_name(f"{path.name}.keepsail.lock")
     lock.write_text('{"pid":424242}\n')
@@ -688,9 +694,7 @@ def test_live_owner_lock_is_refused_and_preserved(
     path.write_bytes(original)
     plan = plan_settings_merge(
         path,
-        pre_tool_use_command="/bin/hook --agent claude-code",
-        session_start_command="/bin/keepsail change resume",
-        stop_command="/bin/hook --agent claude-code --event stop",
+        **_THREE_HOOKS,
     )
     lock = path.with_name(f"{path.name}.keepsail.lock")
     lock_bytes = b'{"pid":12345}\n'
@@ -713,9 +717,7 @@ def test_corrupt_lock_is_refused_conservatively(tmp_path: Path) -> None:
     path.write_bytes(original)
     plan = plan_settings_merge(
         path,
-        pre_tool_use_command="/bin/hook --agent claude-code",
-        session_start_command="/bin/keepsail change resume",
-        stop_command="/bin/hook --agent claude-code --event stop",
+        **_THREE_HOOKS,
     )
     lock = path.with_name(f"{path.name}.keepsail.lock")
     lock.write_text("not-owner-json")
@@ -735,16 +737,12 @@ def test_old_corrupt_lock_is_reclaimed_without_settings_mutation(
     path = tmp_path / "settings.json"
     seed_plan = plan_settings_merge(
         path,
-        pre_tool_use_command="/bin/hook --agent claude-code",
-        session_start_command="/bin/keepsail change resume",
-        stop_command="/bin/hook --agent claude-code --event stop",
+        **_THREE_HOOKS,
     )
     path.write_bytes(seed_plan.desired_bytes)
     current_plan = plan_settings_merge(
         path,
-        pre_tool_use_command="/bin/hook --agent claude-code",
-        session_start_command="/bin/keepsail change resume",
-        stop_command="/bin/hook --agent claude-code --event stop",
+        **_THREE_HOOKS,
     )
     assert current_plan.changed is False
     original = path.read_bytes()
@@ -773,15 +771,13 @@ def test_symlink_settings_are_rejected_for_plan_and_uninstall(tmp_path: Path) ->
     with pytest.raises(ValueError, match="symlink"):
         plan_settings_merge(
             link,
-            pre_tool_use_command="/bin/hook --agent claude-code",
-            session_start_command="/bin/keepsail change resume",
-            stop_command="/bin/hook --agent claude-code --event stop",
+            **_THREE_HOOKS,
         )
     with pytest.raises(ValueError, match="symlink"):
         restore_or_remove_managed_hooks(
             link,
-            pre_tool_use_marker="--agent claude-code",
-            stop_marker="--agent claude-code --event stop",
+            owns=_OWNS,
+            events=("PreToolUse", "SessionStart", "Stop"),
         )
 
     assert link.is_symlink()
@@ -798,9 +794,7 @@ def test_symlinked_settings_parent_is_rejected_again_at_apply(
     plan = plan_settings_merge(
         path,
         workspace_root=workspace,
-        pre_tool_use_command="/bin/hook --agent codex",
-        session_start_command="/bin/keepsail change resume",
-        stop_command="/bin/hook --agent codex --event stop",
+        **_THREE_HOOKS,
     )
     settings_dir.rmdir()
     external = tmp_path / "external"

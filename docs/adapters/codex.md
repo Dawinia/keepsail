@@ -48,6 +48,31 @@ desired bytes plus the resolved `keepsail-hook` and `keepsail`
 executable paths. Apply revalidates those inputs; settings or PATH drift stops
 the install before a backup or write and asks you to review again.
 
+### Hook command form
+
+Codex runs a hook's `command` string but does not document which shell it uses,
+so keepsail chooses the form by OS instead of guessing:
+
+- **Windows** — keepsail names the interpreter itself:
+  `powershell.exe -NoProfile -NonInteractive -Command "& '<keepsail-hook>' --agent codex ..."`,
+  with forward-slashed, single-quoted paths. The string is valid whether Codex
+  hands it to `cmd` or to PowerShell. Paths containing `"`, `%`, `!`, `$`, a
+  backtick, CR or LF are refused, because one of those shells could expand them.
+- **macOS / Linux** — POSIX-shell quoting (`shlex`), so paths with spaces work.
+
+Existing keepsail entries are recognized and replaced, never duplicated. In
+`--knowledge-context` mode on Windows the keepsail entries are identical, field for
+field, to what earlier keepsail versions wrote for the same executable paths, so no
+re-trust is expected (Codex does not document which fields its trust hash covers). Default-mode hooks on Windows
+changed to the PowerShell form in this release: re-run `/hooks` and trust them once.
+
+`--knowledge-context` is **Windows-only**: its retrieval protocol is pinned to the
+`powershell-exit/v1` transport. On macOS/Linux, install refuses it — whether
+requested or carried over from an existing context install — before writing
+anything; use `keepsail adapter install codex --no-knowledge-context` to install
+the default hooks (`init` reports the same refusal as a per-integration plan
+error; run that command first).
+
 Backup behavior reflects the final transaction, not each hook:
 
 - A fresh `.codex/hooks.json` creates no backup.

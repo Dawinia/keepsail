@@ -27,6 +27,11 @@ from pathlib import Path
 import pytest
 
 from keepsail.adapters.agent.claude_code import ClaudeCodeAdapter
+from tests.conftest import hook_argv
+
+# These tests use POSIX-style fake executable paths; the Windows `.exe` rule and
+# transport are covered in tests/unit/adapters/test_hook_invocation.py and below.
+pytestmark = pytest.mark.usefixtures("posix_hook_target")
 
 _RESOLVED = "/abs/bin/keepsail-hook"
 _EXPECTED_COMMAND = f"{_RESOLVED} --agent claude-code"
@@ -60,7 +65,9 @@ def test_context_opt_in_is_one_transaction_and_survives_reinstall(tmp_path):
     commands = _session_commands(desired)
     assert "user-start" in commands
     assert sum("--event session-start" in command for command in commands) == 1
-    assert not any("change resume" in command for command in commands)
+    # `old-keepsail` is not a keepsail executable, so its hook is the user's and stays;
+    # keepsail's own `change resume` handler is replaced by the context handler.
+    assert [c for c in commands if "change resume" in c] == ["old-keepsail change resume"]
     assert "UserPromptSubmit" in desired["hooks"]
     assert len(desired["hooks"]["PostToolUse"]) == 2
     apply_settings_merge_plan(plan)
@@ -116,7 +123,7 @@ def _session_commands(settings: dict[str, object]) -> list[str]:
     out: list[str] = []
     for entry in entries:
         for hook in entry.get("hooks", []):  # type: ignore[union-attr]
-            out.append(hook["command"])
+            out.append(hook_argv(hook))
     return out
 
 
@@ -141,7 +148,7 @@ def _commands(settings: dict[str, object]) -> list[str]:
     out: list[str] = []
     for entry in entries:
         for hook in entry.get("hooks", []):  # type: ignore[union-attr]
-            out.append(hook["command"])
+            out.append(hook_argv(hook))
     return out
 
 
@@ -529,7 +536,7 @@ def test_install_registers_stop(tmp_path, monkeypatch):
     f = _install_into(tmp_path, monkeypatch, pre_existing=None)
     events = json.loads(f.read_text())["hooks"]
     assert "Stop" in events and "PreToolUse" in events
-    assert any("--event stop" in h["command"] for e in events["Stop"] for h in e["hooks"])
+    assert any("--event stop" in hook_argv(h) for e in events["Stop"] for h in e["hooks"])
 
 
 def test_uninstall_round_trip_removes_stop(tmp_path, monkeypatch):
@@ -603,3 +610,128 @@ def test_agents_md_subsection_does_not_offer_retired_reviewer_authorization() ->
     assert "review authorize" not in block
     assert "review begin" not in block
     assert "review import" in block
+
+
+# --------------------------------------------------------------------------- host preflight
+# The autouse conftest seam replaces `probe_claude_code_version`; these tests run the
+# real function (bound at import, before any fixture) against faked `claude` runs.
+from keepsail.adapters.agent import claude_code as _cc  # noqa: E402
+
+_REAL_PROBE = _cc.probe_claude_code_version
+
+
+def _fake_claude_run(monkeypatch: pytest.MonkeyPatch, *, stdout: str = "", returncode: int = 0,
+                     error: BaseException | None = None) -> list[list[str]]:
+    calls: list[list[str]] = []
+
+    def run(cmd: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        calls.append(cmd)
+        assert kwargs.get("timeout") == 5
+        if error is not None:
+            raise error
+        return subprocess.CompletedProcess(cmd, returncode, stdout=stdout, stderr="")
+
+    monkeypatch.setattr("keepsail.adapters.agent.claude_code.subprocess.run", run)
+    return calls
+
+
+def _lookup(name: str) -> str | None:
+    paths = {"claude": "/opt/claude", "keepsail-hook": _RESOLVED, "keepsail": _RESOLVED_CLI}
+    return paths.get(name)
+
+
+@pytest.mark.parametrize("stdout", ["2.1.332 (Claude Code)", "2.2.0 (Claude Code)", "10.0.1"])
+def test_probe_accepts_minimum_and_newer(monkeypatch: pytest.MonkeyPatch, stdout: str) -> None:
+    calls = _fake_claude_run(monkeypatch, stdout=stdout + "\n")
+    assert _REAL_PROBE(_lookup) == stdout.split()[0]
+    assert calls == [["/opt/claude", "--version"]]
+
+
+@pytest.mark.parametrize(("fake", "message"), [
+    ({"stdout": "2.1.331 (Claude Code)"}, r"reports 2\.1\.331"),
+    ({"stdout": "1.9.999"}, r"reports 1\.9\.999"),
+    ({"stdout": "Claude Code, version unknown"}, "Could not read a version"),
+    ({"stdout": "2.1.400", "returncode": 1}, "Could not read a version"),
+    ({"error": subprocess.TimeoutExpired(["claude"], 5)}, "did not answer within 5s"),
+    ({"error": OSError("Exec format error")}, "could not run"),
+])
+def test_probe_refuses_unusable_claude(
+    monkeypatch: pytest.MonkeyPatch, fake: dict[str, object], message: str,
+) -> None:
+    _fake_claude_run(monkeypatch, **fake)  # type: ignore[arg-type]
+    with pytest.raises(_cc.ClaudeCodeHostError, match=message) as error:
+        _REAL_PROBE(_lookup)
+    assert "2.1.332 or newer" in str(error.value)
+    assert "--no-agent" in str(error.value)
+
+
+def test_probe_refuses_missing_claude_without_running_anything(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls = _fake_claude_run(monkeypatch, stdout="2.1.332")
+    with pytest.raises(_cc.ClaudeCodeHostError, match="not found on PATH"):
+        _REAL_PROBE(lambda _name: None)
+    assert calls == []
+
+
+@pytest.mark.parametrize("pre_existing", [None, {"model": "keep"}])
+def test_install_hooks_with_old_claude_writes_nothing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, pre_existing: dict[str, str] | None,
+) -> None:
+    settings = tmp_path / ".claude" / "settings.local.json"
+    if pre_existing is not None:
+        settings.parent.mkdir()
+        settings.write_text(json.dumps(pre_existing))
+    original = settings.read_bytes() if settings.exists() else None
+    monkeypatch.setattr(_cc, "probe_claude_code_version", _REAL_PROBE)
+    monkeypatch.setattr("keepsail.adapters.agent.claude_code.shutil.which", _lookup)
+    _fake_claude_run(monkeypatch, stdout="2.1.100 (Claude Code)")
+
+    applied: list[object] = []
+    monkeypatch.setattr(_cc, "apply_settings_merge_plan", applied.append)
+    with pytest.raises(_cc.ClaudeCodeHostError, match=r"reports 2\.1\.100"):
+        ClaudeCodeAdapter().install_hooks(tmp_path)
+    assert applied == []
+    assert (settings.read_bytes() if settings.exists() else None) == original
+    if settings.parent.exists():
+        assert list(settings.parent.glob("*.keepsail-backup.*")) == []
+
+
+def test_install_hooks_at_minimum_reports_the_verified_cli_and_the_boundary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(_cc, "probe_claude_code_version", _REAL_PROBE)
+    monkeypatch.setattr("keepsail.adapters.agent.claude_code.shutil.which", _lookup)
+    _fake_claude_run(monkeypatch, stdout="2.1.332 (Claude Code)")
+    adapter = ClaudeCodeAdapter()
+    adapter.install_hooks(tmp_path)
+    assert (tmp_path / ".claude" / "settings.local.json").exists()
+    detail = adapter.installed_detail()
+    assert "verified Claude Code CLI 2.1.332" in detail
+    assert "IDE extension, Desktop, cloud" in detail and "does not verify" in detail
+
+
+def test_install_hooks_windows_non_exe_refuses_before_preflight_or_write(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(ClaudeCodeAdapter, "target_os", "nt")
+    monkeypatch.setattr("keepsail.adapters.agent.claude_code.shutil.which",
+                        lambda name: rf"C:\k\{name}.cmd")
+    probed: list[object] = []
+    monkeypatch.setattr(_cc, "probe_claude_code_version", lambda *a: probed.append(a) or "2.1.332")
+    with pytest.raises(RuntimeError, match=r"not a \.exe"):
+        ClaudeCodeAdapter().install_hooks(tmp_path)
+    assert probed == []
+    assert not (tmp_path / ".claude" / "settings.local.json").exists()
+
+
+def test_uninstall_needs_no_claude(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("keepsail.adapters.agent.claude_code.shutil.which", _which_both)
+    ClaudeCodeAdapter().install_hooks(tmp_path)
+
+    def no_claude(*_args: object) -> str:
+        raise AssertionError("uninstall must not check the Claude Code host")
+
+    monkeypatch.setattr(_cc, "probe_claude_code_version", no_claude)
+    ClaudeCodeAdapter().on_uninstall(tmp_path)
+    assert not (tmp_path / ".claude" / "settings.local.json").exists()
