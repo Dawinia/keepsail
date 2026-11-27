@@ -54,6 +54,9 @@ stage: plan
   - **新授权中的继续计划无法定位**、**旧 `signed-plan-decision` 下的继续批准没有认可规则**：两项都来自保留"继续计划"。
     负责人 2026-11-28 决定去掉这个功能：策略改变后，不被新策略认可的旧批准，按新流程重新取得批准。
     这只会更严，并删掉一整块兼容逻辑（C2、C3、C7）。
+- 第 21 版（`eb9609f`）由同一 Codex 配置评审，拒绝，1 个阻断项；原始输出在 `plan-review-21/`。本版的处理：
+  - **缺少"升级交付经旧 v2 json base 上安装的验证器"的端到端测试**：接受，迁移测试拆出这一步（C7）。
+  - 非阻断项：写明历史 v3 的结构解析继续识别 `recovery`/`continued_plan` 模式，但新交付的判定不接受它们（C7）。
 
 ## 产品核心（本计划保持）
 
@@ -297,15 +300,18 @@ keepsail 不判断文字的语义：语义由计划审查负责，具体改了�
        沿用该文件现有的 `verify_with_installed_base` 构建方式；
     2. 用旧版本建立计划流程为 `signed-plan-decision` 的 v2 策略，签名授权一次切换，把计划流程改为 json owner 结论；
        按旧义务交付，并由从该 base 安装的旧验证器 `attest verify` 通过；
-    3. 在迁移后的 base 上切换到本 Change 的代码，完成一次普通交付：json owner 计划结论经 `review import`
-       被接受，`done` 通过，`attest verify` 通过。
+    3. **升级交付（读端先行）：** 在迁移后的 v2 json base 上，候选为本 Change 的代码，不含风险边界变更。
+       该交付由**从迁移后 base 安装的旧验证器**执行 `attest verify --base BASE --head HEAD` 并通过，然后合并；
+    4. 在升级后的 base 上，用本 Change 的代码完成一次普通交付：json owner 计划结论经 `review import` 被接受，
+       `done` 通过；由从升级后 base 安装的新验证器执行 `attest verify` 并通过。
     第 1、2 步需要旧版本的 `cryptography`，它只进入测试依赖组，不再是运行时依赖；
     运行时依赖中没有 `cryptography` 由 C3 的另一条测试保证；
     固定的旧提交须在运行环境中可用：`.github/workflows/test.yml` 中运行该文件的 `delivery-policy-offline` job
     的 checkout 改为 `fetch-depth: 0`（`pytest` job 已是如此），取历史发生在网络隔离之前。
     提交缺失时测试**失败**并说明原因（例如浅克隆），不跳过；
   - 带历史 `policy_authorization_imported` 事件的账本折叠结果不变；
-  - 历史签名 v3 可以解析；新增的签名 v3 被拒绝；
+  - 历史签名 v3 可以解析，包括带 `recovery` 与 `continued_plan` 依据模式的记录：结构解析器继续识别这些模式，
+    但新交付的判定不再接受它们；新增的签名 v3 被拒绝；
   - **升级后的进行中 Change：** 在迁移场景中，用旧版本让签名切换的 `continued_plans` 列出一个进行中 Change 并合并；
     换成新代码后，该 Change 的旧批准不再被接受（`status` 给出原因）。按新流程（json owner 结论）重新取得批准后，
     `done` 和 `attest verify` 通过；
