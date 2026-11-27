@@ -33,6 +33,10 @@ stage: plan
     紧接着的下一个 Change 中执行，由负责人 2026-11-28 决定（C8）。
   - **逐项记录漏掉新增与加强的义务**：接受，逐项变化改为完整列出（C2）。
   - **停用策略缺少测试**：接受，补上（C7）。
+- 第 16 版（`8702557`）由同一 Codex 配置评审，拒绝，2 个阻断项；原始输出在 `plan-review-16/`。评审确认第 15 轮的四项已处理。
+  两项都针对计划流程为 `signed-plan-decision` 的已部署项目：重新解释它会在不触发授权的情况下改变认可规则，
+  且这类项目在旧验证器下无法完成升级。负责人 2026-11-28 决定：先用旧版本迁移，新版本拒绝并给出说明，
+  不再重新解释（C3、C7）。
 
 ## 产品核心（本计划保持）
 
@@ -160,8 +164,13 @@ stage: plan
 **维护者审批计划。**
 
 - 生成的默认策略中，计划流程的证据形式改为 `json`，issuer 为 owner，通过 `review import` 导入 owner 的结论。
-- 已有策略若列出 `signed-plan-decision`，读作"由该流程所列 issuer 给出的 owner 计划结论"，以 json 导入。
-  该形式原本的含义就是"维护者决定计划"，这里只去掉签名证明，不扩大认可的来源。
+- 已有策略若列出 `signed-plan-decision`，新版本**不重新解释**它，以免在 owner 不知情时改变认可规则。
+  可信 base 上的策略只要仍列出这种形式，新版本在 `status`、`review import`、`done` 和 `attest verify` 中
+  都明确拒绝，并给出迁移说明（负责人 2026-11-28 的决定）：
+  1. 仍用当前（旧）版本，走一次已有的签名切换，把计划流程改为 json 形式的 owner 结论，按旧义务交付并合并；
+  2. 再升级 keepsail（C10 的读端先行顺序）。
+  这样，这次认可规则的变化在旧机制下由 owner 签名授权，并留下记录。迁移只能在旧版本上完成，
+  `docs/getting-started.md` 的升级说明写明这一点。
 
 **旧数据：**
 
@@ -241,7 +250,9 @@ stage: plan
   - 不改策略的交付不需要授权，且没有多余授权；
   - 删除 `policy-authority.yaml` 不需要授权。
 - **C3：**
-  - 带 `activation` 字段与 `signed-plan-decision` 的已有 v2 策略可以读取并照常工作；
+  - 带 `activation` 字段、计划流程为 json 的已有 v2 策略可以读取并照常工作；
+  - 可信 base 上的策略列出 `signed-plan-decision` 时，`status`、`review import`、`done`、`attest verify`
+    都拒绝，错误信息包含迁移说明，且不接受不带签名的 json 计划结论来代替它；
   - 带历史 `policy_authorization_imported` 事件的账本折叠结果不变；
   - 历史签名 v3 可以解析；新增的签名 v3 被拒绝；
   - `cryptography` 未安装时所有命令可用。
