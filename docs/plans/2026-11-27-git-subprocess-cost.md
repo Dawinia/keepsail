@@ -26,6 +26,13 @@ stage: plan
   5. 保留 #143 中与策略无关的性能和内存改进。
 - 前几版计划中"性能 Change 不改变信任模型"一条，不是负责人定的规则，而是之前某个 session 自己的总结，
   这里撤回。
+- 第 15 版（`468fff4`）由同一 Codex 配置评审（负责人选定，不是当前认可契约中的流程，无法记录为认可证据，#159），
+  拒绝，4 个阻断项；原始输出在 `plan-review-15/`。本版的处理：
+  - **与 `d-policy-replay-offline-v2` 的身份输入要求冲突**：接受，新增取代它的决策，由负责人 ratify（C9）。
+  - **合并闸门从旧 base 安装的验证器只认签名**：接受，写明读端先行的顺序（C10）。C8 的恢复因此改在
+    紧接着的下一个 Change 中执行，由负责人 2026-11-28 决定（C8）。
+  - **逐项记录漏掉新增与加强的义务**：接受，逐项变化改为完整列出（C2）。
+  - **停用策略缺少测试**：接受，补上（C7）。
 
 ## 产品核心（本计划保持）
 
@@ -90,8 +97,17 @@ stage: plan
 - 认可策略的生效摘要不同。这包括 v1 与 v2，也包括首次启用、停用和 v1→v2 升级；
 - 必需检查契约（`required_check_contract`）的摘要不同。
 
-逐项变化沿用现有的 `changed_obligations`/`changed_required_checks` 计算，例如流程替换、代码审查模式放宽、
-必需检查删除、降级或替换。
+逐项变化**完整列出**，不只列削弱：
+
+- 每个 kind 的认可流程：新增、删除、替换；
+- 代码审查模式与范围：放宽、加强或其他修改，包括 `scope` 路径的增减；
+- 内置检查契约版本的变化；
+- 必需检查按 `(来源, ID)`：新增、删除、定义改变（命令、参数、工作目录、环境、超时、必需标记）；
+- 策略的启用与停用，以及版本变化。
+
+现有的 `changed_obligations`/`changed_required_checks` 只列出被删除、替换或削弱的旧义务。它们改为一个
+完整的差异函数，每一项带方向（`added`/`removed`/`changed`）和改动前后的值。摘要不同而差异为空时，
+视为实现错误并拒绝，不能静默放行。
 
 **计划声明。** 被改动的策略文件和检查配置文件必须在冻结计划的范围内，沿用现有的 frozen plan paths 校验。
 授权绑定该 Change 生效批准的计划对象。
@@ -212,7 +228,11 @@ stage: plan
   - `attest verify` 的 git 进程数不随切换次数增长；
   - 基线上的策略摘要与检查配置不符时，照常拒绝。
 - **C2：**
-  - v1→v1 更换流程、v1→v2、v2→v2、修改必需检查、首次启用，各自需要授权才能 `done` 和通过合并判定；
+  - v1→v1 更换流程、v1→v2、v2→v2、修改必需检查、首次启用、停用（v1 与 v2 各一例），各自需要授权才能
+    `done` 和通过合并判定。停用的例子中，做出改动的 Change 在 `done` 和合并判定两处都仍要满足旧义务；
+    候选策略被停用，不妨碍按基线策略判定；
+  - 逐项记录完整：新增必需检查、加强代码审查（`off`→`full`、`scope` 增加路径）、新增流程 kind、
+    检查定义只改超时，都出现在记录中并带正确方向；构造"摘要不同、差异为空"的情况时拒绝；
   - 授权后改动目标策略，或改动检查定义，授权失效；
   - 授权后 rebase 或修改代码，授权仍然有效；
   - 计划范围不含策略文件时拒绝；
@@ -248,8 +268,11 @@ stage: plan
   本计划中的测量为 2833 s，所以恢复条件在计划阶段不触发。
 - 实施后再用同一方法测量一次，写入 PR 和 `implementation record`：
   - 不低于 2000 s：恢复条件不触发，文件不变。
-  - 低于 2000 s：本 Change 按原文恢复串行命令与 2700 s。这是必需检查的变更，按 C2 由计划声明、由 owner 执行
-    `policy accept`，并接受代码审查。作者不代替 owner 授权，也不单方面放弃这项义务。
+  - 低于 2000 s：恢复串行命令与 2700 s 是必需检查的变更。本 Change 合并之前，合并闸门用的仍是 base 上的旧验证器，
+    它只接受签名授权（C10），因此这一步不能在本 Change 内通过闸门。负责人 2026-11-28 决定：恢复在本 Change
+    合并后**紧接着的下一个 Change** 中执行，按 C2 由计划声明、由 owner 执行 `policy accept`，并接受代码审查。
+    这是负责人对 `2026-11-24` 中"在本 Change 内"的调整；恢复义务本身不放弃，测量结果仍写入本 Change 的 PR。
+    作者不代替 owner 授权。
 - 2026-12-31 由负责人重新评估的兜底条款不变。
 
 ### C9 文档与决策
@@ -272,20 +295,41 @@ stage: plan
   - 其余（交付义务、`code_review_not_required`、完成事务、必需检查摘要、可见性）保持。
   - 在 `docs/product-architecture-coverage.md` 中写明取代关系。已批准的计划文件本身不改写。
 - 决策：
-  - `d-policy-replay-offline-v2` 的规则（不访问网络）仍然成立。它的正文提到 authority 与初始信任；
-    正文受哈希锁定，本 Change 不修改。检查脚本对已删除的文件会跳过，仍能拦截违规。
-    是否按新组件名重新 ratify，由负责人决定。
+  - `d-policy-replay-offline-v2` 要求验证路径使用"独立提供的仓库与 ref 身份"。这个身份只用于签名比较，
+    本 Change 删除签名后它不再是输入，与该决策的正文冲突。处理方式：
+    - 用 `keepsail decision new d-policy-replay-offline-v3` 新增一条决策，`supersedes: d-policy-replay-offline-v2`。
+      正文只保留"策略、交付、no-review、v3 重放和 Git 对象路径使用已提交的 Git 证据，不访问网络"，
+      不再要求身份输入；检查脚本沿用 v2 的网络客户端检测，路径列表去掉已删除的文件；
+    - 先用 `decision ratify --dry-run` 确认检查能拦截违规；
+    - ratify 并取代 v2 是负责人的行为。负责人 ratify 之前，本 Change 不执行 `done`；作者不代为 ratify。
+    - v2 的正文不手工修改。
   - `transitions.py` 的改动只在非转换集合中加入新事件类型，按 `d-fixed-transition-matrix` 的要求执行
     `decision reconcile` 并写明理由。
   - 用 `keepsail decision new` 提交一条 proposed 决策（不附锚点，是否 ratify 由负责人决定）：
     "改变认可策略或必需检查的 Change 须计划声明并由 owner 记录授权；keepsail 不以签名或回放证明策略来历。"
+
+### C10 读端先行：升级顺序
+
+- 合并闸门从目标分支的 base 安装验证器（`.github/workflows/merge-gate.yml`）。在新版本进入目标分支之前，
+  base 上的旧验证器只接受签名授权，不认识 `policy-acceptance/v1`。
+- 因此，升级顺序是：
+  1. 升级 keepsail 的那次交付本身**不得**包含风险边界变更，按普通交付通过旧验证器；
+  2. 新验证器进入目标分支后，之后的 Change 才能用 `policy accept` 改变策略或必需检查。
+- 本 Change 就是第一步：它不修改 `.harness/review-recognition.yaml` 与 `.harness/verification.yaml`
+  的生效内容（C8 的恢复放到下一个 Change），可由本仓库 base 上的旧验证器验证。
+- 不做自动的版本探测：本 Change 不提升版本号，用户的 workflow 固定的验证器版本也各不相同，探测不可靠。
+  顺序写入 `docs/getting-started.md` 的升级说明和 `docs/limitations.md`：在旧验证器仍在 base 上时
+  提交风险边界变更，合并闸门会以"缺少签名授权"拒绝，此时先合入升级即可。
+- 测试：在隔离仓库中，base 为当前 `main` 的提交并从它安装验证器，候选为本 Change 的代码、不改策略，
+  `attest verify --base BASE --head HEAD` 通过。
 
 ## 不做
 
 - 不引入新的签名、密钥或审计命令；不区分 owner 与 agent 身份（#158）。
 - 不缓存跨命令的验证结果，不缓存 verify 的检查结果（B14），不调整评审顺序（B39）。
 - 不改写历史账本或已提交的 attestation。
-- 不修改 `.harness/verification.yaml`（C8 的条件触发除外），不改 pytest worker 数。
+- 不修改 `.harness/verification.yaml` 和 `.harness/review-recognition.yaml`（C8 的恢复在下一个 Change 中进行），
+  不改 pytest worker 数。
 - 不发布新版本，也不提升模板固定的 CLI 版本。
 - 不处理本仓库的认可策略本身。更换本仓库的评审流程（#159 的直接诉求）将来作为单独的 Change，使用 C2 的路径。
 
