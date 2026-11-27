@@ -37,6 +37,9 @@ stage: plan
   两项都针对计划流程为 `signed-plan-decision` 的已部署项目：重新解释它会在不触发授权的情况下改变认可规则，
   且这类项目在旧验证器下无法完成升级。负责人 2026-11-28 决定：先用旧版本迁移，新版本拒绝并给出说明，
   不再重新解释（C3、C7）。
+- 第 17 版（`6726c1f`）由同一 Codex 配置评审，拒绝，2 个阻断项；原始输出在 `plan-review-17/`。本版的处理：
+  - **迁移路径缺少端到端测试**：接受，加入旧版本迁移加新版本普通交付的测试（C7）。
+  - **`reducer.py` 的改动未按 `d-state-pure-fold` 复核和 reconcile**：接受（C5）。
 
 ## 产品核心（本计划保持）
 
@@ -210,6 +213,9 @@ stage: plan
   （账本回放与状态推导仍来自同一份 `content`）、`cli/change.py` 的 `_tail_events_for_change`。
 - `knowledge.load_ledger` 的物理行校验与逐行前缀哈希不变。
 - 折叠逻辑和事件格式不变。
+- `reducer.py` 的改动按 `d-state-pure-fold` 的要求复核：确认 `derive_state` 仍是对同一份字节展开结果的纯折叠，
+  记忆只是按字节内容记住纯函数结果，不引入 I/O、时钟或可变的共享状态。复核成立后执行
+  `keepsail decision reconcile d-state-pure-fold` 并写明理由；不成立则停下交负责人。
 - 不做：调整 verify 并发、把检查输出直接写文件、knowledge checkpoint 去重（测量不支持这些改动）。
 
 ### C6 重写策略切换场景测试，保留回归入口
@@ -253,6 +259,15 @@ stage: plan
   - 带 `activation` 字段、计划流程为 json 的已有 v2 策略可以读取并照常工作；
   - 可信 base 上的策略列出 `signed-plan-decision` 时，`status`、`review import`、`done`、`attest verify`
     都拒绝，错误信息包含迁移说明，且不接受不带签名的 json 计划结论来代替它；
+  - **迁移端到端**，放在 `test_delivery_policy_transition.py` 中，作为一个独立测试：
+    1. 在隔离仓库中，用本 Change 的分支起点（测试中以常量固定该提交 OID）构建并安装旧版本，
+       沿用该文件现有的 `verify_with_installed_base` 构建方式；
+    2. 用旧版本建立计划流程为 `signed-plan-decision` 的 v2 策略，签名授权一次切换，把计划流程改为 json owner 结论；
+       按旧义务交付，并由从该 base 安装的旧验证器 `attest verify` 通过；
+    3. 在迁移后的 base 上切换到本 Change 的代码，完成一次普通交付：json owner 计划结论经 `review import`
+       被接受，`done` 通过，`attest verify` 通过。
+    第 1、2 步需要旧版本的 `cryptography`，它只进入测试依赖组，不再是运行时依赖；
+    运行时依赖中没有 `cryptography` 由 C3 的另一条测试保证；
   - 带历史 `policy_authorization_imported` 事件的账本折叠结果不变；
   - 历史签名 v3 可以解析；新增的签名 v3 被拒绝；
   - `cryptography` 未安装时所有命令可用。
