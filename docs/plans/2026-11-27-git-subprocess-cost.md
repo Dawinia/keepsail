@@ -57,6 +57,10 @@ stage: plan
 - 第 21 版（`eb9609f`）由同一 Codex 配置评审，拒绝，1 个阻断项；原始输出在 `plan-review-21/`。本版的处理：
   - **缺少"升级交付经旧 v2 json base 上安装的验证器"的端到端测试**：接受，迁移测试拆出这一步（C7）。
   - 非阻断项：写明历史 v3 的结构解析继续识别 `recovery`/`continued_plan` 模式，但新交付的判定不接受它们（C7）。
+- 第 22 版（`a77042e`）由同一 Codex 配置评审，拒绝，2 个阻断项，都在 C5；原始输出在 `plan-review-22/`。本版的处理：
+  - **进程级记忆与 `d-state-pure-fold` 冲突**：接受，去掉记忆，改为把展开后的行作为显式参数传给下游（C5）。
+  - **其他直接调用方绕过记忆，计数承诺无法成立**：接受，覆盖范围收窄到测得重复的路径（`change resume`、
+    严格写入的前置校验），计数按字节快照、直接包装 `effective_event_lines`（C5、C7）。
 
 ## 产品核心（本计划保持）
 
@@ -231,17 +235,22 @@ keepsail 不判断文字的语义：语义由计划审查负责，具体改了�
 - 假设：一次操作期间仓库不发生 fetch --unshallow、replace 或 graft。现有代码在一次操作内本来就会多次查询，
   同样受并发改写影响。这一点写入 `docs/limitations.md`。
 
-### C5 命令内存：同一份字节只展开一次
+### C5 命令内存：在测得重复的路径上，同一份字节只展开一次
 
-- 新增 `effective_lines_for(content: bytes) -> tuple[str, ...]`：以 `content` 的 SHA-256 为键，在进程内记住
-  `effective_event_lines` 的结果，只保留最近 1 个。它不读文件。
-- 以下三处改用它，每处仍各自读取并持有自己的字节快照：`reducer.derive_state`、`knowledge._inputs_from_content`
-  （账本回放与状态推导仍来自同一份 `content`）、`cli/change.py` 的 `_tail_events_for_change`。
-- `knowledge.load_ledger` 的物理行校验与逐行前缀哈希不变。
-- 折叠逻辑和事件格式不变。
-- `reducer.py` 的改动按 `d-state-pure-fold` 的要求复核：确认 `derive_state` 仍是对同一份字节展开结果的纯折叠，
-  记忆只是按字节内容记住纯函数结果，不引入 I/O、时钟或可变的共享状态。复核成立后执行
-  `keepsail decision reconcile d-state-pure-fold` 并写明理由；不成立则停下交负责人。
+- **不使用任何模块级或进程级的记忆。** 持有账本字节的调用方展开一次，把展开后的行（不可变元组）作为
+  显式参数传给下游；下游已有接受行的入口（如 `derive_state_from_lines`），缺少的补一个可选参数，
+  不传时行为与现在相同。折叠函数本身不读写任何全局状态，与 `d-state-pure-fold` 一致。
+- 覆盖范围限于测得重复展开的路径，其余约 20 个直接调用 `effective_event_lines` 的位置不改：
+  - `change resume`（实测在一次调用中对整个账本展开 3 次）：`resume` 读取一次字节并展开一次，
+    `derive_state`、`knowledge.read_inputs` 的状态推导与 `_tail_events_for_change` 使用同一份行。
+    `read_inputs` 的账本回放与状态推导仍来自同一份字节；
+  - 严格写入的前置校验：`emit_validation` 中一次校验里的 `_current_state` 与 `_change_event_types`
+    对同一份字节各展开一次，改为共用一次展开。
+- 计数口径按**字节快照**：同一份字节（以 SHA-256 区分）在上述路径中至多展开一次；事件追加会产生新快照，
+  新快照的展开另计。
+- `knowledge.load_ledger` 的物理行校验与逐行前缀哈希不变。折叠逻辑和事件格式不变。
+- `reducer.py` 只增加接受已展开行的可选参数，不引入状态。按 `d-state-pure-fold` 复核后执行
+  `keepsail decision reconcile d-state-pure-fold` 并写明理由；复核不成立则停下交负责人。
 - 不做：调整 verify 并发、把检查输出直接写文件、knowledge checkpoint 去重（测量不支持这些改动）。
 
 ### C6 重写策略切换场景测试，保留回归入口
@@ -324,12 +333,13 @@ keepsail 不判断文字的语义：语义由计划审查负责，具体改了�
   - 常驻进程在作用域结束时关闭；
   - `report` 与线程池任务在作用域内。
 - **C5：**
-  - 同一份字节命中缓存；追加内容后不命中；返回值不可变；
-  - 在现有账本夹具上，结果与直接调用 `effective_event_lines` 逐项相同；
-  - 错误不被记住；
+  - 计数直接包装 `effective_event_lines` 本身（不是某个辅助函数），按输入字节的 SHA-256 分组：
+    `change resume` 中每个字节快照至多展开 1 次；一次严格写入的前置校验中，每个字节快照至多展开 1 次；
+  - 传入行与不传行两种调用方式，在现有账本夹具上（含 completion transaction、紧凑 attestation、恢复记录、
+    畸形行）得到逐项相同的状态与事件；展开错误的行为不变；
+  - 模块中没有新增的全局可变状态（测试断言相关模块的模块级名称集合不变）；
   - `load_ledger` 的前缀哈希与 revision 逐字节不变；
-  - 账本在读取后被追加时，`read_inputs` 仍来自同一份快照；
-  - `status`、`change resume`、`done`、`report`、`verify` 对完整账本的展开各不超过 1 次。
+  - 账本在读取后被追加时，`read_inputs` 仍来自同一份快照。
 - **全量：** `keepsail verify`、`keepsail decision check`、`keepsail doc check` 通过。
 
 ### C8 `2026-11-24` 的串行测量义务
