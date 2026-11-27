@@ -24,6 +24,13 @@ stage: plan
     不再按路径重读，`load_ledger` 的物理行校验不变。
   - **第 4 项（C5 改动已批准的回归入口）**：接受，C5 保留原文件、原入口命令与完整端到端路径。
   - 非阻断项（`PolicySnapshot` 没有 `activation_commit`）：命中后的复核改为比较快照中确实存在的字段（C1）。
+- 第 10 版（`8be1a34`）由同一 Codex 配置评审，拒绝，2 个阻断项；原始输出保留在 `plan-review-10/`。
+  评审确认第 9 轮的账本与回归入口问题已解决，也未因缓存未经认证本身拒绝。本版对 2 项的处理：
+  - **依赖只按名称和版本标识**：接受。验证器摘要改为对依赖闭包中每个分发包实际安装的文件内容做哈希，
+    可编辑安装或来源无法确定的依赖使持久记忆停用（C1）。
+  - **冷启动边界只在 CLI 层规定**：接受。持久记忆改为默认关闭、由本地生命周期命令显式开启；
+    核心合并判定入口 `engineering/attestation.py` 的 `verify_attestations` 在内部强制冷启动，
+    即使外层已开启也不读写，并在该入口直接测试（C1、C4）。
 
 ## 不变量（本计划不改变）
 
@@ -135,14 +142,23 @@ verify 进程树的其余内存来自用户自己配置的检查，不属于 kee
 **键。** `(可信提交完整 OID, repository_id, target_ref, 验证器摘要)`：
 
 - 提交 OID 是内容寻址的，键中不出现 ref 或分支名（#143 的约束）。
-- 验证器摘要是以下内容的 SHA-256，在一个进程内只计算一次：
+- 验证器摘要标识实际执行的代码，而不只是版本号。它是以下内容的 SHA-256，在一个进程内只计算一次：
   - 已安装 `keepsail` 包内全部 `*.py` 文件（按相对路径排序）的内容，因而可编辑安装下的未发布改动也会换键；
-  - keepsail 运行时依赖闭包中每个分发包的规范化名称与版本：从 `importlib.metadata` 读取 keepsail 的
-    `Requires-Dist`（只取当前环境适用的项），递归解析，按名称排序。这覆盖 PyYAML 与 `cryptography`；
-  - `cryptography` 链接的 OpenSSL 版本文本；
-  - Python 实现名与完整版本；
+  - keepsail 运行时依赖闭包：从 `importlib.metadata` 读取 keepsail 的 `Requires-Dist`（只取当前环境适用的项），
+    递归解析，按规范化名称排序。对其中每个分发包，按相对路径排序，哈希它实际安装的每个文件的**内容**
+    （`Distribution.files` 列出的文件，`.dist-info` 下的 `RECORD`、`INSTALLER` 等安装记录除外），
+    包括编译扩展。这覆盖 PyYAML（含其 C 扩展）与 `cryptography` 的 Rust/OpenSSL 扩展；
+    打补丁、换构建或换安装后，内容变化即换键；
+  - Python 的 `sys.version`（含构建信息）、`sys.implementation.cache_tag`，以及 `sys.executable` 文件内容的哈希；
   - `KEEPSAIL_ACTIVATION_CACHE_SCHEMA = 1`。
-- 任一项无法确定（元数据缺失、依赖未安装）时不持久化，只用进程内记忆。
+- 以下情况不持久化，只用进程内记忆：任一依赖的元数据或文件清单缺失、列出的文件不存在或不可读；
+  任一依赖是可编辑安装（`direct_url.json` 中 `dir_info.editable` 为真）或其导入位置不在列出的文件之内
+  （此时安装记录不能代表实际执行的代码）。
+- 未覆盖的部分如实写入 `docs/limitations.md`：解释器标准库或解释器动态库被原地改写（解释器版本与可执行文件不变）
+  不会换键。这需要改写解释器安装本身，属于下文"信任边界"中已让出的本地写入，合并验证不受影响；
+  需要时可用 `KEEPSAIL_NO_ACTIVATION_CACHE=1` 停用。
+- 摘要的计算成本在实施后实测并写入 PR（本机，冷文件缓存与热文件缓存各一次）；
+  若单次超过 200 ms，在 PR 中报告并说明对 hook 延迟的影响，不放宽覆盖范围。
 
 **纯函数前提（实施的第一步，先于缓存代码）。**
 
@@ -169,10 +185,17 @@ verify 进程树的其余内存来自用户自己配置的检查，不属于 kee
 `change` 与结果一致（`initial` 对应 `change` 为空）。不一致按未命中处理。这项核对只防止过期或错放的条目，
 **不是**对条目的认证（见下文信任边界）。
 
-**谁使用。** 只有本地生命周期命令使用持久记忆：`status`、`report`、`review import`、`done`、`verify`、
-`change resume`、hook 等。以下情况只用进程内记忆，从不读写持久记忆：
+**谁使用，以及如何强制。**
 
-- `attest verify`（合并验证；CI 中从可信 base 安装运行，也可在本地手动运行以得到冷启动的权威结论）；
+- 持久记忆**默认关闭**。`attestation_v3_verify` 的验证函数在没有显式开启时只用进程内记忆；任何新的或未列出的
+  调用方因此默认冷启动。
+- 只有本地生命周期命令通过一个显式的作用域 `persistent_activation_memo(root)` 开启它：`status`、`report`、
+  `review import`、`done`、`verify`、`change resume`、hook。开启点在这些命令的 CLI 入口，逐个列出，不按子命令集合推断。
+- 核心合并判定入口 `engineering/attestation.py` 的 `verify_attestations`（当前唯一调用方是 `cli/attest.py:235`
+  的 `attest verify`）在函数内部进入一个强制冷启动的作用域：即使外层已经开启持久记忆，它和它调用的
+  激活与交付验证也不读、不写持久记忆。`attest verify` 不开启持久记忆（CI 中从可信 base 安装运行；
+  本地也可手动运行，得到冷启动的权威结论）。
+- 即使在已开启的作用域内，以下情况也不读写持久记忆：
 - 环境变量 `GITHUB_ACTIONS=true`，或 `KEEPSAIL_NO_ACTIVATION_CACHE=1`；
 - 浅克隆（`git rev-parse --is-shallow-repository` 为 `true`）；
 - 存在 `refs/replace/` 下的 ref，或 `.git/info/grafts`，或设置了 `GIT_REPLACE_REF_BASE`、`GIT_GRAFT_FILE`、
@@ -191,7 +214,8 @@ verify 进程树的其余内存来自用户自己配置的检查，不属于 kee
   - 本地生命周期判定本来就以 agent 可写的本地历史为依据：`2026-11-10` 的 C5 写明"本地严格写入按本地历史强制相关义务；
     CI 只能核验保留的证据"，而本地历史 `.harness/events.jsonl` 同样可由 shell 追加。
 - 权威层不变：合并验证不读取持久记忆，从头完整回放。伪造的条目最多改变本地命令的判定，过不了合并闸门。
-- 纯函数前提成立时，诚实产生的条目与重算结果逐字节相同，所以没有伪造时本地判定与现在完全一致。
+- 纯函数前提成立、且验证器摘要覆盖的代码未变时，诚实产生的条目与重算结果逐字节相同，所以没有伪造时
+  本地判定与现在完全一致；摘要未覆盖的情形（解释器安装被原地改写）见上文，同属已让出的本地写入。
 - 失败不持久化，所以修复环境（例如补齐对象）后立即重新验证。
 
 **复杂度。** 主分支前进一步后，第一条本地命令只验证新增的一步，与此前的链长无关。
@@ -259,12 +283,16 @@ verify 进程树的其余内存来自用户自己配置的检查，不属于 kee
   且在 1 次与 3 次夹具上相同。
 - **冷启动按步线性。** 清空缓存目录后，第一条命令的 git 次数在 1 次与 3 次夹具上之差，等于两倍的单步增量
   （允许每步差异不超过 10%）；紧接着的第二条命令与预热状态的次数相同。
-- **合并验证永远冷启动。** 预热后运行 `attest verify`：不读取、不写入缓存目录，git 次数与清空缓存时相同。
-  设置 `GITHUB_ACTIONS=true` 时，生命周期命令同样不读写缓存目录。
-- **伪造条目的边界如实。** 为一个回放会失败的激活提交写入一个结构合法的伪造条目：`attest verify` 仍以原错误拒绝；
-  该测试同时记录本地 `status` 接受该条目，与 `docs/limitations.md` 中写明的边界一致。
-- **验证器换键。** 分别改变 keepsail 源码摘要、一个依赖的版本（测试中替换元数据读取函数）、Python 版本后，
-  不命中旧条目；依赖元数据缺失时不写入缓存目录。
+- **合并验证永远冷启动（在核心入口测试）。**
+  - 预热后直接调用 `verify_attestations`：不读取、不写入缓存目录，git 次数与清空缓存时相同；
+  - 在已进入 `persistent_activation_memo` 的作用域内调用 `verify_attestations`，结果相同（强制冷启动覆盖外层）；
+  - 未进入该作用域时直接调用 `verify_v2_activation`，不读写缓存目录（默认关闭）；
+  - CLI 层再测一次 `attest verify`；设置 `GITHUB_ACTIONS=true` 时，生命周期命令同样不读写缓存目录。
+- **伪造条目的边界如实。** 为一个回放会失败的激活提交写入一个结构合法的伪造条目：`verify_attestations` 与
+  `attest verify` 仍以原错误拒绝；该测试同时记录本地 `status` 接受该条目，与 `docs/limitations.md` 中写明的边界一致。
+- **验证器换键。** 分别做以下改变后不命中旧条目：改动 keepsail 一个源文件；在版本号不变的情况下改动一个依赖
+  安装文件的内容（测试中用临时的假分发包及其文件清单）；改变 Python 版本信息。依赖元数据或文件清单缺失、
+  列出的文件不存在、依赖为可编辑安装时，不写入缓存目录。
 - **语义不变。** 对每一个现有的回放负例（激活 attestation 在引入后被修改、前任不可达、目标策略摘要不符等），
   分别在冷缓存与预热缓存下运行：两次的退出码和错误信息相同。预热缓存下，篡改发生在新提交上，
   所以新提交不命中，仍被拒绝。
@@ -366,8 +394,9 @@ verify 进程树的其余内存来自用户自己配置的检查，不属于 kee
 - `src/keepsail/core/`：`attestation_v3_verify.py`、`effective_policy.py`、`policy_snapshot.py`、
   `git_objects.py`、`scope_match.py`、`approval.py`，新增 `activation_cache.py`；
   `events.py`、`reducer.py`、`knowledge.py`。
-- `src/keepsail/cli/__init__.py`、`src/keepsail/cli/change.py`（`resume`、`_tail_events_for_change`）、
-  `attest verify` 所在的 CLI 模块（只用于关闭持久记忆）。
+- `src/keepsail/cli/__init__.py`、`src/keepsail/cli/change.py`（`resume`、`_tail_events_for_change`），
+  以及开启持久记忆的各生命周期命令入口所在的 CLI 模块（hook 经 `cli/gate.py` 进入）。
+- `src/keepsail/engineering/attestation.py`（`verify_attestations` 强制冷启动）。
 - `src/keepsail/sensors/dispatcher.py`、`src/keepsail/sensors/verification_runner.py`。
 - `tests/`：`test_delivery_policy_transition.py` 的文件内拆分，新增记忆层、持久缓存、回归守卫测试。
 - `docs/`：`implementation-architecture.md`、`limitations.md`、`product-architecture-coverage.md`、
