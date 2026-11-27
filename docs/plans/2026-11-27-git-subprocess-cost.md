@@ -31,6 +31,9 @@ stage: plan
   - **冷启动边界只在 CLI 层规定**：接受。持久记忆改为默认关闭、由本地生命周期命令显式开启；
     核心合并判定入口 `engineering/attestation.py` 的 `verify_attestations` 在内部强制冷启动，
     即使外层已开启也不读写，并在该入口直接测试（C1、C4）。
+- 第 11 版（`0f3be94`）由同一 Codex 配置评审，拒绝，1 个阻断项；原始输出保留在 `plan-review-11/`。
+  该轮的评审提示误指向第 10 轮的输入目录（作者的错误），评审者仍直接检查了指定提交。本版的处理：
+  - **C2 缓存以 ref 为键的 `for-each-ref` 结果，违反 #143 的约束**：接受，删去这项缓存（C2）。
 
 ## 不变量（本计划不改变）
 
@@ -240,7 +243,9 @@ verify 进程树的其余内存来自用户自己配置的检查，不属于 kee
     实现参考未推送分支 `perf/git-batch-reads` 的 `b6dd11c`（`regular_blob_texts`），在当前 `main` 上重新实现并评审。
   - 一次调用的作用域内最多保持一个常驻的 `git cat-file --batch` 进程，按 OID 读取 blob，替代每个 blob 一个
     `cat-file` 进程；作用域结束时关闭。该进程异常退出或输出不符合协议时，按现有错误失败，不静默回退。
-- `_contract_base_candidates` 的 `for-each-ref` 结果对应可变 ref，只在一次 CLI 调用内复用。
+- `_contract_base_candidates` 的 `for-each-ref` 读取的是可变 ref，结果不以 OID 为键，按 #143 的约束
+  （"cache only by object OID, never by ref or branch name"）**不缓存**，每次照常查询。
+  它在原单一场景中有 412 次；实施后报告剩余次数，验收目标已把它计入，不为此放宽。
 - 作用域修复（R1）：
   - 顶层 CLI 为所有子命令进入作用域，包括 `report`；
   - `SensorDispatcher` 与 `run_checks` 提交线程池任务时用 `contextvars.copy_context().run`，
@@ -363,7 +368,7 @@ verify 进程树的其余内存来自用户自己配置的检查，不属于 kee
 - **C2**：ref 不缓存；失败不缓存；条目数与字节两个上限；子树只含 `.harness/`；多线程并发读写同一键结果正确；
   批量读取与常驻 `cat-file --batch` 遇到非普通文件、缺失路径、重复路径、非 UTF-8、异常输出、进程提前退出时
   按原错误失败；常驻进程在作用域结束时关闭；`report` 与线程池任务在作用域内；
-  两次独立 CLI 调用之间不复用 `for-each-ref` 结果。
+  `_contract_base_candidates` 的 `for-each-ref` 在同一次调用内每次都实际执行（记忆层中没有以 ref 为键的条目）。
 - **C3**：同一字节命中；追加一行后不命中且结果包含新行；返回值不可变；在现有账本夹具
   （含 completion transaction、紧凑 attestation、恢复记录、畸形行）上，新函数与直接调用 `effective_event_lines`
   的结果逐项相同；恢复记录引发的 `EventSchemaError` 行为不变，且错误不被记住；
