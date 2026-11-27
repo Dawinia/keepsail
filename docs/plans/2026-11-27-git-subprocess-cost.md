@@ -44,6 +44,11 @@ stage: plan
   - **`delivery-policy-offline` 为浅克隆，取不到固定的旧提交**：接受，改为 `fetch-depth: 0`，缺失时测试失败（C7）。
   - **`delivery-policy-wheel` 仍运行被删除的 `test_policy_authority.py`**：接受，改为运行新机制的已安装 wheel 测试，
     并加一个守卫测试，检查 workflow 引用的测试路径都存在（C6）。
+- 第 19 版（`7c0aebe`）由同一 Codex 配置评审，拒绝，2 个阻断项；原始输出在 `plan-review-19/`。本版的处理：
+  - **"计划声明"没有可检查的表示**：接受，改为范围包含相关文件，加上一条保留 ID 为 `RISK-BOUNDARY` 的承诺，
+    在 `done` 和合并判定中检查（C2）。
+  - **升级后，已由签名切换授权的继续计划失去批准**：接受，这份列表按已记录的数据读取，不验签名，其余检查照旧，
+    并补上测试（C3、C7）。
 
 ## 产品核心（本计划保持）
 
@@ -120,8 +125,15 @@ stage: plan
 完整的差异函数，每一项带方向（`added`/`removed`/`changed`）和改动前后的值。摘要不同而差异为空时，
 视为实现错误并拒绝，不能静默放行。
 
-**计划声明。** 被改动的策略文件和检查配置文件必须在冻结计划的范围内，沿用现有的 frozen plan paths 校验。
-授权绑定该 Change 生效批准的计划对象。
+**计划声明。** 声明由冻结计划对象中的两部分组成，在 `done` 和合并判定中都从计划对象本身检查
+（合并判定从 attestation 快照中的批准读取计划对象）：
+
+- 被改动的策略文件和检查配置文件在计划的 `scope.files` 内（字面路径或目录段前缀，沿用 `covered_by_scope`）；
+- 计划的承诺中有一条保留 ID 为 `RISK-BOUNDARY` 的承诺（`plan ready --commitment RISK-BOUNDARY=<文字>`），
+  文字非空。keepsail 不判断文字的语义，语义由计划审查和 owner 的授权负责。
+
+授权绑定该 Change 生效批准的计划对象。有风险边界变更、但计划对象缺少上述任一部分时，`policy accept` 拒绝记录，
+`done` 和合并判定也都拒绝。没有风险边界变更的计划可以不写这条承诺；写了也无害，只在 `status` 中提示。
 
 **owner 授权。** 新命令 `keepsail policy accept <change>`：
 
@@ -185,7 +197,12 @@ stage: plan
   "已不再使用，可以删除"。删除它们不算风险边界变更。
 - 策略中的 `activation` 字段：仍按原结构接受，只当说明，不再执行；新生成的策略不写这个字段。
 - 账本中历史的 `policy_authorization_imported` 事件照常读取和折叠，不再产生作用。不重写历史。
-- 历史 v3 attestation（含签名授权、恢复依据）仍能解析，不再被重放。**新增的** attestation 若携带签名授权
+- **已授权的继续计划在升级后仍然有效。** 可信 base 上的 v2 策略若带 `activation: {kind: transition, change: X}`，
+  而且 X 的 v3 attestation 的签名授权中有 `continued_plans`，这份列表按**已记录的数据**读取：
+  不验签名（base 是否可信由宿主分支保护负责），其余检查照旧，包括精确匹配 Change、计划对象、批准 ID、
+  证据摘要，以及证据被前任策略认可。它与新机制 `policy_change_accepted` 的 `continued_plans` 走同一个判定函数。
+  前任策略为 v2 时，直接读取前任 base 上的策略，不回放其激活。
+- 历史 v3 attestation（含签名授权、恢复依据）仍能解析，不再被重放；只有上一条的继续计划列表会被读取。**新增的** attestation 若携带签名授权
   （`transition`/`recovery`/`rotate_key`），合并判定拒绝，并提示改用 `policy accept`。
 
 ### C4 一次操作内复用不可变 Git 事实，批量读取
@@ -262,7 +279,8 @@ stage: plan
     检查定义只改超时，都出现在记录中并带正确方向；构造"摘要不同、差异为空"的情况时拒绝；
   - 授权后改动目标策略，或改动检查定义，授权失效；
   - 授权后 rebase 或修改代码，授权仍然有效；
-  - 计划范围不含策略文件时拒绝；
+  - 计划范围不含策略文件时拒绝；计划范围包含策略文件、但没有 `RISK-BOUNDARY` 承诺时，`policy accept`、`done`
+    和合并判定都拒绝；
   - 做出改动的 Change 仍要满足旧必需检查与旧代码审查（`off` 不能免除）；
   - `continued_plans` 精确匹配，未列出的 Change 不能继续使用改动前的批准；
   - 不改策略的交付不需要授权，且没有多余授权；
@@ -285,6 +303,9 @@ stage: plan
     提交缺失时测试**失败**并说明原因（例如浅克隆），不跳过；
   - 带历史 `policy_authorization_imported` 事件的账本折叠结果不变；
   - 历史签名 v3 可以解析；新增的签名 v3 被拒绝；
+  - **升级后的继续计划：** 在 `test_delivery_policy_transition.py` 的迁移场景中，用旧版本让一次签名切换列出
+    一个进行中 Change 的批准并合并；再换成新代码，该 Change 以 `continued_plan` 依据完成 `done` 和 `attest verify`。
+    未列出的 Change、证据摘要不符、前任策略不认可该证据的情形，都会被拒绝；
   - `cryptography` 未安装时所有命令可用。
 - **C4：**
   - ref 不缓存，失败不缓存，没有作用域时不缓存；
