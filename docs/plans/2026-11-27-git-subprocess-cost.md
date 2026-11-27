@@ -3,467 +3,328 @@ change: 2026-11-27-git-subprocess-cost
 stage: plan
 ---
 
-# 确定性验证按步只做一次：增量记住激活验证结果，复用不可变 Git 事实，控制命令内存
+# 去掉激活链回放与签名转换，策略变更改为 owner 的记录行为；降低 Git 子进程与内存开销
 
-关联 issue：#143（Windows 上 git 子进程成本拖慢 verify/done）。
+关联 issue：#143（Windows 上 git 子进程成本拖慢 verify/done），#159（v1 守卫把 owner 锁在门外）。
 
-## 这一版与之前各版的关系
+## 为什么重写
 
-- 前 8 版（最后一版 `3ad26a4`）都被独立 DSH 评审拒绝。它们删除了每条命令的激活链回放，又新造了 `policy audit`
-  来补回保证，改变了信任模型。负责人与作者随后否定了这个方向：答案是**记住结果，不要重跑**，而不是"不再验证"。
-- 第 9 版（`3db9fb7`）按这个方向重写，由负责人选定的 Codex（codex-cli 0.172.0、gpt-6.1-terra、high）评审，
-  结论为拒绝，4 个阻断项。原始输出保留在 `.harness/scratch/2026-11-27-git-subprocess-cost/plan-review-9/`。
-  该结论不是当前 v1 认可契约中的流程，keepsail 无法把它记录为认可证据（#159），PR 中如实披露。
-  本版对 4 项的处理：
-  - **第 1 项（缓存条目未经认证）**：事实成立，论证改写。本版不再声称缓存"与本地 refs 同级"，
-    而是写明缓存条目是 agent 可写的本地输入，伪造它可以让本地命令接受一个未经验证的激活；
-    并说明这与本地现有的、已明确让出的信任边界属于同一类，同时规定合并验证路径永不读取它（C1）。
-    这一取舍由负责人于 2026-11-27 决定，理由见 R1："链长随项目寿命增长，逐步全量回放不可接受"。
-  - **第 2 项（验证器摘要遗漏依赖）**：接受，摘要纳入运行时依赖闭包与解释器版本（C1）。
-  - **第 3 项（C3 破坏物理账本校验与单一快照）**：接受，C3 改为对已持有的字节做按内容寻址的记忆，
-    不再按路径重读，`load_ledger` 的物理行校验不变。
-  - **第 4 项（C5 改动已批准的回归入口）**：接受，C5 保留原文件、原入口命令与完整端到端路径。
-  - 非阻断项（`PolicySnapshot` 没有 `activation_commit`）：命中后的复核改为比较快照中确实存在的字段（C1）。
-- 第 10 版（`8be1a34`）由同一 Codex 配置评审，拒绝，2 个阻断项；原始输出保留在 `plan-review-10/`。
-  评审确认第 9 轮的账本与回归入口问题已解决，也未因缓存未经认证本身拒绝。本版对 2 项的处理：
-  - **依赖只按名称和版本标识**：接受。验证器摘要改为对依赖闭包中每个分发包实际安装的文件内容做哈希，
-    可编辑安装或来源无法确定的依赖使持久记忆停用（C1）。
-  - **冷启动边界只在 CLI 层规定**：接受。持久记忆改为默认关闭、由本地生命周期命令显式开启；
-    核心合并判定入口 `engineering/attestation.py` 的 `verify_attestations` 在内部强制冷启动，
-    即使外层已开启也不读写，并在该入口直接测试（C1、C4）。
-- 第 11 版（`0f3be94`）由同一 Codex 配置评审，拒绝，1 个阻断项；原始输出保留在 `plan-review-11/`。
-  该轮的评审提示误指向第 10 轮的输入目录（作者的错误），评审者仍直接检查了指定提交。本版的处理：
-  - **C2 缓存以 ref 为键的 `for-each-ref` 结果，违反 #143 的约束**：接受，删去这项缓存（C2）。
-- 第 12 版（`f24bc41`）由同一 Codex 配置评审，拒绝，3 个阻断项；原始输出保留在 `plan-review-12/`。本版的处理：
-  - **外层进程内结果表可能已含来自持久记忆的结果，并在合并判定中被复用**：接受，`verify_attestations`
-    使用新的空结果表，不继承外层，并按评审给出的顺序测试（C1、C4）。
-  - **动态链接的 OpenSSL 不在摘要中**：接受，摘要纳入进程中实际加载的全部模块文件与共享库的文件身份，
-    枚举不可用时停用持久记忆（C1、C4）。
-  - **C6 在实施后测量低于 2000 s 时放弃恢复义务**：接受，改为按原文执行；若守卫阻塞则停下交负责人（C6）。
-    负责人于 2026-11-27 确认按原条款执行。
-- 第 13 版（`16e594e`）由同一 Codex 配置评审，拒绝，2 个阻断项；原始输出保留在 `plan-review-13/`。
-  评审未再对验证器摘要提出问题。本版的处理：
-  - **键中含 `target_ref`，与"键中不出现 ref"的表述和 #143 的约束字面冲突**：评审同时指出去掉它不安全。
-    负责人 2026-11-27 决定保留它作为信任身份，并澄清该约束的含义；改正原来的错误表述（C1）。
-  - **C2 的 Git 事实记忆层跨操作存活，并与合并判定共享**：接受，生命周期限定为一次操作，
-    合并判定的隔离作用域新建记忆层（C1、C2）。
+- 第 1–14 版都被评审拒绝。第 9–14 版的方向是"跨命令记住激活回放的结果"，评审连续六轮在同一方向上提出新的
+  阻断项（缓存的认证、验证器摘要、依赖、动态库、alternates、grafts……），无法收敛。原始输出保留在
+  `.harness/scratch/2026-11-27-git-subprocess-cost/plan-review-*`。
+- 负责人 2026-11-27/28 对照产品公理指出：问题不在缓存，而在被缓存的东西。
+  - F1 防的是 agent 在工作中**静默偏离**人的承诺，不是防 owner 伪造自己的本地历史；本地仓库是 owner 自己的环境。
+  - 产品架构写明 "Owner-controlled recognition is not cryptographic identity"；历史是否经过闸门进入目标分支，
+    由宿主的分支保护与 CI 负责（"separate evidence layers"）。
+  - 认可策略和必需检查由 owner 决定。keepsail 要做的是**应用它，并让它的变化可见、由 owner 授权**，
+    而不是在每条命令里用签名和回放反复证明它的来历。
+- 因此负责人决定（2026-11-28）在本 Change 内一并完成：
+  1. 去掉激活链回放、Ed25519 签名授权、密钥轮换、受限恢复和初始信任建立流程；
+  2. 改变认可策略或必需检查的 Change，由计划声明并由 owner 的一次记录行为授权（无签名）；
+  3. 旧数据"读得懂、不再执行"；
+  4. 维护者审批计划改为普通的 owner 结论；
+  5. 保留 #143 中与策略无关的性能和内存改进。
+- 前几版计划中"性能 Change 不改变信任模型"一条，不是负责人定的规则，而是之前某个 session 自己的总结，
+  这里撤回。
 
-## 不变量（本计划不改变）
+## 产品核心（本计划保持）
 
-- 验证语义：每一步回放的检查内容、顺序与失败行为不变；没有任何回放检查被删除或削弱。
-- 合并验证（`attest verify`，CI 从可信 base 安装验证器运行）的输入与语义完全不变：它不读取持久记忆，
-  每次从头完整回放。
-- 闸门、attestation、授权记录、策略文件和事件格式；v1 策略的行为；`.harness/verification.yaml`（见 C6）。
-- 已批准计划的承诺。`2026-11-10-delivery-policy-transition` 的最小回归入口与完整路径保留（见 C5）；
-  `2026-11-24-verify-timeout` 的测量义务按其原文执行（见 C6）。
-- 不新增网络依赖（`d-policy-replay-offline-v2`）；不新增审计命令或 workflow。
+- 闸门、计划批准、适用的代码审查和必需检查照常生效；认可流程仍由可信基线上的策略决定。
+- **改变承诺或风险边界不能静默发生：** 一个 Change 若改变生效的认可策略或必需检查，必须在计划中声明，
+  并由 owner 在这个 Change 上留下记录的授权；做出这次改动的 Change 本身仍按**改动前**的义务交付。
+- 记录可追溯：授权、改动前后的摘要和逐项义务变化，都进入事件账本和 attestation，并在 `status`/`report`/PR 中显示。
+- 合并判定仍可用已提交的证据离线重放这一次交付，不访问网络（`d-policy-replay-offline-v2`）。
+- 事件只追加，状态由事件纯折叠得到，状态转换只来自固定矩阵（`d-events-append-only`、`d-state-pure-fold`、
+  `d-fixed-transition-matrix`）。
 
-## 测量（2026-11-26/27，本机 Windows；作者报告值）
-
-测量脚本按 #143 的要求不入库，与 `2026-11-24-verify-timeout` 采用同样的说明方式。
+## 测量（2026-11-26/27，本机 Windows；作者报告值，脚本不入库）
 
 ### Git 子进程
 
-- 单个测试 `test_recovery_plan_review_uses_only_the_signed_process_and_digest[False]`：
-  - 耗时 769 s，9568 次 git 子进程；产品代码 9492 次（99%），测试夹具 76 次。
-  - 每次 git 进程约 74 ms，即 Windows 的进程创建成本。
-- 产品调用点：
-  - `scope_match.resolve_commit` 2756 次；
-  - `git_objects.optional_regular_blob_bytes` 每个 blob 一次 `ls-tree` 加一次 `cat-file`，合计约 4400 次；
-  - `approval._tree_entries` 560 次；
-  - `approval._contract_base_candidates` 的 `for-each-ref` 412 次；
-  - `attestation_v3_verify._verify_v2_activation` 的递归回放。
-- 同一次 CLI 调用内约 75% 的 git 查询参数相同、对象不可变。
-- 单条命令的 git 次数随此前 v2 切换次数线性增长，例如 `done` 477 次、`report` 每次 433 次。
-- 因此 #143 的停止条件落在第三项："成本主要在产品路径"。
+- 最慢的单个测试 `test_recovery_plan_review_uses_only_the_signed_process_and_digest[False]` 耗时 769 s，
+  有 9568 次 git 子进程，其中产品代码 9492 次（99%）。每次约 74 ms，即 Windows 的进程创建成本。
+- 产品调用点：`scope_match.resolve_commit` 2756 次；`git_objects.optional_regular_blob_bytes` 每个 blob 用一次
+  `ls-tree` 加一次 `cat-file`，合计约 4400 次；`approval._tree_entries` 560 次；`_contract_base_candidates` 的
+  `for-each-ref` 412 次；`attestation_v3_verify._verify_v2_activation` 的递归回放。
+- 激活回放每一步都要读取策略快照，用 `git log --diff-filter=A` 遍历整段历史，再完整重验当年那次切换的交付，
+  并递归到前一步。所以单条命令的成本约为"v2 切换次数 ×（一次完整交付验证 + 一次历史遍历）"，
+  例如 `done` 477 次、`report` 每次 433 次，并随项目寿命增长。
+- 同一次 CLI 调用内约 75% 的 git 查询参数相同，查询的对象不可变。
 
 ### 内存
 
-方法：把被测命令放进 Windows Job Object，读取整个进程树的峰值提交内存（`PeakJobMemoryUsed`，精确值，
-不是采样）和单个进程的最大值。本仓库账本 `.harness/events.jsonl` 为 46 MB、3149 行。
+方法：把被测命令放进 Windows Job Object，读取整个进程树的峰值提交内存。本仓库账本 46 MB、3149 行。
 
-- 单条命令（整个进程树峰值 / 墙钟）：
-  - `status` 127 MB / 1.5 s；`change resume` 207 MB / 6.6 s；
-  - `decision check` 57 MB；`decision check --changed` 38 MB；
-  - PreToolUse hook 39 MB / 0.5 s；Stop hook 80 MB / 1.5 s。
-- 完整验证（ruff、mypy、pytest `-n 2`，并发 4）：
-  - 没有批准计划时 `keepsail verify` 拒绝运行，所以测量直接调用同一个 `VerificationRunner.check`，
-    只跳过识别前置检查，不写事件。
-  - 2020 s，进程树峰值 407 MB，单个进程最大 229 MB。
-  - 逐项单独运行时，最大的进程都是 keepsail 自身（约 123 MB）；ruff 与（缓存已热的）mypy 增加很少。
-    其余主要是 pytest 主进程、两个 worker 及测试启动的子进程。
-- keepsail 自身的内存与账本大小成正比：`status` 的 Python 堆峰值为 112 MB，同时持有整个文件的 bytes、
-  解码后的 str、行列表和解析后的对象。`change resume` 对整个账本做了 3 次完整处理：`resume` 中的
-  `derive_state`、`knowledge.read_inputs`（物理行校验一次、展开一次），以及 `_tail_events_for_change` 的再次展开；
-  `status` 1 次。
-- 账本构成：22 条 `knowledge_checkpointed` 共 22.4 MB，其中一条 13 MB，写于 2026-10-29。
-  2026-10-30 起 checkpoint 已改为增量表示，2026-11-04 以来账本只增长了 4.8 MB。
-  体积问题属于历史数据，现有代码已不再产生，本计划不处理。
-- 结论：
-  - 单独运行 verify 时没有出现内存紧张。运行前空闲物理内存约 6 GB（共 16 GB）；之前的内存不足发生在
-    DSH 评审进程同时运行时。
-  - 对所有用户都成立的问题是：每条命令的内存和时间随账本线性增长，重复的完整处理又把它放大。
+- `status` 127 MB / 1.5 s；`change resume` 207 MB / 6.6 s；PreToolUse hook 39 MB；Stop hook 80 MB。
+- 完整验证（并发 4）2020 s，进程树峰值 407 MB，单个进程最大 229 MB；其中 keepsail 自身约 123 MB，
+  其余来自用户配置的检查。
+- keepsail 的内存与账本大小成正比。`change resume` 在一次调用内对整个账本做了 3 次完整展开，`status` 做 1 次。
+- 之前的内存不足发生在评审进程同时运行时；单独运行 verify 时没有出现内存紧张。
 
 ### 全量测试
 
-- 串行（`2026-11-24-verify-timeout` 要求的本机完整串行测量）：2026-11-27 在 `3ad26a4` 上运行
-  `python -m scripts.run_project_check pytest -q -p no:cacheprovider`，设置 `PYTHONUTF8=1`、`CI=1`。
-  结果为 2754 passed、33 skipped、0 failed，pytest 报告 2833 s（墙钟 2868 s）。
-  - 该提交与 `main` 的差异只有本计划文件，产品代码与 `main` 相同。
-  - 之前一次串行 2737 s 的测量有 73 个本机 GBK 编码失败，不算合格测量，被这一次取代。
-- `-n 2`：1917 s，全部通过；verify 中的同一检查（上文内存测量）为 2020 s。
-- 最慢的单个测试独占约 770 s，也是 `-n 2` 的关键路径。
-
-## 根因
-
-### R1 已验证的激活链在每条命令逐步全量回放，成本随项目寿命增长
-
-`_verify_v2_activation`（`attestation_v3_verify.py:302-359`）回放的"一步"不是几次查询，而是：
-
-- 读取可信基线的策略快照与激活 attestation；
-- `_introduction_commit` 用 `git log --diff-filter=A` 遍历可信提交的整段历史，找出引入该 attestation 的提交；
-- 以前任基线和引入提交重新验证当年那次切换的完整交付（评审证据、检查证据、知识账本、覆盖范围），
-  其中前任策略的有效性又递归回放前一步。
-
-所以单条命令的成本约为"v2 切换次数 ×（一次完整交付验证 + 一次历史遍历）"。一个维护多年的项目，
-每次更换认可的评审流程、修改必需检查、轮换密钥或恢复都会让链多一步，几年下来几十步是正常的；
-历史遍历还随提交数增长。只降低每一步的常数（批量读取）改变不了这个增长趋势，必须**按步增量**：
-已经验证过的一步，结论被记住，新增的一步只验证它自己。
-
-现有 `activation_replay_scope` 已在一次 CLI 调用内按步记住结果，但下一条命令从头再验证整条链。
-此外进程内的记忆在两处失效：
-
-- `cli/__init__.py:155-159` 进入作用域的子命令集合不含 `report`；
-- `SensorDispatcher` 在线程池中运行 `VerificationRunner`（`dispatcher.py:203-204`）时不复制 `contextvars`，
-  所以 `verify`/`done` 的检查线程里每次调用都新建作用域。
-
-### R2 同一调用内重复查询不可变 Git 事实
-
-完整 OID 的 `rev-parse`、`(commit, path)` 的 blob、提交的树、祖先关系、merge-base 都不可变，
-却被重复查询；每个 blob 读两个进程。这决定了冷启动（新克隆、CI、升级验证器之后）每一步的常数。
-
-### R3 内存
-
-每条命令都完整读取并处理账本；个别命令（例如 `change resume`）在同一次调用内对同一份内容重复展开，
-各次的中间结果在峰值时同时存在。账本会随项目寿命增长，所以这部分开销对每个用户都会持续增长。
-verify 进程树的其余内存来自用户自己配置的检查，不属于 keepsail 的开销。
+- 串行（`2026-11-24-verify-timeout` 要求的本机测量）：2026-11-27 在 `3ad26a4` 上，`PYTHONUTF8=1`、`CI=1`，
+  结果为 2754 passed、33 skipped、0 failed，pytest 报告 2833 s。该提交的产品代码与 `main` 相同。
+- `-n 2`：1917 s。最慢的那个单测（恢复授权场景）独占约 770 s，也是 `-n 2` 的关键路径。
 
 ## 承诺
 
-### C1 按步增量记住激活验证结果（仅本地生命周期命令）
+### C1 生效策略直接从可信基线读取，不回放激活链
 
-**记住什么。** `_verified_v2_activation` 对一个可信提交的**成功**结果（一步的结果字典）。失败从不持久化。
-回放递归到前任基线时同样经过 `_verified_v2_activation`，命中即停止，所以新增一步只验证这一步。
+- 本地命令与合并判定都以可信基线提交（本地为 `resolve_contract_base`，CI 为 `--base`）上已提交的
+  `.harness/review-recognition.yaml` 与 `.harness/verification.yaml` 作为生效策略与必需检查。
+  读取时照常校验结构、`policy_digest` 和 `required_checks_digest` 与提交中的检查配置一致。
+- 删除：`_verify_v2_activation`、`verify_v2_activation`、`_verified_v2_activation`、`_verified_v2_snapshot`、
+  `_introduction_commit`、`_verify_current_rotation`、`activation_replay_scope` 及其在 `cli/__init__.py` 中的作用域、
+  `effective_policy.load_effective_v2` 中的回放。
+- `PolicySnapshot` 去掉 `authority` 字段。
+- `repository_id` 与 `target_ref` 只用于签名比较，因此不再是验证的必需输入。`attest verify` 仍接受
+  `--repository-id`/`--target-ref`，以免现有 workflow 失效，但不再要求它们；若提供，原样写入输出。
+- 历史是否经过闸门进入目标分支，由宿主的分支保护与 CI 负责，在 `docs/limitations.md` 中写明。
+- 效果：每条命令的策略读取成本是常数，与 v2 切换次数和提交数无关。
 
-**键。** `(可信提交完整 OID, repository_id, target_ref, 验证器摘要)`：
+### C2 风险边界变更：计划声明 + owner 的记录授权
 
-- 键中的 `target_ref`（例如 `refs/heads/main`）是**信任身份**，不是查询对象：它与 `repository_id` 一起，
-  由调用方显式提供并与签名值比较（`policy_authority.py` 的校验），用来区分不同的验证上下文；记忆从不解析它，
-  也不记住"某个 ref 指向哪个提交"。被验证的对象由提交 OID 确定。
-- 与 #143 "cache only by object OID, never by ref or branch name" 的关系（负责人 2026-11-27 的澄清，并在 #143 下记录）：
-  该约束禁止的是以 ref 或分支名为键缓存会随 ref 移动而变化的结果（例如 ref 到提交的解析）。
-  本记忆的结果只由提交 OID 与验证器决定，`target_ref` 作为身份标签参与键，使不同身份的结果互不混用；
-  去掉它反而会让一个上下文的结论被另一个上下文复用。
-- 验证器摘要标识实际执行的代码，而不只是版本号。它是以下内容的 SHA-256，在一个进程内只计算一次：
-  - 已安装 `keepsail` 包内全部 `*.py` 文件（按相对路径排序）的内容，因而可编辑安装下的未发布改动也会换键；
-  - keepsail 运行时依赖闭包：从 `importlib.metadata` 读取 keepsail 的 `Requires-Dist`（只取当前环境适用的项），
-    递归解析，按规范化名称排序。对其中每个分发包，按相对路径排序，哈希它实际安装的每个文件的**内容**
-    （`Distribution.files` 列出的文件，`.dist-info` 下的 `RECORD`、`INSTALLER` 等安装记录除外），
-    包括编译扩展。这覆盖 PyYAML（含其 C 扩展）与 `cryptography` 的 Rust/OpenSSL 扩展；
-    打补丁、换构建或换安装后，内容变化即换键；
-  - Python 的 `sys.version`（含构建信息）、`sys.implementation.cache_tag`，以及 `sys.executable` 文件内容的哈希；
-  - **进程中实际加载的全部代码的文件身份**，不论来自哪个分发包、解释器或操作系统：
-    - 先显式导入验证器用到的全部模块（包括函数内延迟导入的模块，以固定列表列出），再计算摘要；
-    - `sys.modules` 中每个带 `__file__` 的模块文件（覆盖标准库）；
-    - 进程中已映射的每个共享库（覆盖动态链接的 OpenSSL、`libpython`/`pythonXY.dll`、系统库）：
-      Linux 读 `/proc/self/maps`，Windows 用 `EnumProcessModules`，macOS 用 `_dyld_image_count`/`_dyld_get_image_name`；
-    - 每个文件按（规范路径、大小、`mtime_ns`）标识，按路径排序；包管理器或系统更新替换文件时，这些值随之变化；
-    - 平台不在上述三种之内，或枚举失败、文件无法 `stat` 时，不持久化。
-  - `KEEPSAIL_ACTIVATION_CACHE_SCHEMA = 1`。
-- 以下情况不持久化，只用进程内记忆：任一依赖的元数据或文件清单缺失、列出的文件不存在或不可读；
-  任一依赖是可编辑安装（`direct_url.json` 中 `dir_info.editable` 为真）或其导入位置不在列出的文件之内
-  （此时安装记录不能代表实际执行的代码）；上一条所述的加载代码枚举不可用。
-- 加载集合的完整性守卫：一次冷回放结束后，`sys.modules` 与已映射共享库的集合必须是计算摘要时集合的子集；
-  否则（验证过程中又加载了新代码）本进程不写持久记忆，并由测试保证当前代码不触发这种情况。
-- 未覆盖的部分如实写入 `docs/limitations.md`：已加载文件被原地改写且保持相同大小与 `mtime_ns`。
-  这需要刻意伪造文件元数据，属于下文"信任边界"中已让出的本地写入，合并验证不受影响；
-  需要时可用 `KEEPSAIL_NO_ACTIVATION_CACHE=1` 停用。
-- 摘要的计算成本在实施后实测并写入 PR（本机，冷文件缓存与热文件缓存各一次）；
-  若单次超过 200 ms，在 PR 中报告并说明对 hook 延迟的影响，不放宽覆盖范围。
+**什么算风险边界变更。** 候选提交与可信基线相比，满足以下任一条：
 
-**纯函数前提（实施的第一步，先于缓存代码）。**
+- 认可策略的生效摘要不同。这包括 v1 与 v2，也包括首次启用、停用和 v1→v2 升级；
+- 必需检查契约（`required_check_contract`）的摘要不同。
 
-- 逐一检查 `_verify_v2_activation` 调用树中的输入，确认只来自：键中的提交、该提交可达的 Git 对象、
-  显式传入的 `repository_id`/`target_ref`，以及验证器代码与依赖。已知的临时文件（`tempfile` 中由已提交 attestation
-  派生的 lifecycle）属于派生值，不是外部输入。
-- 加一个测试：同一仓库中，删除工作区的 `.harness/events.jsonl`、改写工作区的策略文件、移动 `refs/heads/main`
-  之后，以同一 OID 调用 `verify_v2_activation`，结果与之前逐字节相同。
-- 如果检查发现某条路径读取了工作区、账本、时钟或环境变量，就把该输入加入键；无法加入键的，
-  该路径不持久化，只用进程内记忆，并在 PR 中写明。
+逐项变化沿用现有的 `changed_obligations`/`changed_required_checks` 计算，例如流程替换、代码审查模式放宽、
+必需检查删除、降级或替换。
 
-**存放。**
+**计划声明。** 被改动的策略文件和检查配置文件必须在冻结计划的范围内，沿用现有的 frozen plan paths 校验。
+授权绑定该 Change 生效批准的计划对象。
 
-- `$(git rev-parse --git-common-dir)/keepsail/activation-v1/<sha256(规范化键)>.json`，
-  不在工作区内，不进入提交，无需改 `.gitignore`。
-- 文件内容为 `{schema, key, result}`。读取时要求 `schema` 与 `key` 与当前键完全相等、`result` 通过结构校验，
-  否则视为未命中，重算后覆盖。
-- 写入：临时文件加 `os.replace`，原子替换；写失败（只读、权限、磁盘满）忽略，不影响命令结果。
-- 上限：目录中最多 512 个文件，超出时按修改时间删除最旧的。单个结果约 1 KB。
+**owner 授权。** 新命令 `keepsail policy accept <change>`：
 
-**命中后仍要做的事。** `PolicySnapshot` 仍从该提交读取（经 C2 批量读取），并核对它与记住的结果一致：
-`snapshot.commit == result["trusted_base"]`、`snapshot.policy.policy_digest == result["policy_digest"]`、
-`snapshot.checks["digest"] == result["required_checks_digest"]`，以及 `snapshot.policy.activation` 的 `kind` 与
-`change` 与结果一致（`initial` 对应 `change` 为空）。不一致按未命中处理。这项核对只防止过期或错放的条目，
-**不是**对条目的认证（见下文信任边界）。
+- 从 Git 重新计算：可信基线与候选的策略摘要、必需检查摘要和逐项义务变化。先把这些逐项打印给人看，
+  再追加一个事件 `policy_change_accepted`（非状态转换事件，加入 `transitions.py` 的非转换集合，
+  不改 `_TRANSITIONS`）。
+- 载荷为 `{version: "policy-acceptance/v1", change_id, plan_subject_id, predecessor_policy_digest,
+  target_policy_digest, predecessor_checks_digest, target_checks_digest, obligation_changes, continued_plans}`。
+  actor 按 `d-keepsail-identity-resolution-order` 记录。
+- 不绑定基线 SHA 或 HEAD，所以 rebase 和代码修复不会使授权失效。目标策略、检查定义或义务变化一旦改变，
+  授权就失效，必须重新授权。
+- `continued_plans`（可选，`--continue <change>` 可重复）：由 owner 逐个列出在改动前策略下已获批准、
+  在改动后继续有效的进行中 Change 的批准。保留现有"继续计划"的语义和精确匹配校验，但不再签名。
 
-**谁使用，以及如何强制。**
+**交付时如何检查。**
 
-- 持久记忆**默认关闭**。`attestation_v3_verify` 的验证函数在没有显式开启时只用进程内记忆；任何新的或未列出的
-  调用方因此默认冷启动。
-- 只有本地生命周期命令通过一个显式的作用域 `persistent_activation_memo(root)` 开启它：`status`、`report`、
-  `review import`、`done`、`verify`、`change resume`、hook。开启点在这些命令的 CLI 入口，逐个列出，不按子命令集合推断。
-- 核心合并判定入口 `engineering/attestation.py` 的 `verify_attestations`（当前唯一调用方是 `cli/attest.py:235`
-  的 `attest verify`）在函数内部进入一个强制冷启动的**隔离**作用域：
-  - 不读、不写持久记忆，即使外层已经开启；
-  - 使用一个新的、空的进程内激活结果表，不继承外层作用域的表。外层表中可能已有来自持久记忆的结果，
-    隔离保证它们不会进入合并判定；退出时恢复外层的表，隔离作用域内算出的结果不回写外层；
-  - C2 的 Git 事实记忆层同样新建，不继承外层（见 C2 的生命周期）。
-  `attest verify` 不开启持久记忆（CI 中从可信 base 安装运行；本地也可手动运行，得到冷启动的权威结论）。
-- 即使在已开启的作用域内，以下情况也不读写持久记忆：
-- 环境变量 `GITHUB_ACTIONS=true`，或 `KEEPSAIL_NO_ACTIVATION_CACHE=1`；
-- 浅克隆（`git rev-parse --is-shallow-repository` 为 `true`）；
-- 存在 `refs/replace/` 下的 ref，或 `.git/info/grafts`，或设置了 `GIT_REPLACE_REF_BASE`、`GIT_GRAFT_FILE`、
-  `GIT_OBJECT_DIRECTORY`、`GIT_ALTERNATE_OBJECT_DIRECTORIES`（这些会让同一 OID 的历史或对象来源变化）；
-- 以上检测本身失败。
+- `done` 中的 `validate_delivery_obligations` 改为：没有风险边界变更时按原逻辑处理（`mode: unchanged`）；
+  有变更时，要求最新一条 `policy_change_accepted` 与重算结果完全一致（`mode: accepted`），否则拒绝，
+  并提示运行 `keepsail policy accept`。
+- 做出改动的 Change 自身按**改动前**的策略与必需检查交付：计划批准、适用的代码审查和旧必需检查都照常要求。
+  不能用改动后的 `off` 免除这个 Change 自身的义务。这条保留 `2026-11-10` 的规定。
+- 风险边界变更的交付使用 v3 attestation（与现在相同），授权记录放在 v3 的 `authorization` 字段。
+- 合并判定（`verify_v3_transition`/`verify_v3_delivery`）重算改动前后的摘要与逐项变化，要求与记录一致，
+  并按基线策略重放这次交付。不验证签名。
+- `status`、`report` 和 PR 元数据显示：这是一次风险边界变更、逐项变化、授权者和授权时间。
 
-`keepsail_workflow.yml` 与本仓库 workflow 不恢复该目录（不加 `actions/cache`）。
+**与 #158 的关系（如实披露）。** 记录者身份不是密码学身份。在单人环境中，agent 与 owner 共用 Git 身份，
+本计划不能从记录上区分二者。授权因此不能**静默**发生：它出现在账本、attestation 和 PR 中，
+供 owner 与宿主层的审查看到。如何区分 owner 与 agent 的行为由 #158 决定。这一点写入 `docs/limitations.md`。
 
-**信任边界（负责人 2026-11-27 的决定，如实写入 `docs/limitations.md`）。**
+**由此解决 #159。** v1 与 v2 都可以通过"计划声明 + `policy accept`"更换认可流程或修改必需检查，
+不再需要预先部署密钥。
 
-- 缓存条目没有签名，任何能写 `.git/` 的进程（包括 agent 的 shell）都能伪造一个条目，让本地生命周期命令
-  把一个未经验证的激活当作已验证。本计划不声称它和本地 refs 处于同一信任等级。
-- 这不是新的一类能力：
-  - 本地本来就是"owner 控制的本地信任环境"（`docs/limitations.md:61`），通过 shell 直接写文件是已经让出的能力，
-    由审批、评审、检查与 attestation 兜底（同文件"Hardlink residual"一段）；
-  - 本地生命周期判定本来就以 agent 可写的本地历史为依据：`2026-11-10` 的 C5 写明"本地严格写入按本地历史强制相关义务；
-    CI 只能核验保留的证据"，而本地历史 `.harness/events.jsonl` 同样可由 shell 追加。
-- 权威层不变：合并验证不读取持久记忆，从头完整回放。伪造的条目最多改变本地命令的判定，过不了合并闸门。
-- 纯函数前提成立、且验证器摘要覆盖的代码未变时，诚实产生的条目与重算结果逐字节相同，所以没有伪造时
-  本地判定与现在完全一致；摘要未覆盖的情形（解释器安装被原地改写）见上文，同属已让出的本地写入。
-- 失败不持久化，所以修复环境（例如补齐对象）后立即重新验证。
+### C3 移除签名机制；旧数据读得懂、不再执行
 
-**复杂度。** 主分支前进一步后，第一条本地命令只验证新增的一步，与此前的链长无关。
-换机器、清空 `.git/keepsail/` 或升级验证器、依赖、Python 后，冷启动完整验证一次；冷启动和合并验证的
-每一步由 C2 降低常数。
+**删除：**
 
-### C2 进程内复用不可变 Git 事实，批量读取
+- `policy_authority.py` 中的签名、授权、轮换和恢复校验。`parse_unique_yaml` 与仍需要的结构解析移到合适的模块，
+  不改语义；
+- `initial_policy.py`、`policy initial prepare|confirmation`、`policy authorization import`；
+- `transition_guard.py` 中依赖授权与密钥的分支，其余检测逻辑由 C2 取代；
+- `review_basis` 与 `cli/review.py` 中的恢复依据；
+- `require_signed_obligation_changes`，由 C2 的一致性比较取代；
+- `keepsail init` 与 `init_plan` 不再生成 `policy-authority.yaml`；
+- 依赖 `cryptography`（`pyproject.toml`、`uv.lock`）。
 
-- 记忆层放在 `core/git_objects.py`（已在 `d-policy-replay-offline-v2` 的检查路径内），带锁的 LRU，
-  上限为 4096 个条目和 32 MiB，超出任一上限即淘汰最久未用的条目。只存不可变值（bytes、str、bool、tuple）。
-- **生命周期是一次操作，不是整个进程。** 记忆层对象挂在操作作用域（`contextvars`）上：
-  - 由一次 CLI 调用的顶层作用域创建，作用域结束即丢弃；没有作用域时不缓存，每次直接查询 Git；
-  - 嵌套进入时沿用外层对象（同一次操作），但 `verify_attestations` 的隔离冷作用域（C1）**新建**一个空的记忆层对象，
-    不继承外层，也不回写外层；常驻 `cat-file --batch` 进程同样按作用域归属；
-  - 因此长驻调用方在两次操作之间改变浅克隆、replace 或 graft 状态，不会让后一次操作（包括合并判定）
-    读到前一次的结果。
-  为避免导入循环，`git_objects.py` 对 `ApprovalError` 改为函数内延迟导入。
-- 键包含仓库根的规范路径和完整 OID。缓存：
-  - 40 位十六进制 OID 的 `resolve_commit`（ref 和 `HEAD` 不缓存）；
-  - `(commit, path)` 的树条目查询结果（模式、类型、OID）与 blob 字节；"不存在"也是成功的查询结果，同样缓存；
-    普通文件、UTF-8 等结构校验每次重新执行；
-  - 提交的 `.harness/` 子树列表（不缓存整棵仓库树）；
-  - OID 之间的 `is_ancestor` 与 `merge_base`；
-  - `_introduction_commit` 的 `(commit, path)` 结果。
-- 只缓存成功的 git 调用；git 失败不缓存。
+**维护者审批计划。**
+
+- 生成的默认策略中，计划流程的证据形式改为 `json`，issuer 为 owner，通过 `review import` 导入 owner 的结论。
+- 已有策略若列出 `signed-plan-decision`，读作"由该流程所列 issuer 给出的 owner 计划结论"，以 json 导入。
+  该形式原本的含义就是"维护者决定计划"，这里只去掉签名证明，不扩大认可的来源。
+
+**旧数据：**
+
+- `policy-authority.yaml`、`policy-initial-trust.json` 被忽略。`status` 与 `verify` 各提示一行
+  "已不再使用，可以删除"。删除它们不算风险边界变更。
+- 策略中的 `activation` 字段：仍按原结构接受，只当说明，不再执行；新生成的策略不写这个字段。
+- 账本中历史的 `policy_authorization_imported` 事件照常读取和折叠，不再产生作用。不重写历史。
+- 历史 v3 attestation（含签名授权、恢复依据）仍能解析，不再被重放。**新增的** attestation 若携带签名授权
+  （`transition`/`recovery`/`rotate_key`），合并判定拒绝，并提示改用 `policy accept`。
+
+### C4 一次操作内复用不可变 Git 事实，批量读取
+
+- 记忆层放在 `core/git_objects.py`，挂在一次 CLI 操作的作用域（`contextvars`）上：操作结束即丢弃；
+  没有作用域时不缓存。它是带锁的 LRU，上限为 4096 个条目和 32 MiB。
+- 键由仓库根的规范路径和完整 OID 组成。缓存的内容：
+  - 40 位 OID 的 `resolve_commit`（ref 与 `HEAD` 不缓存）；
+  - `(commit, path)` 的树条目与 blob 字节，"不存在"也缓存；
+  - 提交的 `.harness/` 子树；
+  - OID 间的 `is_ancestor` 与 `merge_base`。
+- 只缓存成功的 git 调用。结构校验（普通文件、UTF-8）每次重做。`_contract_base_candidates` 的 `for-each-ref`
+  读取可变 ref，不缓存（#143 的约束 "cache only by object OID, never by ref"）。
 - 读取方式：
-  - `read_policy_snapshot` 及可信基线快照改为一次 `ls-tree -z` 加批量读取所需文件，校验语义和错误行为不变。
-    实现参考未推送分支 `perf/git-batch-reads` 的 `b6dd11c`（`regular_blob_texts`），在当前 `main` 上重新实现并评审。
-  - 一次调用的作用域内最多保持一个常驻的 `git cat-file --batch` 进程，按 OID 读取 blob，替代每个 blob 一个
-    `cat-file` 进程；作用域结束时关闭。该进程异常退出或输出不符合协议时，按现有错误失败，不静默回退。
-- `_contract_base_candidates` 的 `for-each-ref` 读取的是可变 ref，结果不以 OID 为键，按 #143 的约束
-  （"cache only by object OID, never by ref or branch name"）**不缓存**，每次照常查询。
-  它在原单一场景中有 412 次；实施后报告剩余次数，验收目标已把它计入，不为此放宽。
-- 作用域修复（R1）：
-  - 顶层 CLI 为所有子命令进入作用域，包括 `report`；
-  - `SensorDispatcher` 与 `run_checks` 提交线程池任务时用 `contextvars.copy_context().run`，
-    线程共享同一个带锁的作用域对象。
-- 假设：**一次操作期间**，同一仓库不发生 fetch --unshallow、replace 或 graft；keepsail 自身不做这些。
-  外部在操作进行中并发改写历史时，该操作内 `is_ancestor`/`merge_base` 的结果可能过时，写入 `docs/limitations.md`。
-  这与现在的情况相同：现有代码在一次操作内本就会先后查询多次，并发改写同样可能让它看到前后不一致的历史。
+  - 策略快照改为一次 `ls-tree -z` 加批量读取。实现参考未推送分支 `perf/git-batch-reads` 的 `b6dd11c`，
+    在当前代码上重写；
+  - 每次操作最多保持一个常驻的 `git cat-file --batch` 进程，在作用域结束时关闭。该进程异常时按现有错误失败，
+    不静默回退。
+- 作用域修复：顶层 CLI 为所有子命令进入作用域（包括 `report`）；`SensorDispatcher` 与 `run_checks`
+  向线程池提交任务时用 `contextvars.copy_context().run`。
+- 假设：一次操作期间仓库不发生 fetch --unshallow、replace 或 graft。现有代码在一次操作内本来就会多次查询，
+  同样受并发改写影响。这一点写入 `docs/limitations.md`。
 
-### C3 命令内存：同一份字节只展开一次
+### C5 命令内存：同一份字节只展开一次
 
 - 新增 `effective_lines_for(content: bytes) -> tuple[str, ...]`：以 `content` 的 SHA-256 为键，在进程内记住
-  `effective_event_lines` 对这份字节的展开结果（不可变元组），只保留最近 1 个条目。它不读文件，
-  调用方传入自己已经读到的字节。
-- 改用它的位置，每处仍各自读取、各自持有自己的字节快照：
-  - `reducer.derive_state`：读取一次字节，取展开行后调用 `derive_state_from_lines(..., _effective=True)`；
-  - `knowledge._inputs_from_content`：对 `read_inputs` 传入的同一份 `content` 取展开行，
-    账本回放与状态推导仍来自同一快照；
-  - `cli/change.py` 的 `_tail_events_for_change`：读取一次字节后取展开行。
-- 不改的部分：`knowledge.load_ledger` 的物理行校验与逐行前缀哈希保持原样，仍对原始字节逐行处理；
-  它不是展开，不能用展开行替代。
-- 账本在调用中被追加时字节摘要改变，自动重新展开，不会读到旧结果；同一快照内的一致性由调用方持有的字节保证。
-- 记住的是同一份字节的纯函数结果，折叠逻辑不变，与 `d-state-pure-fold`、`d-events-append-only` 一致；
-  实施时运行 `keepsail decision check --changed` 确认。
-- 不改变事件格式与折叠语义，不重写历史账本。
+  `effective_event_lines` 的结果，只保留最近 1 个。它不读文件。
+- 以下三处改用它，每处仍各自读取并持有自己的字节快照：`reducer.derive_state`、`knowledge._inputs_from_content`
+  （账本回放与状态推导仍来自同一份 `content`）、`cli/change.py` 的 `_tail_events_for_change`。
+- `knowledge.load_ledger` 的物理行校验与逐行前缀哈希不变。
+- 折叠逻辑和事件格式不变。
+- 不做：调整 verify 并发、把检查输出直接写文件、knowledge checkpoint 去重（测量不支持这些改动）。
 
-**不做的内存项（测量不支持）：**
+### C6 重写策略切换场景测试，保留回归入口
 
-- verify 默认并发（4）不改：本次测量中进程树峰值主要来自用户的检查，并发不是瓶颈；
-  按内存调节并发需要另外的设计和跨平台测量。
-- 检查输出直接写文件不做：本仓库检查的输出很小，没有测得收益。
-- knowledge checkpoint 去重不做：增量表示已在 2026-10-30 落地。
+- `2026-11-10` 规定的最小回归入口 `python -m pytest -q tests/integration/lifecycle/test_delivery_policy_transition.py`
+  与 `.github/workflows/test.yml` 的 `delivery-policy-offline` job 保留。
+- 文件内容按新机制重写。保留一个按顺序走完整条路径的测试：在可过闸的隔离 Git 仓库中，依次执行
+  `review import`（改动前流程）、`policy accept`、`done`，以及从可信 base 安装的
+  `attest verify --base BASE --head HEAD`。
+- 其余阶段写成相互独立的测试，各自构建前置状态，以便 `-n 2` 并行：
+  - 生效后的普通交付；
+  - 下一次切换；
+  - 继续计划；
+  - 报告与状态。
+- 签名、恢复、轮换和初始信任的测试随功能删除：`test_policy_authority.py`、`test_initial_policy.py`、
+  `test_policy_authorization_import.py`、`test_v1_policy_rotation.py`，以及其他文件中的相关用例。
+  PR 中附一张对照表，逐条说明每个被删断言保护的是已删除的功能，还是已由新测试覆盖。
 
-### C4 回归守卫
+### C7 测试与回归守卫
 
-测试中包装 `subprocess` 计数 git 进程，判定不依赖计时。夹具的必需检查是不调用 git 的 `python -c`。
+测试中包装 `subprocess` 计数 git 进程，判定不依赖计时。
 
-- **热状态与链长无关。** 同一构造函数生成 1 次和 3 次 v2 切换的夹具（3 次夹具在 1 次夹具之后追加两次切换，
-  再追加相同的一次普通交付）。持久记忆已预热时，`done`、`report`、`review import`、`status` 的 git 进程数
-  在两种夹具上相同。
-- **增量。** 预热后在主分支追加一次 v2 切换，下一条命令的 git 次数只比预热状态多出验证这一步所需的次数，
-  且在 1 次与 3 次夹具上相同。
-- **冷启动按步线性。** 清空缓存目录后，第一条命令的 git 次数在 1 次与 3 次夹具上之差，等于两倍的单步增量
-  （允许每步差异不超过 10%）；紧接着的第二条命令与预热状态的次数相同。
-- **合并验证永远冷启动（在核心入口测试）。**
-  - 预热后直接调用 `verify_attestations`：不读取、不写入缓存目录，git 次数与清空缓存时相同；
-  - 在已进入 `persistent_activation_memo` 的作用域内调用 `verify_attestations`，结果相同（强制冷启动覆盖外层）；
-  - 外层结果不泄入：在同一个已开启的外层作用域内，先通过本地路径调用 `verify_v2_activation`，让一个伪造的持久条目
-    被读入外层进程内结果表；再在同一作用域内调用 `verify_attestations`，它必须以冷回放的原错误拒绝；
-    之后外层表保持原样（隔离作用域不回写）；
-  - 未进入该作用域时直接调用 `verify_v2_activation`，不读写缓存目录（默认关闭）；
-  - CLI 层再测一次 `attest verify`；设置 `GITHUB_ACTIONS=true` 时，生命周期命令同样不读写缓存目录。
-- **伪造条目的边界如实。** 为一个回放会失败的激活提交写入一个结构合法的伪造条目：`verify_attestations` 与
-  `attest verify` 仍以原错误拒绝；该测试同时记录本地 `status` 接受该条目，与 `docs/limitations.md` 中写明的边界一致。
-- **验证器换键。** 分别做以下改变后不命中旧条目：改动 keepsail 一个源文件；在版本号不变的情况下改动一个依赖
-  安装文件的内容（测试中用临时的假分发包及其文件清单）；改变 Python 版本信息；改变一个已加载共享库或
-  标准库模块文件的大小或 `mtime_ns`（测试中替换枚举函数，返回一个临时文件作为"已加载的库"）。
-  依赖元数据或文件清单缺失、列出的文件不存在、依赖为可编辑安装、加载代码枚举不可用或失败、
-  冷回放后加载集合超出摘要时的集合时，不写入缓存目录。
-- **加载集合完整。** 在 1 次与 3 次切换夹具上做一次完整冷回放，断言回放结束后的加载集合是摘要计算时集合的子集
-  （防止验证器新增延迟导入后静默漏出摘要）；在 Windows 与 Linux CI 上实际枚举到 `cryptography` 的扩展模块。
-- **语义不变。** 对每一个现有的回放负例（激活 attestation 在引入后被修改、前任不可达、目标策略摘要不符等），
-  分别在冷缓存与预热缓存下运行：两次的退出码和错误信息相同。预热缓存下，篡改发生在新提交上，
-  所以新提交不命中，仍被拒绝。
-- **不持久化条件。** 浅克隆、存在 `refs/replace/`、设置 `KEEPSAIL_NO_ACTIVATION_CACHE=1` 时，缓存目录不被写入。
-- **缓存损坏与过期。** 条目被截断、`schema` 或 `key` 不符、结构不合法、与快照核对不一致、目录只读时，
-  命令结果与无缓存时相同。
-- **账本处理次数。** 包装 `effective_event_lines` 计数：账本在调用期间未变时，`status`、`change resume`、
-  `done`、`report`、`verify` 各自对完整账本的展开不超过 1 次；`load_ledger` 的物理行处理次数不增加。
-  在 1 次和 3 次切换的夹具上次数相同。
-- **测试隔离。** 每个测试用独立的临时仓库，因而有独立的 `.git/keepsail/`；进程内记忆层提供仅测试使用的
-  `clear()`；计数只统计被测命令调用期间启动的 git 进程。
+- **C1：**
+  - 在 1 次与 3 次 v2 切换的夹具上，`done`、`report`、`review import`、`status` 的 git 进程数相同；
+  - `attest verify` 的 git 进程数不随切换次数增长；
+  - 基线上的策略摘要与检查配置不符时，照常拒绝。
+- **C2：**
+  - v1→v1 更换流程、v1→v2、v2→v2、修改必需检查、首次启用，各自需要授权才能 `done` 和通过合并判定；
+  - 授权后改动目标策略，或改动检查定义，授权失效；
+  - 授权后 rebase 或修改代码，授权仍然有效；
+  - 计划范围不含策略文件时拒绝；
+  - 做出改动的 Change 仍要满足旧必需检查与旧代码审查（`off` 不能免除）；
+  - `continued_plans` 精确匹配，未列出的 Change 不能继续使用改动前的批准；
+  - 不改策略的交付不需要授权，且没有多余授权；
+  - 删除 `policy-authority.yaml` 不需要授权。
+- **C3：**
+  - 带 `activation` 字段与 `signed-plan-decision` 的已有 v2 策略可以读取并照常工作；
+  - 带历史 `policy_authorization_imported` 事件的账本折叠结果不变；
+  - 历史签名 v3 可以解析；新增的签名 v3 被拒绝；
+  - `cryptography` 未安装时所有命令可用。
+- **C4：**
+  - ref 不缓存，失败不缓存，没有作用域时不缓存；
+  - 两次相继的操作不共享条目；
+  - 条目数与字节两个上限；多线程并发读写；
+  - 批量读取与常驻进程遇到非普通文件、缺失、重复、非 UTF-8、异常输出、提前退出时，按原错误失败；
+  - 常驻进程在作用域结束时关闭；
+  - `report` 与线程池任务在作用域内。
+- **C5：**
+  - 同一份字节命中缓存；追加内容后不命中；返回值不可变；
+  - 在现有账本夹具上，结果与直接调用 `effective_event_lines` 逐项相同；
+  - 错误不被记住；
+  - `load_ledger` 的前缀哈希与 revision 逐字节不变；
+  - 账本在读取后被追加时，`read_inputs` 仍来自同一份快照；
+  - `status`、`change resume`、`done`、`report`、`verify` 对完整账本的展开各不超过 1 次。
+- **全量：** `keepsail verify`、`keepsail decision check`、`keepsail doc check` 通过。
 
-### C5 在原文件内拆分策略切换场景测试，保留已批准的回归入口
+### C8 `2026-11-24` 的串行测量义务
 
-- `2026-11-10-delivery-policy-transition` 规定："最小回归执行入口为
-  `python -m pytest -q tests/integration/lifecycle/test_delivery_policy_transition.py`"，并以一个可过闸的隔离 Git 仓库
-  走完真实 `review import`、`done` 和从可信 base 安装的 `attest verify --base BASE --head HEAD` 的完整路径。
-  本计划保留这两点：
-  - 文件位置、文件名与该入口命令不变；`.github/workflows/test.yml` 的 `delivery-policy-offline` job 不变；
-  - 保留一个测试按原顺序走完上述完整路径；
-  - 其余阶段（恢复授权、负例、已安装基线验证器、继续计划、生效后的普通交付、下一次切换、密钥轮换、
-    报告与状态）在**同一文件内**拆成相互独立、各自构建前置状态的测试，以便 `-n 2` 下并行。
-- 断言内容与原测试逐条对应，不删除断言；PR 说明附对照表。
-- 不新增 `e2e` 标记；本地与 CI 的覆盖范围不变。
+- 本计划不预先修改 `.harness/verification.yaml`。负责人 2026-11-27 的决定是：保持不变，但执行并报告串行测量。
+- `2026-11-24` 要求在本计划中包含一次本机完整串行测量；若低于 2000 s，就在本 Change 内恢复串行命令与 2700 s。
+  本计划中的测量为 2833 s，所以恢复条件在计划阶段不触发。
+- 实施后再用同一方法测量一次，写入 PR 和 `implementation record`：
+  - 不低于 2000 s：恢复条件不触发，文件不变。
+  - 低于 2000 s：本 Change 按原文恢复串行命令与 2700 s。这是必需检查的变更，按 C2 由计划声明、由 owner 执行
+    `policy accept`，并接受代码审查。作者不代替 owner 授权，也不单方面放弃这项义务。
+- 2026-12-31 由负责人重新评估的兜底条款不变。
 
-### C6 `verification.yaml` 不变；执行 `2026-11-24` 的测量义务
+### C9 文档与决策
 
-- 本计划不修改 `.harness/verification.yaml`。负责人于 2026-11-27 选择 "Drop C8 here"
-  （"Leave verification.yaml as it is. Still run the serial measurement the 2026-11-24 plan requires and report it."）。
-- `2026-11-24-verify-timeout` 要求本 Change "在其计划中包含一次本机完整串行测量；若低于 2000 s，
-  在本 Change 内恢复串行命令与 2700 s"。本计划"测量"一节已包含这次测量，结果为 2833 s，
-  不低于 2000 s，所以恢复条件在本计划中不触发。
-- 实施后再做一次同方法的串行测量，写入 PR 说明和 `implementation record`。本计划不放弃 `2026-11-24` 的条件义务：
-  - 若实施后的串行测量不低于 2000 s，恢复条件不触发，`verification.yaml` 保持不变。
-  - 若低于 2000 s，按 `2026-11-24` 的原文，本 Change 恢复串行命令与 2700 s，并接受评审。恢复需要修改必需检查定义；
-    如果届时 v1 守卫仍拒绝替换必需检查（`transition_guard.py:121-126,191,290`；#159），本 Change 停在实施阶段，
-    不执行 `done`，把测量结果和阻塞交给负责人决定。作者不绕过守卫，也不单方面放弃这项义务。
-  - `2026-11-24` 中 2026-12-31 由负责人重新评估的兜底条款不变。
-
-### C7 文档与决策
-
-- `docs/implementation-architecture.md`：§9 增加"激活验证结果的按步记忆"：键（含依赖闭包）、存放、
-  使用者与不使用的路径、与合并验证的关系。
+- `docs/getting-started.md`：删除"建立初始交付策略"一节的签名流程，改为说明如何首次启用或修改策略
+  （计划声明 + `policy accept`）。
 - `docs/limitations.md`：
-  - 持久记忆未经认证：本地可写进程能伪造条目，改变本地生命周期命令的判定；合并验证不读取它；
-    本地需要权威结论时运行 `attest verify`；
-  - C2 的进程内假设；持久记忆在浅克隆、replace/graft 与 CI 中不启用。
+  - 策略的来历由宿主分支保护负责；
+  - 授权不是密码学身份，在单人环境中与 agent 共用身份（#158）；
+  - C4 的单次操作假设。
+- `docs/implementation-architecture.md`：更新策略读取、风险边界变更和授权记录的说明。
 - `docs/product-architecture-coverage.md`：增加一条带日期的更新。
-- `docs/cli-reference.md`：如有 CLI 文本变化，由 `doc check --fix` 重新生成。
-- 用 `keepsail decision new` 提交 proposed 决策（不附 `@decision:` 锚点，是否 ratify 由负责人决定）：
-  - 确定性验证按内容寻址、按步只做一次：结果以不可变输入与验证器（含依赖）为键记住；合并验证永不读取本地记忆；
-  - Windows 进程创建成本要求批量读取 Git 对象并在进程内复用不可变事实；
-  - 性能 Change 不改变信任模型或产品公理；需要改变时作为单独的产品决策处理。
+- `docs/cli-reference.md`：由 `doc check --fix` 重新生成。
+- `AGENTS.md` 及其生成模板（`engineering/agents_md_render.py`）：把"Policy transitions must … carry the exact signed
+  authorization … Recovery and initial trust require their own pre-established owner-controlled paths"改为新的规则。
+- `2026-11-10-delivery-policy-transition` 中被取代的承诺：
+  - C3 的"策略变更须由旧可信依据验证授权"改由 C2 的 owner 授权取代；
+  - C4（受限恢复）删除；
+  - 授权记录一节（Ed25519）、激活定位与生效后回放、初始信任建立都被取代。
+  - 其余（交付义务、`code_review_not_required`、完成事务、必需检查摘要、可见性）保持。
+  - 在 `docs/product-architecture-coverage.md` 中写明取代关系。已批准的计划文件本身不改写。
+- 决策：
+  - `d-policy-replay-offline-v2` 的规则（不访问网络）仍然成立。它的正文提到 authority 与初始信任；
+    正文受哈希锁定，本 Change 不修改。检查脚本对已删除的文件会跳过，仍能拦截违规。
+    是否按新组件名重新 ratify，由负责人决定。
+  - `transitions.py` 的改动只在非转换集合中加入新事件类型，按 `d-fixed-transition-matrix` 的要求执行
+    `decision reconcile` 并写明理由。
+  - 用 `keepsail decision new` 提交一条 proposed 决策（不附锚点，是否 ratify 由负责人决定）：
+    "改变认可策略或必需检查的 Change 须计划声明并由 owner 记录授权；keepsail 不以签名或回放证明策略来历。"
 
 ## 不做
 
-- 不评估 v2 交付策略机制本身是否过重（负责人安排在本 Change 之后单独讨论）。
-- 不删除或削弱任何回放检查；不新增审计命令或 workflow；不改变合并验证。
-- 不给缓存条目签名或引入本地密钥（本地没有 agent 读不到的密钥；见 C1 信任边界）。
-- 不缓存 verify 检查结果（B14），不调整评审顺序（B39）。
-- 不改变 attestation、授权记录、策略文件或事件格式；不改变 v1 行为。
-- 不修改 `.harness/verification.yaml`，不改变 pytest worker 数。
-- 不优化测试夹具（测量显示夹具占 1%）。
+- 不引入新的签名、密钥或审计命令；不区分 owner 与 agent 身份（#158）。
+- 不缓存跨命令的验证结果，不缓存 verify 的检查结果（B14），不调整评审顺序（B39）。
+- 不改写历史账本或已提交的 attestation。
+- 不修改 `.harness/verification.yaml`（C8 的条件触发除外），不改 pytest worker 数。
 - 不发布新版本，也不提升模板固定的 CLI 版本。
-
-## 测试
-
-- **C1**：C4 中的热状态、增量、冷启动线性、合并验证冷启动、伪造条目边界、换键、语义不变、不持久化条件、
-  损坏与过期各项；纯函数测试；缓存文件不出现在 `git status` 中；并发两个进程写同一键不产生损坏文件。
-- **C2**：ref 不缓存；失败不缓存；无作用域时不缓存；两次相继的操作作用域不共享条目（在两次操作之间
-  改变浅克隆或 replace 状态，第二次操作的 `is_ancestor` 反映新状态）；在一个已有缓存条目的外层作用域内调用
-  `verify_attestations`，它重新查询 Git，且不向外层写入条目；条目数与字节两个上限；子树只含 `.harness/`；多线程并发读写同一键结果正确；
-  批量读取与常驻 `cat-file --batch` 遇到非普通文件、缺失路径、重复路径、非 UTF-8、异常输出、进程提前退出时
-  按原错误失败；常驻进程在作用域结束时关闭；`report` 与线程池任务在作用域内；
-  `_contract_base_candidates` 的 `for-each-ref` 在同一次调用内每次都实际执行（记忆层中没有以 ref 为键的条目）。
-- **C3**：同一字节命中；追加一行后不命中且结果包含新行；返回值不可变；在现有账本夹具
-  （含 completion transaction、紧凑 attestation、恢复记录、畸形行）上，新函数与直接调用 `effective_event_lines`
-  的结果逐项相同；恢复记录引发的 `EventSchemaError` 行为不变，且错误不被记住；
-  `load_ledger` 的物理前缀哈希与 revision 在改动前后逐字节相同；`read_inputs` 在账本于读取后被追加时，
-  返回的账本回放、revision 与状态仍来自同一份字节。
-- **C5**：原入口命令运行该文件全部测试并通过；完整路径测试存在且走完 `review import`、`done`、`attest verify`；
-  断言对照表完整。
-- **全量**：`keepsail verify`、`keepsail decision check`、`keepsail doc check` 通过。
+- 不处理本仓库的认可策略本身。更换本仓库的评审流程（#159 的直接诉求）将来作为单独的 Change，使用 C2 的路径。
 
 ## 验收测量
 
-实施后用同一方法测量（脚本不入库），写入 PR 说明：
+实施后用同一方法测量（脚本不入库），写入 PR：
 
-- **Git。**
-  - 该场景文件中由产品代码发起的 git 调用合计，降到原单一场景 9492 次的 25% 以下；该文件总耗时低于 200 s（本机）。
-  - C4 的 3 次切换夹具上，预热后 `done` 由产品代码发起的 git 进程不超过 60 次。
-  - 另构造一次 10 步切换的夹具（只用于测量，不入库），报告冷启动的单步 git 次数与耗时，以及热状态下新增一步的
-    git 次数与耗时；后者与 1 步、3 步夹具上的值相同。
-- **内存。** 用同一 Job Object 方法在本仓库重测 `status`、`change resume`、两个 hook 和完整验证；
-  `change resume` 的进程树峰值不高于 `status` 的峰值加 50 MB（实施前分别为 207 MB 和 127 MB；
-  `load_ledger` 的物理处理保留，所以目标比上一版宽）。
-- **全量测试。** 串行和 `-n 2` 的时长都报告（串行即 C6 的义务）。
+- **Git：**
+  - `test_delivery_policy_transition.py` 全文件由产品代码发起的 git 调用合计，低于原单一场景 9492 次的 25%，
+    文件总耗时低于 200 s（本机）；
+  - 3 次切换夹具上，`done` 由产品代码发起的 git 进程不超过 60 次；
+  - 另构造一个 10 步切换的夹具（不入库），报告 `status` 与 `done` 的 git 次数，应与 1 步夹具相同。
+- **内存：** 用 Job Object 方法重测 `status`、`change resume`、两个 hook 和完整验证。
+  `change resume` 的进程树峰值不高于 `status` 加 50 MB（实施前分别为 207 MB 和 127 MB）。
+- **全量测试：** 报告串行（C8 的义务）与 `-n 2` 的时长。
 
-未达到目标时，在 PR 中如实报告实测值与原因，不放宽测试。
+未达到目标时如实报告实测值和原因，不放宽测试。
 
 ## 文件范围（估计）
 
-- `src/keepsail/core/`：`attestation_v3_verify.py`、`effective_policy.py`、`policy_snapshot.py`、
-  `git_objects.py`、`scope_match.py`、`approval.py`，新增 `activation_cache.py`；
-  `events.py`、`reducer.py`、`knowledge.py`。
-- `src/keepsail/cli/__init__.py`、`src/keepsail/cli/change.py`（`resume`、`_tail_events_for_change`），
-  以及开启持久记忆的各生命周期命令入口所在的 CLI 模块（hook 经 `cli/gate.py` 进入）。
-- `src/keepsail/engineering/attestation.py`（`verify_attestations` 强制冷启动）。
-- `src/keepsail/sensors/dispatcher.py`、`src/keepsail/sensors/verification_runner.py`。
-- `tests/`：`test_delivery_policy_transition.py` 的文件内拆分，新增记忆层、持久缓存、回归守卫测试。
-- `docs/`：`implementation-architecture.md`、`limitations.md`、`product-architecture-coverage.md`、
-  `cli-reference.md`（如需），`docs/decisions/` 下新的 proposed 记录。
+- `src/keepsail/`：
+  - `core/`：`attestation_v3*.py`、`policy_*.py`、`effective_policy.py`、`initial_policy.py`（删除）、
+    `delivery_policy.py`、`transition_guard.py`、`review_basis.py`、`approval.py`、`emit_validation.py`、`events.py`、
+    `transitions.py`、`no_review.py`、`verification_*.py`、`git_objects.py`、`scope_match.py`、`reducer.py`、`knowledge.py`；
+  - `cli/`：`__init__.py`、`policy.py`、`review.py`、`done.py`、`verify.py`、`pr.py`、`init.py`、`init_plan.py`、`change.py`、`attest.py`；
+  - `engineering/`：`attestation.py`、`attestation_v3.py`、`delivery_policy.py`、`agents_md_render.py`；
+  - `sensors/dispatcher.py`、`sensors/verification_runner.py`。
+- `pyproject.toml`、`uv.lock`、`AGENTS.md`、`scripts/gen_cli_reference.py`（如需）、`.github/workflows`（如需）。
+- `tests/`：上述测试的删除、重写与新增。
+- `docs/`：`getting-started.md`、`limitations.md`、`implementation-architecture.md`、`product-architecture-coverage.md`、
+  `cli-reference.md`，以及 `docs/decisions/` 下新的 proposed 记录。
 - 本计划。
 
 ## 产品基础核对
 
-- **F1（不静默偏离承诺）。** 每一步回放的检查不变；没有伪造时，本地判定与现在逐字节相同；合并验证不读取记忆，
-  人的承诺在合并闸门处按原方式兑现。伪造条目能影响的范围（本地生命周期命令）在 `limitations.md` 中如实写明。
-- **F2（记录的权威可恢复）。** 缓存不是记录：删除它不丢失任何权威，只需重新计算。
-- **负责人的权限。** 本地使用未认证的记忆，是负责人于 2026-11-27 在了解第 9 轮评审第 1 项之后作出的决定；
-  它落在已让出的本地 shell 能力之内，不改变合并闸门的风险边界、认可策略或已批准承诺。
-- **开源用户。** 设计不依赖本仓库的使用习惯与链长：长链项目热状态下每步成本不随链长增长；不同的合并方式、浅克隆、
-  只读 `.git`、无持久缓存的 CI 都能正确工作，只是可能得不到加速。
-- **`2026-11-10` 的 C3**（"合并判定可用已提交的证据离线重放"）与最小回归入口保持。
+- **F1：** 改变承诺或风险边界必须经过计划声明和 owner 授权，并在账本、attestation 和 PR 中可见；
+  做出改动的 Change 仍按旧义务交付。agent 不能**静默**改变它们。是否能从身份上区分 agent 由 #158 处理，
+  这里如实披露。
+- **owner 的权限：** 认可策略与风险边界由 owner 决定，keepsail 记录并执行，不再要求 owner 先部署密钥才能行使决定（#159）。
+- **证据分层：** 策略来历交给宿主分支保护与 CI，keepsail 不在本地重复证明。
+- **开源用户：** 设计不依赖本仓库的使用习惯。命令成本不随项目寿命里的策略变化次数增长；已部署 v2 的项目
+  不需要迁移即可继续工作。
