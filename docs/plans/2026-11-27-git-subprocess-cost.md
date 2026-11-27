@@ -40,6 +40,10 @@ stage: plan
 - 第 17 版（`6726c1f`）由同一 Codex 配置评审，拒绝，2 个阻断项；原始输出在 `plan-review-17/`。本版的处理：
   - **迁移路径缺少端到端测试**：接受，加入旧版本迁移加新版本普通交付的测试（C7）。
   - **`reducer.py` 的改动未按 `d-state-pure-fold` 复核和 reconcile**：接受（C5）。
+- 第 18 版（`bfc1618`）由同一 Codex 配置评审，拒绝，2 个阻断项；原始输出在 `plan-review-18/`。本版的处理：
+  - **`delivery-policy-offline` 为浅克隆，取不到固定的旧提交**：接受，改为 `fetch-depth: 0`，缺失时测试失败（C7）。
+  - **`delivery-policy-wheel` 仍运行被删除的 `test_policy_authority.py`**：接受，改为运行新机制的已安装 wheel 测试，
+    并加一个守卫测试，检查 workflow 引用的测试路径都存在（C6）。
 
 ## 产品核心（本计划保持）
 
@@ -233,6 +237,14 @@ stage: plan
 - 签名、恢复、轮换和初始信任的测试随功能删除：`test_policy_authority.py`、`test_initial_policy.py`、
   `test_policy_authorization_import.py`、`test_v1_policy_rotation.py`，以及其他文件中的相关用例。
   PR 中附一张对照表，逐条说明每个被删断言保护的是已删除的功能，还是已由新测试覆盖。
+- CI 中引用这些文件的地方同步修改：
+  - `.github/workflows/test.yml` 的 `delivery-policy-wheel` job 原来在已安装的 wheel 上运行
+    `test_policy_authority.py`，验证 Ed25519 路径。改为在同一 OS/Python 矩阵上，用已安装的 wheel 运行新机制的
+    单元测试（风险边界检测与完整差异、`policy-acceptance/v1` 的结构与一致性校验，放在新文件
+    `tests/unit/core/test_policy_acceptance.py`），并断言已安装的 keepsail 在没有 `cryptography` 时可以导入并运行这些路径。
+    job 名称与注释随之更新；
+  - 新增一个测试：解析 `.github/workflows/*.yml` 中 `pytest` 命令引用的每个测试路径，断言这些路径在仓库中存在，
+    防止删除测试文件后留下失效的 CI 步骤。
 
 ### C7 测试与回归守卫
 
@@ -268,6 +280,9 @@ stage: plan
        被接受，`done` 通过，`attest verify` 通过。
     第 1、2 步需要旧版本的 `cryptography`，它只进入测试依赖组，不再是运行时依赖；
     运行时依赖中没有 `cryptography` 由 C3 的另一条测试保证；
+    固定的旧提交须在运行环境中可用：`.github/workflows/test.yml` 中运行该文件的 `delivery-policy-offline` job
+    的 checkout 改为 `fetch-depth: 0`（`pytest` job 已是如此），取历史发生在网络隔离之前。
+    提交缺失时测试**失败**并说明原因（例如浅克隆），不跳过；
   - 带历史 `policy_authorization_imported` 事件的账本折叠结果不变；
   - 历史签名 v3 可以解析；新增的签名 v3 被拒绝；
   - `cryptography` 未安装时所有命令可用。
