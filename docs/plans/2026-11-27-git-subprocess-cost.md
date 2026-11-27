@@ -124,7 +124,10 @@ stage: plan
 - `2026-11-10-delivery-policy-transition.md` 第 47 行"生效后……以该旧基线和旧策略重放整个激活 v3"，
   以及验收表第 137 行对应的"激活后再以新基线重放整个激活 v3"。改为：闸门单步验证加审计单步验证。
   该计划的其余承诺不变，包括签名授权、义务保留、恢复、轮换、初始信任、离线验证，以及"删除或损坏已激活策略不能降级"。
-- `2026-11-24-verify-timeout` 退出条件中"低于 2000 s 则在后续 Change 内恢复串行和 2700 s"一项：推迟，见 C8。测量义务与 2026-12-31 兜底条款不变。
+- `2026-11-24-verify-timeout` 退出条件：
+  - "低于 2000 s 则在后续 Change 内恢复串行和 2700 s"一项：推迟，见 C8。
+  - 测量位置：从"计划中"改为 PR 与评估记录（解释性偏离，见 C8）。
+  - 测量义务本身与 2026-12-31 兜底条款不变。
 
 ## 承诺
 
@@ -141,7 +144,8 @@ stage: plan
   - 存在，可严格解析，且恰含规定字段；
   - `repository_id`、`target_ref` 与 authority 一致；
   - `policy_digest` 等于当前策略摘要；
-  - `initial_commit` 是完整 OID，且是当前基线的真祖先（一次 `merge-base --is-ancestor`）。
+  - `initial_commit` 是完整 OID，不等于基线，且是基线的祖先（一次 `merge-base --is-ancestor`）；
+  - `owner_confirmation` 恰含 `owner`、`statement`、`evidence_reference`、`original_evidence` 四个非空字符串。
 
   这比原 `verify_initial_policy` 的检查少：
   - 不扫描先前启用策略的历史；
@@ -161,7 +165,7 @@ stage: plan
 
 ### C2 合并闸门只验证 base→head
 
-`verify_v3_delivery` 把第 414 行对 base 的激活回放替换为 `trusted_policy_snapshot(base)`，因此闸门仍会对确认文件缺失、畸形或不符的 initial 基线关闭失败。`verify_v3_transition` 不变。授权、义务变化、恢复依据、审查证据、必需检查、代码对象与 attestation 新增检查全部保持。
+`verify_v3_delivery` 把第 414 行对 base 的激活回放替换为 `trusted_policy_snapshot(base)`，并使用它返回的快照，删去第 416 行对同一 base 的重复读取。因此闸门仍会对确认文件缺失、畸形或不符的 initial 基线关闭失败。`verify_v3_transition` 不变。授权、义务变化、恢复依据、审查证据、必需检查、代码对象与 attestation 新增检查全部保持。
 
 `verify_attestations` 判断 `active_v2` 的方式不变：仍读取 base 的策略版本，据此要求 v3 证据并选择 `verify_v3_delivery`。区别只是用 `trusted_policy_snapshot` 代替回放。
 
@@ -187,20 +191,24 @@ stage: plan
 - `review-recognition.yaml` 的解析结果（不存在、v1 及其摘要、v2 及其摘要）；
 - `policy-authority.yaml` 的摘要（或不存在）；
 - `verification.yaml` 的必需检查契约摘要；
-- `policy-initial-trust.json` 的字节（或不存在）。
+- `policy-initial-trust.json` 的字节（或不存在）；
+- `.harness/attestations/v3/` 下每个文件的路径与 blob OID 映射。
+
+其中 attestation 映射只在一种情况下用作变化点：P 中已存在的某条 v3 attestation 在 C 中被修改或删除（情形 6）。新增 attestation 属于正常交付，不单独构成变化点。
 
 读取时按普通文件 blob 校验，畸形内容关闭失败。
 
 **变化点判定**（S(C) ≠ S(P)，P 为第一父提交）：
 
-1. **v1 区间。** 两侧都没有 v2 策略，都没有启用的 authority，也都没有初始信任确认文件；变化只落在 v1 或未启用状态内。
+1. **v1 区间。** 两侧都没有 v2 策略，也都没有初始信任确认文件；变化只落在 v1 或未启用的策略状态内，authority 变化也包括在内，由 v1 守卫判定。
    - **v1 基线：** `--v1-since <commit>`。
      - 提供了 `--from` 时，默认取 `--from`，即增量审计中的一切 v1 变化都按规则判定。
      - 全量审计必须显式给出这个参数，`root` 表示从根提交起全部判定。
-   - **基线之后（不含基线）的变化：** 按今天闸门的 v1 规则判定，即对 (P, C) 调用 `committed_transition_required`。
+     - 工作流：全零 `before` 的首次推送使用 `--v1-since root`；`workflow_dispatch` 的全量审计以必填输入 `v1_since` 提供。
+   - **基线之后的变化：** 指从基线提交不可达的提交，与 rev-list 的区间语义一致。`--from` 不在第一父链上时，同样按可达性归类。这些变化 按今天闸门的 v1 规则判定，即对 (P, C) 调用 `committed_transition_required`。
      - 返回 true 或抛错（例如删除 v1 策略、替换或删除必需检查、在 v1 下启用 authority），记为发现。v1 仓库无法合法完成这些修改。
      - 返回 false（例如新增检查），列为信息项。
-   - **基线及之前的变化：** 列为信息项。它们当时由 PR 审查和当时生效的规则把关，不把今天的守卫追溯套用上去。
+   - **基线及之前的变化（从基线可达）：** 列为信息项。它们当时由 PR 审查和当时生效的规则把关，不把今天的守卫追溯套用上去。
    - 与原回放相比：原回放不验证 v1 历史；新审计对基线之后的 v1 区间增加了检出。
 2. **v2 切换或恢复（以交付为单位）。** 第一父链提交 C 使策略摘要变化，且新策略为 `{kind: transition, change: X}`。
    - **定位交付：**
@@ -218,7 +226,10 @@ stage: plan
      - S(I) 的策略、authority、检查三项等于这次交付落到主线后的状态。这一状态取 R 在第一父链上的最后一个提交，或合并提交 C。
    - **I 处的内容与闸门一致：** 闸门在 PR head 重算代码主题，要求非 attestation 内容与已记录的代码主题完全一致（`attestation_replay.py:157-184`）。因此在闸门接受的交付中，I 之后只能修改 attestation 路径，策略文件在 I 处已是最终状态。在 attestation 之后才修改策略的交付会被闸门拒绝，审计中则表现为 S(I) 与落地状态不符，记为发现。
    - **单步验证：** 按 B 的策略版本，调用 `verify_v3_transition(base=B, head=I, _historical_replay=True)` 或 `verify_v3_delivery(base=B, head=I, _historical_replay=True)`。两条路径都传入 `_historical_replay=True`，且都不递归验证 B 的来历。结果中的目标策略摘要须等于 S(I) 的策略摘要。
-   - **合并处理：** 第一父链上属于同一交付的其它变化点（例如同一 PR 内先后两次修改策略，或同一交付内加入初始确认），都归入这一次验证，不单独判定。这与闸门以整个 PR 为单位验证一致。
+   - **每个策略变化点独立判定，不合并。**
+     - 一次交付的第一父链上只允许出现一个策略、authority 或检查的变化点，也就是这次切换本身；只改动 attestation 或非策略文件的提交不构成变化点。
+     - 快进合并使第一父链上出现多个策略变化点时（例如同一 PR 内先改出中间策略 X，再改到 Y），中间点 X 没有自己的已验证依据，记为发现，提示"多步策略交付须使用合并提交或 squash"。审计在这一点上比闸门严格：闸门只验证 PR 的最终状态。
+     - 同一交付内加入的初始信任确认是情形 4 的独立变化点，仍执行 `verify_initial_policy`，不归入切换验证。
 3. **密钥轮换。** authority 摘要变化，策略与检查不变。
    - 在落地状态中枚举 v3 attestation，要求恰有一条 `rotate_key` 记录指向新的 authority 摘要，沿用 `_verify_current_rotation` 的匹配规则。
    - 按情形 2 的方式定位 I、B、R、M 并检查，以 `verify_v3_delivery(..., _historical_replay=True)` 单步验证。
@@ -239,6 +250,7 @@ stage: plan
    - 检查摘要变化但未伴随授权切换；
    - 确认文件被修改或删除；
    - 不符合上述任何情形的组合。
+6. **已有 v3 attestation 被修改或删除，记为发现。** 不论该 attestation 是否属于当前生效的策略，v3 记录都只能追加。这一条取代原回放中"生效 attestation 自引入后未被修改"的逐命令检查，并在增量审计中同样生效。
 
 **输出与退出码：**
 - `--json` 输出 `{"range": {"from", "to", "full"}, "points": [...], "findings": [...], "warnings": [...], "informational": [...]}`。
@@ -274,14 +286,14 @@ stage: plan
 
 ### C5 进程内复用不可变 Git 事实，批量读取
 
-- 记忆层放在 `core/git_objects.py` 中，该文件已在 `d-policy-replay-offline-v2` 的检查路径内。它是进程内、带锁、按条目数限容的 LRU，上限 4096 条；只存不可变值（bytes、str、bool、tuple）。
+- 记忆层放在 `core/git_objects.py` 中，该文件已在 `d-policy-replay-offline-v2` 的检查路径内。`git_objects.py` 对 `ApprovalError` 的导入改为在函数内延迟导入，以免出现 `scope_match → git_objects → approval → scope_match` 的导入循环。它是进程内、带锁、按条目数限容的 LRU，上限 4096 条；只存不可变值（bytes、str、bool、tuple）。
   - 键包含仓库根的规范路径和完整 OID。
   - 缓存对象：完整 OID 的 `resolve_commit`；`(commit, path)` 的 blob 读取，含"不存在"与"非普通文件"结果；提交的树列表；`is_ancestor`；`merge_base`。
   - 只缓存成功的 git 调用结果，git 失败不缓存。
   - 符号 ref（`HEAD`、分支名）不缓存。
   - 假设：单次进程运行期间，不在同一仓库执行 fetch、unshallow、replace 或 graft，keepsail 自身也不执行；文档字符串写明这一点。
     - 若在进程运行期间由外部并发改写这些历史，`is_ancestor` 与 `merge_base` 的缓存结果可能过时。这是已接受的限制，写入 `docs/limitations.md`。
-- 策略快照的四个文件合并为一次 `ls-tree` 加一次 `cat-file --batch`，保留普通文件 blob 校验。
+- `read_policy_snapshot` 内部改为一次 `ls-tree` 加一次 `cat-file --batch`，读取它所需的三个文件。它的校验语义和错误行为不变（"原样保留"指语义）。`trusted_policy_snapshot` 的 initial 检查另外读取确认文件。
 - `_contract_base_candidates` 的 `for-each-ref` 结果在一次 CLI 调用的作用域内复用，因为它对应可变 ref。
   - 作用域由顶层 CLI 为所有子命令进入，包括 `report`。
   - 作用域对象带锁；dispatcher 提交任务时用 `contextvars.copy_context().run`，让线程共享同一个带锁对象。
@@ -293,8 +305,8 @@ stage: plan
 测试中包装 `subprocess` 计数 git 进程，判断条件不依赖计时。
 
 - **单元级上限。** 在有 3 次 v2 切换的夹具上：
-  - 首次调用 `load_effective_v2`，git 进程数不超过 4（解析 ref、`ls-tree`、`cat-file --batch`，以及一次可能的 OID 校验）；
-  - 同一进程内再次调用，为 0。
+  - 以完整 OID 首次调用 `load_effective_v2`，git 进程数不超过 4（`rev-parse` 校验 OID、`ls-tree`、`cat-file --batch`，initial 策略另加一次祖先检查）；
+  - 同一进程内以同一 OID 再次调用，为 0。符号 ref 不缓存，所以这个目标只针对完整 OID。
 - **命令级链长无关。** 同类夹具分别在 1 次和 3 次 v2 切换之后执行 `done`、`attest verify`、`report`、`review import`、`status`，每条命令的 git 进程数须相同。
 - **作用域重置。** 两次独立的 CLI 调用之间，`for-each-ref` 结果不被复用。
 - **测试隔离。**
@@ -302,7 +314,7 @@ stage: plan
   - 1 次与 3 次切换的夹具由同一构造函数生成：3 次夹具在 1 次夹具之后追加两次切换，再追加相同的一次普通交付。被测命令都针对这次普通交付，参数相同。
   - 夹具的必需检查是不调用 git 的 `python -c` 命令。
   - 计数从夹具构建完成后开始，只统计被测命令调用期间启动的 git 进程。
-- **未调用回放。** 计数之外，再用 monkeypatch 把 `policy_audit` 中的单步验证入口替换为抛错函数，执行上述五条命令。它们必须成功，证明命令路径不调用历史验证。
+- **未调用历史验证。** 计数之外，再用 monkeypatch 把只服务于历史验证的函数替换为抛错函数，执行上述五条命令（普通交付）。它们必须成功，证明命令路径不调用历史验证。这些函数是 `_introduction_commit`、`_verify_current_rotation`、`require_no_prior_enabled_policy`、`verify_initial_policy`，以及审计的单步入口。
 
 ### C7 拆分策略切换场景测试
 
@@ -336,6 +348,7 @@ stage: plan
 - **测量：照常执行。**
   - 实施前的测量已写入"问题"一节：串行 2737 s，另有 73 个本机编码环境失败，因此不能作为合格测量。
   - 实施后的合格串行全量测量，写入 PR 说明和 `implementation record` 的评估记录。批准后的计划主题保持冻结，不回写本计划。
+  - 这与 2026-11-24 原文"在其计划中包含测量"的位置不同：实施前无法得到优化后的测量值。本计划把这一点列为对该条款的解释性偏离，见"本计划取代的已批准承诺"。
 - **恢复：推迟，不在本 Change 内执行。**
   - 修改必需检查定义会被上述守卫拒绝，本 Change 无法合法完成恢复。
   - 负责人在被告知"2026-11-24 的退出条件（恢复串行 / 2700 s）同样被阻断"之后，选择了 "Drop C8 here"。该选项写明 "Leave verification.yaml as it is. Still run the serial measurement the 2026-11-24 plan requires and report it."
@@ -366,7 +379,7 @@ stage: plan
 
 - **C1**
   - 有多次切换的仓库中，读取生效策略不调用回放（可由 C6 证明）。
-  - 以下情况关闭失败：基线策略摘要被篡改；检查摘要不一致；authority 的仓库或 ref 不符；initial 缺确认文件、确认的摘要或仓库标识不符、`initial_commit` 不是真祖先。
+  - 以下情况关闭失败：基线策略摘要被篡改；检查摘要不一致；authority 的仓库或 ref 不符；initial 缺确认文件、确认的摘要或仓库标识不符、`initial_commit` 等于基线或不是祖先、`owner_confirmation` 字段不全。
   - 删除或损坏基线上已激活的策略不能降级为 legacy。
 - **C2**
   - 现有闸门正例和负例保持通过。
@@ -382,7 +395,8 @@ stage: plan
     - 合并提交交付，其中 I 位于第二父链上；
     - `--from` 不在第一父链上的区间。
   - 本仓库的全量审计（`--v1-since 24d955b`）：`findings` 为空，`informational` 恰为 C4 列出的六个提交。
-  - 多提交交付：先改策略后加 attestation 的快进合并；合并提交交付；同一交付内先加初始确认、再切换。
+  - 多提交交付（单个策略变化点）：先改策略后加 attestation 的快进合并；合并提交交付。
+  - 同一交付内先加初始确认、再切换：两个变化点分别验证，都通过。
   - 记为发现的情形：
     - 直接追加的未授权策略修改、检查删除、authority 替换；
     - 禁用、删除 v2 或将其降为 v1；
@@ -391,6 +405,10 @@ stage: plan
     - B 是 P 的祖先但不是 I 的祖先；
     - S(B) ≠ S(M) 的过时基线授权，包括只有初始信任确认不同的情况；
     - attestation 之后又修改策略的交付（S(I) 与落地状态不符）；
+    - 快进合并的多步策略交付：中间点 X 无论有没有自己的 attestation，都记为发现；
+    - 同一交付内加入被篡改的初始确认；
+    - 增量审计中，后续推送修改或删除已有的 v3 attestation，包括生效策略的激活记录；
+    - v1 区间内启用 authority；
     - 基线之后的 v1 区间内：替换或删除必需检查、删除 v1 策略、启用 authority；
     - 全量审计缺少 `--v1-since`（退出码 2）；
     - initial 确认文件被修改或删除。
@@ -502,3 +520,17 @@ stage: plan
     - 记忆层放入已受离线决策检查的 `git_objects.py`；
     - 列出第一父链上带入 v1 变化的提交；
     - 补全文件范围。
+- **第 4 版（`6626e28`）** 被独立 DSH 子代理拒绝，拒绝证据为 `dsh-plan-b627a35b4679-6626e28-20261127`。第 5 版的回应如下：
+  - **交付合并处理隐藏了中间的策略变化点和初始确认变化点。** 取消合并判定：每个策略变化点独立判定。快进合并的多步策略交付中，中间点记为发现。同一交付内的初始确认作为独立变化点，仍执行 `verify_initial_policy`。增加相应测试。
+  - **增量审计不能发现之后对生效 attestation 的修改。** 策略状态加入 v3 attestation 的路径与 blob 映射。新增情形 6：修改或删除任何已有的 v3 attestation 都记为发现，在增量审计中同样生效。增加相应测试。
+  - **非阻断问题：**
+    - "未调用历史验证"测试改为替换只服务于历史验证的函数；
+    - 测量位置的解释性偏离列入被取代承诺；
+    - 写明工作流全量审计的 `--v1-since` 来源；
+    - `git_objects.py` 延迟导入，避免导入循环；
+    - initial 本地检查要求 `initial_commit` 不等于基线，并校验 `owner_confirmation` 结构；
+    - v1 区间不再要求没有 authority，交由 v1 守卫判定；
+    - 基线前后按可达性归类；
+    - 写明 `read_policy_snapshot` 批量读取但语义不变；
+    - 第二次调用为 0 只针对完整 OID；
+    - 删去 `verify_v3_delivery` 中的重复快照读取。
