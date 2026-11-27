@@ -64,6 +64,18 @@ stage: plan
 - 第 23 版（`4424401`）由同一 Codex 配置评审，拒绝，1 个阻断项；原始输出在 `plan-review-23/`。本版的处理：
   - **授权者与时间没有进入已提交的 attestation**：接受，`authorization` 同时带上授权事件的 `event_id`、`actor` 和 `ts`，
     并补上端到端一致性测试（C2、C7）。
+- 第 24 版（`5121bc9`）先由 Codex 评审批准（不是认可流程），再由本仓库认可的 DSH 评审流程评审，
+  拒绝，2 个阻断项。该结论已导入为认可证据，原始记录在
+  `review-artifacts/2026-11-27-git-subprocess-cost/plan-review-dsh-25/`。本版的处理：
+  - **禁用的 v1 策略没有首次启用的路径**：接受。首次启用时，绑定冻结的计划对象，由 owner 授权，
+    交付时按改动前的义务（C2、C7）。
+  - **逐项变化漏掉必需检查的层开关**：接受，层开关与 `policy-metadata` 都列为逐项变化（C2、C7）。
+  - 非阻断项也一并处理：
+    - 严格写入的整条前置校验共用一次展开（C5）；
+    - 补上 `d-events-append-only` 的 reconcile（C9）；
+    - 计划修订后授权失效的测试（C7）；
+    - 同一场景的前后对比（验收）；
+    - 摘要中 v2 兼容性的表述（产品基础核对）。
 
 ## 产品核心（本计划保持）
 
@@ -134,7 +146,11 @@ stage: plan
 - 代码审查模式与范围：放宽、加强或其他修改，包括 `scope` 路径的增减；
 - 内置检查契约版本的变化；
 - 必需检查按 `(来源, ID)`：新增、删除、定义改变（命令、参数、工作目录、环境、超时、必需标记）；
-- 策略的启用与停用，以及版本变化。
+- 必需检查契约的层开关（`required_check_contract` 中的 `layers`：`baseline`、`framework_adapter`、`user_checks`），
+  每个开关的 `false→true` 与 `true→false` 各为一项，即使所选检查集合没有因此改变；
+- 策略的启用与停用，以及版本变化；
+- 策略中其余计入 `policy_digest` 的字段（例如说明性的 `activation`）作为 `policy-metadata` 项列出改动前后的值，
+  不被忽略，也不导致"差异为空"。
 
 现有的 `changed_obligations`/`changed_required_checks` 只列出被删除、替换或削弱的旧义务。它们改为一个
 完整的差异函数，每一项带方向（`added`/`removed`/`changed`）和改动前后的值。摘要不同而差异为空时，
@@ -148,6 +164,21 @@ keepsail 不判断文字的语义：语义由计划审查负责，具体改了�
 
 授权绑定该 Change 生效批准的计划对象。有风险边界变更、但计划对象缺少这条承诺时，`policy accept` 拒绝记录，
 `done` 和合并判定也都拒绝。没有风险边界变更的计划可以不写这条承诺；写了也无害，只在 `status` 中提示。
+计划被修订、生效批准换成新的计划对象后，旧计划对象上的授权失效，必须重新授权。
+
+**首次启用（可信 base 上的策略缺失或 `enabled: false`）。** 此时没有认可的评审流程，也就不会有生效批准；
+`keepsail init` 生成的默认策略正是这种状态，而且重复运行 init 会保留它。首次启用按以下方式进行，
+不需要签名或额外的引导流程：
+
+- 该 Change 必须用 `plan ready --plan <计划> --commitment RISK-BOUNDARY=<文字>` 冻结计划对象。
+  `plan ready` 在没有启用的策略时也接受 `--plan`；本 Change 要求首次启用时必须提供它；
+- `policy accept` 绑定**最新冻结的计划对象**，而不是生效批准。在没有认可流程时，owner 的这次授权本身
+  就是对首次启用的授权；
+- 改动前的义务就是"没有启用的认可策略"，加上 base 上的必需检查。`done` 和合并判定照此交付，
+  闸门和必需检查照常生效；
+- attestation 照常使用 v3，`authorization` 中带授权记录，合并判定从快照读取冻结的计划对象，
+  检查 `RISK-BOUNDARY` 承诺；
+- 合并后，新策略对之后的 Change 生效。
 
 **owner 授权。** 新命令 `keepsail policy accept <change>`：
 
@@ -250,8 +281,9 @@ keepsail 不判断文字的语义：语义由计划审查负责，具体改了�
   - `change resume`（实测在一次调用中对整个账本展开 3 次）：`resume` 读取一次字节并展开一次，
     `derive_state`、`knowledge.read_inputs` 的状态推导与 `_tail_events_for_change` 使用同一份行。
     `read_inputs` 的账本回放与状态推导仍来自同一份字节；
-  - 严格写入的前置校验：`emit_validation` 中一次校验里的 `_current_state` 与 `_change_event_types`
-    对同一份字节各展开一次，改为共用一次展开。
+  - 严格写入的前置校验：一次校验从读取账本字节开始，展开一次。之后整条前置校验路径都使用这一份行，
+    包括 `_current_state`、`_change_event_types`、`_validate_authority` 中的 `derive_state`，以及它调用的
+    `review_verdict.read_change_events`。这些函数各加一个可选的行参数，不传时行为不变。
 - 计数口径按**字节快照**：同一份字节（以 SHA-256 区分）在上述路径中至多展开一次；事件追加会产生新快照，
   新快照的展开另计。
 - `knowledge.load_ledger` 的物理行校验与逐行前缀哈希不变。折叠逻辑和事件格式不变。
@@ -296,7 +328,12 @@ keepsail 不判断文字的语义：语义由计划审查负责，具体改了�
     `done` 和通过合并判定。停用的例子中，做出改动的 Change 在 `done` 和合并判定两处都仍要满足旧义务；
     候选策略被停用，不妨碍按基线策略判定；
   - 逐项记录完整：新增必需检查、加强代码审查（`off`→`full`、`scope` 增加路径）、新增流程 kind、
-    检查定义只改超时，都出现在记录中并带正确方向；构造"摘要不同、差异为空"的情况时拒绝；
+    检查定义只改超时、三个层开关各自的启用与停用（包括所选检查集合不变的情形）、只改 `activation`，
+    都出现在记录中并带正确方向；构造"摘要不同、差异为空"的情况时拒绝；
+  - **首次启用：** 从 `keepsail init` 生成的禁用策略出发，在同一个 Change 中完成以下步骤：
+    冻结带 `RISK-BOUNDARY` 的计划、`policy accept`、`done`、`attest verify`。之后，新策略对下一个 Change 生效：
+    该 Change 需要认可流程给出的计划批准。首次启用的计划缺少 `RISK-BOUNDARY`，或者没有冻结计划对象时，拒绝；
+  - 授权计划 A 之后修订计划并批准计划 B，A 上的授权失效，需要重新授权；
   - 授权后改动目标策略，或改动检查定义，授权失效；
   - 授权后 rebase 或修改代码，授权仍然有效；
   - 计划对象没有 `RISK-BOUNDARY` 承诺（或文字为空）时，`policy accept`、`done` 和合并判定都拒绝；
@@ -395,6 +432,8 @@ keepsail 不判断文字的语义：语义由计划审查负责，具体改了�
     - v2 的正文不手工修改。
   - `transitions.py` 的改动只在非转换集合中加入新事件类型，按 `d-fixed-transition-matrix` 的要求执行
     `decision reconcile` 并写明理由。
+  - 新事件类型同时加入 `events.py` 的已知事件类型。按 `d-events-append-only` 的要求复核：只新增类型，
+    不改写或删除已有事件。复核成立后执行 `decision reconcile d-events-append-only` 并写明理由。
   - 用 `keepsail decision new` 提交一条 proposed 决策（不附锚点，是否 ratify 由负责人决定）：
     "改变认可策略或必需检查的 Change 须计划声明并由 owner 记录授权；keepsail 不以签名或回放证明策略来历。"
 
@@ -429,7 +468,10 @@ keepsail 不判断文字的语义：语义由计划审查负责，具体改了�
 
 - **Git：**
   - `test_delivery_policy_transition.py` 全文件由产品代码发起的 git 调用合计，低于原单一场景 9492 次的 25%，
-    文件总耗时低于 200 s（本机）；
+    文件总耗时低于 200 s（本机）。这不是同一场景的前后对比：原场景（恢复授权）已随功能删除。
+    PR 中分别报告改动前该文件各测试的数值与改动后各测试的数值；
+  - 同一场景的前后对比：在一个不涉及签名的普通 v2 交付场景（改动前后都存在）中，分别报告 `done` 与
+    `attest verify` 的产品 git 调用次数；
   - 3 次切换夹具上，`done` 由产品代码发起的 git 进程不超过 60 次；
   - 另构造一个 10 步切换的夹具（不入库），报告 `status` 与 `done` 的 git 次数，应与 1 步夹具相同。
 - **内存：** 用 Job Object 方法重测 `status`、`change resume`、两个 hook 和完整验证。
@@ -460,5 +502,5 @@ keepsail 不判断文字的语义：语义由计划审查负责，具体改了�
   这里如实披露。
 - **owner 的权限：** 认可策略与风险边界由 owner 决定，keepsail 记录并执行，不再要求 owner 先部署密钥才能行使决定（#159）。
 - **证据分层：** 策略来历交给宿主分支保护与 CI，keepsail 不在本地重复证明。
-- **开源用户：** 设计不依赖本仓库的使用习惯。命令成本不随项目寿命里的策略变化次数增长；已部署 v2 的项目
-  不需要迁移即可继续工作。
+- **开源用户：** 设计不依赖本仓库的使用习惯。命令成本不随项目寿命里的策略变化次数增长；已部署 v2 的项目，
+  若计划流程为 json，不需要迁移即可继续工作；若使用 `signed-plan-decision`，需先用旧版本迁移（C3）。
