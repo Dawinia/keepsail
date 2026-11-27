@@ -61,6 +61,9 @@ stage: plan
   - **进程级记忆与 `d-state-pure-fold` 冲突**：接受，去掉记忆，改为把展开后的行作为显式参数传给下游（C5）。
   - **其他直接调用方绕过记忆，计数承诺无法成立**：接受，覆盖范围收窄到测得重复的路径（`change resume`、
     严格写入的前置校验），计数按字节快照、直接包装 `effective_event_lines`（C5、C7）。
+- 第 23 版（`4424401`）由同一 Codex 配置评审，拒绝，1 个阻断项；原始输出在 `plan-review-23/`。本版的处理：
+  - **授权者与时间没有进入已提交的 attestation**：接受，`authorization` 同时带上授权事件的 `event_id`、`actor` 和 `ts`，
+    并补上端到端一致性测试（C2、C7）。
 
 ## 产品核心（本计划保持）
 
@@ -168,6 +171,9 @@ keepsail 不判断文字的语义：语义由计划审查负责，具体改了�
 - 做出改动的 Change 自身按**改动前**的策略与必需检查交付：计划批准、适用的代码审查和旧必需检查都照常要求。
   不能用改动后的 `off` 免除这个 Change 自身的义务。这条保留 `2026-11-10` 的规定。
 - 风险边界变更的交付使用 v3 attestation（与现在相同），授权记录放在 v3 的 `authorization` 字段。
+  actor 和时间属于事件外层（`events.py` 的 `Event`），不在载荷中，现有导出只取载荷。因此 `authorization`
+  写为 `{acceptance: <载荷>, event_id, actor, ts}`，其中 `event_id`、`actor`、`ts` 原样取自被使用的那条
+  `policy_change_accepted` 事件。合并判定和 `report` 从这里读取授权者与时间。
 - 合并判定（`verify_v3_transition`/`verify_v3_delivery`）重算改动前后的摘要与逐项变化，要求与记录一致，
   并按基线策略重放这次交付。不验证签名。
 - `status`、`report` 和 PR 元数据显示：这是一次风险边界变更、逐项变化、授权者和授权时间。
@@ -300,6 +306,9 @@ keepsail 不判断文字的语义：语义由计划审查负责，具体改了�
     按新流程重新取得批准后可以交付；
   - 不改策略的交付不需要授权，且没有多余授权；
   - 删除 `policy-authority.yaml` 不需要授权。
+  - **授权的可见性端到端：** 一次风险边界变更交付后，账本事件、已提交 attestation 的 `authorization`、`status`、
+    `report` 和 PR 元数据中的授权者、授权时间、事件 ID 与逐项变化逐字段一致；attestation 中的 `actor`/`ts`
+    等于账本中那条事件的外层字段；手工改动 attestation 中的 `acceptance` 使其与重算结果不符时，合并判定拒绝。
 - **C3：**
   - 带 `activation` 字段、计划流程为 json 的已有 v2 策略可以读取并照常工作；
   - 可信 base 上的策略列出 `signed-plan-decision` 时，`status`、`review import`、`done`、`attest verify`
