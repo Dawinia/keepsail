@@ -88,7 +88,7 @@ stage: plan
 - **T2 闸门处单步验证。** 每次信任变更（切换、恢复、轮换）在进入目标分支的 PR 的合并闸门处，
   用宿主提供的基线上的旧策略验证一次，不回放基线自身的来历。
   基线新鲜度由宿主负责：宿主必须提供当前目标分支提交。若托管规则允许以过时 base 合并，
-  由 T3 的审计检出（C3 情形 2 的祖先关系与状态一致性要求）。
+  由 T3 的审计检出：C3 步骤 4 要求授权所针对的策略状态，等于当时实际生效的策略状态。
 - **T3 增量审计。** 目标分支前进后，`policy audit` 对新增区间内每个策略状态变化做单步验证（C3）。
   - 它只能检出，不能阻止。
   - 审计结果不被本地命令或合并闸门读取，它们独立信任基线。
@@ -126,7 +126,7 @@ stage: plan
   以及验收表第 137 行对应的"激活后再以新基线重放整个激活 v3"。改为：闸门单步验证加审计单步验证。
   该计划的其余承诺本计划不改变，包括签名授权（含签名绑定完整基线 SHA）、义务保留、恢复、轮换、初始信任、离线验证，以及"删除或损坏已激活策略不能降级"。
 - **已存在的阻断（不是本计划造成的）：** 2026-11-10 计划第 100 行规定的"已启用旧契约仓库 → v2"升级路径，需要先在 v1 下建立 authority。但自 #140 起，`transition_guard.py:91-100` 拒绝在 v1 下启用 authority（"initial enabled trust needs separate owner establishment"），而仓库没有受认可的负责人信任建立流程。
-  - 本计划不改变这一点：闸门照旧，审计情形 1 与闸门的 v1 守卫一致。
+  - 本计划不改变这一点：闸门照旧，审计的 v1 残余判定（C3 步骤 6）与闸门的 v1 守卫一致。
   - 这一缺陷与 C8 的必需检查锁定同源，归入负责人已安排在本次之后的 v2 产品讨论（负责人 2026-11-27 的"先1"及"Drop C8 here"）。本计划不声称该路径可用。
 - `2026-11-24-verify-timeout` 退出条件：
   - "低于 2000 s 则在后续 Change 内恢复串行和 2700 s"一项：推迟，见 C8。
@@ -156,7 +156,7 @@ stage: plan
   - 不核对确认文件的唯一引入提交；
   - 不在 initial 提交处重算确认（因此不核对 `authority_digest`，密钥可能已轮换）。
 
-  这些检查移到审计（C3 情形 4）。本地只保留上述 O(1) 检查，并有对应测试。
+  这些检查移到审计（C3 步骤 5）。本地只保留上述 O(1) 检查，并有对应测试。
 
 实现方式：
 - 以上全部校验放在一个共享函数 `trusted_policy_snapshot(root, base, repository_id=None, target_ref=None)` 中，位于 `core/effective_policy.py`。
@@ -187,106 +187,71 @@ stage: plan
 
 ### C3 `keepsail policy audit`
 
-命令：`keepsail [--json] policy audit [--from <commit>] --to <commit> [--v1-since <commit>|root] --repository-id <id> --target-ref <ref>`
+命令：`keepsail [--json] policy audit [--from <commit>] --to <commit> [--historical] --repository-id <id> --target-ref <ref>`
 
-**区间：**
-- 遍历 `git rev-list --first-parent --reverse <to> ^<from>`。
-- `--from` 必须是 `--to` 的祖先，否则失败并提示做全量审计。`--from` 可以不在第一父链上，此时以 rev-list 结果为准。
-- `--from` 等于 `--to` 时，区间为空，通过，不需要 `--v1-since`。
-- 省略 `--from` 或其值为全零 OID 时为全量审计：从根提交起；仓库是浅克隆时失败。
-- 每个提交与其第一父提交比较；根提交与"空状态"比较。
+**设计原则：以推送区间和授权证据为单位，不依赖合并方式。**
+- 目标分支只在推送时改变：一次推送把主线从 `before` 原子地变成 `after`，区间内的中间提交从来不是主线。所以审计只需证明：S(from) 经过区间内新增的、已验证的授权，合法地变成 S(to)。
+- 由此，审计不需要判断中间提交属于哪个交付，也不需要判断交付是以快进、rebase、合并提交还是 squash 落地，分支是否合入过目标分支也无关。不同项目的合并方式都适用同一套规则。
 
-**策略状态** S(C) 由 C 中以下内容组成：
+**区间与起点：**
+- `--from` 是被接受的起点，S(from) 原样接受。
+  - 工作流中取推送前的 `before`。
+  - 手动审计时，取项目认可的采用点，即开始信任的提交。
+- 省略 `--from` 或其值为全零 OID：起点为"空状态"（全量审计），所有历史都要被解释。仓库为浅克隆时退出码 2。
+- `--from` 必须是 `--to` 的祖先，否则退出码 2，并提示重新选择起点。
+- `--from` 等于 `--to`：区间为空，通过。
+
+**策略状态** S(X) 指提交 X 中的"策略四项"：
 - `review-recognition.yaml` 的解析结果（不存在、v1 及其摘要、v2 及其摘要）；
 - `policy-authority.yaml` 的摘要（或不存在）；
-- `verification.yaml` 的必需检查契约摘要，文件不存在时取"不存在"；
-- `policy-initial-trust.json` 的字节（或不存在）；
-- `.harness/attestations/v3/` 下每个文件的路径与 blob OID 映射。
+- `verification.yaml` 的必需检查契约摘要（或不存在）；
+- `policy-initial-trust.json` 的字节（或不存在）。
 
-前四项合称"策略四项"。attestation 映射只在一种情况下用作变化点：P 中已存在的某条 v3 attestation 在 C 中被修改或删除（情形 6）。新增 attestation 属于正常交付，不单独构成变化点。
+读取时按普通文件 blob 校验。文件存在但无法解析，退出码为 2。
 
-读取时按普通文件 blob 校验。文件存在但畸形时，退出码为 2；文件被删除时，按"不存在"进入变化点判定，例如 v2 下删除 `verification.yaml` 属于情形 5 的发现。
+**步骤：**
 
-**变化点判定**（S(C) ≠ S(P)，P 为第一父提交）：
+1. **attestation 只能追加。** 比较 from 与 to 中 `.harness/attestations/v3/` 的路径与 blob 映射：from 中已有的条目在 to 中被修改或删除，记为发现。
+2. **收集区间内的交付。** 取 to 中存在、from 中不存在的 v3 attestation。对每一条：
+   - 引入提交 I：它在 to 历史中的唯一引入提交，且从 from 不可达；
+   - 基线 B：记录中的 `trusted_base`。B ≠ I，且 B 是 I 的祖先；
+   - attestation 在 to 与 I 中的字节相同。
 
-1. **v1 区间。** 两侧都没有 v2 策略，也都没有初始信任确认文件；变化只落在 v1 或未启用的策略状态内，authority 变化也包括在内，由 v1 守卫判定。
-   - **v1 基线：** `--v1-since <commit>`。
-     - 提供了 `--from` 时，默认取 `--from`，即增量审计中的一切 v1 变化都按规则判定。
-     - 全量审计必须显式给出这个参数，`root` 表示从根提交起全部判定。
-     - 工作流：全零 `before` 的首次推送使用仓库变量 `KEEPSAIL_AUDIT_V1_SINCE`，未设置时为 `root`；`workflow_dispatch` 的全量审计以必填输入 `v1_since` 提供。
-     - 文档说明：已有历史的采用者应把这个变量设为当前 v1 守卫开始生效的提交（本仓库为 `24d955b`），以免今天的守卫被追溯套用到历史上合法的 v1 变化。
-   - **基线之后的变化：** 指从基线提交不可达的提交，与 rev-list 的区间语义一致。`--from` 不在第一父链上时，同样按可达性归类。这些变化 按今天闸门的 v1 规则判定，即对 (P, C) 调用 `committed_transition_required`。
-     - 返回 true 或抛错（例如删除 v1 策略、替换或删除必需检查、在 v1 下启用 authority），记为发现。v1 仓库无法合法完成这些修改。
-     - 返回 false（例如新增检查），列为信息项。
-   - **基线及之前的变化（从基线可达）：** 列为信息项。它们当时由 PR 审查和当时生效的规则把关，不把今天的守卫追溯套用上去。
-   - 与原回放相比：原回放不验证 v1 历史；新审计对基线之后的 v1 区间增加了检出。
-2. **v2 切换或恢复（以交付为单位）。** 第一父链提交 C 使策略摘要变化，且新策略为 `{kind: transition, change: X}`。
-   - **定位交付：**
-     - I：X 的 attestation 在 `--to` 历史中的唯一引入提交（`_introduction_commit`）。
-     - B：attestation 记录中的 `trusted_base`。
-     - 交付范围 R：从 I 可达、从 B 不可达的提交。
-   - **要求：**
-     - B ≠ I，且 B 是 I 的祖先（沿用原回放检查）。
-     - I 是 `--to` 的祖先或等于 `--to`。
-     - C 与交付相关，满足以下之一：
-       - C 属于 R（快进或 rebase 合并，C 可以早于 I）；
-       - C 是合并提交，其第二父链包含 I。
-     - **落地前的主线提交 L**（即闸门的 base），按以下规则确定：
-       - M：从 C 沿第一父方向（向历史方向）回溯，第一个不属于 R 的提交；对合并提交，即其第一父。
-       - 增量审计中，区间内第一个交付的 L 可以是 M，也可以是 `--from`（推送前的主线提交）。这覆盖了快进合并"已合入目标分支的 PR 分支"的情况：此时 B 位于该分支某个合并提交的第二父链上，不在第一父链上，但它就是推送前的主线提交。
-       - 区间内之后的交付，以及全量审计中的交付，L 只能是 M。
-     - 要求 B = L。这与闸门的 `record["trusted_base"] == base_sha`，以及 2026-11-10 计划"签名绑定完整基线 SHA，基线前进须重新签名"一致。
-       - 增量审计中 B ≠ L：即便策略四项相同，授权针对的也是过时基线，记为发现。
-       - 全量审计中 B ≠ M：git 历史本身无法还原当时的主线提交（例如快进合并的分支中含有目标分支的合并），所以记为警告"基线身份无法在全量审计中核实"；但要求 B 是 I 的祖先，且 S(B) 与 S(M) 的策略四项相同，否则记为发现。
-     - 已知限制：在一次推送内、并且不是第一个交付时，快进合并一个含有目标分支合并的 PR 分支，会被记为发现。文档要求这种情况使用合并提交。
-     - attestation 在 `--to` 中的字节与在 I 中相同。
-     - S(I) 的策略四项（策略、authority、检查、初始信任确认）全部等于这次交付落到主线后的状态。这一状态取 R 在第一父链上的最后一个提交，或合并提交 C。不相等时记为发现，例如合并提交在 I 之后删除或修改了确认文件。
-     - 情形优先级：情形 6（已有 attestation 被修改或删除）和上述四项残余比较，对每个提交都单独评估，不因该提交已归入情形 2 或 3 而跳过。
-   - **I 处的内容与闸门一致：** 闸门在 PR head 重算代码主题，要求非 attestation 内容与已记录的代码主题完全一致（`attestation_replay.py:157-189`，路径比较见 175-189）。因此在闸门接受的交付中，I 之后只能修改 attestation 路径，策略文件在 I 处已是最终状态。在 attestation 之后才修改策略的交付会被闸门拒绝，审计中则表现为 S(I) 与落地状态不符，记为发现。
-   - **单步验证：** 按 B 的策略版本，调用 `verify_v3_transition(base=B, head=I, _historical_replay=True)` 或 `verify_v3_delivery(base=B, head=I, _historical_replay=True)`，都不递归验证 B 的来历。结果中的目标策略摘要须等于 S(I) 的策略摘要。
-   - **可激活性：** `_historical_replay=True` 只用于义务变化的历史语义，它会跳过 `require_activatable_policy`。因此审计对目标策略另行调用 `require_activatable_policy`：
-     - 增量审计（给出 `--from`）中的全部变化点：不可激活记为发现，与闸门一致。
-     - 全量审计中的全部 v2 变化点都视为历史点：不可激活记为警告。这样，验证器升级后收紧的规则不会把已合法激活的历史判为违规，但仍会显示出来。`--v1-since` 只用于 v1 区间，不影响这里。
-     - 同一规则也适用于情形 3 的轮换目标和情形 4 的 initial 策略。
-   - **每个策略变化点独立判定，不合并。**
-     - 一次交付的第一父链上只允许出现一个策略、authority 或检查的变化点，也就是这次切换本身；只改动 attestation 或非策略文件的提交不构成变化点。
-     - 快进合并使第一父链上出现多个策略变化点时（例如同一 PR 内先改出中间策略 X，再改到 Y），中间点 X 没有自己的已验证依据，记为发现，提示"多步策略交付须使用合并提交或 squash"。审计在这一点上比闸门严格：闸门只验证 PR 的最终状态。
-     - 同一交付内加入的初始信任确认是情形 4 的独立变化点，仍执行 `verify_initial_policy`，不归入切换验证。
-3. **密钥轮换。** authority 摘要变化，策略与检查不变。
-   - 在落地状态中枚举 v3 attestation，要求恰有一条 `rotate_key` 记录指向新的 authority 摘要，沿用 `_verify_current_rotation` 的匹配规则。
-   - 按情形 2 的方式定位 I、B、R、M 并检查（包括 B = M，以及 S(I) 的策略、authority、检查三项等于落地状态），以 `verify_v3_delivery(..., _historical_replay=True)` 单步验证。
-4. **initial 建立。** 
-   - P 无启用策略而 C 出现 `{kind: initial}` 的 v2 策略时：执行 `require_no_prior_enabled_policy(C)`，并对该 initial 策略调用 `require_activatable_policy`。因为 `verify_initial_policy` 内部以 `_historical_replay=True` 跳过了这一检查。不可激活时，增量审计中记为发现，全量审计中记为警告。
-   - `policy-initial-trust.json` 首次出现的提交上：执行 `verify_initial_policy`。它自行核对 initial 提交是更早的可达提交、不存在先前启用的策略、确认文件唯一引入且未被修改，因此不依赖之前区间的状态。
-   - 合法的建立顺序：
-     1. 提交 initial 策略与 authority；
-     2. 在之后的提交中加入确认；
-     3. 之后才可以做切换。
+   不满足以上任一项，记为发现。
+3. **单步验证改动策略的交付。** 若记录带有 `authorization`（transition、recovery 或 rotate_key），或 S(B) ≠ S(I)，则该交付改动了策略：
+   - 按 B 的策略版本，调用 `verify_v3_transition` 或 `verify_v3_delivery(base=B, head=I, _historical_replay=True)`，不递归验证 B 的来历。
+   - 对目标策略调用 `require_activatable_policy`。
+   - 验证拒绝即记为发现。只有在给出 `--historical` 时，可激活性的拒绝改记为警告：这用于验证器升级后对历史做复核，以免收紧的规则把已合法激活的历史判为违规。
+   - 不带授权、却使 S(B) ≠ S(I) 的交付，闸门不可能接受，记为发现。
+4. **把改动策略的交付排成链。**
+   - 这些交付的 I 必须按祖先关系全序排列，否则记为发现。两个互不为祖先的策略交付，至少有一个的授权针对的是过时的策略状态。
+   - 设 X₀ = S(from)。依次要求：第 k 个交付的 S(B_k) 等于 X_{k-1}（策略四项全部相同），然后令 X_k = S(I_k)。
+   - 比较的是策略内容，不是 B 的提交身份。授权须在当时实际生效的策略下取得，审计核对的是这一点。签名绑定的基线是否仍是当时的主线提交（基线新鲜度），由合并闸门在合并时负责；审计不靠拓扑去重建当时的主线提交。
+5. **initial 步骤。** 只能出现在链首。若 X₀ 中没有启用的策略，而下一个状态（第一个交付的 S(B₁)，或无交付时的 S(to)）是 `{kind: initial}` 的 v2 策略：
+   - 在该状态所在的提交上执行 `verify_initial_policy`。它要求确认文件存在、晚于 initial 提交且唯一引入、不存在先前启用的策略。
+   - 同时调用 `require_activatable_policy`，失败的处理同步骤 3。
+   - 通过后，以该状态作为新的 X₀，继续步骤 4。
+   - 无交付且 S(to) 是 initial 策略、但还没有确认文件：记为"initial 待确认"警告。在此期间，本地命令会因 C1 要求确认文件存在而关闭失败。
+6. **残余比较。** 链的终点 X_n 必须等于 S(to)。不相等的部分按以下规则处理：
+   - **v1 残余。** X_n 与 S(to) 都没有 v2 策略，也都没有确认文件：对 (from, to) 调用今天闸门的 v1 规则 `committed_transition_required`。返回 true 或抛错，记为发现；返回 false（例如新增检查），通过并列为信息项。只有区间内没有策略交付时，才可能出现这种情况。
+   - **其它任何差异，记为发现。** 包括：
+     - v2 被删除、禁用或降级为 v1；
+     - authority 被删除或替换而没有轮换授权；
+     - 检查被删除或替换而没有授权；
+     - 确认文件被修改或删除；
+     - 不经授权的策略修改。
 
-     前两步可以分在不同的推送中。确认早于 initial 策略，或与它在同一提交中时，`verify_initial_policy` 会拒绝（它要求 initial 提交早于确认的引入提交），记为发现。初始信任文件的任何变化都不会落入情形 1。
-     - 区间结束时已有 initial 策略但还没有确认，列为"initial 待确认"警告，不计为发现。
-     - 在此期间，本地命令会因 C1 要求确认文件存在而关闭失败。
-5. **其它变化，一律记为发现。** 包括：
-   - v2 被删除、禁用或降级为 v1；
-   - authority 被删除；
-   - 检查摘要变化但未伴随授权切换；
-   - 确认文件被修改或删除；
-   - 不符合上述任何情形的组合。
-6. **已有 v3 attestation 被修改或删除，记为发现。** 不论该 attestation 是否属于当前生效的策略，v3 记录都只能追加。这一条取代原回放中"生效 attestation 自引入后未被修改"的逐命令检查，并在增量审计中同样生效。
+**区间内的中间状态：** 主线在推送之间从未停留在中间提交上，所以中间状态不影响任何以主线为基线的命令。审计只核对授权链与区间两端。在区间内被改动、又在同一次推送中改回的内容不会被检出；它也从未成为可信基线。
+
+**全量审计的界限：** 从空状态起，审计无法知道历史上每次推送的边界，只能核对整段历史能否由授权链解释。推送之间曾经短暂存在、后来又被改回的状态，只有当时运行的增量审计能检出。这一点写入文档。
 
 **输出与退出码：**
-- `--json` 输出 `{"range": {"from", "to", "full", "v1_since"}, "points": [...], "findings": [...], "warnings": [...], "informational": [...]}`。
-  - `findings`、`warnings`、`informational` 都是 `{commit, case, message}` 对象的数组，每一项对应 `points` 中 `result` 为 `finding`、`warning` 或 `informational` 的点。
-  - `result` 取值为 `pass`、`finding`、`warning`、`informational`。
-- 每个变化点包含：
-  - `commit`、`case`（`v1-interval`、`transition`、`recovery`、`rotate_key`、`initial`、`initial-confirmation`、`other`）、`result`；
-  - 依据字段 `activation_commit`（I）、`predecessor_base`（B）、`change`；
-  - initial 确认点另含 `initial_commit`、`initial_confirmation`、`confirmation_assurance`；
-  - 轮换点另含 `authority_rotation` 对象 `{change, commit, predecessor_base, authority_digest}`；
-  - 归入某次交付的变化点另含 `delivery`（该交付的 I）。
-- 文本输出与 JSON 内容一一对应。
+- `--json` 输出 `{"range": {"from", "to", "full", "historical"}, "deliveries": [...], "chain": [...], "residual": {...}, "findings": [...], "warnings": [...], "informational": [...]}`。
+  - `deliveries` 的每一项为 `{change, attestation, introduction, trusted_base, kind, result}`，其中 `kind` 取 `ordinary`、`transition`、`recovery`、`rotate_key`。
+  - `chain` 依次列出每个状态步骤：`{step, delivery 或 "initial" 或 "residual", before_digest, after_digest}`；initial 步骤另含 `initial_commit`、`initial_confirmation`、`confirmation_assurance`；轮换步骤另含 `authority_rotation` 对象 `{change, commit, predecessor_base, authority_digest}`。
+  - `findings`、`warnings`、`informational` 都是 `{subject, message}` 对象的数组，`subject` 为相关的提交、attestation 路径或步骤。
 - 0 表示无发现；1 表示有发现；2 表示参数错误、git 错误、浅克隆，或策略文件无法解析。
-- 单步验证抛出的 `ApprovalError`，以及 `verify_initial_policy` 与 `require_activatable_policy` 的拒绝，都按发现处理（退出码 1），并把错误信息写入 `message`。
+- 单步验证、`verify_initial_policy` 与 `require_activatable_policy` 的拒绝都按发现处理（退出码 1），并把错误信息写入 `message`。
 - 任何错误都不会被当作通过。
 
 **离线：** 模块为 `core/policy_audit.py`，在 `d-policy-replay-offline-v2` 的检查路径内，只用本地 Git。
@@ -294,19 +259,27 @@ stage: plan
 ### C4 目标分支前进时运行审计
 
 - **本仓库：** 新增 `.github/workflows/policy-audit.yml`。
-  - 触发：`push` 到 `main`，审计区间为 `before..after`；`workflow_dispatch` 做全量审计。
+  - 触发：
+    - `push` 到 `main`，区间为 `--from before --to after`；
+    - `workflow_dispatch` 做手动审计，必填输入 `from`（采用点），可选 `historical`。
+  - 全零 `before`（首次推送）时，`--from` 取仓库变量 `KEEPSAIL_AUDIT_FROM`；未设置时省略，即从空状态起全量审计。
   - 使用 `fetch-depth: 0`。
   - 验证器在网络隔离命名空间中运行，方式同 `delivery-policy-offline`。
   - 仓库标识与目标 ref 取自 `github.repository` 与 `github.ref`。
 - **生成工作流：** `templates/keepsail_workflow.yml` 的 `on-merge` 中加入同样的审计步骤。
-  - 该模板固定安装已发布的 CLI 版本，因此审计步骤先探测 `policy audit` 是否存在（与模板现有的 `--repository-id` 探测方式相同）；不存在时输出"当前安装的版本不支持审计"并跳过，不伪装为通过。
+  - 该模板固定安装已发布的 CLI 版本，因此审计步骤先探测 `policy audit` 是否存在，方式与模板现有的 `--repository-id` 探测相同。
+  - 不存在时输出"当前安装的版本不支持审计"并跳过，不伪装为通过。
   - 发布含该命令的版本后提升固定版本，不在本计划范围内。
-- **采用说明：** 文档要求采用 v2 或升级到含审计的版本时，手动运行一次全量审计。
-- **本次交付：** 在本仓库运行一次全量审计并记录结果，命令为 `keepsail --json policy audit --to main --v1-since 24d955b --repository-id Dawinia/keepsail --target-ref refs/heads/main`。
-  - 选 `24d955b` 的原因：它是 #140 的合并提交，今天的 v1 守卫从这里起生效；也是本计划起草时主线上最后一个改动策略相关守卫的提交。
-  - 本仓库只有 v1 历史。预期 `findings` 为空。
-  - `informational` 应恰好列出当前第一父链上改动策略文件的提交：`443fbbd`、`d33eeea`、`86d2d84`、`2021717`、`a1512ca`、`5549b4a`。它们都在 `24d955b` 之前。
-  - 本仓库的 CI 审计从此按增量运行：`--v1-since` 默认等于 `before`，之后任何非法的 v1 修改都记为发现。
+- **采用说明：** 文档说明以下几点：
+  - 审计不依赖合并方式；
+  - 已有历史的采用者，应以开始信任的提交作为 `--from`，并设置 `KEEPSAIL_AUDIT_FROM`；
+  - 从空状态起的全量审计，会按今天的规则判定全部历史，例如历史上启用 v1 会被记为发现；
+  - 验证器升级后可以用 `--historical` 复核。
+- **本次交付：** 在本仓库运行一次审计并记录结果。
+  - 命令：`keepsail --json policy audit --from 24d955b --to main --repository-id Dawinia/keepsail --target-ref refs/heads/main`。
+  - 选 `24d955b` 的原因：它是 #140 的合并提交，今天的 v1 守卫从这里起生效。本仓库以它作为开始信任的提交。
+  - 预期结果：`findings` 为空；`deliveries` 中没有策略交付；v1 残余没有变化。
+  - 另外运行一次不带 `--from` 的全量审计，作为对比记录在 PR 说明中。预期它会把本仓库历史上启用 v1（`86d2d84`）等变化记为发现，以此说明"选择起点"的含义。这次全量审计的结果不作为通过条件。
 - **既有 v2 采用者：** 本仓库所知范围内没有。在发布包含审计的版本之前，生成的工作流不会自动审计，文档要求采用者手动运行。
 - **审计不是合并的必需检查**，原因见威胁模型。
 
@@ -416,44 +389,42 @@ stage: plan
   - `policy_basis` 新字段有断言。
   - v1→v2 切换闸门路径不变。
 - **C3**
-  - 通过的情形：
-    - initial（建立加确认，含分两次推送）、切换、恢复、轮换、空区间；
-    - `--v1-since` 及之前的 v1 区间变化列为信息项，包括替换 v1 必需检查；
-    - 基线之后在 v1 区间新增检查，列为信息项；
-    - 合并提交交付，其中 I 位于第二父链上；
-    - `--from` 不在第一父链上的区间。
-  - 本仓库的全量审计（`--v1-since 24d955b`）：`findings` 为空，`informational` 恰为 C4 列出的六个提交。
-  - 多提交交付（单个策略变化点）：先改策略后加 attestation 的快进合并；合并提交交付。
-  - PR 分支合并了目标提交 T，之后快进合并到 I，且 B = T = `--from`：增量审计通过；全量审计记为警告（基线身份无法核实），不计为发现。
-  - 空区间不要求 `--v1-since`。
-  - initial 确认与切换的时序：
-    - 闸门负例：切换 PR 的 base 是还没有确认文件的 initial 策略，`attest verify` 退出 2（`trusted_policy_snapshot(base)` 失败）。
-    - 审计正例：确认先单独落到主线；之后的切换交付以确认之后的提交为 B = M。两个变化点分别验证，都通过。
-    - 审计负例：切换绑定的 B 缺少确认文件，记为发现。
-  - 记为发现的情形：
-    - 直接追加的未授权策略修改、检查删除、authority 替换；
-    - 禁用、删除 v2 或将其降为 v1；
-    - attestation 引入后被修改；
-    - 前任不可达；
-    - B 是 P 的祖先但不是 I 的祖先；
-    - B ≠ M 的过时基线授权，分两种：策略四项不同；策略四项相同，但主线已经前进了非策略提交；
-    - 目标策略不可激活（例如 `code_review: scope` 搭配 `keepsail-baseline/v1`），分切换、轮换和 initial（附有效确认）三种：增量审计中记为发现，全量审计中记为警告；对照组 `full`/v2 通过；
-    - 合并提交交付：切换有效，但在 I 之后删除或修改了初始确认；
-    - 增量审计中 B ≠ L 的过时基线；
+  - **合并方式无关**：同一次策略切换分别以合并提交、squash、快进、rebase，以及"PR 分支先合入目标分支再快进"落地，增量审计都通过。
+  - **通过的情形**：
+    - initial（建立加确认，分一次或两次推送）、切换、恢复、轮换；
+    - 一次推送包含多个按祖先关系排序且内容衔接的策略交付；
+    - 普通交付；
+    - v1 区间新增检查（列为信息项）；
+    - 空区间；
+    - 本仓库 `--from 24d955b` 的审计。
+  - **记为发现的情形**：
+    - 不经授权的策略修改、检查删除或替换、authority 替换；
+    - 禁用、删除 v2，或将其降为 v1；
     - v2 下删除 `verification.yaml`；
-    - attestation 之后又修改策略的交付（S(I) 与落地状态不符）；
-    - 快进合并的多步策略交付：中间点 X 无论有没有自己的 attestation，都记为发现；
-    - 被篡改的初始确认（`version`、字段或摘要不符）；
-    - 增量审计中，后续推送修改或删除已有的 v3 attestation，包括生效策略的激活记录；
-    - v1 区间内启用 authority；
-    - 基线之后的 v1 区间内：替换或删除必需检查、删除 v1 策略、启用 authority；
-    - 全量审计缺少 `--v1-since`（退出码 2）；
-    - initial 确认文件被修改或删除。
-  - 警告而不计为发现的情形：区间结束时 initial 待确认。
-  - 退出码 2 的情形：`--from` 非祖先、浅克隆全量审计、畸形策略文件、git 错误。
+    - 已有 v3 attestation 被修改或删除，包括生效策略的激活记录；
+    - attestation 在引入后、区间终点前被修改；
+    - B 不是 I 的祖先，或 B = I；
+    - 授权所针对的状态 S(B_k) 不等于链上前一状态，包括两种情况：
+      - 只有初始确认不同；
+      - 两个基于同一状态签名、先后落地的策略交付；
+    - 两个互不为祖先的策略交付；
+    - 不带授权却改变策略四项的交付；
+    - attestation 之后又修改策略，使 S(I) 与终点不符，在残余比较中检出；
+    - 目标策略不可激活（例如 `code_review: scope` 搭配 `keepsail-baseline/v1`），分切换、轮换、initial 三种；对照组 `full`/v2 通过；
+    - 被篡改的初始确认（`version`、字段或摘要不符），确认文件被修改或删除；
+    - v1 残余：替换或删除必需检查、删除 v1 策略、在 v1 下启用 authority；
+    - 合并提交在 I 之后删除初始确认（残余比较）。
+  - **警告而不计为发现的情形**：
+    - 区间终点时 initial 待确认；
+    - 使用 `--historical` 时目标策略不可激活。
+  - **initial 与切换的时序**：
+    - 闸门负例：切换 PR 的 base 是还没有确认文件的 initial 策略，`attest verify` 退出 2；
+    - 审计正例：先确认、后切换，分一次或两次推送；
+    - 审计负例：切换所针对的状态缺少确认文件。
+  - **退出码 2 的情形**：`--from` 非祖先、浅克隆下的全量审计、无法解析的策略文件、git 错误。
   - 以上测试纳入网络隔离 job。
 - **C4**
-  - 工作流结构测试：触发条件、`fetch-depth: 0`、`before`/`after` 映射、全零 `before` 转为全量审计、模板探测分支。
+  - 工作流结构测试：触发条件、`fetch-depth: 0`、`before`/`after` 映射、全零 `before` 时使用 `KEEPSAIL_AUDIT_FROM` 或全量审计、模板探测分支。
 - **C5**
   - 符号 ref 不缓存；失败不缓存；容量上限。
   - 多线程并发读写同一键的结果正确。
@@ -498,7 +469,7 @@ stage: plan
 
 - **F1（不静默偏离承诺）。**
   - 闸门仍对每个进入目标分支的信任变更验证旧义务。
-  - 不经闸门、且未篡改验证器或 CI 的写入，由审计显式检出。v2 历史全部检出；v1 区间从 `--v1-since` 基线之后检出，基线之前的 v1 历史按当时规则接受，列为信息项。
+  - 不经闸门、且未篡改验证器或 CI 的写入，由审计显式检出。从项目选定的起点之后，每次推送带来的策略变化都必须由已验证的授权链解释，否则即为发现，与合并方式无关；起点之前的历史按项目的选择接受。
   - 篡改验证器或 CI 的直接写入者，新旧模型都无法防范，已写入保证边界。
 - **2026-11-10 计划的 C3**（"合并判定可用已提交的证据离线重放"）保持：闸门与审计都离线使用已提交证据。
 - **风险边界变化。** 属于 `product-architecture.md` 中保留给负责人的决定，负责人已接受，见"负责人接受"。
@@ -606,3 +577,9 @@ stage: plan
     - 修正行号引用；
     - 空区间不需要 `--v1-since`；
     - 单步验证的拒绝按发现处理（退出码 1）。
+- **负责人对第 7 版方向的意见（2026-11-27）：** 该项目是开源项目，其他用户的使用方式不一定相同，不能因为本仓库怎么用而影响产品设计。据此，第 7 版放弃了"只支持合并提交和 squash"的设想。第 6 版的审计按第一父链逐个提交建模，需要推断交付拓扑，各轮评审持续发现拓扑上的边角问题，根源就在这里。第 7 版把 C3 重写为以推送区间和授权证据为单位：
+  - 利用"主线只在推送时原子改变"这一事实，只核对 S(from) 经过区间内已验证授权的有序链，到达 S(to)；
+  - 授权所针对的状态按内容比较，基线新鲜度交给闸门；
+  - 合并方式、分支拓扑、中间提交都不再影响结论；
+  - 删去 R、M、L、情形优先级和 `--v1-since`，以 `--from` 作为项目选定的起点；
+  - 第 6 轮评审指出的问题（initial 读取次数、initial 可激活性、合入目标的分支快进、S(I) 漏比初始确认）在新设计中分别由 C1 批量读取、步骤 5、步骤 4 的内容比较、步骤 6 的残余比较处理。
