@@ -5,12 +5,14 @@ ratified_by: dawinialo@163.com
 ratified_at: '2026-06-26T09:45:27.695262Z'
 ratified_text_hash: sha256:bd22ae2dcac7f0630529e2d42457b809858d2ca19e33a4bf870b1bc76b1ba52b
 last_reconciled_by: dawinialo@163.com
-last_reconciled_at: '2026-11-12T16:48:15.165052Z'
+last_reconciled_at: '2026-11-28T11:11:52.058370Z'
 last_reconcile_kind: self
-last_reconcile_justification: 'Reviewed transition handling: the no-review event has
-  one explicit matrix entry, and reducer state changes continue to use compute_target_state.'
+last_reconcile_justification: 'Plan 2026-11-27-git-subprocess-cost C9: transitions.py
+  only adds policy_change_accepted to the informational (non-transition) set; _TRANSITIONS
+  is unchanged and compute_target_state remains the sole source of state transitions.
+  The new event never changes state.'
 reconciled_anchors:
-  src/keepsail/core/transitions.py: sha256:724a5c540a5445a1c5e088fa3853d5cf322b1a3cfae059ceb5fc93f694d4517b
+  src/keepsail/core/transitions.py: sha256:02b2bfd20a8f4d2a7be881293c46a475bae00ced603718a56830196e684e3b10
 ---
 State transitions come only from the fixed declared matrix; no ad-hoc transition.
 

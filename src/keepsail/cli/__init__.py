@@ -152,11 +152,11 @@ def main(
     ctx.obj["json"] = json_output
     ctx.obj["quiet"] = quiet
     ctx.obj["verbose"] = verbose
-    if ctx.invoked_subcommand in {"attest", "change", "done", "implementation", "plan",
-                                  "policy", "review", "status", "verify"}:
-        from keepsail.core.attestation_v3_verify import activation_replay_scope
+    # Every subcommand (including report) reuses immutable Git facts for this one
+    # operation only; the scope closes the persistent cat-file reader on exit.
+    from keepsail.core.git_facts import git_fact_scope
 
-        ctx.with_resource(activation_replay_scope())
+    ctx.with_resource(git_fact_scope())
 
 
 # Re-export names used by other modules / tests.

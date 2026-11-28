@@ -278,7 +278,6 @@ _SCAFFOLD_FILES: tuple[tuple[Path, bytes], ...] = (
 )
 _SKELETON_PATHS = (
     Path(".harness/review-recognition.yaml"),
-    Path(".harness/policy-authority.yaml"),
     Path(".harness/sensors.yaml"),
     Path(".harness/gates.yaml"),
     Path(".harness/source-paths.yaml"),
@@ -564,7 +563,7 @@ def build_init_plan(
         ),
     ]
     for path in _SKELETON_PATHS:
-        if path.name in {"review-recognition.yaml", "policy-authority.yaml"}:
+        if path.name == "review-recognition.yaml":
             existing = preflight.existing_file_bytes.get(path.as_posix())
             actions.append(
                 PlannedFileAction(

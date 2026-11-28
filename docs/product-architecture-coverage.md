@@ -160,3 +160,29 @@ This implementation does not establish all-tool observation, semantic recall,
 model understanding/compliance, cross-repository shared authority/distribution,
 universal hook timeout reliability, package publication or deployed behavior.
 The normative product architecture is unchanged.
+
+## 2026-11-28 policy read, risk-boundary acceptance and Git cost (#143, #159)
+
+The [frozen plan](plans/2026-11-27-git-subprocess-cost.md) (effective approval
+approval:dsh-plan-25841e2da51c-c166e80-20261128) changes how the delivery policy
+is applied, not who decides it. The owner still decides the recognition policy
+and required checks; keepsail records, applies and shows every change of them.
+
+| Obligation | Current implementation and bounded evidence |
+|---|---|
+| C1 policy read | The effective policy and required checks come directly from the trusted base commit; activation-chain replay and repository/ref identity inputs are removed. Command cost no longer grows with the number of policy changes in history (tested on 1- and 3-transition fixtures). |
+| C2 risk-boundary change | A change to an enabled policy or the required checks needs the plan's `RISK-BOUNDARY` commitment and the owner's recorded `policy accept`; the Change still delivers under the old obligations. The record holds a complete generic difference; `status`, `report`, the attestation and the PR show it with who accepted it and when. First enablement is adoption (`init` / `policy enable`). |
+| C3 signing removed | Ed25519 authorizations, key rotation, restricted recovery and initial-trust confirmation are removed; old records stay readable and are no longer applied. A trusted `signed-plan-decision` policy is refused with migration guidance. |
+| C4/C5 cost | Immutable Git facts are reused within one operation; ledger bytes are expanded once per snapshot on `change resume` and strict-write preconditions. |
+
+Superseded parts of the approved [2026-11-10 delivery-policy transition](plans/2026-11-10-delivery-policy-transition.md):
+its C3 rule that a policy change must be authorized by a signature from the old
+trusted authority is replaced by the plan declaration plus the owner's recorded
+acceptance (C2 above); its C4 restricted recovery is removed; its Ed25519
+authorization record, activation locator and post-activation replay, and initial
+trust establishment are superseded. Its delivery obligations,
+`code_review_not_required`, completion transaction, required-check digest and
+visibility rules remain. The 2026-11-10 plan file itself is not rewritten.
+`d-policy-replay-offline-v3` supersedes `d-policy-replay-offline-v2` (no identity
+input). The acceptance record is not cryptographic identity; owner/agent
+distinction remains #158.

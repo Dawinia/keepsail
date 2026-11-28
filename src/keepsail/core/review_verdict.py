@@ -19,6 +19,7 @@ freshness (digest) + coverage gates. Inferential quality is never checked here.
 """
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
@@ -163,19 +164,25 @@ def review_verdict_json_schema(checklist: list[str]) -> dict[str, Any]:
     }
 
 
-def read_change_events(events_file: Path, change_id: str) -> list[Event]:
+def read_change_events(events_file: Path, change_id: str, *,
+                       lines: Sequence[str] | None = None) -> list[Event]:
     """Read the parsed events for one change, in append order (TOLERANT).
 
     Mirrors the reducer's read-tolerant policy: malformed lines are skipped, never
     raised — events.jsonl may carry lines from older tool versions or partial
     writes, and an emit-time check that crashes on those would be fail-open.
     Returns an empty list if the file does not exist.
+
+    ``lines`` are already-expanded effective lines of one byte snapshot that the
+    caller holds; without them the file is read and expanded as before.
     """
-    if not events_file.exists():
-        return []
+    if lines is None:
+        if not events_file.exists():
+            return []
+        lines = tuple(effective_event_lines(
+            events_file.read_bytes().decode("utf-8").splitlines(keepends=True)))
     out: list[Event] = []
-    lines = events_file.read_bytes().decode("utf-8").splitlines(keepends=True)
-    for line in effective_event_lines(lines):
+    for line in lines:
         if not line.strip():
             continue
         try:

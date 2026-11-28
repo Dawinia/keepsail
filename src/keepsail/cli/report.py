@@ -22,7 +22,7 @@ from keepsail.core.paths import (
     find_harness_root,
 )
 from keepsail.core.reducer import derive_state
-from keepsail.engineering.delivery_policy import delivery_details
+from keepsail.engineering.delivery_policy import delivery_details, risk_boundary_details
 from keepsail.engineering.value_report import (
     AuthorizationRecord,
     CostBreakdownRow,
@@ -354,16 +354,21 @@ def report_cmd(ctx: click.Context, since: str | None, until: str | None, brief: 
         events_path(root), since=since, until=until, workspace_root=root
     )
     policies = []
+    risk_boundaries = []
     if ctx.obj.get("json") or not brief:
         for change_id, state in derive_state(events_path(root)).items():
             details = delivery_details(root, state)
             if details is not None:
                 policies.append({"change_id": change_id, **details})
+            risk = risk_boundary_details(root, state)
+            if risk is not None:
+                risk_boundaries.append({"change_id": change_id, **risk})
     if ctx.obj.get("json"):
         click.echo(
             json_envelope(
                 command="report", status="pass", exit_code=EXIT_OK,
-                data={**asdict(r), "current_delivery_policies": policies},
+                data={**asdict(r), "current_delivery_policies": policies,
+                      "current_risk_boundary_changes": risk_boundaries},
             )
         )
     elif brief:
@@ -384,6 +389,22 @@ def report_cmd(ctx: click.Context, since: str | None, until: str | None, brief: 
                            f"({policy['code_review_reason']}); required checks: {checks} "
                            f"({policy['builtin_checks_version']})")
                 click.echo(f"    required project checks: {policy['required_project_checks']}")
+        if risk_boundaries:
+            click.echo("\nCurrent risk-boundary changes (owner-recorded acceptance):")
+            for risk in risk_boundaries:
+                if risk["status"] != "changed":
+                    click.echo(f"  {risk['change_id']}: {risk['reason']}")
+                    continue
+                click.echo(f"  {risk['change_id']}: " + ("; ".join(risk["labels"]) or "changed"))
+                click.echo(f"    obligation changes: {len(risk['obligation_changes'])}")
+                acceptance = risk["acceptance"]
+                if acceptance is None:
+                    click.echo("    owner acceptance: none recorded")
+                else:
+                    click.echo(f"    accepted by {acceptance['actor']['identifier']} "
+                               f"({acceptance['actor']['type']}) at {acceptance['ts']}, "
+                               f"event {acceptance['event_id']}, matches: "
+                               f"{acceptance['matches']}")
         if r.no_review_decisions:
             click.echo("\nRecorded no-review decisions (historical):")
             for decision in r.no_review_decisions:

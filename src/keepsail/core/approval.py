@@ -568,7 +568,23 @@ def recognition_policy_digest(raw: dict[str, Any]) -> str:
     )
 
 
-def _recognition_from_mapping(raw: object) -> Recognition:
+SIGNED_PLAN_FORM = "signed-plan-decision"
+SIGNED_PLAN_MIGRATION = (
+    "the trusted policy recognizes signed-plan-decision plan conclusions, which this "
+    "keepsail version no longer verifies; with the previous keepsail version, deliver one "
+    "signed transition that changes the plan process to a json owner conclusion, merge it, "
+    "and only then upgrade (see docs/getting-started.md, 'Upgrading from signed policy "
+    "transitions')"
+)
+
+
+def _recognition_from_mapping(raw: object, *, historical: bool = False) -> Recognition:
+    """Parse an enabled v1 policy.
+
+    A policy listing ``signed-plan-decision`` is refused with migration guidance
+    (never reinterpreted as an unsigned form), whether it is the trusted base or
+    a candidate.  ``historical`` keeps retained historical records readable.
+    """
     if not isinstance(raw, dict) or raw.get("version") != RECOGNITION_VERSION:
         raise ApprovalError("unrecognized review recognition policy version")
     if raw.get("enabled") is not True:
@@ -597,6 +613,8 @@ def _recognition_from_mapping(raw: object) -> Recognition:
         raise ApprovalError("enabled review recognition needs a policy digest")
     if policy_digest != recognition_policy_digest(raw):
         raise ApprovalError("review recognition policy digest does not match its contents")
+    if SIGNED_PLAN_FORM in forms and not historical:
+        raise ApprovalError(SIGNED_PLAN_MIGRATION)
     return Recognition(
         version=RECOGNITION_VERSION,
         process_id=pid,
@@ -739,23 +757,24 @@ def recognition_contract_active(root: Path) -> bool:
     return False
 
 
-def evidence_is_recognized(
-    evidence: dict[str, Any], recognition: Recognition, *, signed_plan_verified: bool = False,
-) -> bool:
+def evidence_is_recognized(evidence: dict[str, Any], recognition: Recognition) -> bool:
     process = evidence.get("process")
     if not isinstance(process, dict):
         return False
     form = evidence.get("form", "json")
     if not isinstance(form, str):
         return False
+    # Signed plan decisions are no longer verified, for any policy version: the
+    # form is never recognized; a trusted policy listing it is refused with a
+    # migration message.  The reserved v2 maintainer identity existed only for it.
+    if form == SIGNED_PLAN_FORM:
+        return False
     if recognition.version == "review-recognition/v2":
         reserved = (evidence.get("kind") == "plan"
                     and process.get("id") == "maintainer-plan-review"
                     and process.get("version") == "maintainer-plan-review/v1"
                     and evidence.get("issuer") == "maintainer")
-        if form == "signed-plan-decision" and (not reserved or not signed_plan_verified):
-            return False
-        if reserved and form != "signed-plan-decision":
+        if reserved:
             return False
     return (
         process.get("id") == recognition.process_id
@@ -927,8 +946,14 @@ def load_trusted_recognition(root: Path, *, expected_base: str | None = None) ->
 
 
 def _tree_entries(root: Path, ref: str) -> dict[str, tuple[str, str]]:
+    from keepsail.core.git_facts import is_object_id, memoized, root_key
+
+    # The raw listing of a full commit id is an immutable fact reused within one
+    # operation; parsing is redone on every call.
+    raw = memoized(("ls-tree-r", root_key(root), ref),
+                   lambda: _git(root, "ls-tree", "-rz", ref), cacheable=is_object_id(ref))
     entries: dict[str, tuple[str, str]] = {}
-    for line in _git(root, "ls-tree", "-rz", ref).split("\0"):
+    for line in raw.split("\0"):
         if "\t" not in line:
             continue
         left, path = line.split("\t", 1)
@@ -975,8 +1000,14 @@ def git_change_manifest(root: Path, *, base: str, head: str,
     """Build a deterministic mode/content manifest, including renames."""
     base_sha = resolve_commit(root, base)
     head_sha = resolve_commit(root, head)
-    statuses = _git(root, "diff", "--name-status", "-z", "--find-renames",
-                    f"{base_sha}..{head_sha}")
+    from keepsail.core.git_facts import memoized, root_key
+
+    statuses = memoized(
+        ("diff-name-status", root_key(root), base_sha, head_sha),
+        lambda: _git(root, "diff", "--name-status", "-z", "--find-renames",
+                     f"{base_sha}..{head_sha}"),
+        cacheable=True,  # both sides are resolved full object ids
+    )
     base_tree = _tree_entries(root, base_sha)
     head_tree = _tree_entries(root, head_sha)
     result: list[dict[str, Any]] = []
@@ -1089,7 +1120,9 @@ def make_code_subject(
     verification_config_digest: str | None = None,
     knowledge_basis: dict[str, Any] | None | object = _AUTO_KNOWLEDGE_BASIS,
     legacy_paths: bool = False,
+    knowledge_inputs: Any = None,
 ) -> dict[str, Any]:
+    """Build the code subject; ``knowledge_inputs`` reuses a held ledger snapshot."""
     requested_base = resolve_commit(root, base)
     resolved_head = resolve_commit(root, head)
     # The merge gate compares a PR with base...head (the merge-base tree to the
@@ -1119,7 +1152,8 @@ def make_code_subject(
     # had no knowledge basis. Git verification must not consult mutable state.
     if knowledge_basis is _AUTO_KNOWLEDGE_BASIS:
         from keepsail.core.knowledge import report
-        knowledge = report(root, change_id, extra_paths=[str(row["path"]) for row in manifest])
+        knowledge = report(root, change_id, extra_paths=[str(row["path"]) for row in manifest],
+                           inputs=knowledge_inputs)
         knowledge_basis = None
         if knowledge["coverage"] != "not_recorded":
             knowledge_basis = {"version": "knowledge-basis/v1", "digest": knowledge["basis_digest"]}

@@ -1,37 +1,22 @@
-"""Identify old delivery obligations a signed transition would alter."""
+"""Effective delivery obligations and their complete, generic difference.
+
+A risk-boundary change is recorded as a structural difference between two
+normalized objects: the effective obligation object of the recognition policy,
+and the required-check contract.  Completeness comes from the generic diff, not
+from a list of known fields; semantic labels are an added reading aid only.
+"""
 
 from __future__ import annotations
 
 from typing import Any
 
-from keepsail.core.approval import ApprovalError, Recognition, digest_record
-from keepsail.core.delivery_policy import DeliveryPolicy
-from keepsail.core.policy_authority import _paths
+from keepsail.core.approval import ApprovalError, canonical_json, digest_record
 from keepsail.core.scope_match import covered_by_scope
+from keepsail.core.strict_yaml import literal_paths
 
-
-def _process(recognition: Recognition | None) -> dict[str, Any] | None:
-    if recognition is None:
-        return None
-    return {"id": recognition.process_id, "version": recognition.process_version,
-            "issuers": sorted(recognition.issuers),
-            "evidence_forms": sorted(recognition.evidence_forms),
-            "requirements": recognition.requirements}
-
-
-def _review_not_weaker(old_mode: str, old_scope: tuple[str, ...],
-                       new_mode: str, new_scope: tuple[str, ...]) -> bool:
-    if old_mode not in {"full", "scope", "off"} or new_mode not in {"full", "scope", "off"}:
-        raise ApprovalError("unknown code-review obligation")
-    if old_mode == "scope":
-        _paths(list(old_scope))
-    if new_mode == "scope":
-        _paths(list(new_scope))
-    if old_mode == "off" or new_mode == "full":
-        return True
-    if old_mode == "full" or new_mode == "off":
-        return False
-    return all(covered_by_scope(path, list(new_scope)) for path in old_scope)
+OBLIGATIONS_VERSION = "effective-obligations/v1"
+CHECKS_OBJECT_VERSION = "required-check-object/v1"
+_DIRECTIONS = frozenset({"added", "removed", "changed"})
 
 
 def check_definitions(contract: object) -> tuple[dict[str, bool], dict[tuple[str, str], str]]:
@@ -68,84 +53,206 @@ def check_definitions(contract: object) -> tuple[dict[str, bool], dict[tuple[str
     return layers, definitions
 
 
-def changed_obligations(
-    *, old_processes: dict[str, Recognition], old_code_review: str, old_scope: tuple[str, ...],
-    old_builtin: str, old_checks: dict[str, Any], new_policy: DeliveryPolicy,
-    new_checks: dict[str, Any], historical_replay: bool = False,
+def _code_review(raw: object) -> dict[str, Any]:
+    if not isinstance(raw, dict) or raw.get("mode") not in {"full", "scope", "off"}:
+        raise ApprovalError("invalid code review policy")
+    return {"mode": raw["mode"], "scope": list(raw.get("scope", []))}
+
+
+def v1_obligations(raw: dict[str, Any]) -> dict[str, Any]:
+    """Make v1's implied full review and baseline/v1 contract explicit.
+
+    ``raw`` must already be validated as an enabled v1 recognition policy.
+    Every field covered by the v1 digest is carried, so differing v1 digests
+    produce a non-empty difference (kinds only distribute the process).
+    """
+    process = {key: value for key, value in raw["process"].items()
+               if key not in {"kinds", "policy_digest"}}
+    return {"schema": OBLIGATIONS_VERSION, "state": "enabled", "version": raw["version"],
+            "enabled": raw["enabled"],
+            "processes_by_kind": {kind: dict(process) for kind in raw["process"]["kinds"]},
+            "code_review": {"mode": "full", "scope": []},
+            "builtin_checks_version": "keepsail-baseline/v1",
+            "activation": None}
+
+
+def v2_obligations(raw: dict[str, Any]) -> dict[str, Any]:
+    """Return the v2 digest object without its digest-only fields, in v1's shape.
+
+    ``required_checks_digest`` is represented by the required-check object,
+    which is compared separately; ``activation`` is informational but retained
+    so that every change to the policy digest is visible.
+    """
+    return {"schema": OBLIGATIONS_VERSION, "state": "enabled", "version": raw["version"],
+            "enabled": raw["enabled"],
+            "processes_by_kind": {kind: dict(process)
+                                  for kind, process in raw["processes_by_kind"].items()},
+            "code_review": _code_review(raw["code_review"]),
+            "builtin_checks_version": raw["builtin_checks_version"],
+            "activation": raw.get("activation")}
+
+
+def inactive_obligations(state: str) -> dict[str, Any]:
+    if state not in {"disabled", "removed"}:
+        raise ApprovalError("unknown inactive policy state")
+    return {"state": state}
+
+
+def checks_object(contract: dict[str, Any]) -> dict[str, Any]:
+    """Align required checks by ``(source, id)``, keeping order and every digested field."""
+    check_definitions(contract)
+    by_source: dict[str, dict[str, Any]] = {}
+    for row in contract["checks"]:
+        by_source.setdefault(row["source"], {})[row["id"]] = {
+            key: value for key, value in row.items()
+            if key not in {"source", "id", "definition_digest"}
+        }
+    return {"schema": CHECKS_OBJECT_VERSION, "version": contract["version"],
+            "layers": dict(contract["layers"]),
+            "order": [[row["source"], row["id"]] for row in contract["checks"]],
+            "checks": by_source}
+
+
+def _pointer(path: tuple[str, ...]) -> str:
+    return "".join("/" + part.replace("~", "~0").replace("/", "~1") for part in path)
+
+
+def _leaves(value: object, path: tuple[str, ...]) -> list[tuple[tuple[str, ...], object]]:
+    if isinstance(value, dict) and value:
+        rows: list[tuple[tuple[str, ...], object]] = []
+        for key in sorted(value):
+            rows.extend(_leaves(value[key], (*path, str(key))))
+        return rows
+    return [(path, value)]
+
+
+def structural_diff(before: object, after: object, *, obj: str) -> list[dict[str, Any]]:
+    """Generic field-by-field difference; lists and scalars compare as whole values."""
+    rows: list[dict[str, Any]] = []
+
+    def walk(old: object, new: object, path: tuple[str, ...]) -> None:
+        if isinstance(old, dict) and isinstance(new, dict):
+            for key in sorted(set(old) | set(new), key=str):
+                child = (*path, str(key))
+                if key not in new:
+                    for leaf, value in _leaves(old[key], child):
+                        rows.append({"object": obj, "path": _pointer(leaf),
+                                     "direction": "removed", "before": value})
+                elif key not in old:
+                    for leaf, value in _leaves(new[key], child):
+                        rows.append({"object": obj, "path": _pointer(leaf),
+                                     "direction": "added", "after": value})
+                else:
+                    walk(old[key], new[key], child)
+        elif canonical_json(old) != canonical_json(new):
+            # Compare as the digest does: canonical JSON distinguishes 1 from true.
+            rows.append({"object": obj, "path": _pointer(path), "direction": "changed",
+                         "before": old, "after": new})
+
+    walk(before, after, ())
+    return rows
+
+
+def obligation_differences(
+    base_policy: dict[str, Any], target_policy: dict[str, Any],
+    base_checks: dict[str, Any], target_checks: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    """Describe reductions/replacements; never infer their authorization from the candidate."""
-    changes: list[dict[str, Any]] = []
-
-    def add(kind: str, source: str, identifier: str, old: object, new: object | None) -> None:
-        changes.append({"kind": kind, "source": source, "id": identifier,
-                        "old_digest": digest_record(old),
-                        "new_digest": digest_record(new) if new is not None else None})
-
-    for kind in ("plan", "code"):
-        old = _process(old_processes.get(kind))
-        new = _process(new_policy.recognition_for(kind))
-        if old is not None and old != new:
-            add("recognition", "review", kind, old, new)
-    raw_weaker = not _review_not_weaker(
-        old_code_review, old_scope, new_policy.code_review, new_policy.scope)
-    old_effective = ("full" if not historical_replay and old_code_review == "scope"
-                     and old_builtin == "keepsail-baseline/v1"
-                     else old_code_review)
-    new_effective = ("full" if not historical_replay and new_policy.code_review == "scope"
-                     and new_policy.builtin_checks_version == "keepsail-baseline/v1"
-                     else new_policy.code_review)
-    effective_weaker = not _review_not_weaker(
-        old_effective, old_scope, new_effective, new_policy.scope)
-    if raw_weaker or effective_weaker:
-        before_mode = old_effective if effective_weaker else old_code_review
-        after_mode = new_effective if effective_weaker else new_policy.code_review
-        add("code_review", "policy", "scope",
-            {"mode": before_mode, "scope": list(old_scope) if before_mode == "scope" else []},
-            {"mode": after_mode, "scope": list(new_policy.scope) if after_mode == "scope" else []})
-    if old_builtin != new_policy.builtin_checks_version:
-        add("builtin_contract", "baseline", "version", old_builtin,
-            new_policy.builtin_checks_version)
-    changes.extend(changed_required_checks(old_checks, new_checks))
-    return sorted(changes, key=lambda row: (row["kind"], row["source"], row["id"]))
+    return [*structural_diff(base_policy, target_policy, obj="policy"),
+            *structural_diff(checks_object(base_checks), checks_object(target_checks),
+                             obj="checks")]
 
 
-def changed_required_checks(
-    old_checks: dict[str, Any], new_checks: dict[str, Any],
-) -> list[dict[str, Any]]:
-    """Find removed or replaced old requirements, regardless of candidate policy."""
-    old_layers, before = check_definitions(old_checks)
-    new_layers, after = check_definitions(new_checks)
-    changes: list[dict[str, Any]] = []
-    if old_layers["baseline"] and not new_layers["baseline"]:
-        changes.append({"kind": "builtin_contract", "source": "baseline", "id": "enabled",
-                        "old_digest": digest_record(True), "new_digest": digest_record(False)})
-    for identity, old_digest in before.items():
-        new_digest = after.get(identity)
-        if old_digest != new_digest:
-            changes.append({"kind": "required_check", "source": identity[0], "id": identity[1],
-                            "old_digest": old_digest, "new_digest": new_digest})
-    return sorted(changes, key=lambda row: (row["kind"], row["source"], row["id"]))
+def validate_differences(value: object) -> list[dict[str, Any]]:
+    """Structural check of a recorded difference list (values are compared, not trusted)."""
+    if not isinstance(value, list):
+        raise ApprovalError("obligation_changes must be a list")
+    for row in value:
+        if not isinstance(row, dict) or row.get("direction") not in _DIRECTIONS:
+            raise ApprovalError("invalid obligation change")
+        expected = {"object", "path", "direction"} | (
+            {"before"} if row["direction"] != "added" else set()
+        ) | ({"after"} if row["direction"] != "removed" else set())
+        if (set(row) != expected or row["object"] not in {"policy", "checks"}
+                or not isinstance(row["path"], str)):
+            raise ApprovalError("invalid obligation change")
+    return value
 
 
-def require_signed_obligation_changes(
-    changes: list[dict[str, Any]], authorization: dict[str, Any], *,
-    historical_changes: list[dict[str, Any]] | None = None,
-) -> None:
-    """Require the already signature-verified record to enumerate exact changes."""
-    signed = authorization.get("obligation_changes", [])
-    if not isinstance(signed, list):
-        raise ApprovalError("signed obligation changes must be a list")
-    normalized: list[dict[str, Any]] = []
-    for item in signed:
-        if (not isinstance(item, dict)
-                or set(item) != {"kind", "source", "id", "old_digest", "new_digest", "reason"}
-                or not isinstance(item["reason"], str) or not item["reason"].strip()):
-            raise ApprovalError("signed obligation change is invalid")
-        normalized.append({key: item[key] for key in ("kind", "source", "id", "old_digest",
-                                                       "new_digest")})
-    try:
-        normalized.sort(key=lambda row: (row["kind"], row["source"], row["id"]))
-    except TypeError as exc:
-        raise ApprovalError("signed obligation change identity is invalid") from exc
-    if normalized != changes and normalized != historical_changes:
-        raise ApprovalError("old obligation changes are not exactly authorized")
+def _review_not_weaker(old: dict[str, Any], new: dict[str, Any]) -> bool:
+    old_mode, new_mode = old["mode"], new["mode"]
+    if old_mode == "scope":
+        literal_paths(old["scope"], label="code review scope")
+    if new_mode == "scope":
+        literal_paths(new["scope"], label="code review scope")
+    if old_mode == "off" or new_mode == "full":
+        return True
+    if old_mode == "full" or new_mode == "off":
+        return False
+    return all(covered_by_scope(path, list(new["scope"])) for path in old["scope"])
+
+
+def semantic_labels(
+    base_policy: dict[str, Any], target_policy: dict[str, Any],
+    differences: list[dict[str, Any]],
+) -> list[str]:
+    """Readable summary; the difference list remains the complete record."""
+    labels: list[str] = []
+
+    def add(label: str) -> None:
+        if label not in labels:
+            labels.append(label)
+
+    base_state, target_state = base_policy.get("state"), target_policy.get("state")
+    if base_state == "enabled" and target_state in {"disabled", "removed"}:
+        add("policy " + ("disabled" if target_state == "disabled" else "file removed"))
+    if base_state != "enabled" and target_state == "enabled":
+        add("policy enabled")
+    if (base_state == target_state == "enabled"
+            and base_policy["version"] != target_policy["version"]):
+        add(f"policy version {base_policy['version']} -> {target_policy['version']}")
+    for row in differences:
+        parts = row["path"].split("/")[1:]
+        if row["object"] == "policy" and parts[:1] == ["processes_by_kind"] and len(parts) > 1:
+            kind = parts[1]
+            before = base_policy.get("processes_by_kind", {}).get(kind)
+            after = target_policy.get("processes_by_kind", {}).get(kind)
+            if before is None:
+                add(f"{kind} review process added")
+            elif after is None:
+                add(f"{kind} review process removed")
+            else:
+                add(f"{kind} review process replaced or changed")
+        elif row["object"] == "policy" and parts[:1] == ["builtin_checks_version"]:
+            add("built-in check contract changed")
+        elif row["object"] == "policy" and parts[:1] == ["activation"]:
+            add("activation description changed (informational)")
+        elif row["object"] == "checks" and parts[:1] == ["layers"] and len(parts) > 1:
+            add(f"required check layer {parts[1]} "
+                + ("enabled" if row.get("after") is True else "disabled"))
+        elif row["object"] == "checks" and parts[:1] == ["order"]:
+            add("required check order changed")
+        elif row["object"] == "checks" and parts[:1] == ["checks"] and len(parts) > 2:
+            source, check = parts[1], parts[2]
+            presence = _check_presence(differences, source, check)
+            if presence == "removed":
+                add(f"required check removed: {source}/{check}")
+            elif presence == "added":
+                add(f"required check added: {source}/{check}")
+            else:
+                add(f"required check definition changed: {source}/{check}")
+    if (base_state == target_state == "enabled"
+            and base_policy["code_review"] != target_policy["code_review"]):
+        old, new = base_policy["code_review"], target_policy["code_review"]
+        weaker = not _review_not_weaker(old, new)
+        stronger = not _review_not_weaker(new, old)
+        add(f"code review {'relaxed' if weaker else 'strengthened' if stronger else 'changed'} "
+            f"({old['mode']} -> {new['mode']})")
+    return labels
+
+
+def _check_presence(differences: list[dict[str, Any]], source: str, check: str) -> str:
+    """Every required check has a ``command``; its own row tells whether the check moved."""
+    command = _pointer(("checks", source, check, "command"))
+    row = next((item for item in differences
+                if item["object"] == "checks" and item["path"] == command), None)
+    return row["direction"] if row is not None and row["direction"] != "changed" else "changed"

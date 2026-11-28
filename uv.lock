@@ -412,7 +412,6 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "click" },
-    { name = "cryptography" },
     { name = "python-ulid" },
     { name = "pyyaml" },
     { name = "questionary" },
@@ -424,6 +423,7 @@ dependencies = [
 
 [package.optional-dependencies]
 dev = [
+    { name = "cryptography" },
     { name = "import-linter" },
     { name = "mypy" },
     { name = "pyfakefs" },
@@ -438,7 +438,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "click", specifier = ">=8.4" },
-    { name = "cryptography", specifier = "==50.0.2" },
+    { name = "cryptography", marker = "extra == 'dev'", specifier = "==50.0.2" },
     { name = "import-linter", marker = "extra == 'dev'", specifier = ">=2.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.10" },
     { name = "pyfakefs", marker = "extra == 'dev'", specifier = ">=5.4" },

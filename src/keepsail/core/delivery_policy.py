@@ -1,7 +1,7 @@
 """Strict policy-v2 parsing and actual-manifest code-review applicability.
 
-Parsing a candidate is not activation.  A caller may use a policy as authority
-only after resolving and validating it from its independently trusted baseline.
+Parsing a candidate does not make it effective.  A caller uses a policy as the
+delivery authority only when it is read from the committed trusted baseline.
 """
 
 from __future__ import annotations
@@ -10,16 +10,26 @@ from dataclasses import dataclass
 from pathlib import PureWindowsPath
 from typing import Any
 
-from keepsail.core.approval import ApprovalError, Recognition, digest_record
+from keepsail.core.approval import (
+    SIGNED_PLAN_FORM,
+    SIGNED_PLAN_MIGRATION,
+    ApprovalError,
+    Recognition,
+    digest_record,
+    evidence_is_recognized,
+    validate_evidence,
+)
 from keepsail.core.git_diff import DiffEntry, require_literal_paths
-from keepsail.core.policy_authority import _paths, parse_unique_yaml
 from keepsail.core.scope_match import covered_by_scope
 from keepsail.core.slug import SlugError, validate_slug
+from keepsail.core.strict_yaml import literal_paths, parse_unique_yaml
 
 _POLICY_FIELDS = frozenset({
     "version", "enabled", "processes_by_kind", "code_review", "required_checks_digest",
-    "builtin_checks_version", "activation", "policy_digest",
+    "builtin_checks_version", "policy_digest",
 })
+# ``activation`` is retained only as a historical description when present.
+_OPTIONAL_POLICY_FIELDS = frozenset({"activation"})
 
 
 def _strings(value: object, label: str) -> frozenset[str]:
@@ -38,7 +48,7 @@ class DeliveryPolicy:
     scope: tuple[str, ...]
     required_checks_digest: str
     builtin_checks_version: str
-    activation: dict[str, str]
+    activation: dict[str, str] | None
 
     def recognition_for(self, kind: str) -> Recognition | None:
         if kind == "code" and self.code_review == "off":
@@ -73,7 +83,8 @@ class DeliveryPolicy:
 
 
 def parse_delivery_policy(value: object) -> DeliveryPolicy:
-    if not isinstance(value, dict) or set(value) != _POLICY_FIELDS:
+    if (not isinstance(value, dict) or not _POLICY_FIELDS <= set(value)
+            or set(value) - _POLICY_FIELDS - _OPTIONAL_POLICY_FIELDS):
         raise ApprovalError("review-recognition/v2 has missing or unknown fields")
     if value["version"] != "review-recognition/v2" or value["enabled"] is not True:
         raise ApprovalError("review-recognition/v2 must be enabled")
@@ -90,10 +101,10 @@ def parse_delivery_policy(value: object) -> DeliveryPolicy:
         "keepsail-baseline/v1", "keepsail-baseline/v2"
     }:
         raise ApprovalError("unsupported built-in checks version")
-    activation = value["activation"]
-    if not isinstance(activation, dict):
+    activation = value.get("activation")
+    if "activation" in value and not isinstance(activation, dict):
         raise ApprovalError("policy activation must be an object")
-    if activation == {"kind": "initial"}:
+    if activation is None or activation == {"kind": "initial"}:
         pass
     elif (set(activation) != {"kind", "change"} or activation.get("kind") != "transition"
           or not isinstance(activation.get("change"), str) or not activation["change"].strip()):
@@ -111,7 +122,7 @@ def parse_delivery_policy(value: object) -> DeliveryPolicy:
     if mode == "scope":
         if set(code) != {"mode", "scope"}:
             raise ApprovalError("scoped code review requires only mode and scope")
-        scope = tuple(_paths(code["scope"]))
+        scope = tuple(literal_paths(code["scope"], label="code review scope"))
     else:
         if set(code) != {"mode"}:
             raise ApprovalError("full/off code review cannot contain scope or unknown fields")
@@ -134,19 +145,44 @@ def parse_delivery_policy(value: object) -> DeliveryPolicy:
             raise ApprovalError(f"{kind} process needs an id and version")
         issuers = _strings(process["issuers"], f"{kind} issuers")
         forms = _strings(process["evidence_forms"], f"{kind} evidence forms")
-        if not forms <= {"json", "signed-plan-decision"}:
+        if not forms <= {"json", SIGNED_PLAN_FORM}:
             raise ApprovalError("unsupported review evidence form")
-        if kind != "plan" and "signed-plan-decision" in forms:
+        if kind != "plan" and SIGNED_PLAN_FORM in forms:
             raise ApprovalError("signed plan decisions cannot authorize code review")
         if not isinstance(process["requirements"], dict):
             raise ApprovalError("process requirements must be an object")
         parsed[kind] = Recognition("review-recognition/v2", pid, version, frozenset({kind}),
                                    issuers, forms, dict(process["requirements"]), claimed)
-    return DeliveryPolicy(claimed, parsed, mode, scope, checks, baseline, dict(activation))
+    return DeliveryPolicy(claimed, parsed, mode, scope, checks, baseline,
+                          dict(activation) if activation is not None else None)
+
+
+def reject_signed_plan_policy(policy: DeliveryPolicy) -> None:
+    """A trusted signed-plan policy must be migrated by the previous version first."""
+    plan = policy.processes.get("plan")
+    if plan is not None and SIGNED_PLAN_FORM in plan.evidence_forms:
+        raise ApprovalError(SIGNED_PLAN_MIGRATION)
+
+
+def verify_v2_review_evidence(
+    value: object, recognition: Recognition, *, change_id: str,
+) -> dict[str, Any]:
+    """Validate kind-specific recognition and provenance; no form is signature-bound."""
+    evidence = validate_evidence(value, change_id=change_id)
+    if recognition.version != "review-recognition/v2" or recognition.policy_digest is None:
+        raise ApprovalError("review evidence requires a v2 recognition basis")
+    provenance = evidence.get("provenance")
+    if (not isinstance(provenance, dict)
+            or provenance.get("policy_digest") != recognition.policy_digest):
+        raise ApprovalError("review evidence is bound to another recognition policy")
+    if not evidence_is_recognized(evidence, recognition):
+        raise ApprovalError("review evidence process, kind, issuer or form is not recognized")
+    return evidence
 
 
 def require_activatable_policy(policy: DeliveryPolicy) -> None:
     """New policies must have usable, portable review obligations."""
+    reject_signed_plan_policy(policy)
     if policy.code_review != "full" and policy.builtin_checks_version != "keepsail-baseline/v2":
         raise ApprovalError("new no-review policies require built-in contract v2")
     if any(PureWindowsPath(path).drive or path.startswith("~")

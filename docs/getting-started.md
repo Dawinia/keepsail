@@ -179,8 +179,9 @@ What `init --setup-github` applies after interactive confirmation (or
 immediately when stdin is not a TTY):
 
 1. Creates `.harness/` with `events.jsonl` (the append-only lifecycle log),
-   tracked skeleton configuration, a disabled `review-recognition.yaml`, and a
-   disabled `policy-authority.yaml` with placeholder identity and no keys.
+   tracked skeleton configuration, and a `review-recognition.yaml` that stays
+   a disabled skeleton unless you adopt a policy (see
+   [Adopting, using and changing the delivery policy](#adopting-using-and-changing-the-delivery-policy)).
    The derived `state.yaml` cache appears after the first lifecycle event, while
    `adapters.yaml` is created only when an integration is selected. Existing
    `review-governance.yaml` and `review-profiles.local.yaml` are preserved and
@@ -462,48 +463,99 @@ policy does not require it, the completion and `code_review_not_required`
 events are recorded as one recoverable transaction and the Change reaches
 `READY_TO_MERGE`. If a prerequisite fails, `done` does not advance.
 
-### Establishing an initial delivery policy
+### Adopting, using and changing the delivery policy
 
-Initialization alone does not enable a review process or establish a trust root.
-For a first adoption, the owner can prepare a proposed light policy and public
-key configuration (the command prints JSON and changes no authority):
+Initialization alone does not enable a review process. Who decides what counts
+as a review conclusion, which deliveries need code review and which checks are
+required is the owner's decision; keepsail records it, applies it, and makes
+every later change of it visible.
 
-```sh
-keepsail --json policy initial prepare --repository-id OWNER/REPO \
-  --target-ref refs/heads/main --public-key BASE64_ED25519_PUBLIC_KEY
-```
-
-Place the returned `data.policy` and `data.authority` mappings in
-`.harness/review-recognition.yaml` and `.harness/policy-authority.yaml`,
-respectively, and commit the proposed first policy. Select any applicable
-existing code-review and check obligations before doing so; the light proposal
-does not automatically discover hosted protections. To retain the owner's
-confirmation of that exact commit, provide JSON with `owner`, `statement`,
-`evidence_reference`, and the full `original_evidence` string:
+**1. Adopt (once, by the owner).** While no policy is enabled there is no
+recognized review process, so the first enabled policy is initial setup, not a
+Change. Answer "whose review conclusions count?" when `init` asks on an
+interactive terminal, or give the answer as flags:
 
 ```sh
-keepsail policy initial confirmation --initial-commit FIRST_COMMIT_SHA \
-  --repository-id OWNER/REPO --target-ref refs/heads/main --evidence - \
-  < owner-confirmation.json > .harness/policy-initial-trust.json
+# Plan conclusions are the owner's own json conclusions, imported with `review import`:
+keepsail init --recognize owner --code-review off
+# Or an external process (its id, version and issuer), with scoped code review:
+keepsail init --recognize external --process-id team-review \
+  --process-version team-review/v3 --issuer review-bot \
+  --code-review scope --code-review-scope src
 ```
 
-Commit that record and establish the resulting commit through the project's
-owner-controlled release process. The record preserves the supplied confirmation;
-it does not independently authenticate its author. The verifier checks that the
-first commit is reachable, that no ancestor contained an enabled review policy,
-and that the retained confirmation has not changed. A candidate cannot use its
-own confirmation to bypass an existing trusted gate. Projects with an enabled
-old policy must deliver the new reader first and then use a signed transition;
-they cannot relabel the replacement as `initial`.
+Without a choice, non-interactive `init` keeps the disabled skeleton; run
+`keepsail policy enable` (same questions and flags) when you are ready. Both
+show the required checks taken from `.harness/verification.yaml`, write an
+enabled `review-recognition/v2` whose `required_checks_digest` matches them, and
+run only while the trusted base has no enabled policy. `init --force` never
+rewrites an existing `review-recognition.yaml`.
 
-For transitions, `policy authorization import` retains the signed record and
-does not itself approve the plan or activate the target. The old policy's review
-and required checks still apply to the transition. Routine key rotation may
-retain or remove existing purposes; adding a purpose requires a separate
-owner-controlled trust establishment. The generated workflow passes the host's
-repository and target ref to supported trusted readers, but actual branch
-protection and a candidate-independent required execution source must be
-verified in the hosting platform separately.
+Commit the result to the target branch as the adoption commit — the same step
+as pushing the initial commit to `main` — and then enable branch protection and
+CI. This step does not pass through keepsail's gate: there is no enabled policy
+yet to bypass. Trust starts from the first policy the owner writes (see
+[Limitations](limitations.md)).
+
+**2. Daily use.** Every Change goes `change start` → `plan ready` → `review import`
+→ implementation → `done` → PR. Obligations always come from the policy and
+required checks committed on the trusted base.
+
+**3. Change the rules.** Changing an enabled policy (another process, code
+review relaxed or strengthened, the policy disabled or removed, v1 → v2) or the
+required checks (`.harness/verification.yaml`) is a risk-boundary change:
+
+1. Declare it in the plan: `plan ready … --commitment "RISK-BOUNDARY=<what changes and why>"`,
+   and obtain the plan approval as usual.
+2. Commit the policy and/or check change.
+3. The owner records the decision on that Change:
+
+   ```sh
+   keepsail policy accept <change>
+   ```
+
+   It reads the committed `HEAD` (uncommitted policy or check edits are
+   refused), prints every obligation change, and appends one
+   `policy_change_accepted` event bound to the effective plan approval.
+   Rebasing and code fixes keep it valid; changing the target policy, a check
+   definition or the approved plan requires accepting again.
+4. `done`, `attest write` and the merge gate require the latest acceptance to
+   match the recomputed change exactly. The Change making the change still
+   delivers under the **old** policy and checks (code review, required checks).
+
+`status`, `report` and the PR metadata show the change, its itemized
+differences, who accepted it and when. The record is visible owner evidence,
+not a cryptographic identity: in a single-person setup the agent shares the
+owner's Git identity (see [Limitations](limitations.md) and #158).
+
+### Upgrading from signed policy transitions
+
+Earlier versions authorized policy changes with Ed25519-signed records,
+`policy-authority.yaml`, activation replay and initial-trust confirmations.
+This version reads the effective policy directly from the trusted base and no
+longer verifies signatures:
+
+- `.harness/policy-authority.yaml` and `.harness/policy-initial-trust.json` are
+  ignored; `status` and `verify` say they can be deleted. Deleting them is not a
+  risk-boundary change — but keep `policy-authority.yaml` until the new
+  verifier is on the target branch, because the old verifier still reads it.
+- A policy's `activation` field is optional and only descriptive now.
+- **Order the upgrade reader-first.** The merge gate installs the verifier from
+  the target branch's base, and the old verifier accepts only signed
+  authorizations. Deliver the keepsail upgrade itself as an ordinary Change that
+  changes neither the policy nor the required checks; once the new verifier is
+  on the target branch, later Changes can use `policy accept`. A risk-boundary
+  change submitted while the old verifier is still on the base is refused for a
+  missing signed authorization — merge the upgrade first.
+- **If your trusted policy lists `signed-plan-decision`** (the maintainer plan
+  process), this version refuses it with migration guidance instead of
+  reinterpreting it. Migrate with the previous version first: deliver one
+  signed transition that changes the plan process to a json owner conclusion,
+  merge it, and only then upgrade. The change of recognition rules is then
+  signed off under the old mechanism and recorded.
+- In-flight Changes whose plan approval relied on the signed continuation list
+  of an old transition re-obtain their plan approval under the effective policy;
+  `status` names the reason.
 
 ---
 

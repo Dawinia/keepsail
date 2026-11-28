@@ -20,7 +20,7 @@ in profiling.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -98,7 +98,15 @@ _HARD_PREREQ_EVENTS: dict[str, list[str]] = {
 }
 
 
-def _current_state(events_file: Path, change_id: str) -> str | None:
+def ledger_snapshot(events_file: Path) -> tuple[bytes, tuple[str, ...]]:
+    """Read one byte snapshot and expand it once; callers pass both downstream."""
+    content = events_file.read_bytes() if events_file.exists() else b""
+    lines = tuple(effective_event_lines(content.decode("utf-8").splitlines(keepends=True)))
+    return content, lines
+
+
+def _current_state(events_file: Path, change_id: str, *,
+                   lines: Sequence[str] | None = None) -> str | None:
     """Compute the current state for a single change by replaying its events.
 
     Cheap because each `emit` only needs the latest state; we don't build full
@@ -106,11 +114,12 @@ def _current_state(events_file: Path, change_id: str) -> str | None:
     events on disk are skipped, not raised — emit-time strictness applies to
     the NEW event we're about to write, not to history.
     """
-    if not events_file.exists():
-        return None
+    if lines is None:
+        if not events_file.exists():
+            return None
+        lines = ledger_snapshot(events_file)[1]
     current: str | None = None
-    lines = events_file.read_bytes().decode("utf-8").splitlines(keepends=True)
-    for line in effective_event_lines(lines):
+    for line in lines:
         if not line.strip():
             continue
         try:
@@ -127,13 +136,15 @@ def _current_state(events_file: Path, change_id: str) -> str | None:
     return current
 
 
-def _change_event_types(events_file: Path, change_id: str) -> set[str]:
+def _change_event_types(events_file: Path, change_id: str, *,
+                        lines: Sequence[str] | None = None) -> set[str]:
     """Return the set of event types previously emitted for this change_id."""
-    if not events_file.exists():
-        return set()
+    if lines is None:
+        if not events_file.exists():
+            return set()
+        lines = ledger_snapshot(events_file)[1]
     seen: set[str] = set()
-    lines = events_file.read_bytes().decode("utf-8").splitlines(keepends=True)
-    for line in effective_event_lines(lines):
+    for line in lines:
         if not line.strip():
             continue
         try:
@@ -145,7 +156,10 @@ def _change_event_types(events_file: Path, change_id: str) -> set[str]:
     return seen
 
 
-def validate_preconditions(events_file: Path, new_event: Event) -> None:
+def validate_preconditions(
+    events_file: Path, new_event: Event, *,
+    snapshot: tuple[bytes, tuple[str, ...]] | None = None,
+) -> None:
     """Raise EmitPreconditionError if the new event violates strict emit-time rules.
 
     Two checks:
@@ -153,6 +167,10 @@ def validate_preconditions(events_file: Path, new_event: Event) -> None:
        transition per the table in `transitions.py`.
     2. Hard prerequisites: certain events require specific prior events on the
        same change_id (e.g. implementation_complete needs verification_passed).
+
+    One validation reads the ledger bytes once and expands them once
+    (``snapshot`` lets the writer hand over a snapshot it already holds); the
+    whole precondition path then uses those lines.
     """
     if new_event.type == "historical_change_recovered":
         from keepsail.core.recovery import validate_recovery
@@ -162,7 +180,23 @@ def validate_preconditions(events_file: Path, new_event: Event) -> None:
         except (ValueError, KeyError, TypeError) as exc:
             raise EmitPreconditionError(str(exc)) from exc
         return
-    current = _current_state(events_file, new_event.change_id)
+    content, lines = snapshot if snapshot is not None else ledger_snapshot(events_file)
+    held: list[Any] = []
+
+    def staged_inputs() -> Any:
+        """Knowledge inputs of the snapshot under validation, built at most once."""
+        if not held:
+            from keepsail.core.knowledge import read_inputs
+
+            held.append(read_inputs(events_file.parent.parent, events_file=events_file,
+                                    snapshot=(content, lines)))
+        return held[0]
+
+    # A writer-supplied snapshot is the live ledger's bytes, which the knowledge
+    # report inside a code-subject recomputation reads; a self-read staged
+    # snapshot is not, so that report keeps reading the live ledger as before.
+    ledger_inputs = staged_inputs if snapshot is not None else None
+    current = _current_state(events_file, new_event.change_id, lines=lines)
     target = compute_target_state(current, new_event.type)
     if target == INVALID:
         if current is None:
@@ -182,27 +216,32 @@ def validate_preconditions(events_file: Path, new_event: Event) -> None:
     # additional hard prerequisites
     required = _HARD_PREREQ_EVENTS.get(new_event.type, [])
     if required:
-        seen = _change_event_types(events_file, new_event.change_id)
+        seen = _change_event_types(events_file, new_event.change_id, lines=lines)
         missing = [r for r in required if r not in seen]
         if missing:
             raise EmitPreconditionError(
                 f"event {new_event.type!r} requires prior {missing} "
                 f"(change_id={new_event.change_id})"
             )
-    _validate_authority(events_file, new_event)
+    _validate_authority(events_file, new_event, lines=lines, ledger_inputs=ledger_inputs)
     from keepsail.core.knowledge import KnowledgeError, validate_event
     try:
-        validate_event(events_file, new_event)
+        validate_event(events_file, new_event, snapshot=(content, lines),
+                       inputs_factory=staged_inputs)
     except KnowledgeError as exc:
         raise EmitPreconditionError(str(exc)) from exc
 
 
-def _validate_authority(events_file: Path, new_event: Event) -> None:
-    from keepsail.core.reducer import derive_state
+def _validate_authority(events_file: Path, new_event: Event, *,
+                        lines: Sequence[str] | None = None,
+                        ledger_inputs: Callable[[], Any] | None = None) -> None:
+    from keepsail.core.reducer import derive_state_from_lines
 
+    if lines is None:
+        lines = ledger_snapshot(events_file)[1]
     try:
         root = events_file.parent.parent
-        current = derive_state(events_file).get(new_event.change_id)
+        current = derive_state_from_lines(list(lines), _effective=True).get(new_event.change_id)
 
         def verify_local_evidence(evidence: dict[str, Any]) -> None:
             from keepsail.core.review_basis import resolve_local_review_basis
@@ -210,7 +249,7 @@ def _validate_authority(events_file: Path, new_event: Event) -> None:
             basis = resolve_local_review_basis(root, events_file, current, evidence,
                                                expected_base=new_event.payload.get("trusted_base"))
             claimed = new_event.payload.get("recognition_basis")
-            if (claimed is not None or basis["mode"] == "recovery") and claimed != basis:
+            if claimed is not None and claimed != basis:
                 raise ApprovalError("review evidence recognition basis does not match")
 
         validate_authority_context(
@@ -219,7 +258,9 @@ def _validate_authority(events_file: Path, new_event: Event) -> None:
             recognition_loader=lambda: load_trusted_recognition(
                 root, expected_base=new_event.payload.get("trusted_base")
             ),
-            check_git=lambda subject: _validate_git_subject(events_file, subject),
+            check_git=lambda subject: _validate_git_subject(
+                events_file, subject,
+                knowledge_inputs=ledger_inputs() if ledger_inputs is not None else None),
             review_evidence_validator=verify_local_evidence,
         )
         if (current is not None and current.effective_approval is not None
@@ -241,7 +282,8 @@ def _validate_authority(events_file: Path, new_event: Event) -> None:
             from keepsail.core.verification_evidence import verify_check_evidence
 
             code = new_event.payload.get("code_subject")
-            basis = validate_delivery_obligations(root, events_file, current, code)
+            basis = validate_delivery_obligations(root, events_file, current, code,
+                                                  lines=lines)
             trusted_text = regular_blob_text(root, basis["trusted_base"],
                                              ".harness/verification.yaml")
             contract = required_check_contract(parse_verification_config(trusted_text))
@@ -255,10 +297,12 @@ def _validate_authority(events_file: Path, new_event: Event) -> None:
         if new_event.type == "implementation_recorded" and "coverage_basis" in new_event.payload:
             validate_generated_coverage(root, new_event.payload)
         if new_event.type == "policy_authorization_imported":
-            from keepsail.core.policy_authority import validate_authorization_import
+            raise ApprovalError("signed policy authorizations are no longer imported; record "
+                                "the owner's decision with `keepsail policy accept`")
+        if new_event.type == "policy_change_accepted":
+            from keepsail.core.policy_acceptance import validate_new_acceptance
 
-            validate_authorization_import(root, derive_state(events_file).get(new_event.change_id),
-                                          new_event.change_id, new_event.payload)
+            validate_new_acceptance(root, current, new_event.payload)
         if new_event.type == "code_review_not_required":
             from keepsail.core.no_review import verify_no_review_binding
             from keepsail.core.review_verdict import read_change_events
@@ -268,7 +312,7 @@ def _validate_authority(events_file: Path, new_event: Event) -> None:
                 raise ApprovalError("no-review decision does not use the current trusted base")
             verify_no_review_binding(root, new_event, current.current_code_subject)
             subject_id = new_event.payload.get("subject_id")
-            for prior in read_change_events(events_file, new_event.change_id):
+            for prior in read_change_events(events_file, new_event.change_id, lines=lines):
                 prior_subject = prior.payload.get("code_subject")
                 if (prior.type == "code_review_failed" and isinstance(prior_subject, dict)
                         and prior_subject.get("subject_id") == subject_id):
@@ -590,7 +634,8 @@ def _find_evidence(state: object, evidence_id: str) -> dict[str, object] | None:
     return None
 
 
-def _validate_git_subject(events_file: Path, subject: dict[str, object]) -> None:
+def _validate_git_subject(events_file: Path, subject: dict[str, object], *,
+                          knowledge_inputs: Any = None) -> None:
     """Recompute a code subject before accepting a new-contract milestone."""
     expected = make_code_subject(
         events_file.parent.parent,
@@ -599,25 +644,27 @@ def _validate_git_subject(events_file: Path, subject: dict[str, object]) -> None
         base=str(subject["base"]),
         head=str(subject["head"]),
         legacy_paths=subject.get("path_representation") != "git-literal/v1",
+        knowledge_inputs=knowledge_inputs,
     )
     if expected["subject_id"] != subject.get("subject_id"):
         raise ApprovalError("code subject does not match the complete Git change set")
 
 
-def is_new_contract_event(events_file: Path, event: Event) -> bool:
+def is_new_contract_event(events_file: Path, event: Event, *,
+                          lines: Callable[[], Sequence[str]] | None = None) -> bool:
     """Whether an event belongs to a new-contract stream.
 
     Legacy events remain replayable for historical attestations.  A subject or
     evidence payload, or a current state carrying one of the derived new
     authority fields, opts the write into the stricter contract.
     """
-    from keepsail.core.reducer import derive_state
+    from keepsail.core.reducer import derive_state, derive_state_from_lines
 
     payload = event.payload or {}
     from keepsail.core.events import KNOWLEDGE_EVENT_TYPES
     if event.type in KNOWLEDGE_EVENT_TYPES or event.type == "knowledge_checkpointed":
         return True
-    if event.type == "policy_authorization_imported":
+    if event.type in {"policy_authorization_imported", "policy_change_accepted"}:
         return True
     if any(
         payload.get(key) is not None
@@ -625,7 +672,8 @@ def is_new_contract_event(events_file: Path, event: Event) -> bool:
                     "review_reference_version")
     ):
         return True
-    current = derive_state(events_file).get(event.change_id)
+    current = (derive_state_from_lines(list(lines()), _effective=True)
+               if lines is not None else derive_state(events_file)).get(event.change_id)
     return bool(
         current is not None
         and (

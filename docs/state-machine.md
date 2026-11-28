@@ -90,6 +90,7 @@ These events are legal but leave the state unchanged (informational sensor signa
 - `plan_revision_submitted`
 - `plan_withdrawn`
 - `policy_authorization_imported`
+- `policy_change_accepted`
 - `pr_opened`
 - `review_budget_exceeded`
 - `review_evidence_imported`

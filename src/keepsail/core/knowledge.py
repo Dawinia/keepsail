@@ -7,6 +7,7 @@ Its public seam is report/prepare/validate_event; callers share the same predica
 from __future__ import annotations
 
 import json
+from collections.abc import Callable, Sequence
 from copy import deepcopy
 from dataclasses import dataclass
 from functools import lru_cache
@@ -1191,25 +1192,54 @@ class KnowledgeInputs:
     effective_lines: list[str]
 
 
-def read_inputs(root: Path, *, events_file: Path | None = None) -> KnowledgeInputs:
+def read_inputs(root: Path, *, events_file: Path | None = None,
+                snapshot: tuple[bytes, Sequence[str]] | None = None) -> KnowledgeInputs:
+    """Ledger replay and state derivation from one byte snapshot.
+
+    ``snapshot`` is ``(bytes, effective lines)`` already held (and expanded
+    once) by the caller; without it the file is read and expanded here.
+    """
     path = events_file or root / ".harness/events.jsonl"
     policy, candidate = policy_configuration(root)
+    if snapshot is not None:
+        held, effective = snapshot
+        ledger, revision = load_ledger(path, policy, _content=held)
+        return _inputs_from_content(policy, candidate, ledger, revision, held,
+                                    effective_lines=effective)
     content = path.read_bytes() if path.exists() else b""
     ledger, revision = load_ledger(path, policy, _content=content)
-    return _inputs_from_content(policy, candidate, ledger, revision, content)
+    # Release each full-size intermediate as soon as the next one exists, so the
+    # bytes, the decoded text, the physical and the expanded lines are not all
+    # held at once (peak memory scales with the ledger).
+    text = content.decode("utf-8")
+    del content
+    lines = text.splitlines(keepends=True)
+    del text
+    return _inputs_from_lines(policy, candidate, ledger, revision, lines)
 
 
 def _inputs_from_content(
     policy: dict[str, Any] | None, candidate: dict[str, Any] | None,
-    ledger: dict[str, Any], revision: str, content: bytes,
+    ledger: dict[str, Any], revision: str, content: bytes, *,
+    effective_lines: Sequence[str] | None = None,
+) -> KnowledgeInputs:
+    return _inputs_from_lines(policy, candidate, ledger, revision,
+                              content.decode("utf-8").splitlines(keepends=True),
+                              effective_lines=effective_lines)
+
+
+def _inputs_from_lines(
+    policy: dict[str, Any] | None, candidate: dict[str, Any] | None,
+    ledger: dict[str, Any], revision: str, lines: list[str], *,
+    effective_lines: Sequence[str] | None = None,
 ) -> KnowledgeInputs:
     from keepsail.core.reducer import derive_state_from_lines
 
-    lines = content.decode("utf-8").splitlines(keepends=True)
-    effective_lines = list(effective_event_lines(lines))
+    expanded = (list(effective_lines) if effective_lines is not None
+                else list(effective_event_lines(lines)))
     return KnowledgeInputs(policy, candidate, ledger, revision,
-                           derive_state_from_lines(effective_lines, _effective=True),
-                           lines, effective_lines)
+                           derive_state_from_lines(expanded, _effective=True),
+                           lines, expanded)
 
 
 def report(
@@ -1384,33 +1414,37 @@ def _validate_execution(
         )
 
 
-def validate_event(events_file: Path, event: Event) -> None:
+def validate_event(events_file: Path, event: Event, *,
+                   snapshot: tuple[bytes, Sequence[str]] | None = None,
+                   inputs_factory: Callable[[], KnowledgeInputs] | None = None) -> None:
     root = events_file.parent.parent
     if event.type == "knowledge_checkpointed":
         if event.payload.get("schema_version") == "knowledge-checkpoint/v2":
             from keepsail.core.knowledge_checkpoint import make_checkpoint
-            inputs = read_inputs(root, events_file=events_file)
+            inputs = read_inputs(root, events_file=events_file, snapshot=snapshot)
             expected = make_checkpoint(root, event.change_id, inputs, resolve_contract_base(root))
             blocking = report(root, event.change_id, inputs=inputs)["blocking_reasons"]
         elif event.payload.get("representation") == (
             "legacy-bootstrap-derived-not-original-event-bytes"
         ):
             from keepsail.core.knowledge_checkpoint import legacy_bootstrap_checkpoint
-            inputs = read_inputs(root, events_file=events_file)
+            inputs = read_inputs(root, events_file=events_file, snapshot=snapshot)
             expected = legacy_bootstrap_checkpoint(root, event.change_id, inputs,
                                                    resolve_contract_base(root))
             blocking = report(root, event.change_id, inputs=inputs)["blocking_reasons"]
         else:
-            expected = checkpoint(root, event.change_id, events_file=events_file)
+            expected = checkpoint(root, event.change_id, events_file=events_file,
+                                  snapshot=snapshot)
             blocking = expected["view"]["blocking_reasons"]
         _need(event.payload == expected, "knowledge checkpoint does not match the recorded facts")
         _need(not blocking, "unresolved knowledge obligations")
     elif event.type in EVENT_TYPES:
         _need((event.framework_state or {}).get("schema_version")
               != "legacy-bootstrap-operation/v1", "derived bootstrap operations are export-only")
-        from keepsail.core.reducer import derive_state
+        from keepsail.core.reducer import derive_state, derive_state_from_lines
 
-        state = derive_state(events_file).get(event.change_id)
+        state = (derive_state_from_lines(list(snapshot[1]), _effective=True)
+                 if snapshot is not None else derive_state(events_file)).get(event.change_id)
         _need(state is not None, "unknown governing Change")
         operation_type = (
             event.payload.get("operation_type") if event.type == TRIGGER_EVENT else event.type
@@ -1427,13 +1461,15 @@ def validate_event(events_file: Path, event: Event) -> None:
         payload, replay = prepare(root, event.type, request, events_file=events_file)
         _need(not replay and payload == event.payload, "duplicate or corrupted knowledge event")
     elif event.type in PREREQUISITES:
-        view = report(root, event.change_id, events_file=events_file)
+        held = inputs_factory() if inputs_factory is not None else None
+        view = report(root, event.change_id, events_file=events_file, inputs=held)
         if view["coverage"] == "not_recorded":
             return
         # Plan submission itself contributes its estimated scope.
         if event.type == "plan_ready":
             extra = event.payload.get("scope", {}).get("files", [])
-            view = report(root, event.change_id, events_file=events_file, extra_paths=extra)
+            view = report(root, event.change_id, events_file=events_file, extra_paths=extra,
+                          inputs=held)
         if event.type not in {"plan_ready"}:
             blocking = list(view["blocking_reasons"])
             # Adjustment execution needs an exact verified code review before it
@@ -1463,13 +1499,19 @@ def validate_event(events_file: Path, event: Event) -> None:
             _need(supplied, "current constraints require an exact retained delivery")
 
 
-def checkpoint(root: Path, change: str, *, events_file: Path | None = None) -> dict[str, Any]:
+def checkpoint(root: Path, change: str, *, events_file: Path | None = None,
+               snapshot: tuple[bytes, Sequence[str]] | None = None) -> dict[str, Any]:
     """Self-contained cross-governing-Change evidence, without recursive checkpoints."""
     path = events_file or root / ".harness/events.jsonl"
     policy = load_policy(root)
     _need(policy is not None, "no activated knowledge policy")
-    ledger, revision = load_ledger(path, policy)
-    view = report(root, change, events_file=path)
+    if snapshot is not None:
+        inputs = read_inputs(root, events_file=path, snapshot=snapshot)
+        ledger, revision = inputs.ledger, inputs.revision
+        view = report(root, change, events_file=path, inputs=inputs)
+    else:
+        ledger, revision = load_ledger(path, policy)
+        view = report(root, change, events_file=path)
     record = {
         "schema_version": "knowledge-checkpoint/v1",
         "policy": policy,

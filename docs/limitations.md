@@ -109,6 +109,36 @@ executed.
   supplies no `file_path`, so no path-based allowance can fire for it, and path
   resolution cannot see through a hardlink.
 
+**Policy provenance and risk-boundary records:**
+- keepsail reads the effective recognition policy and required checks directly
+  from the trusted base commit; it does not replay how that policy got there.
+  Whether history entered the target branch through the gate is the host's
+  branch protection and CI responsibility, a separate evidence layer.
+- Trust starts from the first enabled policy the owner writes at adoption
+  (`init` or `policy enable`), committed to the target branch before branch
+  protection and CI are enabled. That adoption step does not pass through
+  keepsail's gate.
+- A `policy accept` record (and the v3 `authorization` that carries it) is
+  visible owner evidence in the ledger, the attestation and the PR, not a
+  cryptographic identity. In a single-person setup the agent shares the
+  owner's Git identity, so keepsail cannot tell from the record whether the
+  owner or the agent ran the command; it only ensures the change is never
+  silent. Distinguishing the two is #158.
+- Upgrading from signed transitions must be reader-first: while the old
+  verifier is still on the target branch, a risk-boundary change is refused for
+  a missing signed authorization; merge the keepsail upgrade (an ordinary
+  Change) first. A trusted policy listing `signed-plan-decision` must be
+  migrated with the previous version; it is refused, not reinterpreted. This
+  applies to v1 policies too (v1 never verified that form), and no policy can
+  newly introduce it.
+
+**Git facts reused within one operation:** within one CLI operation keepsail
+reuses immutable, object-id keyed Git facts (tree listings, blob bytes, resolved
+full object ids, ancestry and merge bases, the diff between two commits). This
+assumes no `fetch --unshallow`, `replace` or graft rewrites the repository during
+that one operation; earlier versions already queried Git several times per
+operation under the same assumption. Refs and `HEAD` are always re-read.
+
 **Gates not yet wired:**
 - Cold-path pre-commit / pre-push gates — need git-hook install infrastructure.
 - `gate check pr-open` / `gate check pr-merge` — the underlying machinery ships

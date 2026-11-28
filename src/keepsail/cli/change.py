@@ -37,6 +37,7 @@ into a dedicated `cli/resume_renderer.py` only if they grow past ~80 lines.
 from __future__ import annotations
 
 import sys
+from collections.abc import Sequence
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
@@ -344,7 +345,8 @@ def list_cmd(
     sys.exit(EXIT_OK)
 
 
-def _tail_events_for_change(events_file: Path, slug: str, limit: int) -> list[Event]:
+def _tail_events_for_change(events_file: Path, slug: str, limit: int, *,
+                            lines: Sequence[str] | None = None) -> list[Event]:
     """Return up to `limit` most-recent events for `slug`, chronological order.
 
     "Chronological" here = events.jsonl append order (per lifecycle §3.8.3 the
@@ -359,11 +361,13 @@ def _tail_events_for_change(events_file: Path, slug: str, limit: int) -> list[Ev
     v0.1 log sizes (<10k events) this is well under 10ms. Phase 8 daemon can
     optimize with a slug-indexed offset table if profiling shows it's needed.
     """
-    if not events_file.exists():
-        return []
+    if lines is None:
+        if not events_file.exists():
+            return []
+        lines = tuple(effective_event_lines(
+            events_file.read_bytes().decode("utf-8").splitlines(keepends=True)))
     matched: list[Event] = []
-    lines = events_file.read_bytes().decode("utf-8").splitlines(keepends=True)
-    for line in effective_event_lines(lines):
+    for line in lines:
         if not line.strip():
             continue
         try:
@@ -441,7 +445,24 @@ def _render_resume_markdown(cs: ChangeState, recent: list[Event]) -> str:
     return "\n".join(lines)
 
 
-def _emit_resume(ctx: click.Context, root: Path, slug: str, cs: ChangeState) -> None:
+def _resume_inputs(root: Path) -> tuple[Any, dict[str, ChangeState], Exception | None]:
+    """One read and one expansion serve the state, the knowledge report and the tail.
+
+    ``knowledge.read_inputs`` replays the ledger and derives state from the same
+    bytes.  If the knowledge replay itself fails, state is derived as before
+    and the failure is reported by the knowledge section, unchanged.
+    """
+    from keepsail.core.knowledge import KnowledgeError, read_inputs
+
+    try:
+        inputs = read_inputs(root)
+    except (KnowledgeError, OSError, UnicodeError) as exc:
+        return None, derive_state(events_path(root)), exc
+    return inputs, inputs.states, None
+
+
+def _emit_resume(ctx: click.Context, root: Path, slug: str, cs: ChangeState,
+                 inputs: Any = None, failure: Exception | None = None) -> None:
     """Render the resume dump for a resolved (slug, ChangeState) and print it.
 
     Shared by the explicit-slug path and the no-arg active-change path so the
@@ -451,7 +472,9 @@ def _emit_resume(ctx: click.Context, root: Path, slug: str, cs: ChangeState) -> 
 
     from keepsail.core.knowledge import KnowledgeError, report
     try:
-        knowledge = report(root, slug)
+        if failure is not None:
+            raise failure
+        knowledge = report(root, slug, inputs=inputs)
     except (KnowledgeError, OSError, UnicodeError) as exc:
         code = getattr(exc, "exit_code", 1)
         if ctx.obj.get("json"):
@@ -462,7 +485,8 @@ def _emit_resume(ctx: click.Context, root: Path, slug: str, cs: ChangeState) -> 
             click.echo(format_error(subcommand="change resume", message=str(exc)), err=True)
         sys.exit(code)
     recent = _tail_events_for_change(
-        events_path(root), slug, limit=_RESUME_RECENT_EVENT_LIMIT
+        events_path(root), slug, limit=_RESUME_RECENT_EVENT_LIMIT,
+        lines=inputs.effective_lines if inputs is not None else None,
     )
     if ctx.obj.get("json"):
         click.echo(
@@ -560,17 +584,17 @@ def resume(ctx: click.Context, slug: str | None) -> None:
         if active is None:
             # No active change → nothing to inject. Silent success.
             sys.exit(EXIT_OK)
-        derived = derive_state(events_path(root))
+        inputs, derived, failure = _resume_inputs(root)
         cs = derived.get(active)
         if cs is None:
             # state.yaml named an active change that derived state no longer
             # knows (state/events skew) — stay best-effort: print nothing,
             # exit 0. MUST NOT fall through to the explicit-slug exit-2 guard.
             sys.exit(EXIT_OK)
-        _emit_resume(ctx, root, active, cs)
+        _emit_resume(ctx, root, active, cs, inputs, failure)
         sys.exit(EXIT_OK)
 
-    derived = derive_state(events_path(root))
+    inputs, derived, failure = _resume_inputs(root)
     if slug not in derived:
         # Wording aligned with `status <unknown>` (more precise — "unknown
         # change slug" vs "unknown change") so the two identifier-query
@@ -584,7 +608,7 @@ def resume(ctx: click.Context, slug: str | None) -> None:
             err=True,
         )
         sys.exit(EXIT_VALIDATION)
-    _emit_resume(ctx, root, slug, derived[slug])
+    _emit_resume(ctx, root, slug, derived[slug], inputs, failure)
     sys.exit(EXIT_OK)
 
 

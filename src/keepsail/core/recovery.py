@@ -112,7 +112,8 @@ def retained_history(payload: dict[str, Any], change: str) -> list[Event]:
           "retained source digest mismatch")
     events = strict_events(source, change)
     _need(bool(events), "empty source")
-    recognition = _recognition_from_mapping(payload.get("historical_recognition"))
+    recognition = _recognition_from_mapping(payload.get("historical_recognition"),
+                                            historical=True)
     _need(recognition.policy_digest == payload.get("historical_recognition_digest"),
           "retained historical recognition mismatch")
     for event in events:

@@ -79,8 +79,9 @@ jobs:
           tests/integration/cli/test_verification.py
 
   delivery-policy-wheel:
-    # Exercise the installed artifact and Ed25519 verifier on the supported
-    # Python versions and native operating systems, separate from editable tests.
+    # Exercise the installed artifact's risk-boundary acceptance (detection,
+    # complete difference, policy-acceptance/v1 shape) on the supported Python
+    # versions and native operating systems, without cryptography installed.
     strategy:
       fail-fast: false
       matrix:
@@ -97,10 +98,11 @@ jobs:
           python -m pip install build pytest
           python -m build --wheel
           python -c "import glob, subprocess, sys; wheels = glob.glob('dist/*.whl'); assert len(wheels) == 1; subprocess.check_call([sys.executable, '-m', 'pip', 'install', wheels[0]])"
-      - name: Verify installed Ed25519 policy paths
+      - name: Verify installed policy acceptance without cryptography
         run: |
           python -I -c "from pathlib import Path; import keepsail; p = Path(keepsail.__file__).resolve(); print(p); assert 'site-packages' in p.parts"
-          python -I -m pytest --import-mode=importlib -q tests/unit/core/test_policy_authority.py
+          python -I -c "import importlib.util; assert importlib.util.find_spec('cryptography') is None"
+          python -I -m pytest --import-mode=importlib -q tests/unit/core/test_policy_acceptance.py
 
   delivery-policy-offline:
     # Installation happens first; the verifier and its Git children run inside
@@ -108,6 +110,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The migration test builds the pinned previous release from history;
+          # history is fetched here, before any network isolation.
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"

@@ -76,12 +76,30 @@ def _git(root: Path, *args: str) -> str:
 
 
 def resolve_commit(root: Path, ref: str = "HEAD") -> str:
-    """Resolve ``ref`` to one full commit SHA, failing closed."""
-    return _git(root, "rev-parse", "--verify", f"{ref}^{{commit}}").strip()
+    """Resolve ``ref`` to one full commit SHA, failing closed.
+
+    Only a full object id is reused within an operation; refs (``HEAD``,
+    branches) are mutable and always re-read.
+    """
+    from keepsail.core.git_facts import is_object_id, memoized, root_key
+
+    return memoized(
+        ("resolve-commit", root_key(root), ref),
+        lambda: _git(root, "rev-parse", "--verify", f"{ref}^{{commit}}").strip(),
+        cacheable=is_object_id(ref),
+    )
 
 
 def is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
     """Return whether ``ancestor`` reaches ``descendant``; fail closed on Git errors."""
+    from keepsail.core.git_facts import is_object_id, memoized, root_key
+
+    return memoized(("is-ancestor", root_key(root), ancestor, descendant),
+                    lambda: _is_ancestor(root, ancestor, descendant),
+                    cacheable=is_object_id(ancestor) and is_object_id(descendant))
+
+
+def _is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
     args = ["merge-base", "--is-ancestor", ancestor, descendant]
     try:
         proc = subprocess.run(
@@ -105,7 +123,11 @@ def is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
 
 def merge_base_commit(root: Path, base: str, head: str) -> str:
     """Resolve the common ancestor used as the full-change inspection base."""
-    return _git(root, "merge-base", base, head).strip()
+    from keepsail.core.git_facts import is_object_id, memoized, root_key
+
+    return memoized(("merge-base", root_key(root), base, head),
+                    lambda: _git(root, "merge-base", base, head).strip(),
+                    cacheable=is_object_id(base) and is_object_id(head))
 
 
 def tracked_files_at_commit(root: Path, ref: str) -> list[str]:
@@ -115,8 +137,15 @@ def tracked_files_at_commit(root: Path, ref: str) -> list[str]:
 
 
 def file_text_at_commit(root: Path, ref: str, path: str) -> str:
-    """Read one tracked text file from ``ref``, failing closed."""
-    return _git(root, "show", f"{ref}:{path}")
+    """Read one tracked text file from ``ref``, failing closed.
+
+    For a full commit id the result is an immutable (commit, path) fact reused
+    within one operation; refs are always re-read.
+    """
+    from keepsail.core.git_facts import is_object_id, memoized, root_key
+
+    return memoized(("show", root_key(root), ref, path),
+                    lambda: _git(root, "show", f"{ref}:{path}"), cacheable=is_object_id(ref))
 
 
 def split_changed_by_scope(

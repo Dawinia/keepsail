@@ -36,8 +36,13 @@ from keepsail.core.paths import (
     find_harness_root,
 )
 from keepsail.core.reducer import derive_state
+from keepsail.core.risk_boundary import LEGACY_TRUST_FILES, legacy_trust_notice
 from keepsail.core.scope_match import GitScopeError
-from keepsail.engineering.delivery_policy import delivery_details
+from keepsail.engineering.delivery_policy import (
+    approval_recognition,
+    delivery_details,
+    risk_boundary_details,
+)
 from keepsail.exit_codes import EXIT_NO_CONFIG, EXIT_OK, EXIT_VALIDATION
 from keepsail.gates.decisions import SUGGESTIONS
 
@@ -80,6 +85,40 @@ def _format_agent_options(options: dict[str, object]) -> str:
     return ", ".join(
         f"{key}={_format_agent_option_value(value)}" for key, value in sorted(options.items())
     )
+
+
+def _trusted_policy_error(root: Path) -> str | None:
+    """Why the trusted recognition policy cannot be used (e.g. a signed-plan policy)."""
+    from keepsail.core.approval import ApprovalError, recognition_contract_active
+    from keepsail.core.scope_match import GitScopeError
+
+    try:
+        recognition_contract_active(root)
+    except (ApprovalError, GitScopeError, OSError, ValueError) as exc:
+        return str(exc)
+    return None
+
+
+def _echo_risk_boundary(details: dict[str, Any] | None) -> None:
+    if details is None:
+        return
+    if details["status"] != "changed":
+        click.echo(f"  risk boundary: {details['reason']}")
+        return
+    click.echo("  risk-boundary change: " + ("; ".join(details["labels"]) or "obligations changed")
+               + ("" if details["declared"] else " (plan lacks RISK-BOUNDARY)"))
+    for row in details["obligation_changes"]:
+        before = f" {row['before']!r}" if "before" in row else ""
+        after = f" -> {row['after']!r}" if "after" in row else ""
+        click.echo(f"    {row['direction']} {row['object']}{row['path']}:{before}{after}")
+    acceptance = details["acceptance"]
+    if acceptance is None:
+        click.echo("    owner acceptance: none recorded (run `keepsail policy accept`)")
+    else:
+        actor = acceptance["actor"]
+        click.echo(f"    owner acceptance: {actor['identifier']} ({actor['type']}) at "
+                   f"{acceptance['ts']}, event {acceptance['event_id']}, "
+                   f"{'matches' if acceptance['matches'] else 'STALE: run policy accept again'}")
 
 
 @click.command("status")
@@ -326,6 +365,8 @@ def status_cmd(ctx: click.Context, slug: str | None, all_changes: bool) -> None:
                 entry = asdict(cs)
                 entry["no_review_decision"] = _no_review_details(cs)
                 entry["delivery_policy"] = delivery_details(root, cs)
+                entry["risk_boundary"] = risk_boundary_details(root, cs)
+                entry["approval_recognition"] = approval_recognition(root, cs)
                 reviewer, governance = _reviewer_info(cs)
                 entry["next"] = _next_step(cs, reviewer)
                 if reviewer is not None:
@@ -338,10 +379,20 @@ def status_cmd(ctx: click.Context, slug: str | None, all_changes: bool) -> None:
                     command="status",
                     status="pass",
                     exit_code=EXIT_OK,
-                    data={"changes": changes_data},
+                    data={"changes": changes_data,
+                          "trusted_policy_error": _trusted_policy_error(root),
+                          "legacy_trust_files": [
+                              name for name in LEGACY_TRUST_FILES if (root / name).exists()
+                          ]},
                 )
             )
         else:
+            notice = legacy_trust_notice(root)
+            if notice is not None:
+                click.echo(notice)
+            trusted_error = _trusted_policy_error(root)
+            if trusted_error is not None:
+                click.echo(f"keepsail: trusted review policy is not usable: {trusted_error}")
             for cs in target:
                 click.echo(f"{cs.change_id}: {cs.current_state}")
                 click.echo(f"  last: {cs.last_event_type} @ {cs.last_event_at}")
@@ -380,6 +431,10 @@ def status_cmd(ctx: click.Context, slug: str | None, all_changes: bool) -> None:
                                f"{delivery['subject_matches']}")
                 elif delivery is not None:
                     click.echo(f"  delivery policy unavailable: {delivery['reason']}")
+                recognition = approval_recognition(root, cs)
+                if recognition is not None and not recognition["recognized"]:
+                    click.echo(f"  plan approval not recognized: {recognition['reason']}")
+                _echo_risk_boundary(risk_boundary_details(root, cs))
                 if cs.no_review_decision is not None:
                     decision = _no_review_details(cs)
                     assert decision is not None

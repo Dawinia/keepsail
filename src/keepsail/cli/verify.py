@@ -206,13 +206,19 @@ def verify_cmd(
     _cs = derive_state(events_path(root)).get(resolved)
     if _cs is not None and _cs.effective_approval is None:
         from keepsail.core.approval import ApprovalError
-        from keepsail.core.transition_guard import validate_legacy_initial_authority
+        from keepsail.core.transition_guard import validate_legacy_risk_boundary
 
         try:
-            validate_legacy_initial_authority(root)
+            validate_legacy_risk_boundary(root)
         except (ApprovalError, OSError, ValueError) as exc:
             click.echo(format_error(subcommand="verify", message=str(exc)), err=True)
             sys.exit(EXIT_VALIDATION)
+
+    from keepsail.core.risk_boundary import legacy_trust_notice
+
+    legacy_notice = legacy_trust_notice(root)
+    if legacy_notice is not None and not ctx.obj.get("quiet"):
+        click.echo(legacy_notice, err=True)
 
     # Pre-load the same configuration the runner will execute, so configuration
     # errors are precise and a candidate cannot select the trusted check list.

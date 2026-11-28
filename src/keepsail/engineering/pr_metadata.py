@@ -230,6 +230,26 @@ def _derive_implementation_started(
     return first_commit, impl_ts
 
 
+def _derive_risk_boundary(events_file: Path, change_id: str) -> list[str]:
+    """Metadata lines for the latest recorded owner acceptance, if any."""
+    latest: dict[str, Any] | None = None
+    for ev in _iter_events(events_file):
+        if ev.get("change_id") == change_id and ev.get("type") == "policy_change_accepted":
+            latest = ev
+    if latest is None:
+        return []
+    actor = latest.get("actor") or {}
+    payload = latest.get("payload") or {}
+    changes = payload.get("obligation_changes") or []
+    rendered = "; ".join(f"{row.get('direction')} {row.get('object')}{row.get('path')}"
+                         for row in changes if isinstance(row, dict))
+    return [f"Risk boundary: accepted by {actor.get('identifier')} "
+            f"({actor.get('type')}) at {latest.get('timestamp')}; event {latest.get('event_id')}; "
+            f"policy {payload.get('predecessor_policy_digest')} -> "
+            f"{payload.get('target_policy_digest') or payload.get('target_policy_state')}",
+            f"Risk boundary changes: {rendered or 'none'}"]
+
+
 def build_metadata(change_id: str, root: Path) -> str:
     """Build the §2.5 metadata block string for *change_id* in the workspace at *root*.
 
@@ -268,6 +288,7 @@ def build_metadata(change_id: str, root: Path) -> str:
         lines.append(f"First commit: {first_commit}")
     if impl_ts:
         lines.append(f"Implementation started: {impl_ts}")
+    lines.extend(_derive_risk_boundary(ep, change_id))
     lines.append(f"keepsail version: v{__version__}")
     lines.append(METADATA_END)
 

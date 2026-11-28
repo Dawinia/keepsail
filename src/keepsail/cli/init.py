@@ -2,8 +2,8 @@
 
 Creates the canonical directory layout (4 subdirs + 6 skeleton files) per
 `engineering-integration` §2.1. Idempotent without `--force`; `--force`
-overwrites skeleton files except the owner-managed review recognition and policy
-authority files, which are preserved. Per `cli-command-surface` §2.3.
+overwrites skeleton files except the owner-managed review recognition policy,
+which is preserved. Per `cli-command-surface` §2.3.
 """
 
 from __future__ import annotations
@@ -44,6 +44,12 @@ from keepsail.cli.init_plan import (
     InitRequest,
     InteractionMode,
     inspect_workspace,
+)
+from keepsail.cli.policy_choice import (
+    adoption_options,
+    adoption_requested,
+    choice_from_params,
+    confirm_required_checks,
 )
 from keepsail.core.clock import utc_now_iso
 from keepsail.engineering.agents_md import AgentsMdInjectionError
@@ -190,15 +196,6 @@ def _skeleton_files() -> dict[str, str]:
             "  evidence_forms: [json]\n"
             "  requirements: {}\n"
         ),
-        "policy-authority.yaml": (
-            "# Disabled until the owner confirms the repository, target and public key\n"
-            "# through the project's separate trusted-baseline establishment process.\n"
-            "version: policy-authority/v1\n"
-            "repository_id: REPLACE_WITH_OWNER_AND_REPOSITORY\n"
-            "target_ref: refs/heads/REPLACE_WITH_TARGET_BRANCH\n"
-            "enabled: false\n"
-            "keys: []\n"
-        ),
         "sensors.yaml": "sensors: []\n",
         "gates.yaml": (
             "gates:\n  - pre-tool-use\n  - pre-commit\n  - pre-push\n  - pr-open\n  - pr-merge\n"
@@ -252,7 +249,7 @@ def build_init_operations(
             skeletons = _skeleton_files()
             for name, content in skeletons.items():
                 path = harness / name
-                if name in {"review-recognition.yaml", "policy-authority.yaml"} and path.exists():
+                if name == "review-recognition.yaml" and path.exists():
                     continue
                 if path.exists() and not request.force:
                     continue
@@ -423,9 +420,11 @@ def build_init_operations(
     is_flag=True,
     help="Skip the final confirmation in interactive mode.",
 )
+@adoption_options
 @click.pass_context
 def init_cmd(
     ctx: click.Context,
+    /,
     setup_github: bool,
     framework: str | None,
     force: bool,
@@ -434,13 +433,20 @@ def init_cmd(
     review_producers: tuple[str, ...],
     review_models: tuple[str, ...],
     assume_yes: bool,
+    **adoption: Any,
 ) -> None:
     """Initialize a project for keepsail.
+
+    Adoption: when no review recognition policy exists yet, `--recognize` /
+    `--code-review` (or the question on an interactive terminal) write the
+    first enabled policy, as `keepsail policy enable` does.  An existing
+    policy file is always preserved, including with `--force`.
 
     v0.1: --json is not honored by init (bootstrap command produces no
     machine-parseable state).
     """
     root = Path(ctx.obj.get("workspace") or ".").resolve()
+    policy_existed = (root / ".harness" / "review-recognition.yaml").exists()
     quiet = bool(ctx.obj.get("quiet"))
     json_output = bool(ctx.obj.get("json"))
     capabilities = detect_runtime_terminal_capabilities(sys.stdin, sys.stdout, os.environ)
@@ -555,7 +561,55 @@ def init_cmd(
 
     if capabilities.mode is not InteractionMode.GUIDED:
         click.echo(f"keepsail initialized at {harness}")
+    from keepsail.cli.init_ui import _safe_isatty
+
+    _adopt_after_init(ctx, root, adoption, policy_existed=policy_existed,
+                      interactive=capabilities.mode is not InteractionMode.NON_INTERACTIVE
+                      and _safe_isatty(sys.stdin))
     ctx.exit(EXIT_OK)
+
+
+def _adopt_after_init(ctx: click.Context, root: Path, params: dict[str, Any], *,
+                      policy_existed: bool, interactive: bool) -> None:
+    """Ask "whose review conclusions count?" only while no policy file exists."""
+    from keepsail.core.approval import ApprovalError
+    from keepsail.core.policy_adoption import enable_policy, workspace_policy_state
+
+    quiet = bool(ctx.obj.get("quiet")) or bool(ctx.obj.get("json"))
+    requested = adoption_requested(params)
+    if policy_existed:
+        if requested or not quiet:
+            try:
+                state = workspace_policy_state(root)
+            except (ApprovalError, OSError, ValueError):
+                state = "unreadable"
+            hint = ("run `keepsail policy enable` to adopt a policy" if state == "disabled"
+                    else "change it through a Change declaring RISK-BOUNDARY and "
+                         "`keepsail policy accept`")
+            click.echo(f"keepsail: kept the existing .harness/review-recognition.yaml ({state}); "
+                       f"{hint}", err=requested)
+        return
+    if not requested and not (interactive and click.confirm(
+            "Adopt a review recognition policy now (whose review conclusions count)?",
+            default=True)):
+        if not quiet:
+            click.echo("keepsail: the review recognition policy is a disabled skeleton; run "
+                       "`keepsail policy enable` to adopt one")
+        return
+    try:
+        choice = choice_from_params(params, interactive=interactive and not requested)
+        if not quiet:
+            confirm_required_checks(root, interactive=interactive and not requested)
+        policy = enable_policy(root, choice)
+    except (ApprovalError, OSError, ValueError) as exc:
+        click.echo(format_error(subcommand="init", message=f"policy not adopted: {exc}",
+                                hint="Fix the choice and run `keepsail policy enable`."),
+                   err=True)
+        ctx.exit(EXIT_GENERIC)
+    if not quiet:
+        click.echo(f"keepsail: adopted the enabled policy {policy['policy_digest']}; commit "
+                   ".harness/ to the target branch as the adoption commit, then enable branch "
+                   "protection and CI")
 
 
 def _plan_github_setup(

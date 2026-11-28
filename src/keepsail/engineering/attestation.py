@@ -141,7 +141,7 @@ def write_attestation(events_file: Path, attestations_dir: Path, slug: str, *,
             resolve_contract_base,
         )
         from keepsail.core.git_objects import optional_regular_blob_text
-        from keepsail.core.policy_authority import parse_unique_yaml
+        from keepsail.core.strict_yaml import parse_unique_yaml
 
         try:
             base = resolve_contract_base(root)
@@ -169,9 +169,9 @@ def write_attestation(events_file: Path, attestations_dir: Path, slug: str, *,
                     basis = validate_delivery_obligations(
                         root, events_file, state, state.current_code_subject,
                     )
-                    if basis["mode"] in {"transition", "recovery", "rotate_key"}:
+                    if basis["mode"] == "accepted":
                         if format_version is not None:
-                            raise ValueError("policy transition requires v3 attestation")
+                            raise ValueError("a risk-boundary change requires v3 attestation")
                         selected = "v3"
     if ATTESTATION_FORMAT == "v1" and selected in {"v2", "v3"}:
         raise ValueError("reader-only release cannot produce v2/v3; upgrade the producer first")
@@ -450,7 +450,7 @@ def verify_attestations(
     active_v2 = False
     if base and head:
         from keepsail.core.git_objects import optional_regular_blob_text
-        from keepsail.core.policy_authority import parse_unique_yaml
+        from keepsail.core.strict_yaml import parse_unique_yaml
 
         try:
             trusted_text = optional_regular_blob_text(
@@ -460,16 +460,16 @@ def verify_attestations(
             if (isinstance(trusted, dict) and trusted.get("enabled") is True
                     and trusted.get("version") == "review-recognition/v2"):
                 active_v2 = True
-                if not repository_id or not target_ref:
-                    blockers.append("active v2 policy requires trusted repository identity and "
-                                    "target ref")
-                else:
-                    from keepsail.core.attestation_v3_verify import verify_v2_activation
+                from keepsail.core.effective_policy import load_effective_v2
 
-                    policy_basis = verify_v2_activation(
-                        root, trusted_commit=base, repository_id=repository_id,
-                        target_ref=target_ref,
-                    )
+                snapshot = load_effective_v2(root, base)
+                # The committed base is the effective policy; identities, when
+                # supplied by the host workflow, are reported as given.
+                policy_basis = {"trusted_base": snapshot.commit,
+                                "policy_digest": snapshot.policy.policy_digest,
+                                "required_checks_digest": snapshot.checks["digest"],
+                                "source": "committed-trusted-base",
+                                "repository_id": repository_id, "target_ref": target_ref}
                 for slug, path in added_attestations:
                     if path != f"{ATTESTATIONS_DIRNAME}/v3/{slug}.jsonl":
                         blockers.append(f"attestation {slug}: active policy requires v3 evidence")
@@ -480,9 +480,8 @@ def verify_attestations(
             blockers.append(f"attestation {slug}: ambiguous duplicate slug in the diff")
             continue
         if relative == f"{ATTESTATIONS_DIRNAME}/v3/{slug}.jsonl":
-            if not all((base, head, repository_id, target_ref)):
-                blockers.append(f"attestation {slug}: v3 requires trusted base, head, repository "
-                                "identity and target ref")
+            if not all((base, head)):
+                blockers.append(f"attestation {slug}: v3 requires the trusted base and head")
                 continue
             from keepsail.core.attestation_v3 import parse_v3_line
             from keepsail.core.attestation_v3_verify import verify_v3_delivery, verify_v3_transition
@@ -490,13 +489,11 @@ def verify_attestations(
 
             try:
                 assert base is not None and head is not None
-                assert repository_id is not None and target_ref is not None
                 record = parse_v3_line(regular_blob_bytes(root, head, relative))
                 if record["change_id"] != slug:
                     raise ApprovalError("v3 filename and Change differ")
                 verifier = verify_v3_delivery if active_v2 else verify_v3_transition
-                result = verifier(root, record, base=base, head=head,
-                                  repository_id=repository_id, target_ref=target_ref)
+                result = verifier(root, record, base=base, head=head)
             except (ApprovalError, GitScopeError, ValueError, KeyError, TypeError) as exc:
                 blockers.append(f"attestation {slug}: v3 transition invalid: {exc}")
                 continue
@@ -520,6 +517,7 @@ def verify_attestations(
                     "required_project_checks": result["required_project_checks"],
                     "required_total_checks": result["required_total_checks"],
                     "builtin_checks_version": result["builtin_checks_version"],
+                    "risk_boundary": result.get("risk_boundary"),
                 }
             continue
         att_path = root / relative
@@ -627,12 +625,14 @@ def verify_attestations(
             )
 
     if base and head:
-        from keepsail.core.transition_guard import committed_transition_required
+        from keepsail.core.transition_guard import risk_boundary_change_required
 
         try:
-            if (committed_transition_required(root, base=base, head=head, changed_paths=subjects)
-                    and not v3_independence):
-                blockers.append("delivery obligation changes require a verified v3 transition")
+            if (risk_boundary_change_required(root, base=base, head=head, changed_paths=subjects)
+                    and not any(delivery.get("risk_boundary")
+                                for delivery in delivery_decisions.values())):
+                blockers.append("a change to the recognition policy or required checks needs a "
+                                "verified v3 delivery carrying the owner's policy acceptance")
         except (ApprovalError, GitScopeError, ValueError, KeyError, TypeError) as exc:
             blockers.append(f"delivery obligations are invalid: {exc}")
     for f in sorted(subjects - covered):
