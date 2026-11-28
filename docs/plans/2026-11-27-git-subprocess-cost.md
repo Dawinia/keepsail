@@ -76,6 +76,18 @@ stage: plan
     - 计划修订后授权失效的测试（C7）；
     - 同一场景的前后对比（验收）；
     - 摘要中 v2 兼容性的表述（产品基础核对）。
+- 第 25 版（`46987dd`）由 DSH 评审拒绝，2 个阻断项，已导入；原始记录在
+  `review-artifacts/2026-11-27-git-subprocess-cost/plan-review-dsh-26/`。本版的处理：
+  - **在禁用策略下，"首次启用"走 Change 不可行**：属实。没有认可流程，就不会有计划批准。
+    负责人 2026-11-28 确认按冷启动处理：首次启用属于采用时的初始设置，由 `init` 或 `policy enable` 完成；
+    风险边界变更只适用于已启用的策略（C2、C7）。
+  - **逐项变化的字段清单仍不完整（漏了 `shell`、`capture`）**：接受。改为在参与摘要的规范化对象上做通用的
+    逐字段差异，并加一个性质测试：摘要相同，当且仅当差异为空（C2、C7）。
+  - 非阻断项：
+    - 常驻 `cat-file --batch` 的请求在锁内串行完成（C4），补上并发测试（C7）；
+    - `repository_id`/`target_ref` 的说法改为描述改动后的性质（C1）；
+    - 列全受影响的测试文件，并用 `--collect-only` 检查（C6）；
+    - 首次启用不再需要"没有前任"的授权载荷，因为它不走 `policy accept`。
 
 ## 产品核心（本计划保持）
 
@@ -128,8 +140,10 @@ stage: plan
   `_introduction_commit`、`_verify_current_rotation`、`activation_replay_scope` 及其在 `cli/__init__.py` 中的作用域、
   `effective_policy.load_effective_v2` 中的回放。
 - `PolicySnapshot` 去掉 `authority` 字段。
-- `repository_id` 与 `target_ref` 只用于签名比较，因此不再是验证的必需输入。`attest verify` 仍接受
-  `--repository-id`/`--target-ref`，以免现有 workflow 失效，但不再要求它们；若提供，原样写入输出。
+- 现在，`repository_id` 与 `target_ref` 用于和 `policy-authority.yaml` 及签名比较（`policy_snapshot.py`、
+  `effective_policy.py`）。C1 与 C3 删除 authority 和签名之后，它们不再被任何验证使用，因此不再是必需输入。
+  这是改动后的性质，不是对现状的描述。`attest verify` 仍接受 `--repository-id`/`--target-ref`，现有 workflow
+  （例如 `.github/workflows/merge-gate.yml` 与 `keepsail_workflow.yml` 模板）原样可用；参数若提供，原样写入输出。
 - 历史是否经过闸门进入目标分支，由宿主的分支保护与 CI 负责，在 `docs/limitations.md` 中写明。
 - 效果：每条命令的策略读取成本是常数，与 v2 切换次数和提交数无关。
 
@@ -137,24 +151,23 @@ stage: plan
 
 **什么算风险边界变更。** 候选提交与可信基线相比，满足以下任一条：
 
-- 认可策略的生效摘要不同。这包括 v1 与 v2，也包括首次启用、停用和 v1→v2 升级；
+- 可信基线上**已启用**的认可策略与候选的生效摘要不同。这包括 v1 与 v2，也包括停用和 v1→v2 升级。
+  首次启用（可信基线上没有已启用的策略）不属于这一类，见下文"采用：首次启用"；
 - 必需检查契约（`required_check_contract`）的摘要不同。
 
-逐项变化**完整列出**，不只列削弱：
+逐项变化**完整列出**，并且**不按字段清单枚举**：对参与摘要计算的两个规范化对象，逐字段做通用的结构差异。
 
-- 每个 kind 的认可流程：新增、删除、替换；
-- 代码审查模式与范围：放宽、加强或其他修改，包括 `scope` 路径的增减；
-- 内置检查契约版本的变化；
-- 必需检查按 `(来源, ID)`：新增、删除、定义改变（命令、参数、工作目录、环境、超时、必需标记）；
-- 必需检查契约的层开关（`required_check_contract` 中的 `layers`：`baseline`、`framework_adapter`、`user_checks`），
-  每个开关的 `false→true` 与 `true→false` 各为一项，即使所选检查集合没有因此改变；
-- 策略的启用与停用，以及版本变化；
-- 策略中其余计入 `policy_digest` 的字段（例如说明性的 `activation`）作为 `policy-metadata` 项列出改动前后的值，
-  不被忽略，也不导致"差异为空"。
+- 两个对象分别是：
+  - 策略：`digest_record` 计算 `policy_digest` 时使用的、去掉 `policy_digest` 自身后的整个对象；
+  - 必需检查契约：`required_check_contract` 计算摘要时使用的整个对象，包括 `layers` 和每个检查的完整定义
+    （`command`、`shell`、`workdir`、`env`、`timeout_seconds`、`capture`、`must_pass`，以及以后加入摘要的任何字段）。
+- 差异按路径列出，每项包含 JSON 路径、方向（`added`/`removed`/`changed`）以及改动前后的值。必需检查的列表
+  按 `(来源, ID)` 对齐，因此新增、删除和定义修改分别显示为对应检查下的路径。
+- 在通用差异之上，再给出便于阅读的语义标签，例如流程替换、代码审查放宽或加强、必需检查删除、层开关切换、
+  启用与停用。标签只是附加说明，完整性由通用差异保证。
+- 因为差异与摘要使用同一个规范化对象，摘要不同而差异为空在构造上不会发生。若仍然发生，视为实现错误并拒绝。
 
-现有的 `changed_obligations`/`changed_required_checks` 只列出被删除、替换或削弱的旧义务。它们改为一个
-完整的差异函数，每一项带方向（`added`/`removed`/`changed`）和改动前后的值。摘要不同而差异为空时，
-视为实现错误并拒绝，不能静默放行。
+现有的 `changed_obligations`/`changed_required_checks` 只列出被删除、替换或削弱的旧义务，由上述差异函数取代。
 
 **计划声明。** 冻结的计划对象（`make_plan_subject` 冻结计划文档与承诺）中必须有一条保留 ID 为
 `RISK-BOUNDARY` 的承诺（`plan ready --commitment RISK-BOUNDARY=<文字>`），文字非空。`policy accept`、`done`
@@ -166,19 +179,30 @@ keepsail 不判断文字的语义：语义由计划审查负责，具体改了�
 `done` 和合并判定也都拒绝。没有风险边界变更的计划可以不写这条承诺；写了也无害，只在 `status` 中提示。
 计划被修订、生效批准换成新的计划对象后，旧计划对象上的授权失效，必须重新授权。
 
-**首次启用（可信 base 上的策略缺失或 `enabled: false`）。** 此时没有认可的评审流程，也就不会有生效批准；
-`keepsail init` 生成的默认策略正是这种状态，而且重复运行 init 会保留它。首次启用按以下方式进行，
-不需要签名或额外的引导流程：
+**采用：首次启用（负责人 2026-11-28 确认的冷启动流程）。** 策略还没有启用时，不存在认可的评审流程，
+也就不会有计划批准，因此首次启用不能、也不需要通过 Change 完成。它属于采用 keepsail 时的初始设置，与
+`keepsail init` 是同一类动作。用户的使用流程是：
 
-- 该 Change 必须用 `plan ready --plan <计划> --commitment RISK-BOUNDARY=<文字>` 冻结计划对象。
-  `plan ready` 在没有启用的策略时也接受 `--plan`；本 Change 要求首次启用时必须提供它；
-- `policy accept` 绑定**最新冻结的计划对象**，而不是生效批准。在没有认可流程时，owner 的这次授权本身
-  就是对首次启用的授权；
-- 改动前的义务就是"没有启用的认可策略"，加上 base 上的必需检查。`done` 和合并判定照此交付，
-  闸门和必需检查照常生效；
-- attestation 照常使用 v3，`authorization` 中带授权记录，合并判定从快照读取冻结的计划对象，
-  检查 `RISK-BOUNDARY` 承诺；
-- 合并后，新策略对之后的 Change 生效。
+1. **采用（一次，由 owner 完成）。** `keepsail init` 增加一个问题："谁的评审结论算数？"。交互模式下提问，
+   非交互模式通过参数给出：
+   - 默认为 owner 本人：计划流程为 json 形式的 owner 结论，issuer 为 `owner`，经 `review import` 导入；
+   - 或者一个外部评审流程：给出流程 ID、版本、issuer 和证据形式；
+   - 代码审查选 `off`、`full` 或 `scope`；
+   - 必需检查取 `verification.yaml` 的当前内容，并显示给用户确认。
+
+   `init` 据此生成一份**已启用**的 `review-recognition/v2`，`required_checks_digest` 由当前检查配置计算，
+   不写 `activation`。owner 把初始化结果作为采用提交，提交到目标分支，与文档中"先往 main 推一个初始提交"
+   是同一步，然后再开启分支保护和 CI。这一步不经过 keepsail 的闸门：此时还没有生效的认可策略，
+   没有什么可以绕过。信任从 owner 写下的第一份策略开始，这一点写入 `docs/limitations.md`。
+   - 非交互模式下没有给出选择时，`init` 仍生成禁用的骨架，并提示用 `policy enable` 启用。
+2. **已初始化、仍是禁用骨架的项目：** 新命令 `keepsail policy enable` 问同样的问题，并写入启用后的策略，
+   由 owner 作为采用提交提交。只有当可信基线（`resolve_contract_base`）上**没有**已启用的策略时，它才执行；
+   已启用时拒绝，并提示改用风险边界变更（计划声明 + `policy accept`）。它不追加事件，也不改变任何 Change 的状态。
+3. **日常：** 每个 Change 走 `change start`、`plan ready`、`review import`、实现、`done`、PR。
+4. **改规则：** 只适用于已启用的策略，走本节上面所述的风险边界变更。
+
+`init` 与 `policy enable` 生成的策略和检查配置，同 `policy accept` 一样经过 `parse_delivery_policy` 和
+`required_check_contract` 校验。
 
 **owner 授权。** 新命令 `keepsail policy accept <change>`：
 
@@ -265,6 +289,8 @@ keepsail 不判断文字的语义：语义由计划审查负责，具体改了�
 - 读取方式：
   - 策略快照改为一次 `ls-tree -z` 加批量读取。实现参考未推送分支 `perf/git-batch-reads` 的 `b6dd11c`，
     在当前代码上重写；
+  - 常驻进程的并发：协议是单一管道，所以每个请求（写入 OID 并读完对应输出）在一把锁内完成，
+    多个线程的请求串行化，不会交错。
   - 每次操作最多保持一个常驻的 `git cat-file --batch` 进程，在作用域结束时关闭。该进程异常时按现有错误失败，
     不静默回退。
 - 作用域修复：顶层 CLI 为所有子命令进入作用域（包括 `report`）；`SensorDispatcher` 与 `run_checks`
@@ -304,8 +330,12 @@ keepsail 不判断文字的语义：语义由计划审查负责，具体改了�
   - 切换后进行中 Change 按新流程重新取得批准；
   - 报告与状态。
 - 签名、恢复、轮换和初始信任的测试随功能删除：`test_policy_authority.py`、`test_initial_policy.py`、
-  `test_policy_authorization_import.py`、`test_v1_policy_rotation.py`，以及其他文件中的相关用例。
+  `test_policy_authorization_import.py`、`test_v1_policy_rotation.py`、`test_activation_replay_scope.py`；
+  以及 `test_scoped_policy_rename.py`、`test_committed_policy_snapshot.py`、`test_attestation_v3.py`、
+  `test_delivery_policy.py`、`tests/integration/cli/test_init.py`、`tests/unit/cli/test_init_plan.py`、
+  `tests/unit/engineering/test_attestation.py` 中依赖签名、authority 或激活回放的用例。
   PR 中附一张对照表，逐条说明每个被删断言保护的是已删除的功能，还是已由新测试覆盖。
+  用全量测试收集（`pytest --collect-only`）确认没有因导入已删除符号而失败的测试文件。
 - CI 中引用这些文件的地方同步修改：
   - `.github/workflows/test.yml` 的 `delivery-policy-wheel` job 原来在已安装的 wheel 上运行
     `test_policy_authority.py`，验证 Ed25519 路径。改为在同一 OS/Python 矩阵上，用已安装的 wheel 运行新机制的
@@ -324,15 +354,21 @@ keepsail 不判断文字的语义：语义由计划审查负责，具体改了�
   - `attest verify` 的 git 进程数不随切换次数增长；
   - 基线上的策略摘要与检查配置不符时，照常拒绝。
 - **C2：**
-  - v1→v1 更换流程、v1→v2、v2→v2、修改必需检查、首次启用、停用（v1 与 v2 各一例），各自需要授权才能
+  - v1→v1 更换流程、v1→v2、v2→v2、修改必需检查、停用（v1 与 v2 各一例），各自需要授权才能
     `done` 和通过合并判定。停用的例子中，做出改动的 Change 在 `done` 和合并判定两处都仍要满足旧义务；
     候选策略被停用，不妨碍按基线策略判定；
   - 逐项记录完整：新增必需检查、加强代码审查（`off`→`full`、`scope` 增加路径）、新增流程 kind、
-    检查定义只改超时、三个层开关各自的启用与停用（包括所选检查集合不变的情形）、只改 `activation`，
-    都出现在记录中并带正确方向；构造"摘要不同、差异为空"的情况时拒绝；
-  - **首次启用：** 从 `keepsail init` 生成的禁用策略出发，在同一个 Change 中完成以下步骤：
-    冻结带 `RISK-BOUNDARY` 的计划、`policy accept`、`done`、`attest verify`。之后，新策略对下一个 Change 生效：
-    该 Change 需要认可流程给出的计划批准。首次启用的计划缺少 `RISK-BOUNDARY`，或者没有冻结计划对象时，拒绝；
+    以下每个检查定义字段**单独**修改（`command`、`shell`、`workdir`、`env`、`timeout_seconds`、`capture`、`must_pass`）、
+    三个层开关各自的启用与停用（包括所选检查集合不变的情形）、只改 `activation`，都出现在记录中，
+    并带正确的路径和方向；
+  - 性质测试：对随机生成的策略对与检查契约对，"摘要相同"当且仅当"差异为空"；
+  - **采用（冷启动）：**
+    - 在空仓库中用非交互参数执行 `keepsail init`（owner 计划流程），生成已启用的策略。owner 提交为采用提交后，
+      第一个 Change 走完 `plan ready`、`review import`（owner 的 json 结论）、`done`，`attest verify` 也通过；
+    - 外部评审流程的选项生成对应的流程记录；
+    - 从禁用的骨架执行 `policy enable` 后，同样能走通上面的流程；
+    - 可信基线上已有启用的策略时，`policy enable` 拒绝执行，并提示改用 `policy accept`；
+    - 非交互、未给出选择时，`init` 生成禁用的骨架，并给出提示；
   - 授权计划 A 之后修订计划并批准计划 B，A 上的授权失效，需要重新授权；
   - 授权后改动目标策略，或改动检查定义，授权失效；
   - 授权后 rebase 或修改代码，授权仍然有效；
@@ -375,6 +411,7 @@ keepsail 不判断文字的语义：语义由计划审查负责，具体改了�
   - ref 不缓存，失败不缓存，没有作用域时不缓存；
   - 两次相继的操作不共享条目；
   - 条目数与字节两个上限；多线程并发读写；
+  - 多个线程同时向常驻 `cat-file --batch` 请求不同的 OID，每个线程得到的都是自己请求的内容，不挂起；
   - 批量读取与常驻进程遇到非普通文件、缺失、重复、非 UTF-8、异常输出、提前退出时，按原错误失败；
   - 常驻进程在作用域结束时关闭；
   - `report` 与线程池任务在作用域内。
@@ -404,7 +441,8 @@ keepsail 不判断文字的语义：语义由计划审查负责，具体改了�
 
 ### C9 文档与决策
 
-- `docs/getting-started.md`：删除"建立初始交付策略"一节的签名流程，改为说明如何首次启用或修改策略
+- `docs/getting-started.md`：删除"建立初始交付策略"一节的签名流程，按"采用（`init` 或 `policy enable`）、
+  日常、改规则（计划声明 + `policy accept`）"三段重写，说明如何首次启用或修改策略
   （计划声明 + `policy accept`）。
 - `docs/limitations.md`：
   - 策略的来历由宿主分支保护负责；
