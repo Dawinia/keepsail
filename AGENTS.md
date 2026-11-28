@@ -214,10 +214,12 @@ not approval.
 An active delivery policy always requires plan approval. It requires code review
 for `full` and matching `scope` changes; `off` and non-matching changes use
 `code_review_not_required` with a recorded trusted base and policy. Use v3
-attestations for new deliveries under an active v2 policy. Policy transitions
-must retain old obligations or carry the exact signed authorization to change
-them. A key rotation cannot add purposes. Recovery and initial trust require
-their own pre-established owner-controlled paths.
+attestations for new deliveries under an active v2 policy. A Change that alters
+the enabled recognition policy or the required checks must declare it with a
+`RISK-BOUNDARY` plan commitment, and the owner records the decision with
+`keepsail policy accept <change>`; that Change still delivers under the old
+obligations. Do not run `policy accept` yourself unless the owner asks you to.
+The first enabled policy is the owner's adoption (`init` / `policy enable`).
 
 ### File scope
 

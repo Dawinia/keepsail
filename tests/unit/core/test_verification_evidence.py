@@ -97,11 +97,13 @@ def test_unchanged_v1_completion_requires_all_trusted_checks(tmp_path, monkeypat
         verification["check_evidence"]["results"].pop()
     state = SimpleNamespace(effective_approval={"approval_id": "approval:one"},
                             current_verification=verification)
-    monkeypatch.setattr(reducer, "derive_state", lambda path: {"delivery": state})
+    monkeypatch.setattr(reducer, "derive_state_from_lines",
+                        lambda lines, **kwargs: {"delivery": state})
     monkeypatch.setattr(emit_validation, "recognition_contract_active", lambda root: True)
     monkeypatch.setattr(emit_validation, "validate_authority_context", lambda *args, **kw: None)
     monkeypatch.setattr(review_basis, "validate_effective_plan_basis", lambda *args: None)
-    monkeypatch.setattr(transition_guard, "validate_delivery_obligations", lambda *args: {
+    monkeypatch.setattr(transition_guard, "validate_delivery_obligations",
+                        lambda *args, **kwargs: {
         "mode": "unchanged", "trusted_base": "a" * 40})
     config = """\
 checks:

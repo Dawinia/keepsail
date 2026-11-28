@@ -98,9 +98,9 @@ def test_emit_holds_events_lock_across_validate_and_append(tmp_path, monkeypatch
         finally:
             active = False
 
-    def probing_validate(path, event):
+    def probing_validate(path, event, **kwargs):
         observed["held_during_validate"] = active
-        real_validate(path, event)
+        real_validate(path, event, **kwargs)
 
     monkeypatch.setattr(writer_mod, "exclusive_file_lock", observing_lock)
     monkeypatch.setattr(writer_mod, "validate_preconditions", probing_validate)
@@ -128,8 +128,8 @@ def test_thread_race_single_slot_stays_ordered(tmp_path, monkeypatch):
 
     real_validate = writer_mod.validate_preconditions
 
-    def slow_validate(path, event):
-        real_validate(path, event)
+    def slow_validate(path, event, **kwargs):
+        real_validate(path, event, **kwargs)
         time.sleep(_WIDEN)  # widen the post-validate/pre-append window
 
     monkeypatch.setattr(writer_mod, "validate_preconditions", slow_validate)
@@ -179,8 +179,8 @@ _WORKER_SRC = textwrap.dedent(
     from keepsail.core.writer import EmitPreconditionError, EventWriter
 
     _real = writer_mod.validate_preconditions
-    def _slow(path, event):
-        _real(path, event)
+    def _slow(path, event, **kwargs):
+        _real(path, event, **kwargs)
         time.sleep({widen})           # widen post-validate/pre-append window
     writer_mod.validate_preconditions = _slow
 

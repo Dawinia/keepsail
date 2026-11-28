@@ -8,6 +8,7 @@ and additionally needs its plan declaration and the owner's matching recorded
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
@@ -67,7 +68,8 @@ def delivery_boundary(root: Path, *, base: str, head: str) -> RiskBoundary:
 
 
 def validate_delivery_obligations(
-    root: Path, events_file: Path, state: Any, subject: object,
+    root: Path, events_file: Path, state: Any, subject: object, *,
+    lines: Sequence[str] | None = None,
 ) -> dict[str, Any]:
     """Recompute trusted and candidate obligations before accepting completion."""
     if state is None or not isinstance(state.effective_approval, dict):
@@ -95,7 +97,7 @@ def validate_delivery_obligations(
         return result
     approval = validate_approval(state.effective_approval, change_id=state.change_id)
     require_risk_boundary_declaration(approval["subject"], change_id=state.change_id)
-    accepted = [event for event in read_change_events(events_file, state.change_id)
+    accepted = [event for event in read_change_events(events_file, state.change_id, lines=lines)
                 if event.type == ACCEPTANCE_EVENT]
     if not accepted:
         raise ApprovalError(

@@ -40,6 +40,7 @@ import os
 import tempfile
 import threading
 import time
+from collections.abc import Callable
 from hashlib import sha256
 from pathlib import Path
 
@@ -50,7 +51,12 @@ from keepsail.core.emit_validation import (
     is_new_contract_event,
     validate_preconditions,
 )
-from keepsail.core.events import Event, EventSchemaError, serialize_event
+from keepsail.core.events import (
+    Event,
+    EventSchemaError,
+    effective_event_lines,
+    serialize_event,
+)
 from keepsail.core.file_lock import exclusive_file_lock
 
 __all__ = ["EmitPreconditionError", "EventWriter"]
@@ -186,11 +192,21 @@ class EventWriter:
                 prefix = self.path.read_bytes() if self.path.exists() else b""
                 if prefix and not prefix.endswith(b"\n"):
                     raise EmitPreconditionError("event log has an incomplete trailing line")
+                # This write's one prefix snapshot, expanded at most once and only
+                # if needed; a local value, not module or process state.
+                expanded: list[tuple[str, ...]] = []
+
+                def prefix_lines() -> tuple[str, ...]:
+                    if not expanded:
+                        expanded.append(tuple(effective_event_lines(
+                            prefix.decode("utf-8").splitlines(keepends=True))))
+                    return expanded[0]
+
                 guarded = [
                     event
                     for event in events
                     if authorizing_event(event.type)
-                    or is_new_contract_event(self.path, event)
+                    or is_new_contract_event(self.path, event, lines=prefix_lines)
                 ]
                 if skip_validation and guarded and not historical_replay:
                     event = guarded[0]
@@ -200,7 +216,7 @@ class EventWriter:
                         "historical_replay"
                     )
                 if not skip_validation:
-                    self._validate_batch(prefix, events)
+                    self._validate_batch(prefix, events, prefix_lines)
                 if completion:
                     self._prepare_completion(prefix, data)
                     self._finish_completion(data, b"")
@@ -212,15 +228,20 @@ class EventWriter:
                 finally:
                     os.close(fd)
 
-    def _validate_batch(self, prefix: bytes, events: list[Event]) -> None:
+    def _validate_batch(self, prefix: bytes, events: list[Event],
+                        prefix_lines: Callable[[], tuple[str, ...]] | None = None) -> None:
         staged_path: Path | None = None
         try:
             with tempfile.NamedTemporaryFile(mode="wb", dir=self.path.parent, prefix=".events-",
                                              suffix=".tmp", delete=False) as staged:
                 staged_path = Path(staged.name)
                 staged.write(prefix)
-            for event in events:
-                validate_preconditions(staged_path, event)
+            for index, event in enumerate(events):
+                # The first event validates against the prefix snapshot already
+                # held; each later event sees a new snapshot (prefix + staged).
+                snapshot = ((prefix, prefix_lines()) if index == 0 and prefix_lines is not None
+                            else None)
+                validate_preconditions(staged_path, event, snapshot=snapshot)
                 with staged_path.open("ab") as staged:
                     staged.write((serialize_event(event) + "\n").encode("utf-8"))
         finally:

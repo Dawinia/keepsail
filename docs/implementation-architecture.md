@@ -208,7 +208,7 @@ sedimentation arm's territory.)
 `attest write` snapshots a change's complete, ordered event slice under
 `.harness/attestations/`: legacy evidence uses `<slug>.jsonl`, the knowledge
 protocol can use `v2/<slug>.jsonl`, and an active v2 delivery policy or an
-authorized transition uses `v3/<slug>.jsonl`. The CI `attest-verify` job blocks a merge
+accepted risk-boundary change uses `v3/<slug>.jsonl`. The CI `attest-verify` job blocks a merge
 unless every changed file is covered by such an attestation. For a new-contract
 Change, the attestation must also carry an applicable plan approval, complete
 Git code subject, implementation coverage, and verification bound to that same
@@ -217,6 +217,35 @@ delivery policy. `review import` evidence must be recognized by the owner policy
 retain its original object; an empty result, failure to produce evidence, or old
 skip record is never treated as approval. This is a trail and floor, not
 cryptographic proof of the external process; see §11.
+
+### Delivery policy and risk-boundary changes
+
+The effective recognition policy and required checks are read directly from the
+trusted base commit (`core/policy_snapshot.py`, `core/effective_policy.py`): one
+`ls-tree` plus one batched blob read, constant per command and independent of how
+many policy changes the history holds. There is no activation-chain replay and no
+signature verification; where the base came from is the host's branch protection
+and CI concern.
+
+A delivery whose committed `HEAD` changes an enabled policy or the required-check
+contract is a risk-boundary change (`core/risk_boundary.py`). Both sides are
+normalized into one effective-obligation shape for v1 and v2
+(`core/policy_obligations.py`; v1's implied `full` review and `keepsail-baseline/v1`
+are made explicit) and compared with a generic field-by-field diff, so the record
+is complete by construction; semantic labels are only a reading aid. The frozen
+plan must carry a `RISK-BOUNDARY` commitment, and `keepsail policy accept` appends
+one `policy_change_accepted` event (`policy-acceptance/v1`, a non-transition event)
+bound to the effective plan approval. `done` and the merge gate recompute the
+change and require the latest acceptance to match exactly; the v3 `authorization`
+carries the payload plus the event's id, actor and timestamp. The Change making the
+change still delivers under the base's obligations. First enablement is adoption
+(`init` / `policy enable`, `core/policy_adoption.py`), not a Change.
+
+Within one CLI operation `core/git_facts.py` reuses immutable, object-id keyed Git
+facts and one persistent `git cat-file --batch`; refs are never cached. Ledger
+bytes are expanded once per snapshot on the measured hot paths (`change resume`,
+strict-write preconditions) and the expanded lines are passed downstream
+explicitly; no module keeps ledger state.
 
 ## 10. Design principles (recurring across the code)
 

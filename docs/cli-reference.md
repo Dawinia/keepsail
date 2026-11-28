@@ -711,6 +711,12 @@ keepsail init [OPTIONS]
 | `--review-producer` | text (repeatable) | — | Retired; reviewer producers are configured outside keepsail. |
 | `--review-model` | text (repeatable) | — | Retired; keepsail does not select reviewer models. |
 | `--yes` | flag | `False` | Skip the final confirmation in interactive mode. |
+| `--recognize` | {owner\|external} | — | Whose review conclusions count: the owner (default) or an external process. |
+| `--process-id` | text | — | External review process id. |
+| `--process-version` | text | — | External review process version. |
+| `--issuer` | text | — | External review process issuer. |
+| `--code-review` | {off\|full\|scope} | — | Which deliveries need code review. |
+| `--code-review-scope` | text (repeatable) | — | Literal repository path needing code review (with --code-review scope); repeatable. |
 
 **Exit codes:**
 
@@ -999,94 +1005,50 @@ keepsail plan withdraw [OPTIONS] SLUG
 
 ## keepsail policy
 
-Inspect and import policy transition evidence.
+Adopt a first policy, or record the owner's acceptance of a policy change.
 
 ```
 keepsail policy COMMAND [ARGS...]
 ```
 
-## keepsail policy authorization
+## keepsail policy accept
 
-Work with signed policy transition authorizations.
-
-```
-keepsail policy authorization COMMAND [ARGS...]
-```
-
-## keepsail policy authorization import
-
-Retain an exact signed authorization; it does not approve or activate a plan.
+Record the owner's acceptance of CHANGE's committed policy/check change.
 
 ```
-keepsail policy authorization import [OPTIONS] CHANGE
+keepsail policy accept [OPTIONS] CHANGE
 ```
 
 | Param | Type | Default | Description |
 |-------|------|---------|-------------|
 | `CHANGE` | text | *required* |  |
-| `--evidence` | file | *required* |  |
-| `--repository-id` | text | *required* | Explicit local repository identity. |
-| `--target-ref` | text | *required* | Explicit full target branch ref. |
-| `--target-authority` | file | — | Proposed YAML authority for a key rotation. |
 
 **Exit codes:**
 
-- `0` authorization retained or already present
+- `0` success
 - `1` generic error
-- `2` invalid authorization or trusted basis
-- `3` no `.harness/`
 
-## keepsail policy initial
+## keepsail policy enable
 
-Prepare, but never activate, an owner-established first policy.
+Adopt: write the first enabled recognition policy (owner's initial setup).
 
 ```
-keepsail policy initial COMMAND [ARGS...]
-```
-
-## keepsail policy initial confirmation
-
-Print a record retaining the supplied original owner confirmation.
-
-```
-keepsail policy initial confirmation [OPTIONS]
+keepsail policy enable [OPTIONS]
 ```
 
 | Param | Type | Default | Description |
 |-------|------|---------|-------------|
-| `--initial-commit` | text | *required* | Full commit ID of the proposed first policy. |
-| `--repository-id` | text | *required* |  |
-| `--target-ref` | text | *required* |  |
-| `--evidence` | file | *required* |  |
+| `--recognize` | {owner\|external} | — | Whose review conclusions count: the owner (default) or an external process. |
+| `--process-id` | text | — | External review process id. |
+| `--process-version` | text | — | External review process version. |
+| `--issuer` | text | — | External review process issuer. |
+| `--code-review` | {off\|full\|scope} | — | Which deliveries need code review. |
+| `--code-review-scope` | text (repeatable) | — | Literal repository path needing code review (with --code-review scope); repeatable. |
 
 **Exit codes:**
 
-- `0` confirmation record prepared
+- `0` success
 - `1` generic error
-- `2` invalid confirmation or trusted input
-- `3` no `.harness/`
-
-## keepsail policy initial prepare
-
-Print a light-policy proposal and trust configuration; activate nothing.
-
-```
-keepsail policy initial prepare [OPTIONS]
-```
-
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| `--repository-id` | text | *required* | Owner-confirmed repository identity. |
-| `--target-ref` | text | *required* | Owner-confirmed full target branch ref. |
-| `--public-key` | text | *required* | Base64-encoded raw Ed25519 public key. |
-| `--enable-recovery` | flag | `False` | Include recovery in the proposed purposes. |
-
-**Exit codes:**
-
-- `0` policy and authority proposal prepared
-- `1` generic error
-- `2` invalid proposal input or verification configuration
-- `3` no `.harness/`
 
 ## keepsail pr
 

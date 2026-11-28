@@ -140,7 +140,7 @@ def test_failed_validation_does_not_create_a_completion_journal(tmp_path: Path, 
     prefix = _prefix()
     path.write_bytes(prefix)
 
-    def validate(_path, event):
+    def validate(_path, event, **_kwargs):
         if event.type == "code_review_not_required":
             raise EmitPreconditionError("second precondition failed")
 
@@ -169,7 +169,7 @@ import json, os, sys
 from pathlib import Path
 import keepsail.core.writer as writer
 from keepsail.core.events import parse_event_line
-writer.validate_preconditions = lambda path, event: None
+writer.validate_preconditions = lambda path, event, **_kwargs: None
 events = [parse_event_line(json.dumps(item)) for item in json.loads(sys.argv[3])]
 original = os.write
 cut = int(sys.argv[2])
@@ -197,7 +197,8 @@ writer.EventWriter(Path(sys.argv[1])).emit_many(events)
             derive_state(path)
     else:
         assert derive_state(path)["delivery"].current_state == "READY_TO_MERGE"
-    monkeypatch.setattr("keepsail.core.writer.validate_preconditions", lambda _path, _event: None)
+    monkeypatch.setattr("keepsail.core.writer.validate_preconditions",
+                        lambda _path, _event, **_kwargs: None)
     assert writer.recover_completion(change="delivery") is True
     assert path.read_bytes() == prefix + data
     assert derive_state(path)["delivery"].current_state == "READY_TO_MERGE"
@@ -210,7 +211,8 @@ def test_short_writes_and_interrupted_recovery_are_resumable(tmp_path: Path, mon
     path.parent.mkdir()
     prefix, data = _prefix(), encode_completion(pair())
     path.write_bytes(prefix)
-    monkeypatch.setattr("keepsail.core.writer.validate_preconditions", lambda _path, _event: None)
+    monkeypatch.setattr("keepsail.core.writer.validate_preconditions",
+                        lambda _path, _event, **_kwargs: None)
     writer = EventWriter(path)
     actual_write = os.write
 
@@ -254,7 +256,7 @@ import json, os, sys
 from pathlib import Path
 import keepsail.core.writer as writer
 from keepsail.core.events import parse_event_line
-writer.validate_preconditions = lambda path, event: None
+writer.validate_preconditions = lambda path, event, **_kwargs: None
 events = [parse_event_line(json.dumps(item)) for item in json.loads(sys.argv[2])]
 original = os.fsync
 target = Path(sys.argv[1])
@@ -271,7 +273,8 @@ writer.EventWriter(target).emit_many(events)
     assert path.read_bytes() == prefix + data
     writer = EventWriter(path)
     assert writer._completion_journal.exists()
-    monkeypatch.setattr("keepsail.core.writer.validate_preconditions", lambda _path, _event: None)
+    monkeypatch.setattr("keepsail.core.writer.validate_preconditions",
+                        lambda _path, _event, **_kwargs: None)
     assert writer.recover_completion(change="delivery") is True
     assert path.read_bytes() == prefix + data
 
@@ -287,7 +290,7 @@ import json, os, stat, sys
 from pathlib import Path
 import keepsail.core.writer as writer
 from keepsail.core.events import parse_event_line
-writer.validate_preconditions = lambda path, event: None
+writer.validate_preconditions = lambda path, event, **_kwargs: None
 events = [parse_event_line(json.dumps(item)) for item in json.loads(sys.argv[2])]
 target = Path(sys.argv[1])
 original = os.fsync
@@ -316,7 +319,8 @@ def test_recovery_command_resumes_the_named_change(tmp_path: Path, monkeypatch):
     path.parent.mkdir()
     prefix, data = _prefix(), encode_completion(pair())
     path.write_bytes(prefix)
-    monkeypatch.setattr("keepsail.core.writer.validate_preconditions", lambda _path, _event: None)
+    monkeypatch.setattr("keepsail.core.writer.validate_preconditions",
+                        lambda _path, _event, **_kwargs: None)
     writer = EventWriter(path)
     actual_write = os.write
     calls = 0

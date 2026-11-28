@@ -1100,7 +1100,9 @@ def make_code_subject(
     verification_config_digest: str | None = None,
     knowledge_basis: dict[str, Any] | None | object = _AUTO_KNOWLEDGE_BASIS,
     legacy_paths: bool = False,
+    knowledge_inputs: Any = None,
 ) -> dict[str, Any]:
+    """Build the code subject; ``knowledge_inputs`` reuses a held ledger snapshot."""
     requested_base = resolve_commit(root, base)
     resolved_head = resolve_commit(root, head)
     # The merge gate compares a PR with base...head (the merge-base tree to the
@@ -1130,7 +1132,8 @@ def make_code_subject(
     # had no knowledge basis. Git verification must not consult mutable state.
     if knowledge_basis is _AUTO_KNOWLEDGE_BASIS:
         from keepsail.core.knowledge import report
-        knowledge = report(root, change_id, extra_paths=[str(row["path"]) for row in manifest])
+        knowledge = report(root, change_id, extra_paths=[str(row["path"]) for row in manifest],
+                           inputs=knowledge_inputs)
         knowledge_basis = None
         if knowledge["coverage"] != "not_recorded":
             knowledge_basis = {"version": "knowledge-basis/v1", "digest": knowledge["basis_digest"]}
