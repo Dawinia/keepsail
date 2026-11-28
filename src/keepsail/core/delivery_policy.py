@@ -11,6 +11,8 @@ from pathlib import PureWindowsPath
 from typing import Any
 
 from keepsail.core.approval import (
+    SIGNED_PLAN_FORM,
+    SIGNED_PLAN_MIGRATION,
     ApprovalError,
     Recognition,
     digest_record,
@@ -28,14 +30,6 @@ _POLICY_FIELDS = frozenset({
 })
 # ``activation`` is retained only as a historical description when present.
 _OPTIONAL_POLICY_FIELDS = frozenset({"activation"})
-SIGNED_PLAN_FORM = "signed-plan-decision"
-SIGNED_PLAN_MIGRATION = (
-    "the trusted policy recognizes signed-plan-decision plan conclusions, which this "
-    "keepsail version no longer verifies; with the previous keepsail version, deliver one "
-    "signed transition that changes the plan process to a json owner conclusion, merge it, "
-    "and only then upgrade (see docs/getting-started.md, 'Upgrading from signed policy "
-    "transitions')"
-)
 
 
 def _strings(value: object, label: str) -> frozenset[str]:

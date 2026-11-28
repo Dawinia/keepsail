@@ -568,7 +568,23 @@ def recognition_policy_digest(raw: dict[str, Any]) -> str:
     )
 
 
-def _recognition_from_mapping(raw: object) -> Recognition:
+SIGNED_PLAN_FORM = "signed-plan-decision"
+SIGNED_PLAN_MIGRATION = (
+    "the trusted policy recognizes signed-plan-decision plan conclusions, which this "
+    "keepsail version no longer verifies; with the previous keepsail version, deliver one "
+    "signed transition that changes the plan process to a json owner conclusion, merge it, "
+    "and only then upgrade (see docs/getting-started.md, 'Upgrading from signed policy "
+    "transitions')"
+)
+
+
+def _recognition_from_mapping(raw: object, *, historical: bool = False) -> Recognition:
+    """Parse an enabled v1 policy.
+
+    A policy listing ``signed-plan-decision`` is refused with migration guidance
+    (never reinterpreted as an unsigned form), whether it is the trusted base or
+    a candidate.  ``historical`` keeps retained historical records readable.
+    """
     if not isinstance(raw, dict) or raw.get("version") != RECOGNITION_VERSION:
         raise ApprovalError("unrecognized review recognition policy version")
     if raw.get("enabled") is not True:
@@ -597,6 +613,8 @@ def _recognition_from_mapping(raw: object) -> Recognition:
         raise ApprovalError("enabled review recognition needs a policy digest")
     if policy_digest != recognition_policy_digest(raw):
         raise ApprovalError("review recognition policy digest does not match its contents")
+    if SIGNED_PLAN_FORM in forms and not historical:
+        raise ApprovalError(SIGNED_PLAN_MIGRATION)
     return Recognition(
         version=RECOGNITION_VERSION,
         process_id=pid,
@@ -746,15 +764,17 @@ def evidence_is_recognized(evidence: dict[str, Any], recognition: Recognition) -
     form = evidence.get("form", "json")
     if not isinstance(form, str):
         return False
+    # Signed plan decisions are no longer verified, for any policy version: the
+    # form is never recognized; a trusted policy listing it is refused with a
+    # migration message.  The reserved v2 maintainer identity existed only for it.
+    if form == SIGNED_PLAN_FORM:
+        return False
     if recognition.version == "review-recognition/v2":
-        # Signed plan decisions are no longer verified.  The reserved maintainer
-        # identity was defined only for that form, so neither is recognized here;
-        # a trusted policy listing the form is refused with a migration message.
         reserved = (evidence.get("kind") == "plan"
                     and process.get("id") == "maintainer-plan-review"
                     and process.get("version") == "maintainer-plan-review/v1"
                     and evidence.get("issuer") == "maintainer")
-        if form == "signed-plan-decision" or reserved:
+        if reserved:
             return False
     return (
         process.get("id") == recognition.process_id

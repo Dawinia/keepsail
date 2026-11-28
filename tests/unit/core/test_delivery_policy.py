@@ -177,3 +177,32 @@ def test_signed_plan_policy_parses_but_is_refused_with_migration_guidance():
     with pytest.raises(ApprovalError, match="previous keepsail version"):
         require_activatable_policy(parsed)
     reject_signed_plan_policy(parse_delivery_policy(policy()))
+
+
+def test_v1_policy_listing_signed_plan_is_refused_and_its_form_never_recognized():
+    from keepsail.core.approval import (
+        SIGNED_PLAN_MIGRATION,
+        Recognition,
+        _recognition_from_mapping,
+        recognition_policy_digest,
+    )
+
+    raw = {"version": "review-recognition/v1", "enabled": True, "process": {
+        "id": "maintainer-plan-review", "version": "maintainer-plan-review/v1",
+        "kinds": ["plan", "code"], "issuers": ["maintainer"],
+        "evidence_forms": ["json", "signed-plan-decision"]}}
+    raw["process"]["policy_digest"] = recognition_policy_digest(raw)
+    with pytest.raises(ApprovalError) as error:
+        _recognition_from_mapping(raw)
+    assert str(error.value) == SIGNED_PLAN_MIGRATION
+    historical = _recognition_from_mapping(raw, historical=True)
+    evidence = {"kind": "plan", "issuer": "maintainer", "form": "signed-plan-decision",
+                "process": {"id": "maintainer-plan-review",
+                            "version": "maintainer-plan-review/v1"}}
+    assert not evidence_is_recognized(evidence, historical)
+    assert evidence_is_recognized({**evidence, "form": "json"}, historical)
+    v1 = Recognition("review-recognition/v1", "p", "v1", frozenset({"plan"}),
+                     frozenset({"i"}), frozenset({"signed-plan-decision"}), {}, "d" * 64)
+    assert not evidence_is_recognized({"kind": "plan", "issuer": "i", "form":
+                                       "signed-plan-decision",
+                                       "process": {"id": "p", "version": "v1"}}, v1)

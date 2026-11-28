@@ -128,9 +128,9 @@ executed.
   verifier is still on the target branch, a risk-boundary change is refused for
   a missing signed authorization; merge the keepsail upgrade (an ordinary
   Change) first. A trusted policy listing `signed-plan-decision` must be
-  migrated with the previous version; it is refused, not reinterpreted. A v1
-  policy that lists `signed-plan-decision` was never signature-verified and that
-  form is unsupported.
+  migrated with the previous version; it is refused, not reinterpreted. This
+  applies to v1 policies too (v1 never verified that form), and no policy can
+  newly introduce it.
 
 **Git facts reused within one operation:** within one CLI operation keepsail
 reuses immutable, object-id keyed Git facts (tree listings, blob bytes, resolved

@@ -11,7 +11,12 @@ from copy import deepcopy
 
 import pytest
 
-from keepsail.core.approval import ApprovalError, canonical_json, digest_record
+from keepsail.core.approval import (
+    ApprovalError,
+    canonical_json,
+    digest_record,
+    recognition_policy_digest,
+)
 from keepsail.core.attestation_v3_verify import verify_v3_delivery, verify_v3_transition
 from keepsail.core.paths import events_path
 from keepsail.core.review_verdict import read_change_events
@@ -330,17 +335,32 @@ def test_removing_the_legacy_authority_file_needs_no_acceptance(tmp_path):
     assert repo.verify(repo.base).exit_code == 0
 
 
-def test_trusted_signed_plan_policy_is_refused_everywhere_with_migration_guidance(tmp_path):
+@pytest.mark.parametrize("version", ["v1", "v2"])
+def test_trusted_signed_plan_policy_is_refused_everywhere_with_migration_guidance(
+    tmp_path, version,
+):
     old = v1_policy()
     repo = PolicyRepo(tmp_path / "repo", old)
     subject = repo.plan("signed")
-    signed = v2_policy(plan=OWNER_PROCESS, code_review="off")
-    signed["processes_by_kind"]["plan"] = {
-        "id": "maintainer-plan-review", "version": "maintainer-plan-review/v1",
-        "issuers": ["maintainer"], "evidence_forms": ["signed-plan-decision"],
-        "requirements": {}}
-    signed["activation"] = {"kind": "initial"}
-    signed = edited(signed)
+    repo.approve("working", OLD_PROCESS, old)
+    (repo.root / "working.txt").write_bytes(b"working\n")
+    repo.commit("in-progress work")
+    repo.record("working", ["working.txt"])
+    if version == "v2":
+        signed = v2_policy(plan=OWNER_PROCESS, code_review="off")
+        signed["processes_by_kind"]["plan"] = {
+            "id": "maintainer-plan-review", "version": "maintainer-plan-review/v1",
+            "issuers": ["maintainer"], "evidence_forms": ["signed-plan-decision"],
+            "requirements": {}}
+        signed["activation"] = {"kind": "initial"}
+        signed = edited(signed)
+    else:
+        # A v1 policy listing the form was never signature-verified; it is refused too.
+        signed = v1_policy({"id": "maintainer-plan-review",
+                            "version": "maintainer-plan-review/v1", "issuer": "maintainer"})
+        signed["process"]["evidence_forms"] = ["json", "signed-plan-decision"]
+        signed["process"].pop("policy_digest")
+        signed["process"]["policy_digest"] = recognition_policy_digest(signed)
     git(repo.root, "switch", "-q", "main")
     repo.write_policy(signed)
     deployed = repo.commit("an already deployed signed-plan policy")
@@ -359,8 +379,12 @@ def test_trusted_signed_plan_policy_is_refused_everywhere_with_migration_guidanc
     assert "previous keepsail version" in repo.cli("--json", "status", "signed").output
     assert "previous keepsail version" in repo.cli("policy", "accept", "signed").output
     assert "previous keepsail version" in repo.cli("change", "start", "other").output
-    (repo.harness / "attestations/v3").mkdir(parents=True)
-    (repo.harness / "attestations/v3/signed.jsonl").write_text("{}\n", encoding="utf-8")
+    assert "previous keepsail version" in repo.cli("done", "working").output
+    # The gate reads the trusted policy on the path of the evidence it verifies:
+    # v3 under a v2 base, the flat attestation under a v1 base.
+    folder = repo.harness / ("attestations/v3" if version == "v2" else "attestations")
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "signed.jsonl").write_text("{}\n", encoding="utf-8")
     repo.commit("any delivery")
     verdict = repo.verify(deployed)
     assert verdict.exit_code == 2 and "previous keepsail version" in verdict.output
