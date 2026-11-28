@@ -30,6 +30,11 @@ from keepsail.core.scope_match import resolve_commit
 def expected_acceptance(root: Path, state: Any) -> tuple[RiskBoundary, dict[str, Any]]:
     if state is None:
         raise ApprovalError("policy accept requires an existing Change")
+    base = resolve_contract_base(root)
+    head = resolve_commit(root)
+    # The trusted policy is checked first: a signed-plan base is refused with its
+    # migration guidance before any Change-specific condition.
+    boundary = compare_risk_boundary(root, base=base, head=head)
     if has_unresolved_candidate(state) or state.current_state in {
         "AWAITING_PLAN_REVIEW", "PLAN_REJECTED",
     }:
@@ -38,9 +43,6 @@ def expected_acceptance(root: Path, state: Any) -> tuple[RiskBoundary, dict[str,
     if not isinstance(state.effective_approval, dict):
         raise ApprovalError("policy accept requires an effective plan approval")
     approval = validate_approval(state.effective_approval, change_id=state.change_id)
-    base = resolve_contract_base(root)
-    head = resolve_commit(root)
-    boundary = compare_risk_boundary(root, base=base, head=head)
     if boundary is None:
         raise ApprovalError("the trusted base has no enabled policy; the first enabled policy is "
                             "adoption (`keepsail init` or `keepsail policy enable`), not a "

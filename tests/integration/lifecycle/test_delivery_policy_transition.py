@@ -1,797 +1,366 @@
-"""Replay recovery, transition, rotation and ordinary delivery in an isolated Git repo."""
+"""Risk-boundary changes: plan declaration plus the owner's recorded acceptance.
 
-import base64
+Minimum regression entry for the delivery-policy transition (2026-11-10, kept by
+2026-11-27-git-subprocess-cost C6).  One test walks the whole ordered path to the
+verifier installed from the trusted base; the other stages build their own state
+so they can run in parallel.
+"""
+
 import json
-import os
-import shutil
-import subprocess
-import sys
-import venv
 from copy import deepcopy
-from hashlib import sha256
-from pathlib import Path
 
 import pytest
-import yaml
-from click.testing import CliRunner
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
-from keepsail.cli import main
-from keepsail.core.approval import (
-    ApprovalError,
-    _recognition_from_mapping,
-    canonical_json,
-    digest_record,
-    recognition_policy_digest,
-)
-from keepsail.core.attestation_format import expand_attestation
-from keepsail.core.attestation_v3 import parse_v3_line
-from keepsail.core.delivery_policy import parse_delivery_policy
-from keepsail.core.effective_policy import continued_plan_basis, load_effective_v2
+from keepsail.core.approval import ApprovalError, canonical_json, digest_record
+from keepsail.core.attestation_v3_verify import verify_v3_delivery, verify_v3_transition
 from keepsail.core.paths import events_path
-from keepsail.core.policy_authority import parse_authority
-from keepsail.core.policy_obligations import changed_obligations
-from keepsail.core.reducer import derive_state
-from keepsail.core.review_basis import recovery_recognition_digest
-from keepsail.engineering.attestation_v3 import verify_v2_activation, verify_v3_transition
-from keepsail.engineering.verification_config import (
-    parse_verification_config,
-    required_check_contract,
+from keepsail.core.review_verdict import read_change_events
+from keepsail.engineering.pr_metadata import build_metadata
+from tests.integration.lifecycle.policy_repo import (
+    OLD_PROCESS,
+    OWNER_PROCESS,
+    VERIFICATION,
+    PolicyRepo,
+    edited,
+    git,
+    policy_digest,
+    v1_policy,
+    v2_policy,
+    verify_with_installed_base,
 )
 
-
-def git(root, *args):
-    return subprocess.check_output(["git", *args], cwd=root, text=True).strip()
+RISK = "Switch plan review to the owner's json conclusions and stop requiring code review"
 
 
-def verify_with_installed_base(root, base, head, *, label, repository_id="owner/project",
-                               target_ref="refs/heads/main"):
-    """Build and install the verifier from the exact base, then block Python networking."""
-    area = root.parent / f"{root.name}-{label}"
-    checkout = area / "trusted"
-    wheels = area / "wheels"
-    environment = area / "venv"
-    area.mkdir()
-    git(root, "clone", "-q", "--shared", "--no-checkout", "-c", "core.autocrlf=false",
-        str(root), str(checkout))
-    git(checkout, "checkout", "-q", "--detach", base)
-    wheels.mkdir()
-    uv_name = "uv.exe" if os.name == "nt" else "uv"
-    adjacent_uv = Path(sys.executable).parent / uv_name
-    uv = str(adjacent_uv) if adjacent_uv.is_file() else shutil.which("uv")
-    env_python = environment / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
-    if uv:
-        subprocess.run([uv, "build", "--wheel", "--out-dir", str(wheels), str(checkout)],
-                       check=True, capture_output=True)
-        subprocess.run([uv, "venv", "--python", sys.executable, str(environment)],
-                       check=True, capture_output=True)
-        wheel = next(wheels.glob("keepsail-*.whl"))
-        subprocess.run([uv, "pip", "install", "--python", str(env_python), str(wheel)],
-                       check=True, capture_output=True)
-    else:
-        subprocess.run([sys.executable, "-m", "pip", "wheel", "--no-deps", "--wheel-dir",
-                        str(wheels), str(checkout)], check=True, capture_output=True)
-        venv.EnvBuilder(with_pip=True).create(environment)
-        wheel = next(wheels.glob("keepsail-*.whl"))
-        subprocess.run([str(env_python), "-m", "pip", "install", str(wheel)],
-                       check=True, capture_output=True)
-    probe = subprocess.check_output(
-        [str(env_python), "-I", "-c",
-         "import hashlib,pathlib,keepsail.cli.attest as m; "
-         "p=pathlib.Path(m.__file__).resolve(); print(p); "
-         "print(hashlib.sha256(p.read_bytes()).hexdigest())"], text=True,
-    ).splitlines()
-    assert "site-packages" in probe[0]
-    committed = subprocess.check_output(
-        ["git", "show", f"{base}:src/keepsail/cli/attest.py"], cwd=root
-    )
-    assert probe[1] == sha256(committed).hexdigest()
-    entries = subprocess.check_output(
-        ["git", "ls-tree", "-rz", head, "--", ".harness/attestations"], cwd=checkout
-    )
-    for entry in filter(None, entries.split(b"\0")):
-        header, raw_path = entry.split(b"\t", 1)
-        mode, kind, oid = header.split()
-        relative = Path(raw_path.decode("utf-8"))
-        assert mode in {b"100644", b"100755"} and kind == b"blob"
-        assert relative.parts[:2] == (".harness", "attestations")
-        assert (len(relative.parts) == 3 or
-                (len(relative.parts) == 4 and relative.parts[2] in {"v2", "v3"}))
-        assert relative.suffix == ".jsonl" and ".." not in relative.parts
-        destination = checkout / relative
-        assert destination.resolve().is_relative_to(checkout.resolve())
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_bytes(subprocess.check_output(["git", "cat-file", "blob", oid.decode()],
-                                                        cwd=checkout))
-    program = (
-        "import socket\n"
-        "def blocked(*a, **k): raise RuntimeError('network disabled for verifier')\n"
-        "socket.create_connection=blocked\n"
-        "socket.socket.connect=blocked\n"
-        "socket.socket.connect_ex=blocked\n"
-        "socket.getaddrinfo=blocked\n"
-        "from keepsail.cli import main\n"
-        "main()\n"
-    )
-    help_text = subprocess.check_output(
-        [str(env_python), "-I", "-c", "from keepsail.cli import main; main()", "attest", "verify",
-         "--help"], cwd=checkout, text=True,
-    )
-    args = [str(env_python), "-I", "-c", program, "--workspace", str(checkout), "--json",
-            "attest", "verify", "--base", base, "--head", head]
-    if "--repository-id" in help_text:
-        args.extend(["--repository-id", repository_id, "--target-ref", target_ref])
-    if os.environ.get("KEEPSAIL_TEST_NETWORK_NAMESPACE") == "1":
-        assert sys.platform.startswith("linux"), "network namespace acceptance requires Linux"
-        # Isolate the verifier and its Git subprocesses, not only Python sockets.
-        # Probe before the Python-level guard to detect a misconfigured namespace.
-        program = (
-            "import errno, socket\n"
-            "try: socket.create_connection(('192.0.2.1', 9), timeout=2)\n"
-            "except OSError as exc:\n"
-            "    if exc.errno != errno.ENETUNREACH: raise\n"
-            "else: raise AssertionError('network namespace is not isolated')\n"
-        ) + program
-        args[3] = program
-        args = ["sudo", "unshare", "--net", f"--setgid={os.getgid()}",
-                f"--setuid={os.getuid()}", "--", *args]
-    return subprocess.run(
-        args, cwd=checkout, capture_output=True, text=True,
-        env={**os.environ, "GIT_ALLOW_PROTOCOL": "file", "GIT_TERMINAL_PROMPT": "0"},
-        timeout=300,
-    )
-
-
-@pytest.mark.parametrize("missing_plan_purpose", [False, True])
-def test_recovery_plan_review_uses_only_the_signed_process_and_digest(
-    tmp_path, monkeypatch, missing_plan_purpose,
-):
-    root = tmp_path
-    source = Path(__file__).resolve().parents[3]
-    shutil.copytree(source / "src/keepsail", root / "src/keepsail",
-                    ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
-    for filename in ("pyproject.toml", "README.md"):
-        shutil.copy2(source / filename, root / filename)
-    harness = root / ".harness"
-    harness.mkdir()
-    key = Ed25519PrivateKey.generate()
-    public = key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
-    authority = {"version": "policy-authority/v1", "repository_id": "owner/project",
-                 "target_ref": "refs/heads/main", "enabled": True, "keys": [{
-                     "key_id": sha256(public).hexdigest(), "algorithm": "ed25519",
-                     "public_key": base64.b64encode(public).decode("ascii"),
-                     "purposes": ["policy-transition", "policy-recovery", "plan-decision"],
-                 }]}
-    if missing_plan_purpose:
-        authority["keys"][0]["purposes"].remove("plan-decision")
-    (harness / "policy-authority.yaml").write_text(yaml.safe_dump(authority), encoding="utf-8")
-    policy = {"version": "review-recognition/v1", "enabled": True, "process": {
-        "id": "old-review", "version": "v1", "kinds": ["plan", "code"],
-        "issuers": ["old-reviewer"], "evidence_forms": ["json"]}}
-    policy["process"]["policy_digest"] = recognition_policy_digest(policy)
-    (harness / "review-recognition.yaml").write_text(yaml.safe_dump(policy), encoding="utf-8")
-    verification = {"layers": {"baseline": {"enabled": False},
-                                "framework_adapter": {"enabled": False},
-                                "user_checks": {"enabled": True}},
-                    "checks": [{"id": "fixture", "command": [sys.executable, "-c", "print('ok')"]}]}
-    verification_text = yaml.safe_dump(verification)
-    (harness / "verification.yaml").write_text(verification_text, encoding="utf-8")
-    process = {"id": "old-review", "version": "v1", "issuers": ["old-reviewer"],
-               "evidence_forms": ["json"], "requirements": {}}
-    plan_process = {"id": "maintainer-plan-review", "version": "maintainer-plan-review/v1",
-                    "issuers": ["maintainer"], "evidence_forms": ["signed-plan-decision"],
-                    "requirements": {}}
-    target = {"version": "review-recognition/v2", "enabled": True,
-              "processes_by_kind": {"plan": plan_process, "code": process},
-              "code_review": {"mode": "off"},
-              "required_checks_digest": required_check_contract(
-                  parse_verification_config(verification_text, strict=True))["digest"],
-              "builtin_checks_version": "keepsail-baseline/v2",
-              "activation": {"kind": "transition", "change": "recovery"}}
-    target["policy_digest"] = digest_record(target)
-    checks = required_check_contract(parse_verification_config(verification_text, strict=True))
-    old_recognition = _recognition_from_mapping(policy)
-    changes = changed_obligations(old_processes={"plan": old_recognition, "code": old_recognition},
-                                  old_code_review="full", old_scope=(),
-                                  old_builtin="keepsail-baseline/v1", old_checks=checks,
-                                  new_policy=parse_delivery_policy(target), new_checks=checks)
-    (root / "plan.md").write_text("# Recover the delivery policy\n", encoding="utf-8")
-    git(root, "init", "-q", "-b", "main")
-    git(root, "config", "user.email", "fixture@example.invalid")
-    git(root, "config", "user.name", "fixture")
-    git(root, "add", ".")
-    git(root, "commit", "-qm", "old policy and provisioned recovery key")
-    base = git(root, "rev-parse", "HEAD")
-    git(root, "switch", "-qc", "candidate")
-    runner = CliRunner()
-
-    def cli(*args, data=None):
-        return runner.invoke(main, ["--workspace", str(root), *args], input=data)
-
-    for change in ("recovery", "another", "carry"):
-        started = cli("change", "start", change, "--framework", "plain")
-        assert started.exit_code == 0, started.output
-        ready = cli("plan", "ready", change, "--plan", "plan.md", "--scope", "[plan.md]",
-                    "--commitment", "goal=Recover the delivery policy")
-        assert ready.exit_code == 0, ready.output
-    for change in ("another", "carry"):
-        old_subject = derive_state(events_path(root))[change].pending_revision["subject"][
-            "subject_id"]
-        old_evidence = {"version": "review-evidence/v1", "evidence_id": f"old-plan-{change}",
-                        "kind": "plan", "subject_id": old_subject, "decision": "approve",
-                        "process": {"id": "old-review", "version": "v1"},
-                        "issuer": "old-reviewer", "form": "json",
-                        "original_evidence": {"decision": "approve"},
-                        "provenance": {"policy_digest": policy["process"]["policy_digest"]}}
-        imported = cli("review", "import", change, "--evidence", "-",
-                       data=json.dumps(old_evidence))
-        assert imported.exit_code == 0, imported.output
-    carry_approval = derive_state(events_path(root))["carry"].effective_approval
-    subject = derive_state(events_path(root))["recovery"].pending_revision["subject"]["subject_id"]
-    authorization = {
-        "version": "policy-authorization/v1", "repository_id": "owner/project",
-        "target_ref": "refs/heads/main", "base_sha": base,
-        "predecessor_policy_digest": policy["process"]["policy_digest"],
-        "target_policy_digest": target["policy_digest"], "change_id": "recovery",
-        "plan_subject_id": subject, "kind": "recovery",
-        "permitted_paths": ["plan.md", ".harness/review-recognition.yaml"],
-        "decision": "approve", "key_id": authority["keys"][0]["key_id"],
-        "reason": "Old reviewer is unavailable",
-        "continued_plans": [{"change_id": "carry", "subject_id": carry_approval["subject_id"],
-                             "approval_id": carry_approval["approval_id"],
-                             "evidence_digest": carry_approval["evidence_digest"],
-                             "predecessor_policy_digest": policy["process"]["policy_digest"]}],
-        "obligation_changes": [{**item, "reason": "Owner selects the new built-in contract"}
-                               for item in changes],
-        "review_processes": [
-            {"kind": kind, "id": "backup-review", "version": "v1",
-             "issuer": "backup-reviewer", "evidence_form": "json"}
-            for kind in ("plan", "code")
-        ],
-    }
-    authorization["signature"] = base64.b64encode(
-        key.sign(canonical_json(authorization).encode())
-    ).decode()
-    imported = cli("policy", "authorization", "import", "recovery", "--evidence", "-",
-                   "--repository-id", "owner/project", "--target-ref", "refs/heads/main",
-                   data=json.dumps(authorization))
-    assert imported.exit_code == 0, imported.output
-    basis_digest = recovery_recognition_digest(policy["process"]["policy_digest"],
-                                               digest_record(authorization))
-    evidence = {"version": "review-evidence/v1", "evidence_id": "backup-plan", "kind": "plan",
-                "subject_id": subject, "decision": "approve",
-                "process": {"id": "backup-review", "version": "v1"},
-                "issuer": "backup-reviewer", "form": "json",
-                "original_evidence": {"decision": "approve"},
-                "provenance": {"policy_digest": basis_digest}}
-    wrong = deepcopy(evidence)
-    wrong["provenance"]["policy_digest"] = policy["process"]["policy_digest"]
-    assert cli("review", "import", "recovery", "--evidence", "-",
-               data=json.dumps(wrong)).exit_code == 2
-    wrong = deepcopy(evidence)
-    wrong["issuer"] = "different-reviewer"
-    assert cli("review", "import", "recovery", "--evidence", "-",
-               data=json.dumps(wrong)).exit_code == 2
-    assert cli("review", "import", "another", "--evidence", "-",
-               data=json.dumps(evidence)).exit_code == 2
-    approved = cli("--json", "review", "import", "recovery", "--evidence", "-",
-                   data=json.dumps(evidence))
-    assert approved.exit_code == 0, approved.output
-    assert json.loads(approved.output)["data"]["recognition_basis"]["mode"] == "recovery"
-    assert derive_state(events_path(root))["recovery"].current_state == "PLAN_APPROVED"
-    git(root, "commit", "--allow-empty", "-qm", "advance the target")
-    git(root, "update-ref", "refs/heads/main", git(root, "rev-parse", "HEAD"))
-    stale = cli("implementation", "start", "recovery")
-    assert stale.exit_code == 2, stale.output
-    git(root, "update-ref", "refs/heads/main", base)
-    assert cli("implementation", "start", "recovery").exit_code == 0
-    (harness / "review-recognition.yaml").write_text(yaml.safe_dump(target), encoding="utf-8")
-    git(root, "add", ".harness/review-recognition.yaml")
-    git(root, "commit", "-qm", "propose the signed target policy")
-    assessment = {"affected_commitments": ["goal"], "conclusion": "within_approval",
-                  "reasons": ["Only the frozen policy transition is implemented."],
-                  "references": [".harness/review-recognition.yaml"]}
-    recorded = cli("implementation", "record", "recovery", "--assessment", "-",
-                   data=json.dumps(assessment))
-    assert recorded.exit_code == 0, recorded.output
-    completed = cli("done", "recovery")
-    if missing_plan_purpose:
-        assert completed.exit_code != 0, completed.output
-        assert "plan-decision purpose" in completed.output
-        # Exercise the independent offline gate with an invalid signed candidate
-        # even though the local completion guard correctly refused to make it.
-        monkeypatch.setattr("keepsail.core.transition_guard.read_policy_snapshot",
-                            lambda *_args, **_kwargs: None)
-        completed = cli("done", "recovery")
-    assert completed.exit_code == 0, completed.output
-    code = derive_state(events_path(root))["recovery"].current_code_subject
-    code_evidence = {**evidence, "evidence_id": "backup-code", "kind": "code",
-                     "subject_id": code["subject_id"]}
-    old_code = {**code_evidence, "evidence_id": "old-code", "issuer": "old-reviewer",
-                "process": {"id": "old-review", "version": "v1"},
-                "provenance": {"policy_digest": policy["process"]["policy_digest"]}}
-    refused = cli("review", "import", "recovery", "--evidence", "-", data=json.dumps(old_code))
-    assert refused.exit_code == 2, refused.output
-    assert "selected recovery authorization" in refused.output
-    reviewed = cli("review", "import", "recovery", "--evidence", "-",
-                   data=json.dumps(code_evidence))
-    assert reviewed.exit_code == 0, reviewed.output
-    assert derive_state(events_path(root))["recovery"].current_state == "READY_TO_MERGE"
-    attested = cli("attest", "write", "recovery", "--format", "v3")
-    assert attested.exit_code == 0, attested.output
-    record = parse_v3_line((harness / "attestations/v3/recovery.jsonl").read_bytes())
-    assert record["authorization"] == authorization
-    assert record["recognition_basis"]["plan"]["mode"] == "recovery"
-    assert record["recognition_basis"]["code"]["mode"] == "recovery"
-    git(root, "add", ".harness/attestations/v3/recovery.jsonl")
-    git(root, "commit", "-qm", "retain signed transition evidence")
-    if missing_plan_purpose:
-        with pytest.raises(ApprovalError, match="plan-decision purpose"):
-            verify_v3_transition(root, record, base=base, head="HEAD",
-                                 repository_id="owner/project", target_ref="refs/heads/main")
-        return
-    verdict = verify_v3_transition(root, record, base=base, head="HEAD",
-                                   repository_id="owner/project", target_ref="refs/heads/main")
-    assert verdict["target_policy_digest"] == target["policy_digest"]
-    assert verdict["builtin_checks_version"] == "keepsail-baseline/v1"
-    assert verdict["required_checks"] == [{"source": "user", "id": "fixture"}]
-    assert verdict["code_review_required"] is True
-    valid_head = git(root, "rev-parse", "HEAD")
-    # A real committed v3 envelope without its transition authorization must fail.
-    missing_authorization = deepcopy(record)
-    missing_authorization["authorization"] = None
-    missing_authorization["digest"] = digest_record({
-        k: v for k, v in missing_authorization.items() if k != "digest"})
-    git(root, "switch", "-qc", "recovery-missing-authorization", valid_head)
-    missing_path = harness / "attestations/v3/recovery.jsonl"
-    missing_path.write_text(canonical_json(missing_authorization) + "\n", encoding="utf-8")
-    git(root, "add", str(missing_path.relative_to(root)))
-    git(root, "commit", "-qm", "attempt transition without authorization")
-    with pytest.raises(ApprovalError, match="requires its signed authorization"):
-        verify_v3_transition(root, missing_authorization, base=base, head="HEAD",
-                             repository_id="owner/project", target_ref="refs/heads/main")
-    git(root, "switch", "-q", "candidate")
-    # A signed transition is not reusable after the trusted base advances.
-    base_tree = git(root, "rev-parse", f"{base}^{{tree}}")
-    advanced_base = git(root, "commit-tree", base_tree, "-p", base, "-m", "advance base")
-    with pytest.raises(ApprovalError, match="different trusted base"):
-        verify_v3_transition(root, record, base=advanced_base, head=valid_head,
-                             repository_id="owner/project", target_ref="refs/heads/main")
-    for kind in ("plan", "code"):
-        altered = deepcopy(record)
-        altered["recognition_basis"][kind] = {
-            "mode": "current", "policy_digest": policy["process"]["policy_digest"]}
-        altered["digest"] = digest_record({k: v for k, v in altered.items() if k != "digest"})
-        git(root, "switch", "-qc", f"recovery-current-{kind}", valid_head)
-        attestation_path = harness / "attestations/v3/recovery.jsonl"
-        attestation_path.write_text(canonical_json(altered) + "\n", encoding="utf-8")
-        git(root, "add", str(attestation_path.relative_to(root)))
-        git(root, "commit", "-qm", "attempt a recovery with current-policy evidence")
-        with pytest.raises(ApprovalError, match="selected recovery authorization"):
-            verify_v3_transition(root, altered, base=base, head="HEAD",
-                                 repository_id="owner/project", target_ref="refs/heads/main")
-        git(root, "switch", "-q", "candidate")
-    verified = cli("--json", "attest", "verify", "--base", base, "--head", "HEAD",
-                   "--repository-id", "owner/project", "--target-ref", "refs/heads/main")
+def test_risk_boundary_change_sequence_reaches_the_installed_verifier(tmp_path):
+    old = v1_policy()
+    repo = PolicyRepo(tmp_path / "repo", old, copy_source=True)
+    target = v2_policy(plan=OWNER_PROCESS, code_review="off")
+    repo.approve("switch", OLD_PROCESS, old, risk_boundary=RISK)
+    repo.write_policy(target)
+    repo.commit("propose the owner-json policy")
+    # The candidate is the committed HEAD: uncommitted policy edits are refused.
+    (repo.harness / "review-recognition.yaml").write_text("dirty: true\n", encoding="utf-8")
+    dirty = repo.cli("policy", "accept", "switch")
+    assert dirty.exit_code == 2 and "uncommitted" in dirty.output
+    repo.write_policy(target)
+    accepted = repo.ok("--json", "policy", "accept", "switch")
+    payload = json.loads(accepted.output)["data"]["acceptance"]
+    assert payload["predecessor_policy_digest"] == policy_digest(old)
+    assert payload["target_policy_digest"] == policy_digest(target)
+    assert payload["target_policy_state"] == "enabled"
+    assert {"object": "policy", "path": "/code_review/mode", "direction": "changed",
+            "before": "full", "after": "off"} in payload["obligation_changes"]
+    again = repo.ok("--json", "policy", "accept", "switch")
+    assert json.loads(again.output)["data"]["idempotent"] is True
+    repo.record("switch", [".harness/review-recognition.yaml"])
+    repo.ok("done", "switch")
+    # The Change making the change still delivers under the old (v1: full) obligations.
+    assert repo.state("switch").current_state == "AWAITING_CODE_REVIEW"
+    repo.code_review("switch", OLD_PROCESS, old)
+    assert repo.state("switch").current_state == "READY_TO_MERGE"
+    record = repo.attest("switch")
+    event = next(e for e in read_change_events(events_path(repo.root), "switch")
+                 if e.type == "policy_change_accepted")
+    assert record["authorization"] == {
+        "acceptance": event.payload, "event_id": event.event_id,
+        "actor": {"type": event.actor.type, "identifier": event.actor.identifier},
+        "ts": event.timestamp}
+    assert event.actor.type == "human"
+    verified = repo.verify(repo.base)
     assert verified.exit_code == 0, verified.output
-    assert json.loads(verified.output)["data"]["attestations"] == ["recovery"]
-    replayed = verify_v2_activation(root, trusted_commit="HEAD", repository_id="owner/project",
-                                    target_ref="refs/heads/main")
-    assert replayed["policy_digest"] == target["policy_digest"]
-    assert replayed["predecessor_base"] == base
-    with pytest.raises(ApprovalError):
-        verify_v2_activation(root, trusted_commit="HEAD", repository_id="owner/other",
-                             target_ref="refs/heads/main")
-    active_base = git(root, "rev-parse", "HEAD")
-    installed = verify_with_installed_base(root, base, active_base, label="activation-reader")
+    decision = json.loads(verified.output)["data"]["delivery_decisions"]["switch"]
+    assert decision["risk_boundary"]["event_id"] == event.event_id
+    assert decision["risk_boundary"]["actor"] == record["authorization"]["actor"]
+    assert decision["risk_boundary"]["ts"] == event.timestamp
+    assert decision["risk_boundary"]["obligation_changes"] == event.payload["obligation_changes"]
+    # Visibility: status, report and PR metadata name the same record.
+    status = json.loads(repo.ok("--json", "status", "switch").output)["data"]["changes"][0]
+    assert status["risk_boundary"]["acceptance"] == {
+        "event_id": event.event_id, "actor": record["authorization"]["actor"],
+        "ts": event.timestamp, "matches": True}
+    assert status["risk_boundary"]["obligation_changes"] == event.payload["obligation_changes"]
+    assert "code review relaxed (full -> off)" in status["risk_boundary"]["labels"]
+    report = json.loads(repo.ok("--json", "report").output)["data"]
+    shown = next(item for item in report["current_risk_boundary_changes"]
+                 if item["change_id"] == "switch")
+    assert shown["acceptance"]["event_id"] == event.event_id
+    metadata = build_metadata("switch", repo.root)
+    assert f"event {event.event_id}" in metadata
+    assert f"accepted by {event.actor.identifier} (human) at {event.timestamp}" in metadata
+    assert "changed policy/code_review/mode" in metadata
+    head = git(repo.root, "rev-parse", "HEAD")
+    installed = verify_with_installed_base(repo.root, repo.base, head, label="installed-base")
     assert installed.returncode == 0, installed.stdout + installed.stderr
-    git(root, "update-ref", "refs/heads/main", active_base)
-    carry_state = derive_state(events_path(root))["carry"]
-    carry_evidence = next(item for item in carry_state.evidence_references
-                          if item["evidence_id"] == carry_approval["evidence_id"])
-    active_snapshot = load_effective_v2(root, active_base)
-    assert continued_plan_basis(root, active_snapshot, carry_state, carry_evidence)[
-        "mode"] == "continued_plan"
-    for field, value in (("evidence_id", "other"), ("subject_id", "plan:other"),
-                         ("decision", "reject"), ("original_evidence", {"decision": "changed"}),
-                         ("provenance", {"policy_digest": "0" * 64})):
-        changed = deepcopy(carry_evidence)
-        changed[field] = value
-        with pytest.raises(ApprovalError):
-            continued_plan_basis(root, active_snapshot, carry_state, changed)
-    changed_state = deepcopy(carry_state)
-    changed_state.effective_approval["approval_id"] = "approval:other"
-    with pytest.raises(ApprovalError):
-        continued_plan_basis(root, active_snapshot, changed_state, carry_evidence)
-    continued = cli("implementation", "start", "carry")
-    assert continued.exit_code == 0, continued.output
-    unlisted = cli("implementation", "start", "another")
-    assert unlisted.exit_code == 2, unlisted.output
-    assert "continuation list" in unlisted.output
-    git(root, "switch", "-qc", "carried-approval")
-    (root / "recovery-notes.txt").write_text("Retained policy recovery notes\n", encoding="utf-8")
-    git(root, "add", "recovery-notes.txt")
-    git(root, "commit", "-qm", "implement a carried plan")
-    carry_assessment = {"affected_commitments": ["goal"], "conclusion": "within_approval",
-                        "reasons": ["Complete the approved recovery notes"],
-                        "references": ["recovery-notes.txt"]}
-    recorded = cli("implementation", "record", "carry", "--assessment", "-",
-                   data=json.dumps(carry_assessment))
-    assert recorded.exit_code == 0, recorded.output
-    completed = cli("done", "carry")
-    assert completed.exit_code == 0, completed.output
-    carried = cli("attest", "write", "carry", "--format", "v3")
-    assert carried.exit_code == 0, carried.output
-    carry_record = parse_v3_line((harness / "attestations/v3/carry.jsonl").read_bytes())
-    assert carry_record["recognition_basis"]["plan"]["mode"] == "continued_plan"
-    git(root, "add", ".harness/attestations/v3/carry.jsonl")
-    git(root, "commit", "-qm", "retain the carried approval")
-    carry_verified = cli("attest", "verify", "--base", active_base, "--head", "HEAD",
-                         "--repository-id", "owner/project", "--target-ref", "refs/heads/main")
-    assert carry_verified.exit_code == 0, carry_verified.output
-    git(root, "switch", "-q", "candidate")
-    assert cli("change", "start", "after-activation", "--framework", "plain").exit_code == 0
-    ready = cli("plan", "ready", "after-activation", "--plan", "plan.md", "--scope", "[plan.md]",
-                "--commitment", "goal=Deliver under the activated policy")
-    assert ready.exit_code == 0, ready.output
-    current_subject = derive_state(events_path(root))["after-activation"].pending_revision[
-        "subject"]["subject_id"]
-    signed = {"version": "signed-plan-decision/v1", "repository_id": "owner/project",
-              "target_ref": "refs/heads/main", "policy_digest": target["policy_digest"],
-              "change_id": "after-activation", "subject_id": current_subject,
-              "decision": "approve", "evidence_id": "maintainer-plan",
-              "supersedes": "maintainer-rejected",
-              "key_id": authority["keys"][0]["key_id"]}
-    rejected_body = {**signed, "decision": "reject", "evidence_id": "maintainer-rejected",
-                     "supersedes": None}
-    rejected_body["signature"] = base64.b64encode(
-        key.sign(canonical_json(rejected_body).encode())).decode()
-    signed["signature"] = base64.b64encode(key.sign(canonical_json(signed).encode())).decode()
-    signed_evidence = {"version": "review-evidence/v1", "evidence_id": "maintainer-plan",
-                       "kind": "plan", "subject_id": current_subject, "decision": "approve",
-                       "process": {"id": "maintainer-plan-review",
-                                   "version": "maintainer-plan-review/v1"},
-                       "issuer": "maintainer", "form": "signed-plan-decision",
-                       "original_evidence": signed,
-                       "supersedes": "maintainer-rejected",
-                       "provenance": {"policy_digest": target["policy_digest"]}}
-    altered_evidence = deepcopy(signed_evidence)
-    altered_evidence["original_evidence"]["subject_id"] = "plan:" + "0" * 64
-    assert cli("review", "import", "after-activation", "--evidence", "-",
-               data=json.dumps(altered_evidence)).exit_code == 2
-    rejected_evidence = {**signed_evidence, "evidence_id": "maintainer-rejected",
-                         "decision": "reject", "original_evidence": rejected_body,
-                         "supersedes": None}
-    rejected = cli("review", "import", "after-activation", "--evidence", "-",
-                   data=json.dumps(rejected_evidence))
-    assert rejected.exit_code == 0, rejected.output
-    ready = cli("plan", "ready", "after-activation", "--plan", "plan.md",
-                "--scope", "[plan.md]", "--commitment", "goal=Deliver under the activated policy")
-    assert ready.exit_code == 0, ready.output
-    assert derive_state(events_path(root))["after-activation"].pending_revision[
-        "subject"]["subject_id"] == current_subject
-    imported = cli("review", "import", "after-activation", "--evidence", "-",
-                   data=json.dumps(signed_evidence))
-    assert imported.exit_code == 0, imported.output
-    assert derive_state(events_path(root))["after-activation"].current_state == "PLAN_APPROVED"
-    started = cli("implementation", "start", "after-activation")
-    assert started.exit_code == 0, started.output
-    (root / "ordinary.txt").write_text("ordinary delivery\n", encoding="utf-8")
-    git(root, "add", "ordinary.txt")
-    git(root, "commit", "-qm", "ordinary change after activation")
-    ordinary_assessment = {"affected_commitments": ["goal"], "conclusion": "within_approval",
-                           "reasons": ["Implement the approved ordinary change."],
-                           "references": ["ordinary.txt"]}
-    recorded = cli("implementation", "record", "after-activation", "--assessment", "-",
-                   data=json.dumps(ordinary_assessment))
-    assert recorded.exit_code == 0, recorded.output
-    completed = cli("done", "after-activation")
-    assert completed.exit_code == 0, completed.output
-    ordinary_state = derive_state(events_path(root))["after-activation"]
-    assert ordinary_state.current_state == "READY_TO_MERGE"
-    assert ordinary_state.event_counts["code_review_not_required"] == 1
-    # Reconstruct the same local prefix in an isolated log, add a known failure,
-    # and exercise the real strict two-event writer without changing the live log.
-    from keepsail.core.completion_transaction import decode_completion
-    from keepsail.core.events import Actor, Event
-    from keepsail.core.writer import EmitPreconditionError, EventWriter
+    # A hand-edited acceptance that no longer matches the recomputation is refused.
+    tampered = deepcopy(record)
+    tampered["authorization"]["acceptance"]["obligation_changes"] = []
+    tampered["digest"] = digest_record({k: v for k, v in tampered.items() if k != "digest"})
+    git(repo.root, "switch", "-qc", "tampered")
+    path = repo.harness / "attestations/v3/switch.jsonl"
+    path.write_bytes((canonical_json(tampered) + "\n").encode("utf-8"))
+    repo.commit("tamper with the recorded acceptance")
+    with pytest.raises(ApprovalError, match="does not match the recomputed change"):
+        verify_v3_transition(repo.root, tampered, base=repo.base, head="HEAD")
+    assert repo.verify(repo.base).exit_code == 2
 
-    event_lines = events_path(root).read_bytes().splitlines(keepends=True)
-    completion_index = next(i for i in range(len(event_lines) - 1, -1, -1)
-                            if b'completion-transaction/v1' in event_lines[i])
-    completion_pair = decode_completion(event_lines[completion_index])
-    local_log = harness / "omitted-failure-fixture.jsonl"
-    local_log.write_bytes(b"".join(event_lines[:completion_index]))
-    known_failure = Event(event_id="known-failure", type="code_review_failed",
-                          change_id="after-activation", timestamp=completion_pair[0].timestamp,
-                          actor=Actor(type="agent", identifier="reviewer"), framework="plain",
-                          payload={"code_subject": ordinary_state.current_code_subject})
-    local_writer = EventWriter(local_log)
-    local_writer.emit(known_failure, skip_validation=True, historical_replay=True)
-    before = local_log.read_bytes()
-    with pytest.raises(EmitPreconditionError, match="local history contains a code review failure"):
-        local_writer.emit_many(completion_pair)
-    assert local_log.read_bytes() == before
-    assert ordinary_state.current_verification["check_evidence"][
-        "builtin_checks_version"] == "keepsail-baseline/v2"
-    status = cli("--json", "status", "after-activation")
-    assert status.exit_code == 0, status.output
-    shown = json.loads(status.output)["data"]["changes"][0]["no_review_decision"]
-    assert shown["base_matches"] is True
-    assert shown["policy_digest"] == target["policy_digest"]
-    report = cli("--json", "report")
-    assert report.exit_code == 0, report.output
-    assert any(item["change_id"] == "after-activation"
-               for item in json.loads(report.output)["data"]["no_review_decisions"])
-    ordinary_attested = cli("attest", "write", "after-activation", "--format", "v3")
-    assert ordinary_attested.exit_code == 0, ordinary_attested.output
-    ordinary_record = parse_v3_line(
-        (harness / "attestations/v3/after-activation.jsonl").read_bytes())
-    # CI only sees this retained snapshot; the independently seeded local failure
-    # above is omitted, so replay cannot detect it.
-    assert expand_attestation(ordinary_record["snapshot"], for_v3=True)
-    # Replay checks retained failures for the same subject.
-    for rejected_subject, must_fail in (("code:other", False),
-                                        (ordinary_state.current_code_subject["subject_id"], True)):
-        candidate = deepcopy(ordinary_record["snapshot"])
-        failed = {"event_id": "prior-failure", "type": "code_review_failed",
-                  "change_id": "after-activation", "timestamp": "2026-01-01T00:00:00Z",
-                  "actor": {"type": "agent", "identifier": "reviewer"}, "framework": "plain",
-                  "payload": {"code_subject": {"subject_id": rejected_subject}}}
-        candidate["historical_lifecycle_index"].append({
-            "source_event_id": failed["event_id"], "type": failed["type"],
-            "source_event_digest": digest_record(failed), "source_event": failed,
-        })
-        candidate["digest"] = digest_record({k: v for k, v in candidate.items() if k != "digest"})
-        if must_fail:
-            with pytest.raises(ApprovalError, match="retained evidence contains a code review"):
-                expand_attestation(candidate, for_v3=True)
-        else:
-            assert expand_attestation(candidate, for_v3=True)
-    plan_rows = [row for row in ordinary_record["snapshot"]["lifecycle"]
-                 if row["type"] == "review_evidence_imported"
-                 and row["payload"]["evidence"]["kind"] == "plan"]
-    assert [row["payload"]["evidence"]["evidence_id"] for row in plan_rows] == [
-        "maintainer-rejected", "maintainer-plan"]
-    broken_snapshot = deepcopy(ordinary_record["snapshot"])
-    broken_row = next(row for row in broken_snapshot["lifecycle"]
-                      if row["type"] == "review_evidence_imported"
-                      and row["payload"]["evidence"]["evidence_id"] == "maintainer-plan")
-    broken_row["payload"]["evidence"]["supersedes"] = "missing"
-    broken_row["payload"]["evidence_digest"] = digest_record(broken_row["payload"]["evidence"])
-    broken_snapshot["digest"] = digest_record({k: v for k, v in broken_snapshot.items()
-                                               if k != "digest"})
-    with pytest.raises(ApprovalError, match="supersede"):
-        expand_attestation(broken_snapshot, for_v3=True)
-    git(root, "add", ".harness/attestations/v3/after-activation.jsonl")
-    git(root, "commit", "-qm", "retain ordinary v3 delivery evidence")
-    ordinary_verified = cli("--json", "attest", "verify", "--base", active_base, "--head", "HEAD",
-                            "--repository-id", "owner/project", "--target-ref", "refs/heads/main")
-    assert ordinary_verified.exit_code == 0, ordinary_verified.output
-    decision = json.loads(ordinary_verified.output)["data"]["delivery_decisions"][
-        "after-activation"]
-    assert decision["code_review_required"] is False
-    assert decision["policy_digest"] == target["policy_digest"]
-    ordinary_head = git(root, "rev-parse", "HEAD")
-    installed = verify_with_installed_base(root, active_base, ordinary_head,
-                                           label="active-policy-reader")
-    assert installed.returncode == 0, installed.stdout + installed.stderr
-    git(root, "update-ref", "refs/heads/main", base)
-    git(root, "switch", "-qc", "downgrade-case")
-    old_attestation = harness / "attestations/v2/legacy.jsonl"
-    old_attestation.parent.mkdir(parents=True, exist_ok=True)
-    old_attestation.write_text("{}\n", encoding="utf-8")
-    git(root, "add", ".harness/attestations/v2/legacy.jsonl")
-    git(root, "commit", "-qm", "attempt a post-activation format downgrade")
-    downgrade = cli("--json", "attest", "verify", "--base", active_base, "--head", "HEAD",
-                    "--repository-id", "owner/project", "--target-ref", "refs/heads/main")
-    assert downgrade.exit_code == 2, downgrade.output
-    assert "active policy requires v3 evidence" in downgrade.output
-    git(root, "switch", "-q", "candidate")
-    assert cli("attest", "verify", "--base", base, "--head", active_base).exit_code == 2
-    assert cli("attest", "verify", "--base", base, "--head", active_base,
-               "--repository-id", "owner/other", "--target-ref", "refs/heads/main").exit_code == 2
-    altered = deepcopy(record)
-    altered["recognition_basis"] = {kind: {"mode": "current", "policy_digest":
-                                               policy["process"]["policy_digest"]}
-                                      for kind in ("plan", "code")}
-    altered["digest"] = digest_record({k: v for k, v in altered.items() if k != "digest"})
-    with pytest.raises(ApprovalError, match="committed Git blob"):
-        verify_v3_transition(root, altered, base=base, head=active_base,
-                             repository_id="owner/project", target_ref="refs/heads/main")
-    attestation_path = harness / "attestations/v3/recovery.jsonl"
-    committed_bytes = attestation_path.read_bytes()
-    attestation_path.write_bytes(b"untrusted working tree content\n")
-    assert cli("attest", "verify", "--base", base, "--head", active_base,
-               "--repository-id", "owner/project", "--target-ref", "refs/heads/main").exit_code == 0
-    attestation_path.write_bytes(committed_bytes)
 
-    def prepare_v2_change(change, scope):
-        started = cli("change", "start", change, "--framework", "plain")
-        assert started.exit_code == 0, started.output
-        ready = cli("plan", "ready", change, "--plan", "plan.md", "--scope", f"[{scope}]",
-                    "--commitment", "goal=Deliver the authorized policy change")
-        assert ready.exit_code == 0, ready.output
-        return derive_state(events_path(root))[change].pending_revision["subject"]["subject_id"]
-
-    def approve_v2_plan(change, plan_subject, policy_digest, signing_key, key_id):
-        body = {"version": "signed-plan-decision/v1", "repository_id": "owner/project",
-                "target_ref": "refs/heads/main", "policy_digest": policy_digest,
-                "change_id": change, "subject_id": plan_subject, "decision": "approve",
-                "evidence_id": f"signed-{change}", "supersedes": None, "key_id": key_id}
-        body["signature"] = base64.b64encode(
-            signing_key.sign(canonical_json(body).encode())
-        ).decode()
-        item = {"version": "review-evidence/v1", "evidence_id": f"signed-{change}",
-                "kind": "plan", "subject_id": plan_subject, "decision": "approve",
-                "process": {"id": "maintainer-plan-review", "version": "maintainer-plan-review/v1"},
-                "issuer": "maintainer", "form": "signed-plan-decision", "original_evidence": body,
-                "provenance": {"policy_digest": policy_digest}}
-        return cli("review", "import", change, "--evidence", "-", data=json.dumps(item))
-
-    def import_v2_authorization(change, body, signing_key, proposed_path=None):
-        signed_body = deepcopy(body)
-        signed_body["signature"] = base64.b64encode(
-            signing_key.sign(canonical_json(signed_body).encode())).decode()
-        args = ["policy", "authorization", "import", change, "--evidence", "-",
-                "--repository-id", "owner/project", "--target-ref", "refs/heads/main"]
-        if proposed_path is not None:
-            args.extend(["--target-authority", str(proposed_path)])
-        return cli(*args, data=json.dumps(signed_body))
-
-    def record_implementation(change, path):
-        assessment = {"affected_commitments": ["goal"], "conclusion": "within_approval",
-                      "reasons": ["Implement the signed policy change."], "references": [path]}
-        result = cli("implementation", "record", change, "--assessment", "-",
-                     data=json.dumps(assessment))
-        assert result.exit_code == 0, result.output
-
-    git(root, "update-ref", "refs/heads/main", ordinary_head)
-    next_policy = deepcopy(target)
-    next_policy["code_review"] = {"mode": "full"}
-    next_policy["activation"] = {"kind": "transition", "change": "next-policy"}
-    next_policy["policy_digest"] = digest_record({k: v for k, v in next_policy.items()
-                                                   if k != "policy_digest"})
-    next_subject = prepare_v2_change("next-policy", ".harness/review-recognition.yaml")
-    next_authorization = {
-        "version": "policy-authorization/v1", "repository_id": "owner/project",
-        "target_ref": "refs/heads/main", "base_sha": ordinary_head,
-        "predecessor_policy_digest": target["policy_digest"],
-        "target_policy_digest": next_policy["policy_digest"], "change_id": "next-policy",
-        "plan_subject_id": next_subject, "kind": "transition", "decision": "approve",
-        "permitted_paths": ["plan.md", ".harness/review-recognition.yaml"],
-        "key_id": authority["keys"][0]["key_id"], "obligation_changes": [],
-    }
-    imported = import_v2_authorization("next-policy", next_authorization, key)
-    assert imported.exit_code == 0, imported.output
-    approved = approve_v2_plan("next-policy", next_subject, target["policy_digest"], key,
-                               authority["keys"][0]["key_id"])
-    assert approved.exit_code == 0, approved.output
-    assert cli("implementation", "start", "next-policy").exit_code == 0
-    (harness / "review-recognition.yaml").write_text(yaml.safe_dump(next_policy), encoding="utf-8")
-    git(root, "add", ".harness/review-recognition.yaml")
-    git(root, "commit", "-qm", "propose the next policy")
-    record_implementation("next-policy", ".harness/review-recognition.yaml")
-    completed = cli("done", "next-policy")
-    assert completed.exit_code == 0, completed.output
-    assert derive_state(events_path(root))["next-policy"].current_state == "READY_TO_MERGE"
-    exported = cli("attest", "write", "next-policy", "--format", "v3")
-    assert exported.exit_code == 0, exported.output
-    git(root, "add", ".harness/attestations/v3/next-policy.jsonl")
-    git(root, "commit", "-qm", "retain the next policy transition")
-    next_head = git(root, "rev-parse", "HEAD")
-    verified = cli("attest", "verify", "--base", ordinary_head, "--head", next_head,
-                   "--repository-id", "owner/project", "--target-ref", "refs/heads/main")
+def test_ordinary_delivery_under_an_adopted_policy_needs_no_acceptance(tmp_path):
+    policy = v2_policy(plan=OWNER_PROCESS, code_review="off")
+    repo = PolicyRepo(tmp_path / "repo", policy)
+    repo.approve("ordinary", OWNER_PROCESS, policy)
+    (repo.root / "ordinary.txt").write_text("ordinary\n", encoding="utf-8")
+    repo.commit("ordinary change")
+    repo.record("ordinary", ["ordinary.txt"])
+    assert repo.cli("policy", "accept", "ordinary").exit_code == 2
+    repo.ok("done", "ordinary")
+    assert repo.state("ordinary").current_state == "READY_TO_MERGE"
+    record = repo.attest("ordinary")
+    assert record["authorization"] is None
+    verified = repo.verify(repo.base)
     assert verified.exit_code == 0, verified.output
-    assert verify_v2_activation(root, trusted_commit=next_head, repository_id="owner/project",
-                                target_ref="refs/heads/main")["policy_digest"] == next_policy[
-                                    "policy_digest"]
+    decision = json.loads(verified.output)["data"]["delivery_decisions"]["ordinary"]
+    assert decision["risk_boundary"] is None and decision["code_review_required"] is False
+    assert verify_v3_delivery(repo.root, record, base=repo.base, head="HEAD")[
+        "target_policy_digest"] == policy_digest(policy)
 
-    git(root, "update-ref", "refs/heads/main", next_head)
-    new_key = Ed25519PrivateKey.generate()
-    new_public = new_key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
-    new_authority = deepcopy(authority)
-    new_authority["keys"] = [{"key_id": sha256(new_public).hexdigest(), "algorithm": "ed25519",
-                              "public_key": base64.b64encode(new_public).decode("ascii"),
-                              "purposes": ["policy-transition", "plan-decision"]}]
-    proposal = root.parent / (root.name + "-rotated-authority.yaml")
-    proposal.write_text(yaml.safe_dump(new_authority), encoding="utf-8")
-    rotation_subject = prepare_v2_change("rotate-key", ".harness/policy-authority.yaml")
-    rotation_authorization = {
-        "version": "policy-authorization/v1", "repository_id": "owner/project",
-        "target_ref": "refs/heads/main", "base_sha": next_head,
-        "predecessor_policy_digest": next_policy["policy_digest"],
-        "target_policy_digest": next_policy["policy_digest"], "change_id": "rotate-key",
-        "plan_subject_id": rotation_subject, "kind": "rotate_key", "decision": "approve",
-        "permitted_paths": ["plan.md", ".harness/policy-authority.yaml"],
-        "key_id": authority["keys"][0]["key_id"],
-        "predecessor_authority_digest": parse_authority(authority).digest,
-        "target_authority_digest": parse_authority(new_authority).digest,
-    }
-    imported = import_v2_authorization("rotate-key", rotation_authorization, key, proposal)
-    assert imported.exit_code == 0, imported.output
-    approved = approve_v2_plan("rotate-key", rotation_subject, next_policy["policy_digest"], key,
-                               authority["keys"][0]["key_id"])
-    assert approved.exit_code == 0, approved.output
-    assert cli("implementation", "start", "rotate-key").exit_code == 0
-    (harness / "policy-authority.yaml").write_text(yaml.safe_dump(new_authority), encoding="utf-8")
-    git(root, "add", ".harness/policy-authority.yaml")
-    git(root, "commit", "-qm", "propose the rotated key")
-    record_implementation("rotate-key", ".harness/policy-authority.yaml")
-    completed = cli("done", "rotate-key")
-    assert completed.exit_code == 0, completed.output
-    rotation_state = derive_state(events_path(root))["rotate-key"]
-    assert rotation_state.current_state == "AWAITING_CODE_REVIEW"
-    report = cli("--json", "report")
-    assert report.exit_code == 0, report.output
-    policies = json.loads(report.output)["data"]["current_delivery_policies"]
-    rotation_policy = next(item for item in policies if item["change_id"] == "rotate-key")
-    assert rotation_policy["trusted_base"] == next_head
-    assert rotation_policy["policy_digest"] == next_policy["policy_digest"]
-    assert rotation_policy["required_checks"] == [{"source": "user", "id": "fixture"}]
-    assert rotation_policy["code_review_required"] is True
-    assert rotation_policy["code_review_reason"] == "policy requires code review for all changes"
-    review = {"version": "review-evidence/v1", "evidence_id": "rotation-code", "kind": "code",
-              "subject_id": rotation_state.current_code_subject["subject_id"],
-              "decision": "approve",
-              "process": {"id": "old-review", "version": "v1"}, "issuer": "old-reviewer",
-              "form": "json", "original_evidence": {"decision": "approve"},
-              "provenance": {"policy_digest": next_policy["policy_digest"]}}
-    reviewed = cli("review", "import", "rotate-key", "--evidence", "-", data=json.dumps(review))
-    assert reviewed.exit_code == 0, reviewed.output
-    exported = cli("attest", "write", "rotate-key", "--format", "v3")
-    assert exported.exit_code == 0, exported.output
-    git(root, "add", ".harness/attestations/v3/rotate-key.jsonl")
-    git(root, "commit", "-qm", "retain the authorized key rotation")
-    rotated_head = git(root, "rev-parse", "HEAD")
-    verified = cli("attest", "verify", "--base", next_head, "--head", rotated_head,
-                   "--repository-id", "owner/project", "--target-ref", "refs/heads/main")
+
+def test_next_change_from_v2_strengthens_review_and_keeps_the_old_obligations(tmp_path):
+    policy = v2_policy(plan=OWNER_PROCESS, code_review="off")
+    repo = PolicyRepo(tmp_path / "repo", policy)
+    target = v2_policy(plan=OWNER_PROCESS, code_review="full")
+    repo.approve("strengthen", OWNER_PROCESS, policy, risk_boundary="Require code review")
+    repo.write_policy(target)
+    repo.commit("require code review")
+    repo.record("strengthen", [".harness/review-recognition.yaml"])
+    refused = repo.cli("done", "strengthen")
+    assert refused.exit_code == 2 and "policy accept" in refused.output
+    repo.ok("policy", "accept", "strengthen")
+    repo.ok("done", "strengthen")
+    # Delivered under the base's `off`, not the candidate's `full`.
+    assert repo.state("strengthen").current_state == "READY_TO_MERGE"
+    repo.attest("strengthen")
+    verified = repo.verify(repo.base)
     assert verified.exit_code == 0, verified.output
-    assert "code review required: True" in verified.output
-    assert "required checks: user/fixture" in verified.output
-    rotation = verify_v2_activation(root, trusted_commit=rotated_head,
-                                    repository_id="owner/project", target_ref="refs/heads/main")
-    assert rotation["authority_rotation"]["change"] == "rotate-key"
-    git(root, "update-ref", "refs/heads/main", rotated_head)
-    after_subject = prepare_v2_change("after-rotation", ".harness/review-recognition.yaml")
-    old_signed = approve_v2_plan("after-rotation", after_subject, next_policy["policy_digest"], key,
-                                 authority["keys"][0]["key_id"])
-    assert old_signed.exit_code == 2, old_signed.output
-    newly_signed = approve_v2_plan("after-rotation", after_subject, next_policy["policy_digest"],
-                                   new_key, new_authority["keys"][0]["key_id"])
-    assert newly_signed.exit_code == 0, newly_signed.output
-    widened = deepcopy(new_authority)
-    widened["keys"][0]["purposes"].append("policy-recovery")
-    proposal.write_text(yaml.safe_dump(widened), encoding="utf-8")
-    widened_subject = prepare_v2_change("widen-purpose", ".harness/policy-authority.yaml")
-    widened_authorization = {
-        "version": "policy-authorization/v1", "repository_id": "owner/project",
-        "target_ref": "refs/heads/main", "base_sha": rotated_head,
-        "predecessor_policy_digest": next_policy["policy_digest"],
-        "target_policy_digest": next_policy["policy_digest"], "change_id": "widen-purpose",
-        "plan_subject_id": widened_subject, "kind": "rotate_key", "decision": "approve",
-        "permitted_paths": ["plan.md", ".harness/policy-authority.yaml"],
-        "key_id": new_authority["keys"][0]["key_id"],
-        "predecessor_authority_digest": parse_authority(new_authority).digest,
-        "target_authority_digest": parse_authority(widened).digest,
-    }
-    widened_result = import_v2_authorization("widen-purpose", widened_authorization,
-                                              new_key, proposal)
-    assert widened_result.exit_code == 2, widened_result.output
-    assert "cannot add purposes" in widened_result.output
-    git(root, "switch", "-qc", "recovery-widen-case", active_base)
-    git(root, "update-ref", "refs/heads/main", base)
-    (root / "business.py").write_text("print('outside recovery')\n", encoding="utf-8")
-    git(root, "add", "business.py")
-    git(root, "commit", "-qm", "attempt to widen the recovery")
-    assert cli("review", "import", "recovery", "--evidence", "-",
-               data=json.dumps(code_evidence)).exit_code == 2
-    reopened = cli("implementation", "reopen", "recovery", "--reason", "exercise widened scope")
-    assert reopened.exit_code == 0, reopened.output
-    recorded = cli("implementation", "record", "recovery", "--assessment", "-",
-                   data=json.dumps(assessment))
-    assert recorded.exit_code == 0, recorded.output
-    completed = cli("done", "recovery")
-    assert completed.exit_code == 2, completed.output
-    assert "authorization" in completed.output
+    labels = json.loads(verified.output)["data"]["delivery_decisions"]["strengthen"][
+        "risk_boundary"]["labels"]
+    assert "code review strengthened (off -> full)" in labels
+
+
+def test_in_flight_change_needs_a_new_approval_after_the_policy_changes(tmp_path):
+    old = v1_policy()
+    repo = PolicyRepo(tmp_path / "repo", old)
+    subject = repo.approve("inflight", OLD_PROCESS, old)
+    (repo.root / "feature.txt").write_text("feature\n", encoding="utf-8")
+    repo.commit("in-flight work")
+    repo.record("inflight", ["feature.txt"])
+    target = v2_policy(plan=OWNER_PROCESS, code_review="off")
+    git(repo.root, "switch", "-q", "main")
+    repo.write_policy(target)
+    merged = repo.commit("a separate Change switched the policy and merged")
+    git(repo.root, "switch", "-q", "candidate")
+    git(repo.root, "merge", "-q", "--no-edit", "main")
+    status = json.loads(repo.ok("--json", "status", "inflight").output)["data"]["changes"][0]
+    assert status["approval_recognition"]["recognized"] is False
+    assert "no longer in the effective policy" in status["approval_recognition"]["reason"]
+    assert "plan approval not recognized" in repo.ok("status", "inflight").output
+    refused = repo.cli("done", "inflight")
+    assert refused.exit_code == 2 and "no longer in the effective policy" in refused.output
+    revised = repo.revise("inflight")
+    assert revised != subject  # a revision records its prior approval
+    repo.ok("review", "import", "inflight", "--evidence", "-", data=repo.evidence(
+        "inflight", "plan", revised, OWNER_PROCESS, target))
+    repo.record("inflight", ["feature.txt"])
+    repo.ok("done", "inflight")
+    assert repo.state("inflight").current_state == "READY_TO_MERGE"
+    repo.attest("inflight")
+    assert repo.verify(merged).exit_code == 0
+
+
+@pytest.mark.parametrize("case", ["v1-disabled", "v2-removed", "v2-to-disabled-v1"])
+def test_deactivation_is_a_recorded_change_delivered_under_the_old_obligations(tmp_path, case):
+    old = v1_policy() if case == "v1-disabled" else v2_policy(plan=OWNER_PROCESS,
+                                                             code_review="full")
+    process = OLD_PROCESS if case == "v1-disabled" else OWNER_PROCESS
+    repo = PolicyRepo(tmp_path / "repo", old)
+    repo.approve("deactivate", process, old, risk_boundary="Stop using keepsail recognition")
+    repo.write_policy(None if case == "v2-removed" else v1_policy(enabled=False))
+    repo.commit("deactivate the policy")
+    repo.record("deactivate", [".harness/review-recognition.yaml"])
+    refused = repo.cli("done", "deactivate")
+    assert refused.exit_code == 2 and "policy accept" in refused.output
+    accepted = json.loads(repo.ok("--json", "policy", "accept", "deactivate").output)["data"]
+    payload = accepted["acceptance"]
+    state = "removed" if case == "v2-removed" else "disabled"
+    assert payload["target_policy_digest"] is None
+    assert payload["target_policy_state"] == state
+    rows = payload["obligation_changes"]
+    assert {"object": "policy", "path": "/state", "direction": "changed",
+            "before": "enabled", "after": state} in rows
+    removed = {row["path"] for row in rows if row["direction"] == "removed"}
+    assert {"/code_review/mode", "/processes_by_kind/plan/id"} <= removed
+    repo.ok("done", "deactivate")
+    # Old full review still applies to the deactivating Change itself.
+    assert repo.state("deactivate").current_state == "AWAITING_CODE_REVIEW"
+    repo.code_review("deactivate", process, old)
+    record = repo.attest("deactivate")
+    assert record["authorization"]["acceptance"]["target_policy_state"] == state
+    verified = repo.verify(repo.base)
+    assert verified.exit_code == 0, verified.output
+    assert "missing" not in verified.output
+
+
+def test_checks_only_change_under_a_v1_base_is_accepted_and_delivered_as_v3(tmp_path):
+    old = v1_policy()
+    repo = PolicyRepo(tmp_path / "repo", old)
+    repo.approve("checks", OLD_PROCESS, old, risk_boundary="Add a required lint check")
+    added = deepcopy(VERIFICATION)
+    added["checks"].append({"id": "lint", "command": VERIFICATION["checks"][0]["command"]})
+    repo.write_verification(added)
+    repo.commit("add a required check")
+    (repo.harness / "verification.yaml").write_text("checks: []\n", encoding="utf-8")
+    dirty = repo.cli("policy", "accept", "checks")
+    assert dirty.exit_code == 2 and "uncommitted" in dirty.output
+    repo.write_verification(added)
+    payload = json.loads(repo.ok("--json", "policy", "accept", "checks").output)["data"]
+    assert "required check added: user/lint" in payload["labels"]
+    assert payload["acceptance"]["target_policy_digest"] == policy_digest(old)
+    repo.record("checks", [".harness/verification.yaml"])
+    repo.ok("done", "checks")
+    repo.code_review("checks", OLD_PROCESS, old)
+    record = repo.attest("checks")
+    assert record["schema_version"] == "attestation/v3"
+    assert repo.verify(repo.base).exit_code == 0
+
+
+def test_acceptance_binds_the_effective_plan_and_the_recomputed_change(tmp_path):
+    old = v2_policy(plan=OWNER_PROCESS, code_review="off")
+    repo = PolicyRepo(tmp_path / "repo", old)
+    # Without the RISK-BOUNDARY commitment neither accept nor done proceeds.
+    repo.approve("bind", OWNER_PROCESS, old)
+    target = v2_policy(plan=OWNER_PROCESS, code_review="full")
+    repo.write_policy(target)
+    repo.commit("require review")
+    repo.record("bind", [".harness/review-recognition.yaml"])
+    for args in (("policy", "accept", "bind"), ("done", "bind")):
+        result = repo.cli(*args)
+        assert result.exit_code == 2 and "RISK-BOUNDARY" in result.output
+    # Plan A is approved with the declaration and accepted ...
+    subject_a = repo.revise("bind", risk_boundary="Require code review")
+    assert repo.cli("policy", "accept", "bind").exit_code == 2  # pending revision only
+    prior = repo.state("bind").effective_approval["evidence_id"]
+    repo.ok("review", "import", "bind", "--evidence", "-", data=repo.evidence(
+        "bind", "plan", subject_a, OWNER_PROCESS, old, evidence_id="plan-a"))
+    assert prior != "plan-a"
+    repo.ok("policy", "accept", "bind")
+    # ... then revised to plan B: the acceptance of A no longer counts.
+    (repo.root / "plan.md").write_text("# Deliver the revised change\n", encoding="utf-8")
+    repo.commit("revise the plan")
+    subject_b = repo.revise("bind", risk_boundary="Require code review (revised)")
+    assert subject_b != subject_a
+    repo.ok("review", "import", "bind", "--evidence", "-", data=repo.evidence(
+        "bind", "plan", subject_b, OWNER_PROCESS, old, evidence_id="plan-b"))
+    repo.record("bind", [".harness/review-recognition.yaml", "plan.md"])
+    stale = repo.cli("done", "bind")
+    assert stale.exit_code == 2 and "does not match the recomputed change" in stale.output
+    assert "STALE" in repo.ok("status", "bind").output
+    repo.ok("policy", "accept", "bind")
+    # A code fix and a rebase keep the acceptance valid ...
+    (repo.root / "fix.txt").write_text("fix\n", encoding="utf-8")
+    repo.commit("code fix")
+    git(repo.root, "switch", "-q", "main")
+    (repo.root / "unrelated.txt").write_text("unrelated\n", encoding="utf-8")
+    moved = repo.commit("main moves on")
+    git(repo.root, "switch", "-q", "candidate")
+    git(repo.root, "rebase", "-q", "main")
+    repo.record("bind", [".harness/review-recognition.yaml", "plan.md", "fix.txt"])
+    repo.ok("done", "bind")
+    assert repo.state("bind").current_state == "READY_TO_MERGE"
+    repo.attest("bind")
+    assert repo.verify(moved).exit_code == 0
+    # ... while a further edit of the target policy or of a check invalidates it.
+    repo.ok("implementation", "reopen", "bind", "--reason", "change the target again")
+    repo.write_policy(edited(target, builtin_checks_version="keepsail-baseline/v2",
+                             code_review={"mode": "scope", "scope": ["src"]}))
+    repo.commit("narrow the target policy")
+    repo.record("bind", [".harness/review-recognition.yaml", "plan.md", "fix.txt"])
+    assert "does not match the recomputed change" in repo.cli("done", "bind").output
+    repo.write_policy(target)
+    longer = deepcopy(VERIFICATION)
+    longer["checks"][0]["timeout_seconds"] = 77
+    repo.write_verification(longer)
+    repo.write_policy(edited(target, required_checks_digest=__import__(
+        "tests.integration.lifecycle.policy_repo", fromlist=["checks_digest"]).checks_digest(
+            longer)))
+    repo.commit("change a check definition")
+    repo.record("bind", [".harness/review-recognition.yaml", ".harness/verification.yaml",
+                         "plan.md", "fix.txt"])
+    assert "does not match the recomputed change" in repo.cli("done", "bind").output
+
+
+def test_policy_accept_refuses_without_an_effective_approval(tmp_path):
+    old = v1_policy()
+    repo = PolicyRepo(tmp_path / "repo", old)
+    repo.plan("pending", risk_boundary="Replace the process")
+    repo.write_policy(v1_policy({"id": "new", "version": "v2", "issuer": "new"}))
+    repo.commit("candidate policy")
+    result = repo.cli("policy", "accept", "pending")
+    assert result.exit_code == 2 and "pending or rejected" in result.output
+    subject = repo.state("pending").pending_revision["subject"]["subject_id"]
+    repo.ok("review", "import", "pending", "--evidence", "-", data=repo.evidence(
+        "pending", "plan", subject, OLD_PROCESS, old, decision="reject"))
+    rejected = repo.cli("policy", "accept", "pending")
+    assert rejected.exit_code == 2 and "pending or rejected" in rejected.output
+    assert repo.cli("policy", "accept", "missing").exit_code == 2
+
+
+def test_removing_the_legacy_authority_file_needs_no_acceptance(tmp_path):
+    policy = v2_policy(plan=OWNER_PROCESS, code_review="off")
+    repo = PolicyRepo(tmp_path / "repo", policy,
+                      extra={".harness/policy-authority.yaml": "version: policy-authority/v1\n"})
+    status = repo.ok("status")
+    assert "no longer used and can be deleted" in status.output
+    repo.approve("cleanup", OWNER_PROCESS, policy)
+    (repo.harness / "policy-authority.yaml").unlink()
+    repo.commit("delete the legacy authority file")
+    repo.record("cleanup", [".harness/policy-authority.yaml"])
+    repo.ok("done", "cleanup")
+    record = repo.attest("cleanup")
+    assert record["authorization"] is None
+    assert repo.verify(repo.base).exit_code == 0
+
+
+def test_trusted_signed_plan_policy_is_refused_everywhere_with_migration_guidance(tmp_path):
+    old = v1_policy()
+    repo = PolicyRepo(tmp_path / "repo", old)
+    subject = repo.plan("signed")
+    signed = v2_policy(plan=OWNER_PROCESS, code_review="off")
+    signed["processes_by_kind"]["plan"] = {
+        "id": "maintainer-plan-review", "version": "maintainer-plan-review/v1",
+        "issuers": ["maintainer"], "evidence_forms": ["signed-plan-decision"],
+        "requirements": {}}
+    signed["activation"] = {"kind": "initial"}
+    signed = edited(signed)
+    git(repo.root, "switch", "-q", "main")
+    repo.write_policy(signed)
+    deployed = repo.commit("an already deployed signed-plan policy")
+    git(repo.root, "switch", "-q", "candidate")
+    git(repo.root, "merge", "-q", "--no-edit", "main")
+    maintainer = {"id": "maintainer-plan-review", "version": "maintainer-plan-review/v1",
+                  "issuer": "maintainer"}
+    # Neither the signed form nor an unsigned json conclusion stands in for it.
+    for process, form in ((maintainer, "signed-plan-decision"), (maintainer, "json"),
+                          (OWNER_PROCESS, "json")):
+        evidence = repo.evidence("signed", "plan", subject, process, signed,
+                                 evidence_id=f"plan-{process['id']}-{form}")
+        evidence["form"] = form
+        refused = repo.cli("review", "import", "signed", "--evidence", "-", data=evidence)
+        assert refused.exit_code == 2 and "previous keepsail version" in refused.output
+    assert "previous keepsail version" in repo.cli("--json", "status", "signed").output
+    assert "previous keepsail version" in repo.cli("policy", "accept", "signed").output
+    assert "previous keepsail version" in repo.cli("change", "start", "other").output
+    (repo.harness / "attestations/v3").mkdir(parents=True)
+    (repo.harness / "attestations/v3/signed.jsonl").write_text("{}\n", encoding="utf-8")
+    repo.commit("any delivery")
+    verdict = repo.verify(deployed)
+    assert verdict.exit_code == 2 and "previous keepsail version" in verdict.output

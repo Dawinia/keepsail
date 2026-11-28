@@ -98,3 +98,110 @@ def accept_policy_change(ctx: click.Context, change: str) -> None:
     elif not ctx.obj.get("quiet"):
         click.echo(f"keepsail: {'already recorded' if idempotent else 'recorded'} the owner's "
                    f"acceptance for {change} ({event_id})")
+
+
+def adoption_options(function: Any) -> Any:
+    """Shared adoption choices for `init` and `policy enable`."""
+    options = [
+        click.option("--recognize", type=click.Choice(["owner", "external"]),
+                     help="Whose review conclusions count: the owner (default) or an "
+                          "external process."),
+        click.option("--process-id", help="External review process id."),
+        click.option("--process-version", help="External review process version."),
+        click.option("--issuer", help="External review process issuer."),
+        click.option("--code-review", "code_review", type=click.Choice(["off", "full", "scope"]),
+                     help="Which deliveries need code review."),
+        click.option("--code-review-scope", "code_review_scope", multiple=True,
+                     help="Literal repository path needing code review (with --code-review "
+                          "scope); repeatable."),
+    ]
+    for option in reversed(options):
+        function = option(function)
+    return function
+
+
+def adoption_requested(params: dict[str, Any]) -> bool:
+    return any(params.get(key) for key in ("recognize", "process_id", "process_version",
+                                           "issuer", "code_review", "code_review_scope"))
+
+
+def choice_from_params(params: dict[str, Any], *, interactive: bool) -> Any:
+    from keepsail.core.policy_adoption import PolicyChoice
+
+    recognizer = params.get("recognize")
+    code_review = params.get("code_review")
+    process_id = params.get("process_id")
+    process_version = params.get("process_version")
+    issuer = params.get("issuer")
+    scope = tuple(params.get("code_review_scope") or ())
+    if interactive and not adoption_requested(params):
+        click.echo("Whose review conclusions count for plan approval (and code review)?")
+        recognizer = click.prompt("  owner = you, imported with `review import`; external = "
+                                  "another process", type=click.Choice(["owner", "external"]),
+                                  default="owner")
+        if recognizer == "external":
+            process_id = click.prompt("  process id")
+            process_version = click.prompt("  process version")
+            issuer = click.prompt("  issuer")
+        code_review = click.prompt("Which deliveries need code review?",
+                                   type=click.Choice(["off", "full", "scope"]), default="off")
+        if code_review == "scope":
+            raw = click.prompt("  paths needing code review (comma-separated)")
+            scope = tuple(item.strip() for item in raw.split(",") if item.strip())
+    if code_review is None:
+        raise ApprovalError("choose which deliveries need code review with --code-review "
+                            "off|full|scope")
+    return PolicyChoice(recognizer=recognizer or "owner", process_id=process_id,
+                        process_version=process_version, issuer=issuer,
+                        code_review=code_review, scope=scope)
+
+
+def confirm_required_checks(root: Path, *, interactive: bool) -> None:
+    from keepsail.core.policy_adoption import required_check_summary
+
+    summary = required_check_summary(
+        (root / ".harness/verification.yaml").read_text(encoding="utf-8"))
+    click.echo("Required checks from .harness/verification.yaml:")
+    for line in summary or ["(none)"]:
+        click.echo(f"  - {line}")
+    if interactive and not click.confirm("Use these required checks?", default=True):
+        raise ApprovalError("edit .harness/verification.yaml, then run `keepsail policy enable`")
+
+
+@policy_group.command("enable")
+@adoption_options
+@click.pass_context
+def enable_policy_cmd(ctx: click.Context, /, **params: Any) -> None:
+    """Adopt: write the first enabled recognition policy (owner's initial setup).
+
+    Runs only while the trusted base has no enabled policy.  It appends no
+    event and changes no Change; commit the result as the adoption commit.
+    """
+    import os
+
+    from keepsail.cli.init_plan import InteractionMode
+    from keepsail.cli.init_ui import detect_runtime_terminal_capabilities
+    from keepsail.core.policy_adoption import enable_policy
+
+    command = "policy enable"
+    interactive = (not ctx.obj.get("json") and detect_runtime_terminal_capabilities(
+        sys.stdin, sys.stdout, os.environ).mode is not InteractionMode.NON_INTERACTIVE)
+    try:
+        root = find_harness_root(Path(ctx.obj.get("workspace") or "."))
+        choice = choice_from_params(params, interactive=interactive)
+        if not ctx.obj.get("json") and not ctx.obj.get("quiet"):
+            confirm_required_checks(root, interactive=interactive)
+        policy = enable_policy(root, choice)
+    except HarnessNotInitialized as exc:
+        click.echo(format_error(subcommand=command, message=exc.message, hint=exc.hint), err=True)
+        sys.exit(EXIT_NO_CONFIG)
+    except (ApprovalError, OSError, ValueError) as exc:
+        click.echo(format_error(subcommand=command, message=str(exc)), err=True)
+        sys.exit(EXIT_VALIDATION)
+    if ctx.obj.get("json"):
+        click.echo(json_envelope(command=command, status="pass", exit_code=EXIT_OK,
+                                 data={"policy": policy, "path": POLICY_PATH}))
+    elif not ctx.obj.get("quiet"):
+        click.echo(f"keepsail: wrote the enabled policy to {POLICY_PATH} "
+                   f"({policy['policy_digest']}); commit it to the target branch as the "
+                   "adoption commit, then enable branch protection and CI")
