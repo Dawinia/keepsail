@@ -4,3 +4,6 @@ source_paths:
   exclude:
     - 'docs/**'
     - 'tests/**'
+    # Attestations are frozen delivery evidence (they retain review text verbatim),
+    # not source; anchors quoted inside them are not decision anchors.
+    - '.harness/attestations/**'
