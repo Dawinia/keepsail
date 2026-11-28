@@ -85,7 +85,7 @@ checklist items and statuses, and each finding's `severity` and `id`; each recei
 
 **Dropped**: every finding summary and file; every digest (`contract_digest`,
 `bundle_digest`, `profile_digest`, `result_digest`, `target_head`); every path; every
-`reason` free text; `source_results` and its nested receipts; tool traces.
+`reason` free text; the per-source results and their nested receipts; tool traces.
 
 **Rewritten**: `change_id` → `corpus-NN` in first-appearance order; every actor identifier
 → `corpus@example.invalid`; every finding id → `cNN/f-NN`.
