@@ -88,6 +88,17 @@ stage: plan
     - `repository_id`/`target_ref` 的说法改为描述改动后的性质（C1）；
     - 列全受影响的测试文件，并用 `--collect-only` 检查（C6）；
     - 首次启用不再需要"没有前任"的授权载荷，因为它不走 `policy accept`。
+- 第 26 版（`28cf6f0`）由 DSH 评审拒绝，2 个阻断项，已导入；评审确认上一轮的两项已解决。原始记录在
+  `review-artifacts/2026-11-27-git-subprocess-cost/plan-review-dsh-27/`。本版的处理：
+  - **取代 v2 决策后，`attest.py` 中的锚点会变成 dangling-up**：接受。负责人 ratify v3 后，迁移锚点，
+    并在最后运行 `decision check`（C9、C7）。
+  - **停用没有定义目标表示**：接受，补上 `target_policy_digest: null` 与 `target_policy_state` 的约定，
+    以及三种停用情形的测试（C2、C7）。
+  - 非阻断项也已处理：
+    - 采用测试的完整步骤（C7）；
+    - `policy accept` 读取已提交的 `HEAD`（C2、C6）；
+    - v3 决策中 check 与 counterexample 的写法（C9）；
+    - 升级交付保留 `policy-authority.yaml`（C10）。
 
 ## 产品核心（本计划保持）
 
@@ -206,12 +217,23 @@ keepsail 不判断文字的语义：语义由计划审查负责，具体改了�
 
 **owner 授权。** 新命令 `keepsail policy accept <change>`：
 
+- 候选取自已提交的 `HEAD`（与 `done` 使用的 `resolve_commit` 相同），不读工作区。策略文件有未提交的改动时，
+  拒绝执行并提示先提交。
 - 从 Git 重新计算：可信基线与候选的策略摘要、必需检查摘要和逐项义务变化。先把这些逐项打印给人看，
   再追加一个事件 `policy_change_accepted`（非状态转换事件，加入 `transitions.py` 的非转换集合，
   不改 `_TRANSITIONS`）。
 - 载荷为 `{version: "policy-acceptance/v1", change_id, plan_subject_id, predecessor_policy_digest,
   target_policy_digest, predecessor_checks_digest, target_checks_digest, obligation_changes}`。
   actor 按 `d-keepsail-identity-resolution-order` 记录。
+- **停用的表示。** 候选上的策略文件不存在，或者是 `enabled: false` 的 v1，都视为"停用"。v2 的解析器只接受
+  `enabled: true`，所以 v2 的停用只能是删除文件，或者改成禁用的 v1。停用时：
+  - 载荷中 `target_policy_digest` 为 `null`，并加一个字段 `target_policy_state`，取值 `disabled` 或 `removed`；
+    其他情形下它取值 `enabled`；
+  - 通用差异以规范化对象 `{"state": "disabled"}` 或 `{"state": "removed"}` 作为目标，与基线策略比较，
+    因此基线上的每个流程和代码审查设置都列为 `removed`，`state` 列为 `changed`；
+  - `done` 与合并判定读取候选的策略时，接受停用状态，不报"策略缺失"。义务仍按基线策略判定，
+    摘要比较使用上面的 `null` 和 state；
+  - 必需检查契约不因停用而缺失：`verification.yaml` 照常读取，检查的变化照常比较。
 - 不绑定基线 SHA 或 HEAD，所以 rebase 和代码修复不会使授权失效。目标策略、检查定义或义务变化一旦改变，
   授权就失效，必须重新授权。
 - **不再有"继续计划"（负责人 2026-11-28 的决定）。** 策略改变后，进行中 Change 的计划批准如果不被新策略认可，
@@ -322,7 +344,7 @@ keepsail 不判断文字的语义：语义由计划审查负责，具体改了�
 - `2026-11-10` 规定的最小回归入口 `python -m pytest -q tests/integration/lifecycle/test_delivery_policy_transition.py`
   与 `.github/workflows/test.yml` 的 `delivery-policy-offline` job 保留。
 - 文件内容按新机制重写。保留一个按顺序走完整条路径的测试：在可过闸的隔离 Git 仓库中，依次执行
-  `review import`（改动前流程）、`policy accept`、`done`，以及从可信 base 安装的
+  `review import`（改动前流程）、实现、提交策略改动、`policy accept`（读取已提交的 HEAD）、`done`，以及从可信 base 安装的
   `attest verify --base BASE --head HEAD`。
 - 其余阶段写成相互独立的测试，各自构建前置状态，以便 `-n 2` 并行：
   - 生效后的普通交付；
@@ -355,7 +377,11 @@ keepsail 不判断文字的语义：语义由计划审查负责，具体改了�
   - 基线上的策略摘要与检查配置不符时，照常拒绝。
 - **C2：**
   - v1→v1 更换流程、v1→v2、v2→v2、修改必需检查、停用（v1 与 v2 各一例），各自需要授权才能
-    `done` 和通过合并判定。停用的例子中，做出改动的 Change 在 `done` 和合并判定两处都仍要满足旧义务；
+    `done` 和通过合并判定。停用分三种情形：v1 改为 `enabled: false`、v2 删除策略文件、v2 改为禁用的 v1。
+    每种情形中，载荷的 `target_policy_digest` 为 `null`，`target_policy_state` 正确；差异把基线的流程与设置
+    列为 `removed`；`policy accept`、`done`、合并判定都不报"策略缺失"，做出改动的 Change 在 `done`
+    和合并判定两处都仍要满足旧义务；未授权的停用被拒绝；
+    策略文件有未提交改动时，`policy accept` 拒绝执行；
     候选策略被停用，不妨碍按基线策略判定；
   - 逐项记录完整：新增必需检查、加强代码审查（`off`→`full`、`scope` 增加路径）、新增流程 kind、
     以下每个检查定义字段**单独**修改（`command`、`shell`、`workdir`、`env`、`timeout_seconds`、`capture`、`must_pass`）、
@@ -364,7 +390,8 @@ keepsail 不判断文字的语义：语义由计划审查负责，具体改了�
   - 性质测试：对随机生成的策略对与检查契约对，"摘要相同"当且仅当"差异为空"；
   - **采用（冷启动）：**
     - 在空仓库中用非交互参数执行 `keepsail init`（owner 计划流程），生成已启用的策略。owner 提交为采用提交后，
-      第一个 Change 走完 `plan ready`、`review import`（owner 的 json 结论）、`done`，`attest verify` 也通过；
+      第一个 Change 依次完成 `change start`、`plan ready`、`review import`（owner 的 json 结论）、`implementation_started`、
+      `implementation record`、提交、`verify` 通过、`done`，`attest verify` 也通过。沿用现有的生命周期测试辅助函数；
     - 外部评审流程的选项生成对应的流程记录；
     - 从禁用的骨架执行 `policy enable` 后，同样能走通上面的流程；
     - 可信基线上已有启用的策略时，`policy enable` 拒绝执行，并提示改用 `policy accept`；
@@ -424,6 +451,7 @@ keepsail 不判断文字的语义：语义由计划审查负责，具体改了�
   - `load_ledger` 的前缀哈希与 revision 逐字节不变；
   - 账本在读取后被追加时，`read_inputs` 仍来自同一份快照。
 - **全量：** `keepsail verify`、`keepsail decision check`、`keepsail doc check` 通过。
+  `decision check` 在负责人完成 v3 的 ratify 与 supersede、锚点迁移之后再运行一次，结果写入 PR，不能有 dangling-up。
 
 ### C8 `2026-11-24` 的串行测量义务
 
@@ -465,8 +493,15 @@ keepsail 不判断文字的语义：语义由计划审查负责，具体改了�
     - 用 `keepsail decision new d-policy-replay-offline-v3` 新增一条决策，`supersedes: d-policy-replay-offline-v2`。
       正文只保留"策略、交付、no-review、v3 重放和 Git 对象路径使用已提交的 Git 证据，不访问网络"，
       不再要求身份输入；检查脚本沿用 v2 的网络客户端检测，路径列表去掉已删除的文件；
-    - 先用 `decision ratify --dry-run` 确认检查能拦截违规；
-    - ratify 并取代 v2 是负责人的行为。负责人 ratify 之前，本 Change 不执行 `done`；作者不代为 ratify。
+    - `decision new` 只写一行正文。作者随后编辑这份 proposed 记录，加入 `check` 与 `counterexample` 两个块，
+      再用 `decision ratify --dry-run` 确认检查能拦截违规；
+    - ratify v3 并执行 `decision supersede`，让 v3 取代 v2，这是负责人的行为。负责人完成之前，本 Change 不执行 `done`；
+      作者不代为 ratify。
+    - **锚点迁移：** v2 唯一的代码锚点是 `src/keepsail/cli/attest.py:186` 的 `# @decision:d-policy-replay-offline-v2`。
+      v2 被取代后不再是 ratified，这个锚点会变成 dangling-up，`decision check` 因此失败（`decision_check.py` 只把
+      ratified 的决策视为有效）。所以负责人 ratify v3 之后，作者把该锚点改为 `# @decision:d-policy-replay-offline-v3`，
+      放在 supersede 的同一个提交里或紧接其后。合并前，`keepsail decision check` 必须通过，并写入 C7 的证据。
+      v3 ratify 之前不加这个锚点，因为指向 proposed 决策的锚点同样是 dangling-up。
     - v2 的正文不手工修改。
   - `transitions.py` 的改动只在非转换集合中加入新事件类型，按 `d-fixed-transition-matrix` 的要求执行
     `decision reconcile` 并写明理由。
@@ -484,6 +519,9 @@ keepsail 不判断文字的语义：语义由计划审查负责，具体改了�
   2. 新验证器进入目标分支后，之后的 Change 才能用 `policy accept` 改变策略或必需检查。
 - 本 Change 就是第一步：它不修改 `.harness/review-recognition.yaml` 与 `.harness/verification.yaml`
   的生效内容（C8 的恢复放到下一个 Change），可由本仓库 base 上的旧验证器验证。
+- 升级交付**保留** `.harness/policy-authority.yaml` 原样不动。旧验证器在 v2 的 head 上仍要读取这个文件，
+  删掉它会让升级交付过不了旧验证器。`docs/getting-started.md` 写明：等新验证器进入目标分支后，
+  再在之后的 Change 中删除它（删除不需要授权）。C7 的迁移测试中，第 3 步的升级交付保留该文件。
 - 不做自动的版本探测：本 Change 不提升版本号，用户的 workflow 固定的验证器版本也各不相同，探测不可靠。
   顺序写入 `docs/getting-started.md` 的升级说明和 `docs/limitations.md`：在旧验证器仍在 base 上时
   提交风险边界变更，合并闸门会以"缺少签名授权"拒绝，此时先合入升级即可。
