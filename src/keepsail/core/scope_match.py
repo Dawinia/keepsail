@@ -137,8 +137,15 @@ def tracked_files_at_commit(root: Path, ref: str) -> list[str]:
 
 
 def file_text_at_commit(root: Path, ref: str, path: str) -> str:
-    """Read one tracked text file from ``ref``, failing closed."""
-    return _git(root, "show", f"{ref}:{path}")
+    """Read one tracked text file from ``ref``, failing closed.
+
+    For a full commit id the result is an immutable (commit, path) fact reused
+    within one operation; refs are always re-read.
+    """
+    from keepsail.core.git_facts import is_object_id, memoized, root_key
+
+    return memoized(("show", root_key(root), ref, path),
+                    lambda: _git(root, "show", f"{ref}:{path}"), cacheable=is_object_id(ref))
 
 
 def split_changed_by_scope(
