@@ -13,7 +13,7 @@ from typing import Any
 
 from keepsail.core.approval import ApprovalError
 from keepsail.core.delivery_policy import DeliveryPolicy, parse_delivery_policy_yaml
-from keepsail.core.git_objects import regular_blob_text
+from keepsail.core.git_objects import regular_blob_texts
 from keepsail.core.scope_match import GitScopeError, resolve_commit
 from keepsail.core.verification_config import (
     parse_verification_config,
@@ -34,12 +34,10 @@ def read_policy_snapshot(root: Path, commit: str) -> PolicySnapshot:
         resolved = resolve_commit(root, commit)
     except GitScopeError as exc:
         raise ApprovalError("cannot resolve policy snapshot commit") from exc
-    policy = parse_delivery_policy_yaml(
-        regular_blob_text(root, resolved, ".harness/review-recognition.yaml")
-    )
-    config = parse_verification_config(
-        regular_blob_text(root, resolved, ".harness/verification.yaml"), strict=True
-    )
+    paths = [".harness/review-recognition.yaml", ".harness/verification.yaml"]
+    texts = regular_blob_texts(root, resolved, paths)
+    policy = parse_delivery_policy_yaml(texts[paths[0]])
+    config = parse_verification_config(texts[paths[1]], strict=True)
     checks = required_check_contract(config)
     if checks["digest"] != policy.required_checks_digest:
         raise ApprovalError("required checks digest does not match the committed configuration")

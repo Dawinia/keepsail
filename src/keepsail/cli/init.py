@@ -45,7 +45,7 @@ from keepsail.cli.init_plan import (
     InteractionMode,
     inspect_workspace,
 )
-from keepsail.cli.policy import (
+from keepsail.cli.policy_choice import (
     adoption_options,
     adoption_requested,
     choice_from_params,

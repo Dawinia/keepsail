@@ -926,8 +926,14 @@ def load_trusted_recognition(root: Path, *, expected_base: str | None = None) ->
 
 
 def _tree_entries(root: Path, ref: str) -> dict[str, tuple[str, str]]:
+    from keepsail.core.git_facts import is_object_id, memoized, root_key
+
+    # The raw listing of a full commit id is an immutable fact reused within one
+    # operation; parsing is redone on every call.
+    raw = memoized(("ls-tree-r", root_key(root), ref),
+                   lambda: _git(root, "ls-tree", "-rz", ref), cacheable=is_object_id(ref))
     entries: dict[str, tuple[str, str]] = {}
-    for line in _git(root, "ls-tree", "-rz", ref).split("\0"):
+    for line in raw.split("\0"):
         if "\t" not in line:
             continue
         left, path = line.split("\t", 1)
@@ -974,8 +980,14 @@ def git_change_manifest(root: Path, *, base: str, head: str,
     """Build a deterministic mode/content manifest, including renames."""
     base_sha = resolve_commit(root, base)
     head_sha = resolve_commit(root, head)
-    statuses = _git(root, "diff", "--name-status", "-z", "--find-renames",
-                    f"{base_sha}..{head_sha}")
+    from keepsail.core.git_facts import memoized, root_key
+
+    statuses = memoized(
+        ("diff-name-status", root_key(root), base_sha, head_sha),
+        lambda: _git(root, "diff", "--name-status", "-z", "--find-renames",
+                     f"{base_sha}..{head_sha}"),
+        cacheable=True,  # both sides are resolved full object ids
+    )
     base_tree = _tree_entries(root, base_sha)
     head_tree = _tree_entries(root, head_sha)
     result: list[dict[str, Any]] = []

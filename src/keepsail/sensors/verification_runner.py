@@ -35,6 +35,7 @@ API stability: **experimental** (v0.1).
 
 from __future__ import annotations
 
+import contextvars
 import json
 import os
 import subprocess
@@ -849,7 +850,11 @@ def run_checks(
     # beyond max_workers is ever truly cancelled; futures already running/done
     # complete on their own and we simply drop (stop collecting) their results.
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
-        futures = [pool.submit(run_task, task) for task in tasks]
+        # Each task runs in a copy of the caller's context, so the operation's
+        # Git fact scope applies inside the pool (one copy per task: a context
+        # cannot be entered by two threads at once).
+        futures = [pool.submit(contextvars.copy_context().run, run_task, task)
+                   for task in tasks]
         parallel_results: list[CheckResult] = []
         aborted = False
         for future in futures:

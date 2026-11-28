@@ -50,6 +50,7 @@ sandboxing is deferred to v0.2 (sensor-gate-architecture §3.6 #6).
 
 from __future__ import annotations
 
+import contextvars
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from concurrent.futures import TimeoutError as FuturesTimeout
@@ -201,7 +202,9 @@ class SensorDispatcher:
         # still complete on their own time, and `__exit__` blocks until they do.
         # v0.2 subprocess isolation (spec §3.6 #6) is the proper fix.
         with ThreadPoolExecutor(max_workers=self.max_parallelism) as pool:
-            futures = {pool.submit(self._safe_run, s, trigger): s for s in sensors}
+            # One context copy per sensor keeps the operation's Git fact scope.
+            futures = {pool.submit(contextvars.copy_context().run, self._safe_run, s, trigger): s
+                       for s in sensors}
             pending = set(futures)
             try:
                 # `as_completed` honors spec §3.3 I-6: extension events are
