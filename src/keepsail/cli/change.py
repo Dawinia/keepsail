@@ -445,18 +445,24 @@ def _render_resume_markdown(cs: ChangeState, recent: list[Event]) -> str:
     return "\n".join(lines)
 
 
-def _resume_snapshot(root: Path) -> tuple[bytes, tuple[str, ...], dict[str, ChangeState]]:
-    """Read the ledger bytes once and expand them once for the whole resume."""
-    from keepsail.core.reducer import derive_state_from_lines
+def _resume_inputs(root: Path) -> tuple[Any, dict[str, ChangeState], Exception | None]:
+    """One read and one expansion serve the state, the knowledge report and the tail.
 
-    path = events_path(root)
-    content = path.read_bytes() if path.exists() else b""
-    lines = tuple(effective_event_lines(content.decode("utf-8").splitlines(keepends=True)))
-    return content, lines, derive_state_from_lines(list(lines), _effective=True)
+    ``knowledge.read_inputs`` replays the ledger and derives state from the same
+    bytes.  If the knowledge replay itself fails, state is derived as before
+    and the failure is reported by the knowledge section, unchanged.
+    """
+    from keepsail.core.knowledge import KnowledgeError, read_inputs
+
+    try:
+        inputs = read_inputs(root)
+    except (KnowledgeError, OSError, UnicodeError) as exc:
+        return None, derive_state(events_path(root)), exc
+    return inputs, inputs.states, None
 
 
 def _emit_resume(ctx: click.Context, root: Path, slug: str, cs: ChangeState,
-                 snapshot: tuple[bytes, tuple[str, ...]] | None = None) -> None:
+                 inputs: Any = None, failure: Exception | None = None) -> None:
     """Render the resume dump for a resolved (slug, ChangeState) and print it.
 
     Shared by the explicit-slug path and the no-arg active-change path so the
@@ -464,9 +470,10 @@ def _emit_resume(ctx: click.Context, root: Path, slug: str, cs: ChangeState,
     """
     import json
 
-    from keepsail.core.knowledge import KnowledgeError, read_inputs, report
+    from keepsail.core.knowledge import KnowledgeError, report
     try:
-        inputs = read_inputs(root, snapshot=snapshot) if snapshot is not None else None
+        if failure is not None:
+            raise failure
         knowledge = report(root, slug, inputs=inputs)
     except (KnowledgeError, OSError, UnicodeError) as exc:
         code = getattr(exc, "exit_code", 1)
@@ -479,7 +486,7 @@ def _emit_resume(ctx: click.Context, root: Path, slug: str, cs: ChangeState,
         sys.exit(code)
     recent = _tail_events_for_change(
         events_path(root), slug, limit=_RESUME_RECENT_EVENT_LIMIT,
-        lines=snapshot[1] if snapshot is not None else None,
+        lines=inputs.effective_lines if inputs is not None else None,
     )
     if ctx.obj.get("json"):
         click.echo(
@@ -577,17 +584,17 @@ def resume(ctx: click.Context, slug: str | None) -> None:
         if active is None:
             # No active change → nothing to inject. Silent success.
             sys.exit(EXIT_OK)
-        content, lines, derived = _resume_snapshot(root)
+        inputs, derived, failure = _resume_inputs(root)
         cs = derived.get(active)
         if cs is None:
             # state.yaml named an active change that derived state no longer
             # knows (state/events skew) — stay best-effort: print nothing,
             # exit 0. MUST NOT fall through to the explicit-slug exit-2 guard.
             sys.exit(EXIT_OK)
-        _emit_resume(ctx, root, active, cs, (content, lines))
+        _emit_resume(ctx, root, active, cs, inputs, failure)
         sys.exit(EXIT_OK)
 
-    content, lines, derived = _resume_snapshot(root)
+    inputs, derived, failure = _resume_inputs(root)
     if slug not in derived:
         # Wording aligned with `status <unknown>` (more precise — "unknown
         # change slug" vs "unknown change") so the two identifier-query
@@ -601,7 +608,7 @@ def resume(ctx: click.Context, slug: str | None) -> None:
             err=True,
         )
         sys.exit(EXIT_VALIDATION)
-    _emit_resume(ctx, root, slug, derived[slug], (content, lines))
+    _emit_resume(ctx, root, slug, derived[slug], inputs, failure)
     sys.exit(EXIT_OK)
 
 

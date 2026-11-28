@@ -1202,12 +1202,20 @@ def read_inputs(root: Path, *, events_file: Path | None = None,
     path = events_file or root / ".harness/events.jsonl"
     policy, candidate = policy_configuration(root)
     if snapshot is not None:
-        content, effective = snapshot
-    else:
-        content, effective = (path.read_bytes() if path.exists() else b""), None
+        held, effective = snapshot
+        ledger, revision = load_ledger(path, policy, _content=held)
+        return _inputs_from_content(policy, candidate, ledger, revision, held,
+                                    effective_lines=effective)
+    content = path.read_bytes() if path.exists() else b""
     ledger, revision = load_ledger(path, policy, _content=content)
-    return _inputs_from_content(policy, candidate, ledger, revision, content,
-                                effective_lines=effective)
+    # Release each full-size intermediate as soon as the next one exists, so the
+    # bytes, the decoded text, the physical and the expanded lines are not all
+    # held at once (peak memory scales with the ledger).
+    text = content.decode("utf-8")
+    del content
+    lines = text.splitlines(keepends=True)
+    del text
+    return _inputs_from_lines(policy, candidate, ledger, revision, lines)
 
 
 def _inputs_from_content(
@@ -1215,9 +1223,18 @@ def _inputs_from_content(
     ledger: dict[str, Any], revision: str, content: bytes, *,
     effective_lines: Sequence[str] | None = None,
 ) -> KnowledgeInputs:
+    return _inputs_from_lines(policy, candidate, ledger, revision,
+                              content.decode("utf-8").splitlines(keepends=True),
+                              effective_lines=effective_lines)
+
+
+def _inputs_from_lines(
+    policy: dict[str, Any] | None, candidate: dict[str, Any] | None,
+    ledger: dict[str, Any], revision: str, lines: list[str], *,
+    effective_lines: Sequence[str] | None = None,
+) -> KnowledgeInputs:
     from keepsail.core.reducer import derive_state_from_lines
 
-    lines = content.decode("utf-8").splitlines(keepends=True)
     expanded = (list(effective_lines) if effective_lines is not None
                 else list(effective_event_lines(lines)))
     return KnowledgeInputs(policy, candidate, ledger, revision,
