@@ -553,8 +553,8 @@ longer verifies signatures:
   signed transition that changes the plan process to a json owner conclusion,
   merge it, and only then upgrade. The change of recognition rules is then
   signed off under the old mechanism and recorded.
-- In-flight Changes whose plan approval relied on a signed continuation list
-  (`continued_plans`) re-obtain their plan approval under the effective policy;
+- In-flight Changes whose plan approval relied on the signed continuation list
+  of an old transition re-obtain their plan approval under the effective policy;
   `status` names the reason.
 
 ---
