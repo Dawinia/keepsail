@@ -99,6 +99,17 @@ stage: plan
     - `policy accept` 读取已提交的 `HEAD`（C2、C6）；
     - v3 决策中 check 与 counterexample 的写法（C9）；
     - 升级交付保留 `policy-authority.yaml`（C10）。
+- 第 27 版（`939c323`）由 DSH 评审拒绝，2 个阻断项，已导入；评审确认上一轮的两项已解决。原始记录在
+  `review-artifacts/2026-11-27-git-subprocess-cost/plan-review-dsh-28/`。本版的处理：
+  - **通用差异漏掉了 v1 的隐含义务**：接受。v1 先规范化为与 v2 同形的生效义务对象，再做差异；
+    性质测试改为针对这个对象，并补上 v1 的测试（C2、C7）。
+  - **新生成的策略不写 `activation`，但解析器要求必须有这个字段**：接受。`activation` 改为可选字段，
+    并补上模式测试（C3、C7）。
+  - 非阻断项也一并处理：
+    - `policy accept` 加入 signed-plan 拒绝列表（C3）；
+    - `init --force` 保留已有策略（C2）；
+    - 端到端测试包含 `attest write`（C6）；
+    - `policy accept` 只绑定生效批准（C2、C7）。
 
 ## 产品核心（本计划保持）
 
@@ -169,14 +180,21 @@ stage: plan
 逐项变化**完整列出**，并且**不按字段清单枚举**：对参与摘要计算的两个规范化对象，逐字段做通用的结构差异。
 
 - 两个对象分别是：
-  - 策略：`digest_record` 计算 `policy_digest` 时使用的、去掉 `policy_digest` 自身后的整个对象；
+  - 策略：**生效义务对象**。对 v2 来说，它是 `digest_record` 计算 `policy_digest` 时使用的、去掉 `policy_digest`
+    自身后的整个对象。对 v1 来说，原始对象只有 `{version, enabled, process}`，其中的代码审查和内置检查义务是隐含的
+    （现在 `transition_guard.py` 以 `old_code_review="full"`、`old_builtin="keepsail-baseline/v1"` 传入）。
+    因此 v1 先规范化为与 v2 同形的生效义务对象，再参与差异：
+    `{version, enabled, processes_by_kind: {每个 kind: 该流程}, code_review: "full", scope: [], builtin_checks_version: "keepsail-baseline/v1"}`。
+    停用的目标为 `{"state": ...}`，其中不含任何义务字段，所以基线中的每一项义务（包括 v1 隐含的 `full`）都列为 `removed`；
   - 必需检查契约：`required_check_contract` 计算摘要时使用的整个对象，包括 `layers` 和每个检查的完整定义
     （`command`、`shell`、`workdir`、`env`、`timeout_seconds`、`capture`、`must_pass`，以及以后加入摘要的任何字段）。
 - 差异按路径列出，每项包含 JSON 路径、方向（`added`/`removed`/`changed`）以及改动前后的值。必需检查的列表
   按 `(来源, ID)` 对齐，因此新增、删除和定义修改分别显示为对应检查下的路径。
 - 在通用差异之上，再给出便于阅读的语义标签，例如流程替换、代码审查放宽或加强、必需检查删除、层开关切换、
   启用与停用。标签只是附加说明，完整性由通用差异保证。
-- 因为差异与摘要使用同一个规范化对象，摘要不同而差异为空在构造上不会发生。若仍然发生，视为实现错误并拒绝。
+- 完整性性质定义在生效义务对象上：两个生效义务对象相同，当且仅当差异为空。v2 的生效义务对象与其摘要对象
+  一致，因此对 v2 而言等价于"摘要相同当且仅当差异为空"。v1 的隐含义务由规范化步骤显式写出，
+  所以同样不会漏掉。摘要不同而差异为空时，视为实现错误并拒绝。
 
 现有的 `changed_obligations`/`changed_required_checks` 只列出被删除、替换或削弱的旧义务，由上述差异函数取代。
 
@@ -186,7 +204,9 @@ stage: plan
 keepsail 不判断文字的语义：语义由计划审查负责，具体改了什么由 owner 授权时看到的逐项变化覆盖。
 `scope` 不在计划对象里（`plan ready` 把它单独记在事件中），所以不作为声明的一部分。
 
-授权绑定该 Change 生效批准的计划对象。有风险边界变更、但计划对象缺少这条承诺时，`policy accept` 拒绝记录，
+授权绑定该 Change 生效批准的计划对象：只取 `state.effective_approval`，不取 `pending_revision`。
+Change 没有生效批准，或者计划处于待审、被拒状态时，`policy accept` 拒绝记录。
+有风险边界变更、但计划对象缺少这条承诺时，`policy accept` 拒绝记录，
 `done` 和合并判定也都拒绝。没有风险边界变更的计划可以不写这条承诺；写了也无害，只在 `status` 中提示。
 计划被修订、生效批准换成新的计划对象后，旧计划对象上的授权失效，必须重新授权。
 
@@ -202,13 +222,17 @@ keepsail 不判断文字的语义：语义由计划审查负责，具体改了�
    - 必需检查取 `verification.yaml` 的当前内容，并显示给用户确认。
 
    `init` 据此生成一份**已启用**的 `review-recognition/v2`，`required_checks_digest` 由当前检查配置计算，
-   不写 `activation`。owner 把初始化结果作为采用提交，提交到目标分支，与文档中"先往 main 推一个初始提交"
+   不写 `activation`（`parse_delivery_policy` 相应改为把 `activation` 视为可选字段，见 C3）。
+   owner 把初始化结果作为采用提交，提交到目标分支，与文档中"先往 main 推一个初始提交"
    是同一步，然后再开启分支保护和 CI。这一步不经过 keepsail 的闸门：此时还没有生效的认可策略，
    没有什么可以绕过。信任从 owner 写下的第一份策略开始，这一点写入 `docs/limitations.md`。
    - 非交互模式下没有给出选择时，`init` 仍生成禁用的骨架，并提示用 `policy enable` 启用。
 2. **已初始化、仍是禁用骨架的项目：** 新命令 `keepsail policy enable` 问同样的问题，并写入启用后的策略，
    由 owner 作为采用提交提交。只有当可信基线（`resolve_contract_base`）上**没有**已启用的策略时，它才执行；
    已启用时拒绝，并提示改用风险边界变更（计划声明 + `policy accept`）。它不追加事件，也不改变任何 Change 的状态。
+   `init`（包括 `init --force`）同样不改写已有的 `review-recognition.yaml`，沿用现在的做法：force 也保留这个文件。
+   采用问题只在这个文件不存在时才问；文件存在但仍是禁用骨架时，`init` 提示改用 `policy enable`。
+   因此采用不能成为绕过 C2 的后门。
 3. **日常：** 每个 Change 走 `change start`、`plan ready`、`review import`、实现、`done`、PR。
 4. **改规则：** 只适用于已启用的策略，走本节上面所述的风险边界变更。
 
@@ -229,8 +253,9 @@ keepsail 不判断文字的语义：语义由计划审查负责，具体改了�
   `enabled: true`，所以 v2 的停用只能是删除文件，或者改成禁用的 v1。停用时：
   - 载荷中 `target_policy_digest` 为 `null`，并加一个字段 `target_policy_state`，取值 `disabled` 或 `removed`；
     其他情形下它取值 `enabled`；
-  - 通用差异以规范化对象 `{"state": "disabled"}` 或 `{"state": "removed"}` 作为目标，与基线策略比较，
-    因此基线上的每个流程和代码审查设置都列为 `removed`，`state` 列为 `changed`；
+  - 通用差异以规范化对象 `{"state": "disabled"}` 或 `{"state": "removed"}` 作为目标，与基线的**生效义务对象**比较
+    （v1 已规范化，含隐含的 `full` 与 `keepsail-baseline/v1`），因此基线上的每个流程和代码审查设置都列为
+    `removed`，`state` 列为 `changed`；
   - `done` 与合并判定读取候选的策略时，接受停用状态，不报"策略缺失"。义务仍按基线策略判定，
     摘要比较使用上面的 `null` 和 state；
   - 必需检查契约不因停用而缺失：`verification.yaml` 照常读取，检查的变化照常比较。
@@ -279,7 +304,7 @@ keepsail 不判断文字的语义：语义由计划审查负责，具体改了�
 
 - 生成的默认策略中，计划流程的证据形式改为 `json`，issuer 为 owner，通过 `review import` 导入 owner 的结论。
 - 已有策略若列出 `signed-plan-decision`，新版本**不重新解释**它，以免在 owner 不知情时改变认可规则。
-  可信 base 上的策略只要仍列出这种形式，新版本在 `status`、`review import`、`done` 和 `attest verify` 中
+  可信 base 上的策略只要仍列出这种形式，新版本在 `status`、`review import`、`policy accept`、`done` 和 `attest verify` 中
   都明确拒绝，并给出迁移说明（负责人 2026-11-28 的决定）：
   1. 仍用当前（旧）版本，走一次已有的签名切换，把计划流程改为 json 形式的 owner 结论，按旧义务交付并合并；
   2. 再升级 keepsail（C10 的读端先行顺序）。
@@ -290,7 +315,9 @@ keepsail 不判断文字的语义：语义由计划审查负责，具体改了�
 
 - `policy-authority.yaml`、`policy-initial-trust.json` 被忽略。`status` 与 `verify` 各提示一行
   "已不再使用，可以删除"。删除它们不算风险边界变更。
-- 策略中的 `activation` 字段：仍按原结构接受，只当说明，不再执行；新生成的策略不写这个字段。
+- 策略中的 `activation` 字段：改为**可选**。`parse_delivery_policy` 的字段集合改为"必需字段 + 可选的 `activation`"：
+  存在时按原结构校验并保存，只作说明，不再执行；不存在时保存为 `None`。所有读取 `policy.activation` 的地方
+  都随 C1、C3 删除，或改为接受 `None`。新生成的策略不写这个字段。`policy_digest` 照常覆盖实际存在的字段。
 - 账本中历史的 `policy_authorization_imported` 事件照常读取和折叠，不再产生作用。不重写历史。
 - 旧签名切换中的 `continued_plans` 列表不再生效。升级后，依靠这份列表的进行中 Change 要按生效策略
   重新取得计划批准；`status` 写明原因。
@@ -344,8 +371,9 @@ keepsail 不判断文字的语义：语义由计划审查负责，具体改了�
 - `2026-11-10` 规定的最小回归入口 `python -m pytest -q tests/integration/lifecycle/test_delivery_policy_transition.py`
   与 `.github/workflows/test.yml` 的 `delivery-policy-offline` job 保留。
 - 文件内容按新机制重写。保留一个按顺序走完整条路径的测试：在可过闸的隔离 Git 仓库中，依次执行
-  `review import`（改动前流程）、实现、提交策略改动、`policy accept`（读取已提交的 HEAD）、`done`，以及从可信 base 安装的
-  `attest verify --base BASE --head HEAD`。
+  `review import`（改动前流程）、实现、提交策略改动、`policy accept`（读取已提交的 HEAD）、`done`、`attest write`、
+  提交 attestation，以及从可信 base 安装的 `attest verify --base BASE --head HEAD`。其他端到端测试
+  （采用、授权可见性、迁移）同样包含 `attest write` 与提交，或使用会执行这两步的现有辅助函数。
 - 其余阶段写成相互独立的测试，各自构建前置状态，以便 `-n 2` 并行：
   - 生效后的普通交付；
   - 下一次切换；
@@ -387,7 +415,15 @@ keepsail 不判断文字的语义：语义由计划审查负责，具体改了�
     以下每个检查定义字段**单独**修改（`command`、`shell`、`workdir`、`env`、`timeout_seconds`、`capture`、`must_pass`）、
     三个层开关各自的启用与停用（包括所选检查集合不变的情形）、只改 `activation`，都出现在记录中，
     并带正确的路径和方向；
-  - 性质测试：对随机生成的策略对与检查契约对，"摘要相同"当且仅当"差异为空"；
+  - 性质测试：对随机生成的生效义务对象对与检查契约对，"对象相同"当且仅当"差异为空"；
+  - v1 的隐含义务：v1（隐含 `full`）→ v2 `off`，记录中列出 `code_review` 从 `full` 改为 `off`；v1（隐含
+    `keepsail-baseline/v1`）→ v2 使用其他内置契约，列出 `builtin_checks_version` 的变化；v1 停用时，
+    列出隐含的 `full` 被删除（`removed`）；
+  - `activation` 可选：没有 `activation` 的 v2 策略能被解析，摘要可以重现；带 `activation` 的旧策略照常解析；
+    `activation` 结构不合法时拒绝；
+  - `policy accept` 的绑定：Change 只有待审的修订、计划被拒，或者没有生效批准时，`policy accept` 都拒绝；
+  - 可信 base 列出 `signed-plan-decision` 时，`policy accept` 拒绝，并给出迁移说明；
+  - `init --force` 遇到已有的（启用或禁用的）`review-recognition.yaml` 时保留原文件，不提采用问题；
   - **采用（冷启动）：**
     - 在空仓库中用非交互参数执行 `keepsail init`（owner 计划流程），生成已启用的策略。owner 提交为采用提交后，
       第一个 Change 依次完成 `change start`、`plan ready`、`review import`（owner 的 json 结论）、`implementation_started`、
