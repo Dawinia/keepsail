@@ -4,16 +4,17 @@ status: ratified
 ratified_by: dawinialo@163.com
 ratified_at: '2026-06-26T09:45:08.963090Z'
 ratified_text_hash: sha256:8db7275f6ea859c6e8ada8b4e77ec8a954024d45bffcc6a822ede1d62f69254b
-last_reconciled_by: codex-implementation-session
-last_reconciled_at: '2026-11-23T07:31:12.466939Z'
+last_reconciled_by: dawinialo@163.com
+last_reconciled_at: '2026-11-28T11:11:51.430204Z'
 last_reconcile_kind: self
-last_reconcile_justification: The writer adds a completion journal, staged validation,
-  binary append and recovery by appending the verified missing suffix; readers expand
-  only complete validated transactions. Existing event bytes are not edited, reordered
-  or truncated, and state remains derived from the log.
+last_reconcile_justification: 'Plan 2026-11-27-git-subprocess-cost C9: events.py only
+  adds policy_change_accepted to the known extension event types. The frozen Event
+  model and the writer are unchanged; no path edits, reorders or truncates an existing
+  event, historical policy_authorization_imported events are still read and folded,
+  and state stays a fold over the log.'
 reconciled_anchors:
   src/keepsail/core/completion_transaction.py: sha256:f29f29265adeca0210bd7adc839d9abcbf10e131b7970aa4d027c2aee4883b70
-  src/keepsail/core/events.py: sha256:8f03174f371da76beace629706cbff2c7238c952572dee309f1d31a23bb84a94
+  src/keepsail/core/events.py: sha256:58a6d6ff9a0d510d77976e8e9a998b0869c03b27ea44d9e47d73e6bb5126a1cc
   src/keepsail/core/writer.py: sha256:db4d1ab1b29f581f20c588a14c128e6a8dcc09981f59bf47140d7669c3360f39
 ---
 Events are append-only; the log is the source of truth, state is derived.

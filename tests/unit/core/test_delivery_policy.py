@@ -5,16 +5,20 @@ import yaml
 
 from keepsail.core.approval import ApprovalError, digest_record, evidence_is_recognized
 from keepsail.core.delivery_policy import (
+    SIGNED_PLAN_MIGRATION,
     parse_delivery_policy,
     parse_delivery_policy_yaml,
+    reject_signed_plan_policy,
     require_activatable_policy,
 )
 
 
-def policy(mode="scope"):
-    plan = {"id": "maintainer-plan-review", "version": "maintainer-plan-review/v1",
-            "issuers": ["maintainer"], "evidence_forms": ["signed-plan-decision"],
-            "requirements": {}}
+def policy(mode="scope", *, activation=None, signed_plan=False):
+    plan = ({"id": "maintainer-plan-review", "version": "maintainer-plan-review/v1",
+             "issuers": ["maintainer"], "evidence_forms": ["signed-plan-decision"],
+             "requirements": {}} if signed_plan else
+            {"id": "owner-plan-review", "version": "owner-plan-review/v1",
+             "issuers": ["owner"], "evidence_forms": ["json"], "requirements": {}})
     code = {"id": "independent-review", "version": "v1", "issuers": ["reviewer"],
             "evidence_forms": ["json"], "requirements": {}}
     value = {
@@ -22,8 +26,9 @@ def policy(mode="scope"):
         "processes_by_kind": {"plan": plan, "code": code},
         "code_review": {"mode": mode, **({"scope": ["src/secure"]} if mode == "scope" else {})},
         "required_checks_digest": "a" * 64, "builtin_checks_version": "keepsail-baseline/v2",
-        "activation": {"kind": "transition", "change": "delivery"},
     }
+    if activation is not None:
+        value["activation"] = activation
     value["policy_digest"] = digest_record(value)
     return value
 
@@ -36,7 +41,7 @@ def redigest(value):
 def test_processes_are_selected_by_kind_and_scope_matches_both_sides_of_rename():
     value = policy()
     parsed = parse_delivery_policy_yaml(yaml.safe_dump(value))
-    assert parsed.recognition_for("plan").process_id == "maintainer-plan-review"
+    assert parsed.recognition_for("plan").process_id == "owner-plan-review"
     assert parsed.recognition_for("code").process_id == "independent-review"
     assert not parsed.review_requirement([{"path": "src/securely/a.py"}])[0]
     assert parsed.review_requirement([{"path": "docs/a.py", "old_path": "src/secure/a.py"}])[0]
@@ -66,6 +71,8 @@ def test_policy_rejects_digest_mismatch_and_duplicate_yaml_key():
     lambda p: p["processes_by_kind"]["code"].update(evidence_forms=["signed-plan-decision"]),
     lambda p: p.update(activation={"kind": "transition"}),
     lambda p: p.update(activation={"kind": "transition", "change": "../elsewhere"}),
+    lambda p: p.update(activation=None),
+    lambda p: p.update(activation="initial"),
     lambda p: p.update(builtin_checks_version="keepsail-baseline/v3"),
     lambda p: p.update(required_checks_digest="bad"),
     lambda p: p.update(enabled=False),
@@ -137,8 +144,8 @@ def test_new_scope_rejects_ambiguous_nonportable_path_without_breaking_historica
         require_activatable_policy(parsed)
 
 
-def test_reserved_plan_identity_cannot_be_impersonated_by_json_or_unverified_signature():
-    value = policy()
+def test_reserved_plan_identity_and_signed_form_are_never_recognized():
+    value = policy(signed_plan=True)
     value["processes_by_kind"]["plan"]["evidence_forms"].append("json")
     recognition = parse_delivery_policy(redigest(value)).recognition_for("plan")
     evidence = {"kind": "plan", "process": {"id": "maintainer-plan-review",
@@ -146,4 +153,27 @@ def test_reserved_plan_identity_cannot_be_impersonated_by_json_or_unverified_sig
     assert not evidence_is_recognized(evidence, recognition)
     evidence["form"] = "signed-plan-decision"
     assert not evidence_is_recognized(evidence, recognition)
-    assert evidence_is_recognized(evidence, recognition, signed_plan_verified=True)
+
+
+def test_activation_is_optional_and_only_descriptive():
+    absent = policy()
+    assert "activation" not in absent
+    parsed = parse_delivery_policy(absent)
+    assert parsed.activation is None
+    assert parsed.policy_digest == digest_record(
+        {k: v for k, v in absent.items() if k != "policy_digest"})
+    for activation in ({"kind": "initial"}, {"kind": "transition", "change": "delivery"}):
+        legacy = parse_delivery_policy(policy(activation=activation))
+        assert legacy.activation == activation
+        assert legacy.policy_digest != parsed.policy_digest
+
+
+def test_signed_plan_policy_parses_but_is_refused_with_migration_guidance():
+    parsed = parse_delivery_policy(policy(signed_plan=True))
+    with pytest.raises(ApprovalError) as error:
+        reject_signed_plan_policy(parsed)
+    assert str(error.value) == SIGNED_PLAN_MIGRATION
+    assert "previous keepsail version" in SIGNED_PLAN_MIGRATION
+    with pytest.raises(ApprovalError, match="previous keepsail version"):
+        require_activatable_policy(parsed)
+    reject_signed_plan_policy(parse_delivery_policy(policy()))

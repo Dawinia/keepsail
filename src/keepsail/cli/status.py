@@ -36,6 +36,7 @@ from keepsail.core.paths import (
     find_harness_root,
 )
 from keepsail.core.reducer import derive_state
+from keepsail.core.risk_boundary import LEGACY_TRUST_FILES, legacy_trust_notice
 from keepsail.core.scope_match import GitScopeError
 from keepsail.engineering.delivery_policy import delivery_details
 from keepsail.exit_codes import EXIT_NO_CONFIG, EXIT_OK, EXIT_VALIDATION
@@ -338,10 +339,16 @@ def status_cmd(ctx: click.Context, slug: str | None, all_changes: bool) -> None:
                     command="status",
                     status="pass",
                     exit_code=EXIT_OK,
-                    data={"changes": changes_data},
+                    data={"changes": changes_data,
+                          "legacy_trust_files": [
+                              name for name in LEGACY_TRUST_FILES if (root / name).exists()
+                          ]},
                 )
             )
         else:
+            notice = legacy_trust_notice(root)
+            if notice is not None:
+                click.echo(notice)
             for cs in target:
                 click.echo(f"{cs.change_id}: {cs.current_state}")
                 click.echo(f"  last: {cs.last_event_type} @ {cs.last_event_at}")

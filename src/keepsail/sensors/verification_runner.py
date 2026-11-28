@@ -1194,7 +1194,7 @@ class VerificationRunner(Sensor):
                 trusted_base = resolve_contract_base(root)
                 config_text = regular_blob_text(root, trusted_base, ".harness/verification.yaml")
                 cfg = parse_verification_config(config_text)
-                from keepsail.core.policy_authority import parse_unique_yaml
+                from keepsail.core.strict_yaml import parse_unique_yaml
 
                 policy = parse_unique_yaml(regular_blob_text(
                     root, trusted_base, ".harness/review-recognition.yaml"

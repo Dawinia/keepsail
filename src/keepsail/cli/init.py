@@ -2,8 +2,8 @@
 
 Creates the canonical directory layout (4 subdirs + 6 skeleton files) per
 `engineering-integration` §2.1. Idempotent without `--force`; `--force`
-overwrites skeleton files except the owner-managed review recognition and policy
-authority files, which are preserved. Per `cli-command-surface` §2.3.
+overwrites skeleton files except the owner-managed review recognition policy,
+which is preserved. Per `cli-command-surface` §2.3.
 """
 
 from __future__ import annotations
@@ -190,15 +190,6 @@ def _skeleton_files() -> dict[str, str]:
             "  evidence_forms: [json]\n"
             "  requirements: {}\n"
         ),
-        "policy-authority.yaml": (
-            "# Disabled until the owner confirms the repository, target and public key\n"
-            "# through the project's separate trusted-baseline establishment process.\n"
-            "version: policy-authority/v1\n"
-            "repository_id: REPLACE_WITH_OWNER_AND_REPOSITORY\n"
-            "target_ref: refs/heads/REPLACE_WITH_TARGET_BRANCH\n"
-            "enabled: false\n"
-            "keys: []\n"
-        ),
         "sensors.yaml": "sensors: []\n",
         "gates.yaml": (
             "gates:\n  - pre-tool-use\n  - pre-commit\n  - pre-push\n  - pr-open\n  - pr-merge\n"
@@ -252,7 +243,7 @@ def build_init_operations(
             skeletons = _skeleton_files()
             for name, content in skeletons.items():
                 path = harness / name
-                if name in {"review-recognition.yaml", "policy-authority.yaml"} and path.exists():
+                if name == "review-recognition.yaml" and path.exists():
                     continue
                 if path.exists() and not request.force:
                     continue

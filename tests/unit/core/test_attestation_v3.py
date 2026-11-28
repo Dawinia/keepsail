@@ -1,14 +1,10 @@
-import base64
 import json
 import subprocess
 from copy import deepcopy
-from hashlib import sha256
 from types import SimpleNamespace
 
 import pytest
 import yaml
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
 from keepsail.core.approval import (
     ApprovalError,
@@ -19,7 +15,7 @@ from keepsail.core.approval import (
 )
 from keepsail.core.attestation_format import _validate_evidence_chain
 from keepsail.core.attestation_v3 import make_v3, parse_v3_line, validate_v3
-from keepsail.core.policy_authority import parse_authority, require_recovery_basis
+from keepsail.core.risk_boundary import compare_risk_boundary
 
 
 def v3():
@@ -95,29 +91,18 @@ def test_v3_no_review_checks_retained_historical_failures(case):
             _validate_historical_review_failures([row], "delivery", "code:current")
 
 
-@pytest.mark.parametrize("case", ["valid", "bad-signature", "more-purposes", "policy", "checks"])
-def test_v1_rotation_replay_checks_signed_authority_and_unchanged_obligations(
+@pytest.mark.parametrize("case", ["valid", "legacy-signed", "mismatch", "missing",
+                                  "undeclared", "recovery-basis"])
+def test_v1_risk_boundary_delivery_needs_the_matching_owner_acceptance(
     tmp_path, monkeypatch, case,
 ):
-    """Exercise real Git and signatures; lifecycle replay is tested separately."""
+    """Exercise real Git objects; lifecycle replay is tested separately."""
     from keepsail.core import attestation_v3_verify as replay
+    from keepsail.core import risk_boundary
 
     def git(*args):
         return subprocess.check_output(["git", *args], cwd=tmp_path, text=True).strip()
 
-    def authority(key, purposes):
-        public = key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
-        return {"version": "policy-authority/v1", "repository_id": "owner/project",
-                "target_ref": "refs/heads/main", "enabled": True, "keys": [{
-                    "key_id": sha256(public).hexdigest(), "algorithm": "ed25519",
-                    "public_key": base64.b64encode(public).decode("ascii"), "purposes": purposes}]}
-
-    old_key, new_key = Ed25519PrivateKey.generate(), Ed25519PrivateKey.generate()
-    old_raw = authority(old_key, ["policy-transition"])
-    purposes = ["policy-transition", "plan-decision"] if case == "more-purposes" else [
-        "policy-transition"]
-    new_raw = authority(new_key, purposes)
-    old, new = parse_authority(old_raw), parse_authority(new_raw)
     recognition = {"version": "review-recognition/v1", "enabled": True, "process": {
         "id": "old", "version": "v1", "kinds": ["plan", "code"],
         "issuers": ["owner"], "evidence_forms": ["json"]}}
@@ -125,10 +110,9 @@ def test_v1_rotation_replay_checks_signed_authority_and_unchanged_obligations(
     harness = tmp_path / ".harness"
     harness.mkdir()
     (harness / "review-recognition.yaml").write_text(yaml.safe_dump(recognition), encoding="utf-8")
-    (harness / "policy-authority.yaml").write_text(yaml.safe_dump(old_raw), encoding="utf-8")
     checks = "checks:\n- id: fixture\n  command: [python, -c, pass]\n  must_pass: true\n"
     (harness / "verification.yaml").write_text(checks, encoding="utf-8")
-    (tmp_path / "plan.md").write_text("# Rotation\n", encoding="utf-8")
+    (tmp_path / "plan.md").write_text("# Replace the review process\n", encoding="utf-8")
     git("init", "-q", "-b", "main")
     git("config", "user.email", "fixture@example.invalid")
     git("config", "user.name", "fixture")
@@ -136,46 +120,49 @@ def test_v1_rotation_replay_checks_signed_authority_and_unchanged_obligations(
     git("commit", "-qm", "trusted base")
     base = git("rev-parse", "HEAD")
     git("switch", "-qc", "candidate")
-    (harness / "policy-authority.yaml").write_text(yaml.safe_dump(new_raw), encoding="utf-8")
-    if case == "policy":
-        changed = deepcopy(recognition)
-        changed["process"]["id"] = "other"
-        changed["process"]["policy_digest"] = recognition_policy_digest(changed)
-        (harness / "review-recognition.yaml").write_text(yaml.safe_dump(changed), encoding="utf-8")
-    if case == "checks":
-        (harness / "verification.yaml").write_text(
-            checks.replace("pass", "exit()"), encoding="utf-8")
+    changed = deepcopy(recognition)
+    changed["process"]["id"] = "new"
+    changed["process"]["policy_digest"] = recognition_policy_digest(changed)
+    (harness / "review-recognition.yaml").write_text(yaml.safe_dump(changed), encoding="utf-8")
     evidence = harness / "attestations/v3/delivery.jsonl"
     evidence.parent.mkdir(parents=True)
     evidence.write_text("{}\n", encoding="utf-8")
     git("add", ".")
-    git("commit", "-qm", "candidate rotation")
+    git("commit", "-qm", "candidate replaces the process")
     head = git("rev-parse", "HEAD")
     policy_digest = recognition["process"]["policy_digest"]
-    authorization = {"version": "policy-authorization/v1", "repository_id": "owner/project",
-        "target_ref": "refs/heads/main", "base_sha": base,
-        "predecessor_policy_digest": policy_digest, "target_policy_digest": policy_digest,
-        "predecessor_authority_digest": old.digest, "target_authority_digest": new.digest,
-        "change_id": "delivery", "plan_subject_id": "plan:test", "kind": "rotate_key",
-        "permitted_paths": ["plan.md", ".harness/policy-authority.yaml"],
-        "decision": "approve", "key_id": old.key_id}
-    signer = new_key if case == "bad-signature" else old_key
-    authorization["signature"] = base64.b64encode(
-        signer.sign(canonical_json(authorization).encode("utf-8"))).decode("ascii")
+    boundary = compare_risk_boundary(tmp_path, base=base, head=head)
+    assert boundary is not None and boundary.changed
+    assert {row["path"] for row in boundary.differences} >= {
+        "/processes_by_kind/plan/id", "/processes_by_kind/code/id"}
+    acceptance = boundary.acceptance(change_id="delivery", plan_subject_id="plan:test")
+    authorization = {"acceptance": acceptance, "event_id": "01ACCEPT",
+                     "actor": {"type": "human", "identifier": "owner"},
+                     "ts": "2026-11-28T00:00:00Z"}
+    bases = {"plan": {"mode": "current"}, "code": {"mode": "current"}}
+    if case == "legacy-signed":
+        authorization = {"version": "policy-authorization/v1", "kind": "transition"}
+    elif case == "mismatch":
+        authorization["acceptance"] = {**acceptance, "target_checks_digest": "0" * 64}
+    elif case == "missing":
+        authorization = None
+    elif case == "recovery-basis":
+        bases["plan"] = {"mode": "recovery"}
     record = {"trusted_base": base, "policy_digest": policy_digest, "change_id": "delivery",
-              "snapshot": {}, "authorization": authorization,
-              "recognition_basis": {"plan": {"mode": "current"}, "code": {"mode": "current"}}}
-    approval = {"subject_id": "plan:test", "subject": {"artifacts": [
-        {"role": "plan", "path": "plan.md"}]}}
-    code = {"subject_id": "code:test", "manifest": [{"path": ".harness/policy-authority.yaml"}]}
+              "snapshot": {}, "authorization": authorization, "recognition_basis": bases}
+    commitments = ([] if case == "undeclared"
+                   else [{"id": "RISK-BOUNDARY", "text": "Replace the review process"}])
+    approval = {"subject_id": "plan:test", "subject": {"commitments": commitments}}
+    code = {"subject_id": "code:test", "manifest": [{"path": ".harness/review-recognition.yaml"}]}
     state = SimpleNamespace(current_verification={}, coverage_manifest=code["manifest"])
+    monkeypatch.setattr(risk_boundary, "validate_plan_subject", lambda value, **kwargs: value)
     monkeypatch.setattr(replay, "validate_v3", lambda value: value)
     monkeypatch.setattr(replay, "validate_approval", lambda *args, **kwargs: approval)
     monkeypatch.setattr(replay, "validate_code_subject", lambda *args, **kwargs: code)
     monkeypatch.setattr(replay, "parse_v3_line", lambda raw: record)
     monkeypatch.setattr(replay, "expand_attestation", lambda *args, **kwargs: [])
     monkeypatch.setattr(replay, "wrap_derived_completion", lambda lines: lines)
-    monkeypatch.setattr(replay, "check_recognized_attestation", lambda *args: [])
+    monkeypatch.setattr(replay, "check_recognized_attestation", lambda *args, **kwargs: [])
     monkeypatch.setattr(replay, "derive_state", lambda path: {"delivery": state})
     monkeypatch.setattr(replay, "_new_contract_blockers", lambda *args, **kwargs: [])
     monkeypatch.setattr(replay, "_knowledge_attestation", lambda *args, **kwargs: None)
@@ -186,18 +173,21 @@ def test_v1_rotation_replay_checks_signed_authority_and_unchanged_obligations(
     monkeypatch.setattr(replay, "verify_check_evidence", lambda *args, **kwargs: {})
 
     if case == "valid":
+        # Identity keywords from older workflows are accepted and ignored.
         result = replay.verify_v3_transition(tmp_path, record, base=base, head=head,
             repository_id="owner/project", target_ref="refs/heads/main")
-        assert result["target_policy_digest"] == policy_digest
+        assert result["target_policy_digest"] == changed["process"]["policy_digest"]
         assert result["code_review_required"] is True
+        assert result["risk_boundary"]["actor"] == {"type": "human", "identifier": "owner"}
+        assert result["risk_boundary"]["obligation_changes"] == boundary.differences
     else:
-        expected = {"bad-signature": "signature verification failed",
-                    "more-purposes": "cannot add purposes",
-                    "policy": "cannot change the trusted v1 policy",
-                    "checks": "cannot change required checks"}
+        expected = {"legacy-signed": "no longer accepted",
+                    "mismatch": "does not match the recomputed change",
+                    "missing": "needs the owner's recorded policy acceptance",
+                    "undeclared": "RISK-BOUNDARY",
+                    "recovery-basis": "historical attestations"}
         with pytest.raises(ApprovalError, match=expected[case]):
-            replay.verify_v3_transition(tmp_path, record, base=base, head=head,
-                repository_id="owner/project", target_ref="refs/heads/main")
+            replay.verify_v3_transition(tmp_path, record, base=base, head=head)
 
 
 def test_envelope_round_trips_canonical_single_line():
@@ -224,7 +214,7 @@ def test_bases_and_snapshot_are_bound_to_the_envelope():
             validate_v3(changed)
 
 
-def test_recovery_basis_requires_the_exact_signed_authorization():
+def test_historical_recovery_basis_remains_structurally_parseable():
     record = v3()
     authorization = {"version": "policy-authorization/v1", "signature": "fixture"}
     auth_digest = digest_record(authorization)
@@ -249,12 +239,16 @@ def test_recovery_basis_requires_the_exact_signed_authorization():
         parse_v3_line((json.dumps(v3()) + "\n").encode())
 
 
-def test_recovery_cannot_use_current_or_another_authorization():
-    require_recovery_basis({"mode": "recovery", "authorization_digest": "signed"},
-                           kind="plan", authorization_digest="signed")
-    for basis in ({"mode": "current"}, {"mode": "recovery", "authorization_digest": "other"}):
-        with pytest.raises(ApprovalError, match="selected recovery authorization"):
-            require_recovery_basis(basis, kind="plan", authorization_digest="signed")
+def test_new_deliveries_accept_only_current_recognition_bases():
+    from keepsail.core.attestation_v3_verify import _require_current_bases
+
+    _require_current_bases({"recognition_basis": {"plan": {"mode": "current"}, "code": None}})
+    for kind, mode in (("plan", "recovery"), ("plan", "continued_plan"), ("code", "recovery")):
+        record = {"recognition_basis": {"plan": {"mode": "current"},
+                                        "code": {"mode": "current"}}}
+        record["recognition_basis"][kind] = {"mode": mode}
+        with pytest.raises(ApprovalError, match="historical attestations"):
+            _require_current_bases(record)
 
 
 def test_v3_replays_retained_evidence_supersession_and_id_consistency():

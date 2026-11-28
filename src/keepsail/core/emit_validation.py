@@ -210,7 +210,7 @@ def _validate_authority(events_file: Path, new_event: Event) -> None:
             basis = resolve_local_review_basis(root, events_file, current, evidence,
                                                expected_base=new_event.payload.get("trusted_base"))
             claimed = new_event.payload.get("recognition_basis")
-            if (claimed is not None or basis["mode"] == "recovery") and claimed != basis:
+            if claimed is not None and claimed != basis:
                 raise ApprovalError("review evidence recognition basis does not match")
 
         validate_authority_context(
@@ -255,10 +255,12 @@ def _validate_authority(events_file: Path, new_event: Event) -> None:
         if new_event.type == "implementation_recorded" and "coverage_basis" in new_event.payload:
             validate_generated_coverage(root, new_event.payload)
         if new_event.type == "policy_authorization_imported":
-            from keepsail.core.policy_authority import validate_authorization_import
+            raise ApprovalError("signed policy authorizations are no longer imported; record "
+                                "the owner's decision with `keepsail policy accept`")
+        if new_event.type == "policy_change_accepted":
+            from keepsail.core.policy_acceptance import validate_new_acceptance
 
-            validate_authorization_import(root, derive_state(events_file).get(new_event.change_id),
-                                          new_event.change_id, new_event.payload)
+            validate_new_acceptance(root, current, new_event.payload)
         if new_event.type == "code_review_not_required":
             from keepsail.core.no_review import verify_no_review_binding
             from keepsail.core.review_verdict import read_change_events
@@ -617,7 +619,7 @@ def is_new_contract_event(events_file: Path, event: Event) -> bool:
     from keepsail.core.events import KNOWLEDGE_EVENT_TYPES
     if event.type in KNOWLEDGE_EVENT_TYPES or event.type == "knowledge_checkpointed":
         return True
-    if event.type == "policy_authorization_imported":
+    if event.type in {"policy_authorization_imported", "policy_change_accepted"}:
         return True
     if any(
         payload.get(key) is not None

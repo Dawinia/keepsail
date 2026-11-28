@@ -152,11 +152,6 @@ def main(
     ctx.obj["json"] = json_output
     ctx.obj["quiet"] = quiet
     ctx.obj["verbose"] = verbose
-    if ctx.invoked_subcommand in {"attest", "change", "done", "implementation", "plan",
-                                  "policy", "review", "status", "verify"}:
-        from keepsail.core.attestation_v3_verify import activation_replay_scope
-
-        ctx.with_resource(activation_replay_scope())
 
 
 # Re-export names used by other modules / tests.

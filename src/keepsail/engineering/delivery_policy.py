@@ -11,10 +11,10 @@ from keepsail.core.approval import (
 )
 from keepsail.core.effective_policy import load_effective_v2
 from keepsail.core.git_objects import optional_regular_blob_text
-from keepsail.core.policy_authority import parse_unique_yaml
 from keepsail.core.policy_snapshot import PolicySnapshot as PolicySnapshot
 from keepsail.core.policy_snapshot import read_policy_snapshot as read_policy_snapshot
 from keepsail.core.scope_match import GitScopeError
+from keepsail.core.strict_yaml import parse_unique_yaml
 
 
 def delivery_details(root: Path, state: Any) -> dict[str, Any] | None:

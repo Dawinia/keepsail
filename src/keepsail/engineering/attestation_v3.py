@@ -1,4 +1,4 @@
-"""Produce and verify v3 transition attestations against committed v1 trust."""
+"""Produce v3 attestations from retained evidence and the committed trusted base."""
 
 from __future__ import annotations
 
@@ -14,7 +14,6 @@ from keepsail.core.attestation_format import (
     make_attestation,
 )
 from keepsail.core.attestation_v3 import make_v3
-from keepsail.core.attestation_v3_verify import verify_v2_activation as verify_v2_activation
 from keepsail.core.attestation_v3_verify import verify_v3_transition as verify_v3_transition
 from keepsail.core.context import _approval_lineage
 from keepsail.core.git_objects import regular_blob_text
@@ -39,10 +38,8 @@ def build_v3_attestation(root: Path, events_file: Path, change: str) -> dict[str
         raise ApprovalError("v3 attestation requires current plan and code subjects")
     base = resolve_contract_base(root)
     basis = validate_delivery_obligations(root, events_file, state, code)
-    if "builtin_version" not in basis and basis["mode"] not in {
-        "transition", "recovery", "rotate_key"
-    }:
-        raise ApprovalError("v3 under a v1 policy requires an authorized policy transition")
+    if "builtin_version" not in basis and basis["mode"] != "accepted":
+        raise ApprovalError("v3 under a v1 policy requires an accepted risk-boundary change")
     policy_digest = basis["policy_digest"]
     config = parse_verification_config(regular_blob_text(root, base, ".harness/verification.yaml"))
     verify_check_evidence(state.current_verification, subject_id=code["subject_id"],
@@ -76,14 +73,16 @@ def build_v3_attestation(root: Path, events_file: Path, change: str) -> dict[str
             raise ApprovalError("v3 attestation lacks the current no-review decision")
         verify_no_review_binding(root, no_review, code)
     authorization = None
-    if basis["mode"] != "unchanged":
-        imported = next((event for event in reversed(events)
-                         if event.type == "policy_authorization_imported"
-                         and event.payload.get("authorization_digest")
-                         == basis.get("authorization_digest")), None)
-        if imported is None:
-            raise ApprovalError("v3 transition authorization is not retained")
-        authorization = imported.payload["authorization"]
+    if basis["mode"] == "accepted":
+        accepted = next((event for event in reversed(events)
+                         if event.event_id == basis.get("acceptance_event_id")), None)
+        if accepted is None:
+            raise ApprovalError("the policy acceptance used by this delivery is not retained")
+        # Actor and time live on the event envelope, not in the payload.
+        authorization = {"acceptance": accepted.payload, "event_id": accepted.event_id,
+                         "actor": {"type": accepted.actor.type,
+                                   "identifier": accepted.actor.identifier},
+                         "ts": accepted.timestamp}
     checkpoint = (make_checkpoint(root, change, inputs, base) if inputs.policy is not None
                   else inactive_knowledge_checkpoint())
     lineage = _approval_lineage(root, change, approval, lines=inputs.effective_lines,
@@ -92,11 +91,5 @@ def build_v3_attestation(root: Path, events_file: Path, change: str) -> dict[str
     bases = {"plan": {k: v for k, v in plan_basis.items() if k != "trusted_base"},
              "code": ({k: v for k, v in code_basis.items() if k != "trusted_base"}
                       if code_basis is not None else None)}
-    if basis["mode"] == "recovery":
-        from keepsail.core.policy_authority import require_recovery_basis
-
-        for kind in (("plan", "code") if code_basis is not None else ("plan",)):
-            require_recovery_basis(bases[kind], kind=kind,
-                                   authorization_digest=basis["authorization_digest"])
     return make_v3(change_id=change, trusted_base=base, policy_digest=policy_digest,
                    recognition_basis=bases, authorization=authorization, snapshot=snapshot)

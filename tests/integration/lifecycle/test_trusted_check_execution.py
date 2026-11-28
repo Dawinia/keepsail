@@ -70,7 +70,8 @@ def test_candidate_check_removal_runs_old_check_and_blocks_done(tmp_path):
         ["git", "diff", "--name-status", "-z", "--find-renames", f"{base}...HEAD"], cwd=root,
     ).decode("utf-8")
     verdict = verify_attestations(root, parse_name_status_z(raw_diff), base=base, head="HEAD")
-    assert any("require a verified v3 transition" in item for item in verdict.blockers)
+    assert any("needs a verified v3 delivery carrying the owner's policy acceptance" in item
+               for item in verdict.blockers)
     assessment = {"affected_commitments": ["goal"], "conclusion": "within_approval",
                   "reasons": ["Test the check policy boundary."], "references": ["product.txt"]}
     recorded = cli("implementation", "record", "feature", "--assessment", "-",
@@ -108,4 +109,4 @@ def test_candidate_check_removal_runs_old_check_and_blocks_done(tmp_path):
         parse_verification_config(original))["digest"]
     blocked = cli("done", "feature")
     assert blocked.exit_code == 2, blocked.output
-    assert "required check changes" in blocked.output
+    assert "RISK-BOUNDARY" in blocked.output

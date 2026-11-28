@@ -214,13 +214,8 @@ def test_init_creates_harness_dir(tmp_path: Path):
     assert (tmp_path / ".harness").is_dir()
     assert (tmp_path / ".harness" / "events.jsonl").exists()
     assert not (tmp_path / ".harness" / "policy.yaml").exists()
-    from keepsail.core.policy_authority import parse_authority_yaml
-
-    authority = parse_authority_yaml(
-        (tmp_path / ".harness" / "policy-authority.yaml").read_text(encoding="utf-8")
-    )
-    assert authority.enabled is False
-    assert authority.public_key is None
+    # Signed policy authority is retired; init no longer writes its file.
+    assert not (tmp_path / ".harness" / "policy-authority.yaml").exists()
     assert not (tmp_path / ".harness" / "review-governance.yaml").exists()
     assert not (tmp_path / ".harness" / "review-profiles.local.yaml").exists()
     assert (tmp_path / ".harness" / "sensors.yaml").exists()
@@ -849,7 +844,7 @@ def test_init_guided_without_configured_models_uses_human_only_review(
 
     assert result.exit_code == 0, result.output
     assert not (tmp_path / ".harness" / "review-governance.yaml").exists()
-    assert (tmp_path / ".harness" / "policy-authority.yaml").exists()
+    assert not (tmp_path / ".harness" / "policy-authority.yaml").exists()
     assert not (tmp_path / ".harness" / "review-profiles.local.yaml").exists()
 
 

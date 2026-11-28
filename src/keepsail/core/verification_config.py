@@ -282,7 +282,7 @@ def parse_verification_config(
     retains its historical parser semantics.
     """
     if strict:
-        from keepsail.core.policy_authority import parse_unique_yaml
+        from keepsail.core.strict_yaml import parse_unique_yaml
 
         raw = parse_unique_yaml(text)
         if raw is None:

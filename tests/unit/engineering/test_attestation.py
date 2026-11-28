@@ -102,7 +102,7 @@ def test_write_attestation_roundtrips(tmp_path):
     assert out.read_text().strip() == _ev_line("a", "intent_declared")
 
 
-@pytest.mark.parametrize("mode", ["transition", "recovery", "rotate_key", "unauthorized"])
+@pytest.mark.parametrize("mode", ["accepted", "unauthorized"])
 def test_v1_authorized_delivery_selects_v3_by_default(tmp_path, monkeypatch, mode):
     from keepsail.core import approval, git_objects, knowledge, transition_guard
     from keepsail.engineering import attestation_v3
@@ -117,14 +117,14 @@ def test_v1_authorized_delivery_selects_v3_by_default(tmp_path, monkeypatch, mod
     monkeypatch.setattr(knowledge, "load_policy", lambda root: None)
     def validate(*args):
         if mode == "unauthorized":
-            raise approval.ApprovalError("missing signed authorization")
+            raise approval.ApprovalError("missing policy acceptance")
         return {"mode": mode}
 
     monkeypatch.setattr(transition_guard, "validate_delivery_obligations", validate)
     monkeypatch.setattr(attestation_v3, "build_v3_attestation", lambda *args: {"format": "v3"})
 
     if mode == "unauthorized":
-        with pytest.raises(approval.ApprovalError, match="missing signed authorization"):
+        with pytest.raises(approval.ApprovalError, match="missing policy acceptance"):
             write_attestation(events, tmp_path / ".harness/attestations", "delivery")
         return
     path = write_attestation(events, tmp_path / ".harness/attestations", "delivery")
@@ -132,7 +132,7 @@ def test_v1_authorized_delivery_selects_v3_by_default(tmp_path, monkeypatch, mod
     assert json.loads(path.read_text(encoding="utf-8")) == {"format": "v3"}
 
 
-@pytest.mark.parametrize("mode", ["transition", "recovery", "rotate_key"])
+@pytest.mark.parametrize("mode", ["accepted"])
 @pytest.mark.parametrize("requested_format", ["v2", "v1-bootstrap"])
 def test_v1_authorized_policy_change_rejects_explicit_older_format(
     tmp_path, monkeypatch, mode, requested_format,

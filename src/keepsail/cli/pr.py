@@ -51,11 +51,11 @@ from keepsail.core.paths import (
     events_path,
     find_harness_root,
 )
-from keepsail.core.policy_authority import parse_unique_yaml
 from keepsail.core.post_emit import refresh_state_after_emit
 from keepsail.core.reducer import derive_state
 from keepsail.core.scope_match import GitScopeError
 from keepsail.core.slug import SlugError, validate_slug
+from keepsail.core.strict_yaml import parse_unique_yaml
 from keepsail.core.ulid import new_event_id
 from keepsail.core.writer import EmitPreconditionError, EventWriter
 from keepsail.engineering import gh

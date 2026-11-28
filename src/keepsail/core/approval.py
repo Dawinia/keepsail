@@ -739,9 +739,7 @@ def recognition_contract_active(root: Path) -> bool:
     return False
 
 
-def evidence_is_recognized(
-    evidence: dict[str, Any], recognition: Recognition, *, signed_plan_verified: bool = False,
-) -> bool:
+def evidence_is_recognized(evidence: dict[str, Any], recognition: Recognition) -> bool:
     process = evidence.get("process")
     if not isinstance(process, dict):
         return False
@@ -749,13 +747,14 @@ def evidence_is_recognized(
     if not isinstance(form, str):
         return False
     if recognition.version == "review-recognition/v2":
+        # Signed plan decisions are no longer verified.  The reserved maintainer
+        # identity was defined only for that form, so neither is recognized here;
+        # a trusted policy listing the form is refused with a migration message.
         reserved = (evidence.get("kind") == "plan"
                     and process.get("id") == "maintainer-plan-review"
                     and process.get("version") == "maintainer-plan-review/v1"
                     and evidence.get("issuer") == "maintainer")
-        if form == "signed-plan-decision" and (not reserved or not signed_plan_verified):
-            return False
-        if reserved and form != "signed-plan-decision":
+        if form == "signed-plan-decision" or reserved:
             return False
     return (
         process.get("id") == recognition.process_id

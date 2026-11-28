@@ -82,6 +82,7 @@ EXTENSION_EVENT_TYPES: frozenset[str] = KNOWLEDGE_EVENT_TYPES | frozenset(
         "plan_revision_submitted",
         "plan_withdrawn",
         "policy_authorization_imported",
+        "policy_change_accepted",
         "knowledge_checkpointed",
         "historical_change_recovered",
     }

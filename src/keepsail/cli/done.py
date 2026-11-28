@@ -292,10 +292,10 @@ def done_cmd(
         )
         sys.exit(EXIT_VALIDATION)
     if current_change is not None and current_change.effective_approval is None:
-        from keepsail.core.transition_guard import validate_legacy_initial_authority
+        from keepsail.core.transition_guard import validate_legacy_risk_boundary
 
         try:
-            validate_legacy_initial_authority(root)
+            validate_legacy_risk_boundary(root)
         except (ApprovalError, OSError, ValueError) as exc:
             click.echo(format_error(subcommand="done", message=str(exc)), err=True)
             sys.exit(EXIT_VALIDATION)
@@ -326,8 +326,7 @@ def done_cmd(
                     if isinstance(row.get("path"), str)]
         try:
             dirty = working_tree_dirty(root, [*declared, ".harness/verification.yaml",
-                                             ".harness/review-recognition.yaml",
-                                             ".harness/policy-authority.yaml"])
+                                             ".harness/review-recognition.yaml"])
         except GitScopeError as exc:
             click.echo(
                 format_error(
