@@ -234,3 +234,19 @@ def test_property_check_contracts_are_equal_exactly_when_the_difference_is_empty
         after = contract(config()) if rng.random() < 0.8 else deepcopy(before)
         rows = obligation_differences({}, {}, before, after)
         assert (before["digest"] == after["digest"]) == (not rows)
+
+
+@pytest.mark.parametrize(("old_scope", "new_scope", "relaxed"), [
+    ("src/", "src/", False),
+    ("src/", "src", False),
+    ("src", "src/", True),
+    ("src/secure/", "src/", False),
+    ("src/", "src/secure/", True),
+])
+def test_scope_labels_preserve_the_directory_boundary(old_scope, new_scope, relaxed):
+    old = v2_obligations(v2_raw("scope", scope=[old_scope], builtin="keepsail-baseline/v2"))
+    new = v2_obligations(v2_raw("scope", scope=[new_scope], builtin="keepsail-baseline/v2"))
+    rows = obligation_differences(old, new, contract(), contract())
+    labels = semantic_labels(old, new, rows)
+    assert any("relaxed" in label for label in labels) is relaxed
+    assert (rows == []) is (old_scope == new_scope)

@@ -157,3 +157,33 @@ def test_keepsail_runs_without_cryptography():
     result = subprocess.run([sys.executable, "-c", program], capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
     assert "owner's acceptance" in result.stdout
+
+
+def test_a_change_without_plan_approval_cannot_alter_an_enabled_policy(repo, monkeypatch):
+    from keepsail.core import transition_guard
+
+    base = git(repo, "rev-parse", "HEAD")
+    monkeypatch.setattr(transition_guard, "resolve_contract_base", lambda root: base)
+    commit_policy(repo, v1("new"))
+    with pytest.raises(ApprovalError, match="policy accept"):
+        transition_guard.validate_legacy_risk_boundary(repo)
+    git(repo, "reset", "-q", "--hard", base)
+    (repo / ".harness/verification.yaml").write_text("checks: []\n", encoding="utf-8")
+    git(repo, "commit", "-qam", "drop the check")
+    with pytest.raises(ApprovalError, match="policy accept"):
+        transition_guard.validate_legacy_risk_boundary(repo)
+
+
+def test_first_enablement_without_a_trusted_enabled_policy_is_adoption(repo, monkeypatch):
+    from keepsail.core import transition_guard
+
+    disabled = commit_policy(repo, v1(enabled=False))
+    monkeypatch.setattr(transition_guard, "resolve_contract_base", lambda root: disabled)
+    commit_policy(repo, v1("adopted"))
+    transition_guard.validate_legacy_risk_boundary(repo)
+
+    def no_base(root):
+        raise ApprovalError("no trusted baseline")
+
+    monkeypatch.setattr(transition_guard, "resolve_contract_base", no_base)
+    transition_guard.validate_legacy_risk_boundary(repo)
